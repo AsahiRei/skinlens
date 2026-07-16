@@ -80,7 +80,7 @@ export default function CreateNewPassword() {
       prepareSession(url),
     );
     return () => subscription.remove();
-  }, []);
+  }, [router, code]);
   const handleForm = async () => {
     setLoading(true);
     try {

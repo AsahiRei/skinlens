@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Image, ToastAndroid } from "react-native";
+import { View, Text, Pressable, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
@@ -33,7 +33,7 @@ export default function Welcome() {
       handleDeepLink(url),
     );
     return () => subscription.remove();
-  }, []);
+  }, [router]);
   const googleSignIn = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",

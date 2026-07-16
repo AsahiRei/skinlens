@@ -36,7 +36,7 @@ export default function Index() {
       router.replace("/(user)/(tabs)");
     };
     initializeApp();
-  }, []);
+  }, [router]);
   return (
     <View className="flex-1 items-center justify-center bg-white">
       <ActivityIndicator size="large" color="#15803d" />
