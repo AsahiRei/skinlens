@@ -1,66 +1,140 @@
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Tabs } from "expo-router";
+import { View, Pressable } from "react-native";
+import Ionicons from "@react-native-vector-icons/ionicons";
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+export default function Layout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerShown: false,
+        tabBarActiveTintColor: "#166534",
+        tabBarInactiveTintColor: "#6b7280",
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
+          title: "Home",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={size}
+              color={color}
             />
           ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+          tabBarButton: ({ ref, ...props }) => (
+            <Pressable
+              {...props}
+              android_ripple={{ color: "transparent" }}
+              style={({ pressed }) => [
+                { flex: 1, justifyContent: "center", alignItems: "center" },
+                pressed && { opacity: 0.6 },
+              ]}
+            />
           ),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="routine"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
+          title: "Routine",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "list" : "list-outline"}
+              size={size}
+              color={color}
+            />
+          ),
+          tabBarButton: ({ ref, ...props }) => (
+            <Pressable
+              {...props}
+              android_ripple={{ color: "transparent" }}
+              style={({ pressed }) => [
+                { flex: 1, justifyContent: "center", alignItems: "center" },
+                pressed && { opacity: 0.6 },
+              ]}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="scan"
+        options={{
+          title: "Scan",
+          tabBarLabel: () => null,
+          tabBarButton: ({ ref, ...props }) => (
+            <Pressable
+              {...props}
+              android_ripple={{ color: "transparent" }}
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
               }}
-              tintColor={color}
-              size={28}
+            >
+              {({ pressed }) => (
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: "#166534", // green-800
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginBottom: 20,
+                    opacity: pressed ? 0.8 : 1,
+                    transform: [{ scale: pressed ? 0.95 : 1 }],
+                  }}
+                >
+                  <Ionicons name="scan" size={26} color="#fff" />
+                </View>
+              )}
+            </Pressable>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="derma"
+        options={{
+          title: "Derma",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "medkit" : "medkit-outline"}
+              size={size}
+              color={color}
+            />
+          ),
+          tabBarButton: ({ ref, ...props }) => (
+            <Pressable
+              {...props}
+              android_ripple={{ color: "transparent" }}
+              style={({ pressed }) => [
+                { flex: 1, justifyContent: "center", alignItems: "center" },
+                pressed && { opacity: 0.6 },
+              ]}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "person" : "person-outline"}
+              size={size}
+              color={color}
+            />
+          ),
+          tabBarButton: ({ ref, ...props }) => (
+            <Pressable
+              {...props}
+              android_ripple={{ color: "transparent" }}
+              style={({ pressed }) => [
+                { flex: 1, justifyContent: "center", alignItems: "center" },
+                pressed && { opacity: 0.6 },
+              ]}
             />
           ),
         }}

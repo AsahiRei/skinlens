@@ -1,9 +1,9 @@
 import { View, Text } from "react-native";
 
-export default function index() {
+export default function Scan() {
   return (
     <View>
-      <Text>user profile</Text>
+      <Text>scan</Text>
     </View>
   );
 }
