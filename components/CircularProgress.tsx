@@ -66,7 +66,12 @@ export default function CircularProgress({
   return (
     <View
       className={className}
-      style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}
+      style={{
+        width: size,
+        height: size,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
       <Svg width={size} height={size}>
         {/* Background track */}
@@ -97,7 +102,13 @@ export default function CircularProgress({
       </Svg>
 
       {/* Center content, absolutely positioned over the SVG */}
-      <View style={{ position: "absolute", alignItems: "center", justifyContent: "center" }}>
+      <View
+        style={{
+          position: "absolute",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         {children}
       </View>
     </View>

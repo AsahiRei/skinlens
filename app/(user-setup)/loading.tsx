@@ -59,6 +59,7 @@ export default function Loading() {
           id: user.id,
           skin_type: parsedAnswers.skin_type,
           main_concerns: parsedAnswers.main_concern,
+          healthscore: healthScore,
         })
         .single();
       if (skinErr) throw new Error(skinErr.message);
