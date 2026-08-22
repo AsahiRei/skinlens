@@ -1,32 +1,12 @@
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { supabase } from "@/utils/supabase";
-import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { Routine, RoutineStep } from "@/types/schema";
+import type React from "react";
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import Ionicons from "@react-native-vector-icons/ionicons";
-
-type RoutineStep = {
-  step: number;
-  product_type: string;
-  instruction: string;
-  reason: string;
-};
-
-type RecommendedProduct = {
-  product_type: string;
-  recommended_ingredients: string[];
-  reason: string;
-};
-
-type Routine = {
-  summary: string;
-  morning_routine: RoutineStep[];
-  afternoon_routine: RoutineStep[];
-  evening_routine: RoutineStep[];
-  recommended_products: RecommendedProduct[];
-};
 
 type Period = "morning" | "afternoon" | "evening";
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -44,13 +24,24 @@ const PERIOD_CONFIG: Record<
   evening: { label: "Evening", icon: "moon", key: "evening_routine" },
 };
 
-export default function Routine() {
+// Local date string (YYYY-MM-DD) so completion resets at local midnight,
+// not UTC midnight.
+function getTodayStr() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export default function Routines() {
   const [routine, setRoutine] = useState<Routine | null>(null);
+  const [routineId, setRoutineId] = useState<number | null>(null);
   const [loadingRoutine, setLoadingRoutine] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [activePeriod, setActivePeriod] = useState<Period>("morning");
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
-
+  const [pendingSteps, setPendingSteps] = useState<Set<string>>(new Set());
   useEffect(() => {
     const fetchRoutine = async () => {
       setLoadingRoutine(true);
@@ -61,7 +52,7 @@ export default function Routine() {
         } = await supabase.auth.getUser();
         const { data, error } = await supabase
           .from("routines")
-          .select("routine_json")
+          .select("id, routine_json")
           .eq("user_id", user?.id)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -69,9 +60,27 @@ export default function Routine() {
         if (error) throw error;
         if (!data?.routine_json) {
           setRoutine(null);
+          setRoutineId(null);
+          setCompletedSteps(new Set());
         } else {
           const parsedRoutine: Routine = JSON.parse(data.routine_json);
           setRoutine(parsedRoutine);
+          setRoutineId(data.id);
+          // Load today's completed steps for this routine
+          if (user?.id) {
+            const { data: progressRows, error: progressError } = await supabase
+              .from("routine_progress")
+              .select("period, step")
+              .eq("user_id", user.id)
+              .eq("routine_id", data.id)
+              .eq("completed_date", getTodayStr());
+
+            if (progressError) throw progressError;
+
+            setCompletedSteps(
+              new Set((progressRows ?? []).map((r) => `${r.period}-${r.step}`)),
+            );
+          }
         }
       } catch {
         setLoadError(true);
@@ -81,11 +90,9 @@ export default function Routine() {
     };
     fetchRoutine();
   }, []);
-
   const activeSteps = routine
     ? (routine[PERIOD_CONFIG[activePeriod].key] as RoutineStep[])
     : [];
-
   const allSteps = useMemo(() => {
     if (!routine) return [];
     return [
@@ -103,22 +110,72 @@ export default function Routine() {
       })),
     ];
   }, [routine]);
-
   const totalSteps = allSteps.length;
   const doneCount = completedSteps.size;
   const progressPct =
     totalSteps > 0 ? Math.round((doneCount / totalSteps) * 100) : 0;
-
-  const toggleStep = (period: Period, step: number) => {
+  const toggleStep = async (period: Period, step: number) => {
     const key = `${period}-${step}`;
+    // Ignore taps while a write for this step is already in flight
+    if (pendingSteps.has(key)) return;
+    const isCurrentlyDone = completedSteps.has(key);
+    // Optimistic UI update
     setCompletedSteps((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
+      if (isCurrentlyDone) next.delete(key);
       else next.add(key);
       return next;
     });
+    setPendingSteps((prev) => new Set(prev).add(key));
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || routineId == null) {
+        throw new Error("Missing user or routine id");
+      }
+      const todayStr = getTodayStr();
+      if (isCurrentlyDone) {
+        // Was done -> mark as not done (delete today's row)
+        const { error } = await supabase
+          .from("routine_progress")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("routine_id", routineId)
+          .eq("period", period)
+          .eq("step", step)
+          .eq("completed_date", todayStr);
+        if (error) throw error;
+      } else {
+        // Was not done -> mark as done (upsert today's row)
+        const { error } = await supabase.from("routine_progress").upsert(
+          {
+            user_id: user.id,
+            routine_id: routineId,
+            period,
+            step,
+            completed_date: todayStr,
+          },
+          { onConflict: "user_id,routine_id,period,step,completed_date" },
+        );
+        if (error) throw error;
+      }
+    } catch {
+      // Revert optimistic update on failure
+      setCompletedSteps((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyDone) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+    } finally {
+      setPendingSteps((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
   };
-
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <ScrollView
@@ -126,14 +183,8 @@ export default function Routine() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <View className="pt-4">
-          <Text className="font-bold text-green-700 text-2xl">My Routine</Text>
-          <Text className="text-gray-500">
-            AI Personalized Routine Generator
-          </Text>
-        </View>
-
-        {/* Period tabs */}
+        <Text className="font-bold text-green-700 text-2xl">My Routine</Text>
+        <Text className="text-gray-500">AI Personalized Routine Generator</Text>
         <View className="flex-row items-center gap-2 mt-5">
           {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
             const { label, icon } = PERIOD_CONFIG[period];
@@ -220,13 +271,15 @@ export default function Routine() {
             activeSteps.map((item) => {
               const key = `${activePeriod}-${item.step}`;
               const isDone = completedSteps.has(key);
+              const isPending = pendingSteps.has(key);
               return (
                 <Pressable
                   key={key}
                   onPress={() => toggleStep(activePeriod, item.step)}
+                  disabled={isPending}
                   className={`bg-white rounded-3xl shadow-sm py-4 px-4 flex-row items-start gap-3 ${
                     isDone ? "opacity-60" : ""
-                  }`}
+                  } ${isPending ? "opacity-40" : ""}`}
                 >
                   <View
                     className={`h-8 w-8 rounded-full items-center justify-center mt-0.5 ${

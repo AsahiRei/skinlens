@@ -8,7 +8,7 @@ export default function Welcome() {
   const [selected, setSelect] = useState("login");
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <Text className="text-2xl font-bold text-green-800 text-center">
+      <Text className="text-2xl font-bold text-green-700 text-center">
         Welcome to SkinLens
       </Text>
       <Text className="text-center text-gray-600 mt-2">
@@ -18,12 +18,12 @@ export default function Welcome() {
         <Pressable
           onPress={() => setSelect("login")}
           className={`flex-1 py-3 ${
-            selected === "login" ? "border-b-2 border-green-800" : ""
+            selected === "login" ? "border-b-2 border-green-700" : ""
           }`}
         >
           <Text
             className={`text-center font-medium ${
-              selected === "login" ? "text-green-800" : "text-gray-500"
+              selected === "login" ? "text-green-700" : "text-gray-500"
             }`}
           >
             Login
@@ -32,12 +32,12 @@ export default function Welcome() {
         <Pressable
           onPress={() => setSelect("signup")}
           className={`flex-1 py-3 ${
-            selected === "signup" ? "border-b-2 border-green-800" : ""
+            selected === "signup" ? "border-b-2 border-green-700" : ""
           }`}
         >
           <Text
             className={`text-center font-medium ${
-              selected === "signup" ? "text-green-800" : "text-gray-500"
+              selected === "signup" ? "text-green-700" : "text-gray-500"
             }`}
           >
             Sign Up

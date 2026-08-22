@@ -130,10 +130,10 @@ export default function Login() {
           className="active:opacity-80"
           onPress={() => router.push("/forgot-password")}
         >
-          <Text className="underline text-green-800">Forgot password?</Text>
+          <Text className="underline text-green-700">Forgot password?</Text>
         </Pressable>
         <Pressable
-          className={`rounded-full ${loading ? "bg-gray-500" : "bg-green-800"} active:opacity-80 p-4`}
+          className={`rounded-full ${loading ? "bg-gray-500" : "bg-green-700"} active:opacity-80 p-4`}
           onPress={handleLogin}
           disabled={loading}
         >
@@ -147,11 +147,11 @@ export default function Login() {
         </Pressable>
         <Text className="text-center text-gray-500 px-4 mt-2">
           By continuing, you agree to our{" "}
-          <Text className="text-green-800 font-medium underline">
+          <Text className="text-green-700 font-medium underline">
             Terms and Conditions
           </Text>{" "}
           and{" "}
-          <Text className="text-green-800 font-medium underline">
+          <Text className="text-green-700 font-medium underline">
             Privacy Policy
           </Text>
           .

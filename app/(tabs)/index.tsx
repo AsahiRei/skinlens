@@ -1,6 +1,8 @@
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import type React from "react";
 import { useEffect, useState } from "react";
+import { SkinProfile, UserProfile } from "@/types/schema";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { formatter } from "@/utils/formatter";
 import { supabase } from "@/utils/supabase";
@@ -9,27 +11,46 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import CircularProgress from "@/components/CircularProgress";
 import InlineProgress from "@/components/InlineProgress";
 
-//placeholder only
-const placeholder = [
-  { label: "Test 1", done: true },
-  { label: "Test 2", done: false },
-  { label: "Test 3", done: false },
-  { label: "Test 4", done: false },
-];
-
-type UserProfile = {
-  username: string;
-  email: string;
-  age: string;
-  phone_number: string;
-  created_at: any;
+type RoutineStep = {
+  step: number;
+  product_type: string;
+  instruction: string;
+  reason: string;
 };
 
-type SkinProfile = {
-  skin_type: string;
-  main_concerns: string;
-  healthscore: string;
+type Routine = {
+  summary: string;
+  morning_routine: RoutineStep[];
+  afternoon_routine: RoutineStep[];
+  evening_routine: RoutineStep[];
 };
+
+type Period = "morning" | "afternoon" | "evening";
+
+const PERIOD_ORDER: Period[] = ["morning", "afternoon", "evening"];
+
+const PERIOD_CONFIG: Record<
+  Period,
+  { label: string; icon: React.ComponentProps<typeof Ionicons>["name"]; key: keyof Routine }
+> = {
+  morning: { label: "Morning Routine", icon: "sunny", key: "morning_routine" },
+  afternoon: {
+    label: "Afternoon Routine",
+    icon: "partly-sunny",
+    key: "afternoon_routine",
+  },
+  evening: { label: "Evening Routine", icon: "moon", key: "evening_routine" },
+};
+
+// Local date string (YYYY-MM-DD) so completion resets at local midnight,
+// not UTC midnight. Keep this in sync with Routine.tsx.
+function getTodayStr() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -38,16 +59,26 @@ export default function Home() {
   const [loadingSkin, setLoadingSkin] = useState(true);
   const [hasNotifications, setHasNotifications] = useState(false);
 
-  function getGreeting(): string {
+  const [routine, setRoutine] = useState<Routine | null>(null);
+  const [routineId, setRoutineId] = useState<number | null>(null);
+  // Keys are "period-step", e.g. "morning-1", so progress across all
+  // three periods can live in one Set.
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(
+    new Set(),
+  );
+  const [loadingRoutine, setLoadingRoutine] = useState(true);
+  const [activePeriod, setActivePeriod] = useState<Period>("morning");
+
+  const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) {
-      return "Good morning";
+      return "Good morning ☀️";
     } else if (hour < 18) {
-      return "Good afternoon";
+      return "Good afternoon 🌤️";
     } else {
-      return "Good evening";
+      return "Good evening 🌙";
     }
-  }
+  };
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -86,17 +117,133 @@ export default function Home() {
         setLoadingSkin(false);
       }
     };
+    const fetchRoutine = async () => {
+      setLoadingRoutine(true);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        const { data, error } = await supabase
+          .from("routines")
+          .select("id, routine_json")
+          .eq("user_id", user?.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+
+        if (!data?.routine_json) {
+          setRoutine(null);
+          setRoutineId(null);
+          setCompletedSteps(new Set());
+          return;
+        }
+
+        const parsedRoutine: Routine = JSON.parse(data.routine_json);
+        setRoutine(parsedRoutine);
+        setRoutineId(data.id);
+
+        if (user?.id) {
+          const { data: progressRows, error: progressError } = await supabase
+            .from("routine_progress")
+            .select("period, step")
+            .eq("user_id", user.id)
+            .eq("routine_id", data.id)
+            .eq("completed_date", getTodayStr());
+          if (progressError) throw progressError;
+
+          setCompletedSteps(
+            new Set(
+              (progressRows ?? []).map((r) => `${r.period}-${r.step}`),
+            ),
+          );
+        }
+      } catch (err) {
+        console.error("Error fetching routine:", err);
+        setRoutine(null);
+      } finally {
+        setLoadingRoutine(false);
+      }
+    };
+
     fetchUserProfile();
     fetchSkinProfile();
+    fetchRoutine();
   }, []);
 
-  // Derive the routine progress from real data instead of a hardcoded index check,
-  // so the checklist below always matches the "X / Y done" badge above it.
-  const completedCount = placeholder.filter((item) => item.done).length;
-  const totalCount = placeholder.length;
+  const toggleStep = async (period: Period, step: number) => {
+    const key = `${period}-${step}`;
+    const isCurrentlyDone = completedSteps.has(key);
+
+    // Optimistic UI update
+    setCompletedSteps((prev) => {
+      const next = new Set(prev);
+      if (isCurrentlyDone) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || routineId == null) throw new Error("Missing user/routine");
+
+      const todayStr = getTodayStr();
+
+      if (isCurrentlyDone) {
+        const { error } = await supabase
+          .from("routine_progress")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("routine_id", routineId)
+          .eq("period", period)
+          .eq("step", step)
+          .eq("completed_date", todayStr);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("routine_progress").upsert(
+          {
+            user_id: user.id,
+            routine_id: routineId,
+            period,
+            step,
+            completed_date: todayStr,
+          },
+          { onConflict: "user_id,routine_id,period,step,completed_date" },
+        );
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.error("Error toggling step:", err);
+      // Revert optimistic update on failure
+      setCompletedSteps((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyDone) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const activeSteps = routine
+    ? (routine[PERIOD_CONFIG[activePeriod].key] as RoutineStep[])
+    : [];
+  const completedCount = activeSteps.filter((item) =>
+    completedSteps.has(`${activePeriod}-${item.step}`),
+  ).length;
+  const totalCount = activeSteps.length;
   const routineProgress = totalCount
     ? Math.round((completedCount / totalCount) * 100)
     : 0;
+
+  const goToPeriod = (direction: -1 | 1) => {
+    const currentIndex = PERIOD_ORDER.indexOf(activePeriod);
+    const nextIndex =
+      (currentIndex + direction + PERIOD_ORDER.length) % PERIOD_ORDER.length;
+    setActivePeriod(PERIOD_ORDER[nextIndex]);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -106,7 +253,7 @@ export default function Home() {
         contentContainerStyle={{ paddingBottom: 32 }}
       >
         {/* Header */}
-        <View className="pt-4 flex-row items-center justify-between">
+        <View className="flex-row items-center justify-between">
           <View className="flex-col">
             <Text className="font-semibold text-gray-500 text-base tracking-wide">
               {getGreeting()}
@@ -163,7 +310,112 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Quick scan */}
+         {/* Routine (paginated: morning / afternoon / evening) */}
+        <View className="bg-white rounded-3xl shadow-sm py-4 px-4 mt-4 flex-col gap-3">
+          <View className="flex-row items-center justify-between">
+            <Pressable
+              onPress={() => goToPeriod(-1)}
+              hitSlop={8}
+              className="h-8 w-8 items-center justify-center rounded-full bg-gray-50 active:opacity-70"
+            >
+              <Ionicons name="chevron-back" size={16} color="#15803D" />
+            </Pressable>
+
+            <View className="flex-row items-center gap-2">
+              <Ionicons
+                name={PERIOD_CONFIG[activePeriod].icon}
+                size={18}
+                color="#15803D"
+              />
+              <Text className="font-bold text-gray-900 text-[15px]">
+                {PERIOD_CONFIG[activePeriod].label}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={() => goToPeriod(1)}
+              hitSlop={8}
+              className="h-8 w-8 items-center justify-center rounded-full bg-gray-50 active:opacity-70"
+            >
+              <Ionicons name="chevron-forward" size={16} color="#15803D" />
+            </Pressable>
+          </View>
+
+          {/* Dot indicators for which period is active */}
+          <View className="flex-row items-center justify-center gap-1.5">
+            {PERIOD_ORDER.map((period) => (
+              <View
+                key={period}
+                className={`h-1.5 rounded-full ${
+                  period === activePeriod
+                    ? "w-4 bg-green-700"
+                    : "w-1.5 bg-green-100"
+                }`}
+              />
+            ))}
+          </View>
+
+          {!loadingRoutine && totalCount > 0 && (
+            <View className="self-center py-1 px-3 bg-green-50 rounded-full">
+              <Text className="text-xs font-bold text-green-700">
+                {completedCount} / {totalCount} done
+              </Text>
+            </View>
+          )}
+
+          {loadingRoutine ? (
+            <Skeleton className="h-16 w-full rounded-2xl" />
+          ) : totalCount === 0 ? (
+            <View className="items-center py-4">
+              <Ionicons name="sparkles-outline" size={22} color="#D1D5DB" />
+              <Text className="text-xs text-gray-400 mt-2 text-center">
+                No {PERIOD_CONFIG[activePeriod].label.toLowerCase()} yet.
+                Generate a routine to see it here.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <InlineProgress
+                progress={routineProgress}
+                height={8}
+                color="#15803D"
+              />
+
+              <View className="flex-row items-start justify-between gap-2 mt-1">
+                {activeSteps.map((item) => {
+                  const isDone = completedSteps.has(
+                    `${activePeriod}-${item.step}`,
+                  );
+                  return (
+                    <Pressable
+                      key={item.step}
+                      onPress={() => toggleStep(activePeriod, item.step)}
+                      className="flex-col items-center gap-1.5 flex-1 active:opacity-70"
+                    >
+                      <View
+                        className={`h-10 w-10 rounded-full items-center justify-center ${
+                          isDone ? "bg-green-700" : "bg-green-50"
+                        }`}
+                      >
+                        {isDone ? (
+                          <Ionicons name="checkmark" size={16} color="white" />
+                        ) : (
+                          <View className="h-2.5 w-2.5 rounded-full bg-green-700/40" />
+                        )}
+                      </View>
+                      <Text
+                        className="text-[11px] text-gray-500 text-center"
+                        numberOfLines={1}
+                      >
+                        {item.product_type}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </View>
         <Pressable className="bg-white rounded-3xl shadow-sm py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90">
           <View className="flex-row items-center gap-3 flex-1">
             <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
@@ -212,56 +464,6 @@ export default function Home() {
               Track your skin
             </Text>
           </Pressable>
-        </View>
-
-        {/* Morning routine */}
-        <View className="bg-white rounded-3xl shadow-sm py-4 px-4 mt-4 flex-col gap-3">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2">
-              <Ionicons name="sunny" size={18} color="#15803D" />
-              <Text className="font-bold text-gray-900 text-[15px]">
-                Morning Routine
-              </Text>
-            </View>
-            <View className="py-1 px-3 bg-green-50 rounded-full">
-              <Text className="text-xs font-bold text-green-700">
-                {completedCount} / {totalCount} done
-              </Text>
-            </View>
-          </View>
-
-          <InlineProgress
-            progress={routineProgress}
-            height={8}
-            color="#15803D"
-          />
-
-          <View className="flex-row items-start justify-between gap-2 mt-1">
-            {placeholder.map((item, index) => (
-              <View
-                key={index}
-                className="flex-col items-center gap-1.5 flex-1"
-              >
-                <View
-                  className={`h-10 w-10 rounded-full items-center justify-center ${
-                    item.done ? "bg-green-700" : "bg-green-50"
-                  }`}
-                >
-                  {item.done ? (
-                    <Ionicons name="checkmark" size={16} color="white" />
-                  ) : (
-                    <View className="h-2.5 w-2.5 rounded-full bg-green-700/40" />
-                  )}
-                </View>
-                <Text
-                  className="text-[11px] text-gray-500 text-center"
-                  numberOfLines={1}
-                >
-                  {item.label}
-                </Text>
-              </View>
-            ))}
-          </View>
         </View>
 
         {/* Last scan result */}

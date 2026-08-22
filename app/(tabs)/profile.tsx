@@ -11,28 +11,10 @@ import { useState, useEffect } from "react";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { supabase } from "@/utils/supabase";
 import { InfoCard, InfoCardSkeleton } from "@/components/Info";
+import { SkinProfile, UserProfile, LifestyleProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 import LogoutModal from "@/components/LogoutModal";
 import Skeleton from "@/components/Skeleton";
-
-type UserProfile = {
-  username: string;
-  email: string;
-  age: string;
-  phone_number: string;
-  created_at: any;
-};
-
-type SkinProfile = {
-  skin_type: string;
-  main_concerns: string;
-};
-
-type LifestyleProfile = {
-  sleep_quality: string;
-  water_intake: string;
-  stress_level: string;
-};
 
 export default function Profile() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -118,19 +100,19 @@ export default function Profile() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 32 }}
         >
-          {/* Header */}
-          <View className="pt-4">
-            {loadingUser ? (
-              <View className="gap-2">
-                <Skeleton className="h-7 w-40" />
-                <Skeleton className="h-4 w-44 mt-1" />
-              </View>
-            ) : (
-              <>
-                <Text className="font-semibold text-gray-500 text-xs tracking-wide">
-                  MY PROFILE
-                </Text>
-                <Text className="font-bold text-green-700 text-2xl mt-0.5">
+          {loadingUser ? (
+            <View className="gap-2">
+              <Skeleton className="h-7 w-40" />
+              <Skeleton className="h-4 w-44 mt-1" />
+            </View>
+          ) : (
+            <>
+              <Text className="font-bold text-green-700 text-2xl">
+                My Profile
+              </Text>
+              <Text className="text-gray-500">Your personal profile</Text>
+              <View className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-col mt-4">
+                <Text className="text-gray-700 mt-0.5 text-xl font-semibold">
                   {userProfile?.username}
                 </Text>
                 <Text className="text-gray-500 text-sm mt-0.5">
@@ -151,10 +133,9 @@ export default function Profile() {
                       : ""}
                   </Text>
                 </View>
-              </>
-            )}
-          </View>
-
+              </View>
+            </>
+          )}
           {/* Skin profile */}
           <View className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-col gap-3 mt-5">
             <Text className="text-base font-semibold text-gray-900">
@@ -320,7 +301,7 @@ export default function Profile() {
             </View>
           </View>
           <Pressable
-            className="bg-red-700 active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
+            className="bg-red-500 active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
             onPress={() => setLogoutModal(true)}
           >
             <Ionicons name="log-out-outline" size={18} color="#FFFFFF" />

@@ -38,7 +38,7 @@ export default function CreateNewPassword() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-col px-6">
-        <Text className="text-2xl font-bold text-green-800 text-center">
+        <Text className="text-2xl font-bold text-green-700 text-center">
           Forgot Password
         </Text>
         <Text className="text-center text-gray-600 mt-2">
@@ -90,7 +90,7 @@ export default function CreateNewPassword() {
         </View>
         <View className="mt-4 flex-col gap-2">
           <Pressable
-            className={`rounded-full ${loading ? "bg-gray-500" : "bg-green-800"} active:opacity-80 p-4`}
+            className={`rounded-full ${loading ? "bg-gray-500" : "bg-green-700"} active:opacity-80 p-4`}
             onPress={handleUpdatePassword}
             disabled={loading}
           >
