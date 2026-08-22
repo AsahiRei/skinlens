@@ -36,8 +36,7 @@
         }
       ],
       "@react-native-vector-icons/ionicons",
-      "@react-native-google-signin/google-signin",
-      "llama.rn"
+      "react-native-fast-tflite"
     ],
     "experiments": {
       "typedRoutes": true
