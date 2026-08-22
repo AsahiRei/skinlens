@@ -36,7 +36,8 @@
         }
       ],
       "@react-native-vector-icons/ionicons",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "llama.rn"
     ],
     "experiments": {
       "typedRoutes": true

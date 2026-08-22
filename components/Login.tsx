@@ -39,7 +39,7 @@ export default function Login() {
         return;
       }
       router.replace("/");
-    } catch {
+    } catch (error) {
       ToastAndroid.show(
         "Something went wrong. Please try again.",
         ToastAndroid.SHORT,
@@ -52,10 +52,10 @@ export default function Login() {
     try {
       await signInWithGoogle();
       router.replace("/");
-    } catch {
+    } catch (e: any) {
       ToastAndroid.show(
-        "Something went wrong. Please try again.",
-        ToastAndroid.SHORT,
+        e?.message ?? "Something went wrong. Please try again.",
+        ToastAndroid.LONG,
       );
     }
   };

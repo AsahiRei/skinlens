@@ -24,10 +24,7 @@ export default function CreateNewPassword() {
     try {
       await updatePassword(password);
       await supabase.auth.signOut();
-      ToastAndroid.show(
-        "Change password successfully!",
-        ToastAndroid.SHORT,
-      );
+      ToastAndroid.show("Change password successfully!", ToastAndroid.SHORT);
       router.replace("/welcome");
     } catch (error) {
       ToastAndroid.show(

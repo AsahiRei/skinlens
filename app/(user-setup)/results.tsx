@@ -109,15 +109,21 @@ export default function results() {
     fetchRoutine();
   }, []);
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-gray-50">
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-1 items-center justify-center px-6 gap-8">
-          <Text className="font-bold text-green-800 text-3xl">
-            Skin Results
-          </Text>
+        <View className="flex-1 px-6 gap-5">
+          <View className="pt-4 items-center">
+            <Text className="font-bold text-green-700 text-2xl">
+              Skin Results
+            </Text>
+            <Text className="text-gray-500">
+              Your personalized skin analysis
+            </Text>
+          </View>
+
           <View className="items-center gap-2">
             <CircularProgress
               progress={score}
@@ -135,24 +141,27 @@ export default function results() {
                 style={{ backgroundColor: color }}
                 className="h-2 w-2 rounded-full"
               />
-              <Text className="text-sm font-medium text-gray-500">{label}</Text>
+              <Text className="text-sm font-medium text-gray-500">
+                {label}
+              </Text>
             </View>
           </View>
-          <View className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 gap-3">
+
+          <View className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-3">
             <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-green-800/10">
-                <Ionicons name="sparkles-outline" size={20} color="#166534" />
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
+                <Ionicons name="sparkles-outline" size={20} color="#15803D" />
               </View>
-              <Text className="flex-1 text-base font-semibold text-gray-900">
+              <Text className="flex-1 text-base font-bold text-gray-900">
                 Your routine is ready
               </Text>
             </View>
-            <Text className="text-sm leading-5 text-gray-600">{message}</Text>
+            <Text className="text-sm leading-5 text-gray-500">{message}</Text>
           </View>
 
           {routineLoading ? (
-            <View className="w-full rounded-2xl border border-gray-200 bg-white p-8 items-center justify-center gap-3">
-              <ActivityIndicator color="#166534" size="small" />
+            <View className="bg-white rounded-3xl shadow-sm py-10 px-6 items-center gap-3">
+              <ActivityIndicator color="#15803D" size="small" />
               <Text className="text-sm text-gray-500">
                 Loading your recommended products...
               </Text>
@@ -160,25 +169,36 @@ export default function results() {
           ) : (
             routine?.recommended_products &&
             routine.recommended_products.length > 0 && (
-              <View className="w-full rounded-2xl border border-gray-200 bg-white p-5 gap-4">
-                <Text className="text-base font-semibold text-gray-900">
+              <View className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-4">
+                <Text className="font-bold text-gray-800 text-lg">
                   Recommended Products
                 </Text>
-                <Text className="text-sm text-gray-500 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+                <Text className="text-sm text-gray-500 border-b border-gray-100 pb-3">
                   {routine.summary}
                 </Text>
                 {routine.recommended_products.map((product) => (
                   <View
                     key={product.product_type}
-                    className="gap-1 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0"
+                    className="gap-1.5 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0"
                   >
-                    <Text className="text-sm font-semibold text-green-800">
+                    <Text className="font-bold text-gray-900">
                       {product.product_type}
                     </Text>
-                    <Text className="text-xs text-gray-500">
-                      {product.recommended_ingredients.join(" · ")}
-                    </Text>
-                    <Text className="text-xs leading-4 text-gray-600">
+                    <View className="flex-row flex-wrap gap-1.5">
+                      {product.recommended_ingredients.map(
+                        (ingredient, i) => (
+                          <View
+                            key={i}
+                            className="bg-green-50 rounded-full px-3 py-1"
+                          >
+                            <Text className="text-xs text-green-700 font-medium">
+                              {ingredient}
+                            </Text>
+                          </View>
+                        ),
+                      )}
+                    </View>
+                    <Text className="text-xs text-gray-400 mt-1">
                       {product.reason}
                     </Text>
                   </View>
@@ -188,30 +208,32 @@ export default function results() {
           )}
 
           {Object.keys(parsedAnswers).length > 0 && (
-            <View className="w-full rounded-2xl border border-gray-200 bg-white p-5 gap-3">
-              <Text className="text-base font-semibold text-gray-900">
+            <View className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-3">
+              <Text className="font-bold text-gray-800 text-lg">
                 Your Answers
               </Text>
               {Object.entries(parsedAnswers).map(([question, answer]) => (
                 <View
                   key={question}
-                  className="flex-row justify-between gap-3 border-b border-gray-100 pb-2"
+                  className="flex-row justify-between gap-3 border-b border-gray-100 pb-2 last:border-b-0 last:pb-0"
                 >
                   <Text className="flex-1 text-sm text-gray-500">
                     {formatter(question)}
                   </Text>
-                  <Text className="text-sm font-medium text-gray-900">
+                  <Text className="text-sm font-bold text-gray-900">
                     {formatter(answer)}
                   </Text>
                 </View>
               ))}
             </View>
           )}
+
+          <View className="h-4" />
         </View>
       </ScrollView>
       <View className="py-6 w-full gap-2 px-6">
         <Pressable
-          className={`rounded-full ${loading ? "bg-gray-500" : "bg-green-800"} active:opacity-80 p-4`}
+          className={`rounded-full ${loading ? "bg-gray-400" : "bg-green-700"} active:opacity-80 p-4`}
           onPress={getStarted}
           disabled={loading}
         >
@@ -219,16 +241,16 @@ export default function results() {
             {loading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text className="font-bold text-white">Get Started</Text>
+              <Text className="font-bold text-white">Confirm Result</Text>
             )}
           </View>
         </Pressable>
         <Pressable
-          className="rounded-full border border-gray-400 active:opacity-80 p-4"
+          className="rounded-full border border-green-700 active:opacity-80 p-4"
           onPress={() => router.back()}
         >
           <View className="flex-row items-center justify-center gap-1">
-            <Text className="text-center font-bold text-gray-700">
+            <Text className="text-center font-bold text-green-700">
               Retry Again
             </Text>
           </View>

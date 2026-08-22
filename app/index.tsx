@@ -15,26 +15,22 @@ export default function Index() {
         router.replace("/welcome");
         return;
       }
-
-      // account-level source of truth first
-      const { data: userSetup } = await supabase
-        .from("user_profile")
-        .select("user_setup")
-        .eq("id", user.id)
-        .single();
-
-      if (userSetup?.user_setup !== true) {
-        router.replace("/(user-setup)");
-        return;
-      }
-
       // local/device-only concern last (e.g. "seen onboarding carousel on this device")
       const isOnboarded = await AsyncStorage.getItem("is_onboarded");
       if (isOnboarded !== "true") {
         router.replace("/onboarding");
         return;
       }
-
+      // account-level source of truth first
+      const { data: userSetup } = await supabase
+        .from("user_profile")
+        .select("user_setup")
+        .eq("id", user.id)
+        .single();
+      if (userSetup?.user_setup !== true) {
+        router.replace("/(user-setup)");
+        return;
+      }
       router.replace("/(tabs)");
     };
     initialize();

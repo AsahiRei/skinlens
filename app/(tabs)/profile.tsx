@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
+import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useState, useEffect } from "react";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { supabase } from "@/utils/supabase";
@@ -42,6 +43,9 @@ export default function Profile() {
   const [loadingSkin, setLoadingSkin] = useState(true);
   const [loadingLifestyle, setLoadingLifestyle] = useState(true);
   const [logoutModal, setLogoutModal] = useState(false);
+  const [scanReminders, setScanReminders] = useState(true);
+  const [appointmentAlerts, setAppointmentAlerts] = useState(true);
+  const [dailyTips, setDailyTips] = useState(false);
   useEffect(() => {
     //user profile
     const fetchUserProfile = async () => {
@@ -104,47 +108,55 @@ export default function Profile() {
     fetchUserProfile();
     fetchSkinProfile();
   }, []);
+
   return (
     <>
       <LogoutModal isVisible={logoutModal} setVisible={setLogoutModal} />
-      <View className="flex-1">
-        <View className="bg-green-800 px-6 pt-12 pb-4">
-          {loadingUser ? (
-            <>
-              <Skeleton className="h-7 w-40 mb-2" />
-              <Skeleton className="h-4 w-48 mb-3" />
-              <Skeleton className="h-6 w-44 rounded-xl" />
-            </>
-          ) : (
-            <>
-              <Text className="font-bold text-white text-2xl">
-                {userProfile?.username}
-              </Text>
-              <Text className="text-gray-200">{userProfile?.email}</Text>
-              <View className="bg-white/30 rounded-xl mt-2 self-start px-4 py-1">
-                <Text className="text-sm font-bold text-white">
-                  Member since{" "}
-                  {userProfile?.created_at
-                    ? new Date(userProfile.created_at).toLocaleDateString(
-                        "en-US",
-                        {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        },
-                      )
-                    : ""}
-                </Text>
-              </View>
-            </>
-          )}
-        </View>
+      <SafeAreaView className="flex-1 bg-gray-50">
         <ScrollView
-          className="flex-1 bg-gray-50 px-6 py-4"
-          contentContainerStyle={{ paddingBottom: 32 }}
+          className="flex-1 px-6"
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 32 }}
         >
-          <View className="w-full rounded-4xl border border-gray-200 bg-white p-5 gap-2">
+          {/* Header */}
+          <View className="pt-4">
+            {loadingUser ? (
+              <View className="gap-2">
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-44 mt-1" />
+              </View>
+            ) : (
+              <>
+                <Text className="font-semibold text-gray-500 text-xs tracking-wide">
+                  MY PROFILE
+                </Text>
+                <Text className="font-bold text-green-700 text-2xl mt-0.5">
+                  {userProfile?.username}
+                </Text>
+                <Text className="text-gray-500 text-sm mt-0.5">
+                  {userProfile?.email}
+                </Text>
+                <View className="bg-green-50 rounded-full mt-2 self-start px-3 py-1">
+                  <Text className="text-xs font-semibold text-green-700">
+                    Member since{" "}
+                    {userProfile?.created_at
+                      ? new Date(userProfile.created_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          },
+                        )
+                      : ""}
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+
+          {/* Skin profile */}
+          <View className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-col gap-3 mt-5">
             <Text className="text-base font-semibold text-gray-900">
               Skin Profile
             </Text>
@@ -170,33 +182,28 @@ export default function Profile() {
               </View>
             </View>
           </View>
-          <View className="w-full rounded-4xl border border-gray-200 bg-white p-5 mt-4">
+
+          {/* Lifestyle info */}
+          <View className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-col gap-3 mt-4">
             <Text className="text-base font-semibold text-gray-900 mb-1">
               Lifestyle Info
             </Text>
             {loadingLifestyle ? (
               <>
-                <View className="flex-row items-center py-3 border-b border-gray-100">
-                  <Skeleton className="w-10 h-10 rounded-full mr-3" />
-                  <View className="flex-1 gap-1">
-                    <Skeleton className="h-3 w-24" />
-                    <Skeleton className="h-4 w-32" />
+                {[0, 1, 2].map((i) => (
+                  <View
+                    key={i}
+                    className={`flex-row items-center py-3 ${
+                      i < 2 ? "border-b border-gray-100" : ""
+                    }`}
+                  >
+                    <Skeleton className="w-10 h-10 rounded-full mr-3" />
+                    <View className="flex-1 gap-1">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-4 w-32" />
+                    </View>
                   </View>
-                </View>
-                <View className="flex-row items-center py-3 border-b border-gray-100">
-                  <Skeleton className="w-10 h-10 rounded-full mr-3" />
-                  <View className="flex-1 gap-1">
-                    <Skeleton className="h-3 w-24" />
-                    <Skeleton className="h-4 w-32" />
-                  </View>
-                </View>
-                <View className="flex-row items-center py-3">
-                  <Skeleton className="w-10 h-10 rounded-full mr-3" />
-                  <View className="flex-1 gap-1">
-                    <Skeleton className="h-3 w-24" />
-                    <Skeleton className="h-4 w-32" />
-                  </View>
-                </View>
+                ))}
               </>
             ) : (
               <>
@@ -207,11 +214,8 @@ export default function Profile() {
                   }}
                   className="flex-row items-center py-3 border-b border-gray-100"
                 >
-                  <View
-                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: "#F3E8FF" }}
-                  >
-                    <Ionicons name="moon" size={18} color="#7C3AED" />
+                  <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
+                    <Ionicons name="moon" size={18} color="#15803D" />
                   </View>
                   <View className="flex-1">
                     <Text className="text-sm text-gray-400">Sleep Quality</Text>
@@ -228,11 +232,8 @@ export default function Profile() {
                   }}
                   className="flex-row items-center py-3 border-b border-gray-100"
                 >
-                  <View
-                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: "#DBEAFE" }}
-                  >
-                    <Ionicons name="water" size={18} color="#2563EB" />
+                  <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
+                    <Ionicons name="water" size={18} color="#15803D" />
                   </View>
                   <View className="flex-1">
                     <Text className="text-sm text-gray-400">Water Intake</Text>
@@ -249,11 +250,8 @@ export default function Profile() {
                   }}
                   className="flex-row items-center py-3"
                 >
-                  <View
-                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: "#FFEDD5" }}
-                  >
-                    <Ionicons name="pulse" size={18} color="#EA580C" />
+                  <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
+                    <Ionicons name="pulse" size={18} color="#15803D" />
                   </View>
                   <View className="flex-1">
                     <Text className="text-sm text-gray-400">Stress Level</Text>
@@ -266,12 +264,14 @@ export default function Profile() {
               </>
             )}
           </View>
-          <View className="w-full rounded-4xl border border-gray-200 bg-white p-5 mt-4">
+
+          {/* Notifications */}
+          <View className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-col gap-3 mt-4">
             <Text className="text-base font-semibold text-gray-900 mb-1">
               Notifications
             </Text>
             <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-              <View className="flex-col">
+              <View className="flex-col flex-1 pr-3">
                 <Text className="text-base font-semibold text-gray-900">
                   Scan Reminders
                 </Text>
@@ -279,10 +279,15 @@ export default function Profile() {
                   Weekly skin check reminders
                 </Text>
               </View>
-              <Switch />
+              <Switch
+                value={scanReminders}
+                onValueChange={setScanReminders}
+                trackColor={{ false: "#E5E7EB", true: "#15803D" }}
+                thumbColor="#FFFFFF"
+              />
             </View>
             <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-              <View className="flex-col">
+              <View className="flex-col flex-1 pr-3">
                 <Text className="text-base font-semibold text-gray-900">
                   Appointment Alerts
                 </Text>
@@ -290,10 +295,15 @@ export default function Profile() {
                   Upcoming appointment notifications
                 </Text>
               </View>
-              <Switch />
+              <Switch
+                value={appointmentAlerts}
+                onValueChange={setAppointmentAlerts}
+                trackColor={{ false: "#E5E7EB", true: "#15803D" }}
+                thumbColor="#FFFFFF"
+              />
             </View>
-            <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-              <View className="flex-col">
+            <View className="flex-row items-center justify-between py-3">
+              <View className="flex-col flex-1 pr-3">
                 <Text className="text-base font-semibold text-gray-900">
                   Daily Skincare Tips
                 </Text>
@@ -301,17 +311,23 @@ export default function Profile() {
                   Personalized tips & advice
                 </Text>
               </View>
-              <Switch />
+              <Switch
+                value={dailyTips}
+                onValueChange={setDailyTips}
+                trackColor={{ false: "#E5E7EB", true: "#15803D" }}
+                thumbColor="#FFFFFF"
+              />
             </View>
           </View>
           <Pressable
-            className="bg-red-700 active:opacity-80 py-4 mt-4 rounded-full"
+            className="bg-red-700 active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
             onPress={() => setLogoutModal(true)}
           >
+            <Ionicons name="log-out-outline" size={18} color="#FFFFFF" />
             <Text className="font-bold text-white text-center">Logout</Text>
           </Pressable>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </>
   );
 }

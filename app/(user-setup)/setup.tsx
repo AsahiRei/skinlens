@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "expo-router";
 import PagerView from "react-native-pager-view";
 import Ionicons from "@react-native-vector-icons/ionicons";
+import InlineProgress from "@/components/InlineProgress";
 
 const questionPage = [
   {
@@ -160,6 +161,7 @@ export default function setup() {
   const currentQuestion = questionPage[page];
   const isAnswered = !!answers[currentQuestion.id];
   const isLastPage = page === questionPage.length - 1;
+  const progressPct = Math.round(((page + 1) / questionPage.length) * 100);
   //calculate the health score
   const calculateHealthScore = (
     answers: Record<string, string>,
@@ -209,23 +211,19 @@ export default function setup() {
     pagerRef.current?.setPage(page - 1);
   };
   return (
-    <SafeAreaView className="bg-white flex-1">
-      <Text className="px-safe-or-6">
-        Step {page + 1} / {questionPage.length}
-      </Text>
-      <View className="mt-4 flex-row items-center justify-center gap-2 px-6">
-        {questionPage.map((_, index) => (
-          <View
-            key={index}
-            className={`h-2 flex-1 rounded-full ${
-              page === index ? "bg-green-800" : "bg-gray-300"
-            }`}
-          />
-        ))}
+    <SafeAreaView className="bg-gray-50 flex-1">
+      <View className="px-6 pt-4 gap-2">
+        <View className="flex-row items-center justify-between">
+          <Text className="font-semibold text-gray-500 text-xs tracking-wide">
+            STEP {page + 1} OF {questionPage.length}
+          </Text>
+          <Text className="text-xs text-gray-500">{progressPct}%</Text>
+        </View>
+        <InlineProgress progress={progressPct} height={8} color="#15803D" />
       </View>
       <PagerView
         ref={pagerRef}
-        style={{ flex: 1, marginTop: 14 }}
+        style={{ flex: 1, marginTop: 18 }}
         initialPage={0}
         scrollEnabled={false}
         onPageSelected={(e) => {
@@ -234,27 +232,48 @@ export default function setup() {
       >
         {questionPage.map((item, index) => (
           <View key={index} className="px-6 gap-4">
-            <Text className="text-2xl font-semibold">{item.label}</Text>
+            <Text className="text-2xl font-bold text-green-700">
+              {item.label}
+            </Text>
             {item.type === "options" && (
-              <View className="flex-col gap-4">
+              <View className="bg-white rounded-3xl shadow-sm p-3 flex-col gap-2">
                 {item.options?.map((option: any, index: any) => {
                   const isSelected = answers[item.id] === option.value;
                   return (
                     <Pressable
                       key={index}
                       onPress={() => handleSelect(item.id, option.value)}
-                      className={`flex-row items-center gap-3 rounded-full py-4 px-5 ${isSelected ? "bg-green-800" : "border border-gray-400"}`}
+                      className={`flex-row items-center gap-3 rounded-2xl py-4 px-4 border active:opacity-90 ${
+                        isSelected
+                          ? "bg-green-700 border-green-700"
+                          : "bg-gray-50 border-gray-200"
+                      }`}
                     >
-                      <Ionicons
-                        name={option.icon}
-                        size={20}
-                        color={isSelected ? "white" : "black"}
-                      />
+                      <View
+                        className={`h-9 w-9 items-center justify-center rounded-full ${
+                          isSelected ? "bg-white/20" : "bg-white"
+                        }`}
+                      >
+                        <Ionicons
+                          name={option.icon}
+                          size={18}
+                          color={isSelected ? "white" : "#15803D"}
+                        />
+                      </View>
                       <Text
-                        className={`${isSelected ? "text-white" : "text-black"} text-center font-medium`}
+                        className={`flex-1 font-semibold ${
+                          isSelected ? "text-white" : "text-gray-900"
+                        }`}
                       >
                         {option.label}
                       </Text>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color="white"
+                        />
+                      )}
                     </Pressable>
                   );
                 })}
@@ -266,7 +285,9 @@ export default function setup() {
       <View className="gap-3 px-6 pb-6">
         <Pressable
           disabled={!isAnswered}
-          className={`rounded-full p-4 active:opacity-80 ${isAnswered ? "bg-green-800" : "bg-green-800/40"}`}
+          className={`rounded-full p-4 active:opacity-80 ${
+            isAnswered ? "bg-green-700" : "bg-green-700/40"
+          }`}
           onPress={handleNext}
         >
           <View className="flex-row items-center justify-center gap-1">
@@ -280,10 +301,10 @@ export default function setup() {
         </Pressable>
         {page !== 0 && (
           <Pressable
-            className="rounded-full border border-gray-400 p-4 active:opacity-80"
+            className="rounded-full border border-green-700 p-4 active:opacity-80"
             onPress={handleBack}
           >
-            <Text className="text-center font-bold text-gray-700">Back</Text>
+            <Text className="text-center font-bold text-green-700">Back</Text>
           </Pressable>
         )}
       </View>

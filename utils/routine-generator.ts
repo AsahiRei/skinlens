@@ -1,3 +1,85 @@
+import { initLlama, type LlamaContext } from "llama.rn";
+import * as FileSystem from "expo-file-system/legacy";
+
+const MODEL_FILENAME = "Llama-3.2-1B-Instruct-Q4_K_M.gguf";
+const MODEL_URL =
+  "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf";
+
+let llamaContext: LlamaContext | null = null;
+let llamaContextPromise: Promise<LlamaContext> | null = null;
+
+const JSON_GRAMMAR = `
+root   ::= object
+object ::= "{" ws members ws "}"
+members ::= member ("," ws member)*
+member ::= string ws ":" ws value
+value  ::= object | array | string | number | ("true" | "false" | "null")
+array  ::= "[" ws (value ("," ws value)*)? ws "]"
+string ::= "\\"" ([^"\\\\] | "\\\\" .)* "\\""
+number ::= "-"? [0-9]+ ("." [0-9]+)?
+ws     ::= [ \\t\\n]*
+`;
+
+async function getModelPath(
+  onProgress?: (fraction: number) => void,
+): Promise<string> {
+  const localPath = `${FileSystem.documentDirectory}${MODEL_FILENAME}`;
+  const info = await FileSystem.getInfoAsync(localPath);
+  if (info.exists) return localPath;
+  const downloadResumable = FileSystem.createDownloadResumable(
+    MODEL_URL,
+    localPath,
+    {},
+    (progress) => {
+      if (onProgress && progress.totalBytesExpectedToWrite > 0) {
+        onProgress(
+          progress.totalBytesWritten / progress.totalBytesExpectedToWrite,
+        );
+      }
+    },
+  );
+  const result = await downloadResumable.downloadAsync();
+  if (!result?.uri) {
+    throw new Error("Failed to download the AI model.");
+  }
+  return result.uri;
+}
+
+async function getLlamaContext(
+  onModelDownloadProgress?: (fraction: number) => void,
+): Promise<LlamaContext> {
+  if (llamaContext) return llamaContext;
+  if (!llamaContextPromise) {
+    llamaContextPromise = (async () => {
+      const modelPath = await getModelPath(onModelDownloadProgress);
+      const ctx = await initLlama({
+        model: modelPath,
+        n_ctx: 4096,
+        n_threads: 4,
+        n_gpu_layers: 0,
+      });
+      llamaContext = ctx;
+      return ctx;
+    })();
+  }
+  return llamaContextPromise;
+}
+
+function extractJsonObject(raw: string): string {
+  const cleaned = raw
+    .trim()
+    .replace(/^```(json)?/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) {
+    throw new Error(
+      "No JSON object found in model output: " + raw.slice(0, 200),
+    );
+  }
+  return match[0];
+}
+
 export async function generateRoutine({
   skin_type,
   main_concern,
@@ -13,10 +95,9 @@ export async function generateRoutine({
   water_intake: string;
   health_score: number;
 }) {
-  const prompt = `
-    You are SkinLens AI, a skincare guidance assistant.
-    Your task is to create a simple and personalized skincare routine based on the user's skin profile, main concern, lifestyle, and health score.
-
+  const systemPrompt = `You are SkinLens AI, a skincare guidance assistant. You always respond with valid JSON only — no Markdown, no code fences, no commentary before or after the JSON.`;
+  const userPrompt = `
+    Create a simple and personalized skincare routine based on the user's skin profile, main concern, lifestyle, and health score.
     USER INFORMATION:
     - Skin Type: ${skin_type}
     - Main Skin Concern: ${main_concern}
@@ -44,9 +125,7 @@ export async function generateRoutine({
     13. If the user's skin concern appears serious or persistent, advise them to consult a dermatologist.
 
     OUTPUT FORMAT:
-    Return valid JSON only.
-    Do not include Markdown, code fences, or any text outside the JSON.
-    The format should stay what it was
+    Return valid JSON only, matching this exact shape:
 
     {
     "summary": "Short personalized summary of the user's skin condition and needs.",
@@ -121,26 +200,31 @@ export async function generateRoutine({
     ]
     }
   `;
-  const response = await fetch(
-    `${process.env.EXPO_PUBLIC_OLLAMA_URL}/api/generate`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "llama3.2:1b",
-        prompt,
-        stream: false,
-      }),
-    },
-  );
-  if (!response.ok) {
-    throw new Error(`Ollama error: ${response.status}`);
+
+  const context = await getLlamaContext();
+  const { text } = await context.completion({
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    n_predict: 1024,
+    temperature: 0.4,
+    top_p: 0.9,
+    grammar: JSON_GRAMMAR,
+    stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
+  });
+  console.log("LLAMA.RN RESPONSE:", text);
+  return extractJsonObject(text);
+}
+
+export async function preloadLlama(onProgress?: (fraction: number) => void) {
+  await getLlamaContext(onProgress);
+}
+
+export async function releaseLlama() {
+  if (llamaContext) {
+    await llamaContext.release();
+    llamaContext = null;
+    llamaContextPromise = null;
   }
-  const text = await response.text();
-  const data = JSON.parse(text);
-  console.log("OLLAMA DATA:", data);
-  console.log("OLLAMA RESPONSE:", data.response);
-  return data.response;
 }

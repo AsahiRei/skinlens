@@ -3,21 +3,20 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from "react-native-reanimated";
 import { supabase } from "@/utils/supabase";
-import { generateRoutine } from "@/utils/routine-generator";
+import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
 import PulsatingIcon from "@/components/PulsatingIcon";
+import InlineProgress from "@/components/InlineProgress";
 
 const steps = [
   { label: "Analyzing your skin profile" },
   { label: "Reviewing lifestyle factors" },
+  { label: "Preparing AI model" },
   { label: "Generating your routine" },
   { label: "Finalizing your results" },
 ];
+
+const MODEL_STEP_INDEX = 2;
 
 export default function Loading() {
   const router = useRouter();
@@ -26,17 +25,27 @@ export default function Loading() {
     answers: string;
   }>();
   const [stepIndex, setStepIndex] = useState(0);
+  const [progressPct, setProgressPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const progress = useSharedValue(0);
   const ranRef = useRef(false); // guard against double-run in dev/strict mode
   const parsedAnswers: Record<string, string> = answers
     ? JSON.parse(answers)
     : {};
   const score = Number(healthScore) || 0;
+
   const goToStep = (i: number) => {
     setStepIndex(i);
-    progress.value = withTiming((i + 1) / steps.length, { duration: 400 });
+    setProgressPct(Math.round(((i + 1) / steps.length) * 100));
   };
+  // Called repeatedly while the model downloads (first run only) to move the
+  // bar smoothly within the "Preparing AI model" step instead of jumping.
+  const updateModelDownloadProgress = (fraction: number) => {
+    setStepIndex(MODEL_STEP_INDEX);
+    setProgressPct(
+      Math.round(((MODEL_STEP_INDEX + fraction) / steps.length) * 100),
+    );
+  };
+
   const run = async () => {
     try {
       setError(null);
@@ -74,7 +83,11 @@ export default function Loading() {
         })
         .single();
       if (lifestyleErr) throw new Error(lifestyleErr.message);
-      goToStep(2);
+      goToStep(MODEL_STEP_INDEX);
+      // On first run this downloads + loads the on-device model (can take a
+      // while); on later runs the model is already cached and this resolves fast.
+      await preloadLlama(updateModelDownloadProgress);
+      goToStep(3);
       const routineJson = await generateRoutine({
         skin_type: parsedAnswers.skin_type,
         main_concern: parsedAnswers.main_concern,
@@ -93,7 +106,7 @@ export default function Loading() {
         .select()
         .single();
       if (insertRoutineError) throw new Error(insertRoutineError.message);
-      goToStep(3);
+      goToStep(4);
       // brief pause so the last step is visibly checked off before navigating
       await new Promise((r) => setTimeout(r, 400));
       router.replace({
@@ -108,68 +121,100 @@ export default function Loading() {
       );
     }
   };
+
   useEffect(() => {
     if (ranRef.current) return;
     ranRef.current = true;
     run();
   }, []);
-  const barStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
+
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-1 px-6 gap-4 items-center justify-center">
-          <Ionicons name="alert-circle-outline" size={40} color="#B91C1C" />
-          <Text className="text-center text-base font-medium text-gray-700">
-            {error}
-          </Text>
-          <Pressable
-            className="rounded-full bg-green-800 active:opacity-80 px-6 py-3"
-            onPress={() => {
-              ranRef.current = false;
-              run();
-            }}
-          >
-            <Text className="font-bold text-white">Try Again</Text>
-          </Pressable>
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 px-6 items-center justify-center">
+          <View className="bg-white rounded-3xl shadow-sm py-10 px-6 items-center gap-2 w-full">
+            <Ionicons name="alert-circle-outline" size={28} color="#B91C1C" />
+            <Text className="font-bold text-gray-800">
+              Couldn't generate your routine
+            </Text>
+            <Text className="text-sm text-gray-500 text-center">{error}</Text>
+            <Pressable
+              className="rounded-full bg-green-700 active:opacity-80 px-6 py-3 mt-2"
+              onPress={() => {
+                ranRef.current = false;
+                run();
+              }}
+            >
+              <Text className="font-bold text-white">Try Again</Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     );
   }
+
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 px-6 gap-8 items-center justify-center">
-        <PulsatingIcon />
-        <View className="w-full gap-3">
-          <Text className="font-bold text-green-800 text-3xl text-center">
-            Analyzing
-          </Text>
-          <Text className="text-center text-base font-medium text-gray-700">
-            {steps[stepIndex].label}...
-          </Text>
-          <View className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-            <Animated.View
-              style={barStyle}
-              className="h-full rounded-full bg-green-800"
-            />
+    <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 px-6">
+        <View className="flex-1 items-center justify-center gap-8">
+          <PulsatingIcon />
+          <View className="pt-4">
+            <Text className="font-bold text-green-700 text-2xl text-center">
+              Creating Your Routine
+            </Text>
+            <Text className="text-gray-500 text-center">
+              AI Personalized Skin Routine Generator
+            </Text>
           </View>
-        </View>
-        <View className="w-full gap-2">
-          {steps.map((step, i) => (
-            <View key={step.label} className="flex-row items-center gap-2">
-              <Ionicons
-                name={i < stepIndex ? "checkmark-circle" : "ellipse-outline"}
-                size={18}
-                color={i < stepIndex ? "#166534" : "#9CA3AF"}
-              />
-              <Text
-                className={`text-sm ${i < stepIndex ? "text-gray-800" : "text-gray-400"}`}
-              >
-                {step.label}
-              </Text>
-            </View>
-          ))}
+          <View className="w-full gap-3">
+            <Text className="text-center text-base font-medium text-gray-700">
+              {steps[stepIndex].label}...
+            </Text>
+            <InlineProgress progress={progressPct} height={8} color="#15803D" />
+          </View>
+
+          <View className="bg-white rounded-3xl shadow-sm py-4 px-4 w-full gap-3">
+            {steps.map((step, i) => {
+              const isDone = i < stepIndex;
+              const isActive = i === stepIndex;
+              return (
+                <View key={step.label} className="flex-row items-center gap-3">
+                  <View
+                    className={`h-7 w-7 rounded-full items-center justify-center ${
+                      isDone
+                        ? "bg-green-700"
+                        : isActive
+                          ? "bg-green-100"
+                          : "bg-gray-100"
+                    }`}
+                  >
+                    {isDone ? (
+                      <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                    ) : (
+                      <Text
+                        className={`text-xs font-bold ${
+                          isActive ? "text-green-700" : "text-gray-400"
+                        }`}
+                      >
+                        {i + 1}
+                      </Text>
+                    )}
+                  </View>
+                  <Text
+                    className={`text-sm ${
+                      isDone
+                        ? "text-gray-800 line-through"
+                        : isActive
+                          ? "font-bold text-gray-900"
+                          : "text-gray-400"
+                    }`}
+                  >
+                    {step.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
         </View>
       </View>
     </SafeAreaView>

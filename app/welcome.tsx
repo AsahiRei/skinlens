@@ -44,7 +44,7 @@ export default function Welcome() {
           </Text>
         </Pressable>
       </View>
-      <View className="flex-1 bg-gray-100">
+      <View className="flex-1 bg-gray-50">
         {selected === "login" ? <Login /> : <Register />}
       </View>
     </SafeAreaView>
