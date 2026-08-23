@@ -7,7 +7,7 @@ export default function Layout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#166534",
+        tabBarActiveTintColor: "#15803D",
         tabBarInactiveTintColor: "#6b7280",
       }}
     >
@@ -78,7 +78,7 @@ export default function Layout() {
                     width: 56,
                     height: 56,
                     borderRadius: 28,
-                    backgroundColor: "#166534", // green-800
+                    backgroundColor: "#15803D",
                     justifyContent: "center",
                     alignItems: "center",
                     marginBottom: 20,

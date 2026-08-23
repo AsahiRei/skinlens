@@ -8,6 +8,12 @@ export default function Index() {
   const router = useRouter();
   useEffect(() => {
     const initialize = async () => {
+      // local/device-only concern last (e.g. "seen onboarding carousel on this device")
+      const isOnboarded = await AsyncStorage.getItem("is_onboarded");
+      if (isOnboarded !== "true") {
+        router.replace("/onboarding");
+        return;
+      }
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -25,19 +31,13 @@ export default function Index() {
         router.replace("/(user-setup)");
         return;
       }
-      // local/device-only concern last (e.g. "seen onboarding carousel on this device")
-      const isOnboarded = await AsyncStorage.getItem("is_onboarded");
-      if (isOnboarded !== "true") {
-        router.replace("/onboarding");
-        return;
-      }
       router.replace("/(tabs)");
     };
     initialize();
   }, []);
   return (
     <View className="flex-1 items-center justify-center bg-white">
-      <ActivityIndicator size="large" color="#166534" />
+      <ActivityIndicator size="large" color="#15803D" />
     </View>
   );
 }
