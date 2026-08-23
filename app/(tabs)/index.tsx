@@ -10,6 +10,7 @@ import Skeleton from "@/components/Skeleton";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import CircularProgress from "@/components/CircularProgress";
 import InlineProgress from "@/components/InlineProgress";
+import { router } from "expo-router";
 
 type RoutineStep = {
   step: number;
@@ -31,7 +32,11 @@ const PERIOD_ORDER: Period[] = ["morning", "afternoon", "evening"];
 
 const PERIOD_CONFIG: Record<
   Period,
-  { label: string; icon: React.ComponentProps<typeof Ionicons>["name"]; key: keyof Routine }
+  {
+    label: string;
+    icon: React.ComponentProps<typeof Ionicons>["name"];
+    key: keyof Routine;
+  }
 > = {
   morning: { label: "Morning Routine", icon: "sunny", key: "morning_routine" },
   afternoon: {
@@ -63,9 +68,7 @@ export default function Home() {
   const [routineId, setRoutineId] = useState<number | null>(null);
   // Keys are "period-step", e.g. "morning-1", so progress across all
   // three periods can live in one Set.
-  const [completedSteps, setCompletedSteps] = useState<Set<string>>(
-    new Set(),
-  );
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [loadingRoutine, setLoadingRoutine] = useState(true);
   const [activePeriod, setActivePeriod] = useState<Period>("morning");
 
@@ -154,9 +157,7 @@ export default function Home() {
           if (progressError) throw progressError;
 
           setCompletedSteps(
-            new Set(
-              (progressRows ?? []).map((r) => `${r.period}-${r.step}`),
-            ),
+            new Set((progressRows ?? []).map((r) => `${r.period}-${r.step}`)),
           );
         }
       } catch (err) {
@@ -310,7 +311,7 @@ export default function Home() {
           </View>
         </View>
 
-         {/* Routine (paginated: morning / afternoon / evening) */}
+        {/* Routine (paginated: morning / afternoon / evening) */}
         <View className="bg-white rounded-3xl shadow-sm py-4 px-4 mt-4 flex-col gap-3">
           <View className="flex-row items-center justify-between">
             <Pressable
@@ -437,7 +438,10 @@ export default function Home() {
 
         {/* Chatbot & Progress quick actions */}
         <View className="flex-row gap-3 mt-4">
-          <Pressable className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-1 items-center gap-2 active:opacity-90">
+          <Pressable
+            className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
+            onPress={() => router.push("/(modules)/chatbot")}
+          >
             <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
               <Ionicons
                 name="chatbubble-ellipses-outline"
