@@ -15,7 +15,7 @@ async function getModel() {
   return model;
 }
 
-const CLASS_LABELS = ["acne", "eczema", "normal"] as const;
+const CLASS_LABELS = ["acne", "eczema", "normal", "psoriasis"] as const;
 
 export type ClassificationResult = {
   label: string;
@@ -59,6 +59,9 @@ export async function classifyImage(
       `Unexpected image size: ${decoded.width}x${decoded.height}`,
     );
   }
+
+  // Model has preprocess_input baked in and expects RAW 0-255 pixel values.
+  // Do NOT normalize here — the model does it internally.
   const input = new Float32Array(1 * 224 * 224 * 3);
   let index = 0;
   for (let y = 0; y < 224; y++) {
@@ -67,34 +70,40 @@ export async function classifyImage(
       const r = decoded.data[pixelIndex];
       const g = decoded.data[pixelIndex + 1];
       const b = decoded.data[pixelIndex + 2];
-      input[index++] = r / 127.5 - 1.0;
-      input[index++] = g / 127.5 - 1.0;
-      input[index++] = b / 127.5 - 1.0;
+      input[index++] = r;
+      input[index++] = g;
+      input[index++] = b;
     }
   }
+
   const inputBuffer = input.buffer.slice(
     input.byteOffset,
     input.byteOffset + input.byteLength,
   ) as ArrayBuffer;
+
   const output = await tfliteModel.run([inputBuffer]);
   const probabilities = new Float32Array(output[0]);
+
   if (probabilities.length !== CLASS_LABELS.length) {
     throw new Error(
       `Expected ${CLASS_LABELS.length} outputs, but model returned ${probabilities.length}`,
     );
   }
+
   let maxIndex = 0;
   for (let i = 1; i < probabilities.length; i++) {
     if (probabilities[i] > probabilities[maxIndex]) {
       maxIndex = i;
     }
   }
+
   const label = CLASS_LABELS[maxIndex];
   const confidence = probabilities[maxIndex];
   const probabilityMap: Record<string, number> = {};
-  CLASS_LABELS.forEach((className, index) => {
-    probabilityMap[className] = probabilities[index];
+  CLASS_LABELS.forEach((className, idx) => {
+    probabilityMap[className] = probabilities[idx];
   });
+
   return {
     label,
     confidence,
