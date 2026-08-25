@@ -3,8 +3,16 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import { supabase } from "@/utils/supabase";
 import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
+import { getHealthScoreResponse } from "@/utils/healthscore";
+import {
+  requireUser,
+  updateUserProfile,
+  upsertSkinProfile,
+  upsertLifestyleProfile,
+  insertResult,
+  insertRoutine,
+} from "@/lib/db";
 import PulsatingIcon from "@/components/PulsatingIcon";
 import InlineProgress from "@/components/InlineProgress";
 
@@ -49,40 +57,20 @@ export default function Loading() {
   const run = async () => {
     try {
       setError(null);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("You need to be signed in to continue.");
+      const user = await requireUser();
       goToStep(0);
-      const { error: profileErr } = await supabase
-        .from("user_profile")
-        .update({
-          gender: parsedAnswers.gender,
-        })
-        .eq("id", user?.id)
-        .single();
-      if (profileErr) throw new Error(profileErr.message);
-      const { error: skinErr } = await supabase
-        .from("skin_profile")
-        .upsert({
-          id: user.id,
-          skin_type: parsedAnswers.skin_type,
-          main_concerns: parsedAnswers.main_concern,
-          healthscore: healthScore,
-        })
-        .single();
-      if (skinErr) throw new Error(skinErr.message);
+      await updateUserProfile({ gender: parsedAnswers.gender });
+      goToStep(0);
+      await upsertSkinProfile({
+        skin_type: parsedAnswers.skin_type,
+        main_concerns: parsedAnswers.main_concern,
+      });
       goToStep(1);
-      const { error: lifestyleErr } = await supabase
-        .from("lifestyle_profile")
-        .upsert({
-          id: user.id,
-          sleep_quality: parsedAnswers.sleep_quality,
-          stress_level: parsedAnswers.stress_level,
-          water_intake: parsedAnswers.water_intake,
-        })
-        .single();
-      if (lifestyleErr) throw new Error(lifestyleErr.message);
+      await upsertLifestyleProfile({
+        sleep_quality: parsedAnswers.sleep_quality,
+        stress_level: parsedAnswers.stress_level,
+        water_intake: parsedAnswers.water_intake,
+      });
       goToStep(MODEL_STEP_INDEX);
       // On first run this downloads + loads the on-device model (can take a
       // while); on later runs the model is already cached and this resolves fast.
@@ -96,16 +84,15 @@ export default function Loading() {
         water_intake: parsedAnswers.water_intake,
         health_score: score,
       });
-      const { error: insertRoutineError } = await supabase
-        .from("routines")
-        .insert({
-          user_id: user?.id,
-          source_type: "ai_generated",
-          routine_json: routineJson,
-        })
-        .select()
-        .single();
-      if (insertRoutineError) throw new Error(insertRoutineError.message);
+      const parsedRoutine = JSON.parse(routineJson);
+      const healthScoreResponse = getHealthScoreResponse(score, parsedAnswers);
+      await insertResult({
+        severity: healthScoreResponse.severity,
+        description: healthScoreResponse.message,
+        healthscore: score,
+        recommendations: parsedRoutine.recommended_products ?? null,
+      });
+      await insertRoutine(routineJson);
       goToStep(4);
       // brief pause so the last step is visibly checked off before navigating
       await new Promise((r) => setTimeout(r, 400));

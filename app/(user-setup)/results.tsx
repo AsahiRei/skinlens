@@ -11,24 +11,14 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { formatter } from "@/utils/formatter";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { useState, useEffect } from "react";
-import { supabase } from "@/utils/supabase";
+import { updateUserProfile, getLatestResultDetail } from "@/lib/db";
+import type { ResultData } from "@/types/schema";
 import CircularProgress from "@/components/CircularProgress";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
-type RecommendedProduct = {
-  product_type: string;
-  recommended_ingredients: string[];
-  reason: string;
-};
-
-type Routine = {
-  summary: string;
-  recommended_products: RecommendedProduct[];
-};
-
 export default function results() {
-  const [routine, setRoutine] = useState<Routine | null>(null);
-  const [routineLoading, setRoutineLoading] = useState(true);
+  const [resultData, setResultData] = useState<ResultData | null>(null);
+  const [resultLoading, setResultLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const { healthScore, answers } = useLocalSearchParams<{
     healthScore: string;
@@ -46,22 +36,8 @@ export default function results() {
   const getStarted = async () => {
     setLoading(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("You need to be signed in to continue.");
-      const { error } = await supabase
-        .from("user_profile")
-        .update({
-          user_setup: true,
-        })
-        .eq("id", user?.id)
-        .single();
+      await updateUserProfile({ user_setup: true });
       router.replace("/(tabs)");
-      if (error) {
-        ToastAndroid.show(error.message, ToastAndroid.SHORT);
-        return;
-      }
     } catch {
       ToastAndroid.show(
         "Something went wrong. Please try again.",
@@ -72,41 +48,19 @@ export default function results() {
     }
   };
   useEffect(() => {
-    const fetchRoutine = async () => {
+    const fetchResult = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          setRoutineLoading(false);
-          return;
-        }
-        const { data, error } = await supabase
-          .from("routines")
-          .select("routine_json")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (error) {
-          console.error("Failed to fetch routine:", error);
-          return;
-        }
-        if (data?.routine_json) {
-          const routineData =
-            typeof data.routine_json === "string"
-              ? JSON.parse(data.routine_json)
-              : data.routine_json;
-          setRoutine(routineData);
+        const data = await getLatestResultDetail();
+        if (data) {
+          setResultData(data);
         }
       } catch (error) {
-        console.error("Routine error:", error);
+        console.error("Result error:", error);
       } finally {
-        setRoutineLoading(false);
+        setResultLoading(false);
       }
     };
-    fetchRoutine();
+    fetchResult();
   }, []);
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -141,9 +95,7 @@ export default function results() {
                 style={{ backgroundColor: color }}
                 className="h-2 w-2 rounded-full"
               />
-              <Text className="text-sm font-medium text-gray-500">
-                {label}
-              </Text>
+              <Text className="text-sm font-medium text-gray-500">{label}</Text>
             </View>
           </View>
 
@@ -159,7 +111,7 @@ export default function results() {
             <Text className="text-sm leading-5 text-gray-500">{message}</Text>
           </View>
 
-          {routineLoading ? (
+          {resultLoading ? (
             <View className="bg-white rounded-3xl shadow-sm py-10 px-6 items-center gap-3">
               <ActivityIndicator color="#15803D" size="small" />
               <Text className="text-sm text-gray-500">
@@ -167,16 +119,16 @@ export default function results() {
               </Text>
             </View>
           ) : (
-            routine?.recommended_products &&
-            routine.recommended_products.length > 0 && (
+            resultData?.recommendations &&
+            resultData.recommendations.length > 0 && (
               <View className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-4">
                 <Text className="font-bold text-gray-800 text-lg">
                   Recommended Products
                 </Text>
                 <Text className="text-sm text-gray-500 border-b border-gray-100 pb-3">
-                  {routine.summary}
+                  {resultData.description}
                 </Text>
-                {routine.recommended_products.map((product) => (
+                {resultData.recommendations.map((product) => (
                   <View
                     key={product.product_type}
                     className="gap-1.5 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0"
@@ -185,18 +137,16 @@ export default function results() {
                       {product.product_type}
                     </Text>
                     <View className="flex-row flex-wrap gap-1.5">
-                      {product.recommended_ingredients.map(
-                        (ingredient, i) => (
-                          <View
-                            key={i}
-                            className="bg-green-50 rounded-full px-3 py-1"
-                          >
-                            <Text className="text-xs text-green-700 font-medium">
-                              {ingredient}
-                            </Text>
-                          </View>
-                        ),
-                      )}
+                      {product.recommended_ingredients.map((ingredient, i) => (
+                        <View
+                          key={i}
+                          className="bg-green-50 rounded-full px-3 py-1"
+                        >
+                          <Text className="text-xs text-green-700 font-medium">
+                            {ingredient}
+                          </Text>
+                        </View>
+                      ))}
                     </View>
                     <Text className="text-xs text-gray-400 mt-1">
                       {product.reason}

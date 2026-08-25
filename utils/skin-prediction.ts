@@ -2,6 +2,7 @@ import { loadTensorflowModel } from "react-native-fast-tflite";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import jpeg from "jpeg-js";
+import type { ClassificationResult } from "@/types/skin";
 
 let model: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 
@@ -16,12 +17,6 @@ async function getModel() {
 }
 
 const CLASS_LABELS = ["acne", "eczema", "normal", "psoriasis"] as const;
-
-export type ClassificationResult = {
-  label: string;
-  confidence: number;
-  probabilities: Record<string, number>;
-};
 
 export async function classifyImage(
   imageUri: string,
@@ -60,8 +55,6 @@ export async function classifyImage(
     );
   }
 
-  // Model has preprocess_input baked in and expects RAW 0-255 pixel values.
-  // Do NOT normalize here — the model does it internally.
   const input = new Float32Array(1 * 224 * 224 * 3);
   let index = 0;
   for (let y = 0; y < 224; y++) {

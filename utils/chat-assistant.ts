@@ -1,73 +1,5 @@
-import { initLlama, type LlamaContext } from "llama.rn";
-import * as FileSystem from "expo-file-system/legacy";
-
-const MODEL_FILENAME = "Llama-3.2-1B-Instruct-Q4_K_M.gguf";
-const MODEL_URL =
-  "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf";
-
-let llamaContext: LlamaContext | null = null;
-let llamaContextPromise: Promise<LlamaContext> | null = null;
-
-async function getModelPath(
-  onProgress?: (fraction: number) => void,
-): Promise<string> {
-  const localPath = `${FileSystem.documentDirectory}${MODEL_FILENAME}`;
-  const info = await FileSystem.getInfoAsync(localPath);
-  if (info.exists) return localPath;
-  const downloadResumable = FileSystem.createDownloadResumable(
-    MODEL_URL,
-    localPath,
-    {},
-    (progress) => {
-      if (onProgress && progress.totalBytesExpectedToWrite > 0) {
-        onProgress(
-          progress.totalBytesWritten / progress.totalBytesExpectedToWrite,
-        );
-      }
-    },
-  );
-  const result = await downloadResumable.downloadAsync();
-  if (!result?.uri) {
-    throw new Error("Failed to download the AI model.");
-  }
-  return result.uri;
-}
-
-async function getLlamaContext(
-  onModelDownloadProgress?: (fraction: number) => void,
-): Promise<LlamaContext> {
-  if (llamaContext) return llamaContext;
-  if (!llamaContextPromise) {
-    llamaContextPromise = (async () => {
-      const modelPath = await getModelPath(onModelDownloadProgress);
-      const ctx = await initLlama({
-        model: modelPath,
-        n_ctx: 4096,
-        n_threads: 4,
-        n_gpu_layers: 0,
-      });
-      llamaContext = ctx;
-      return ctx;
-    })();
-  }
-  return llamaContextPromise;
-}
-
-export type ChatTurn = {
-  role: "user" | "assistant";
-  content: string;
-};
-
-export type ChatUserContext = {
-  username?: string | null;
-  skin_type?: string | null;
-  main_concerns?: string | null;
-  healthscore?: number | null;
-  sleep_quality?: string | null;
-  water_intake?: string | null;
-  stress_level?: string | null;
-  routine_summary?: string | null;
-};
+import { getLlamaContext } from "./llama";
+import type { ChatTurn, ChatUserContext } from "@/types/chat";
 
 const BASE_SYSTEM_PROMPT = `You are SkinLens AI, a friendly and knowledgeable skincare assistant embedded in the SkinLens app. You answer questions about skincare routines, ingredients, and general skin health.
 
@@ -117,14 +49,4 @@ export async function generateChatReply(
   return text.trim();
 }
 
-export async function preloadLlama(onProgress?: (fraction: number) => void) {
-  await getLlamaContext(onProgress);
-}
-
-export async function releaseLlama() {
-  if (llamaContext) {
-    await llamaContext.release();
-    llamaContext = null;
-    llamaContextPromise = null;
-  }
-}
+export { preloadLlama, releaseLlama } from "./llama";

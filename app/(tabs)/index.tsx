@@ -1,32 +1,35 @@
-import { View, Text, Pressable, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  RefreshControl,
+} from "react-native";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { SkinProfile, UserProfile } from "@/types/schema";
-import { getHealthScoreResponse } from "@/utils/healthscore";
+import {
+  SkinProfile,
+  UserProfile,
+  Result,
+  Routine,
+  RoutineStep,
+  Period,
+} from "@/types/schema";
 import { formatter } from "@/utils/formatter";
-import { supabase } from "@/utils/supabase";
+import {
+  getUserProfile,
+  getSkinProfile,
+  getLatestResult,
+  getLatestRoutine,
+  getTodayProgress,
+  toggleStep as toggleStepDb,
+} from "@/lib/db";
 import Skeleton from "@/components/Skeleton";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import CircularProgress from "@/components/CircularProgress";
 import InlineProgress from "@/components/InlineProgress";
 import { router } from "expo-router";
-
-type RoutineStep = {
-  step: number;
-  product_type: string;
-  instruction: string;
-  reason: string;
-};
-
-type Routine = {
-  summary: string;
-  morning_routine: RoutineStep[];
-  afternoon_routine: RoutineStep[];
-  evening_routine: RoutineStep[];
-};
-
-type Period = "morning" | "afternoon" | "evening";
 
 const PERIOD_ORDER: Period[] = ["morning", "afternoon", "evening"];
 
@@ -47,22 +50,15 @@ const PERIOD_CONFIG: Record<
   evening: { label: "Evening Routine", icon: "moon", key: "evening_routine" },
 };
 
-// Local date string (YYYY-MM-DD) so completion resets at local midnight,
-// not UTC midnight. Keep this in sync with Routine.tsx.
-function getTodayStr() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingSkin, setLoadingSkin] = useState(true);
+  const [loadingResult, setLoadingResult] = useState(true);
   const [hasNotifications, setHasNotifications] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [routineId, setRoutineId] = useState<number | null>(null);
@@ -82,98 +78,76 @@ export default function Home() {
       return "Good evening 🌙";
     }
   };
+  const fetchUserProfile = async () => {
+    try {
+      setUserProfile(await getUserProfile());
+    } catch (err) {
+      console.error("Error fetching user profile:", err);
+    } finally {
+      setLoadingUser(false);
+    }
+  };
+  const fetchSkinProfile = async () => {
+    try {
+      setSkinProfile(await getSkinProfile());
+    } catch (err) {
+      console.error("Error fetching skin profile:", err);
+    } finally {
+      setLoadingSkin(false);
+    }
+  };
+  const fetchResult = async () => {
+    try {
+      setResult(await getLatestResult());
+    } catch (err) {
+      console.error("Error fetching result:", err);
+    } finally {
+      setLoadingResult(false);
+    }
+  };
+  const fetchRoutine = async () => {
+    setLoadingRoutine(true);
+    try {
+      const data = await getLatestRoutine();
+      if (!data) {
+        setRoutine(null);
+        setRoutineId(null);
+        setCompletedSteps(new Set());
+        return;
+      }
+      setRoutine(data.routine);
+      setRoutineId(data.id);
+      setCompletedSteps(await getTodayProgress(data.id));
+    } catch (err) {
+      console.error("Error fetching routine:", err);
+      setRoutine(null);
+    } finally {
+      setLoadingRoutine(false);
+    }
+  };
+
+  const loadAll = async () => {
+    await Promise.all([
+      fetchUserProfile(),
+      fetchSkinProfile(),
+      fetchResult(),
+      fetchRoutine(),
+    ]);
+  };
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const { data, error } = await supabase
-          .from("user_profile")
-          .select("*")
-          .eq("id", user?.id)
-          .single();
-        if (error) throw error;
-        setUserProfile(data);
-      } catch (err) {
-        console.error("Error fetching user profile:", err);
-      } finally {
-        setLoadingUser(false);
-      }
-    };
-    const fetchSkinProfile = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const { data, error } = await supabase
-          .from("skin_profile")
-          .select("*")
-          .eq("id", user?.id)
-          .single();
-        if (error) throw error;
-        setSkinProfile(data);
-      } catch (err) {
-        console.error("Error fetching skin profile:", err);
-      } finally {
-        setLoadingSkin(false);
-      }
-    };
-    const fetchRoutine = async () => {
-      setLoadingRoutine(true);
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        const { data, error } = await supabase
-          .from("routines")
-          .select("id, routine_json")
-          .eq("user_id", user?.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (error) throw error;
-
-        if (!data?.routine_json) {
-          setRoutine(null);
-          setRoutineId(null);
-          setCompletedSteps(new Set());
-          return;
-        }
-
-        const parsedRoutine: Routine = JSON.parse(data.routine_json);
-        setRoutine(parsedRoutine);
-        setRoutineId(data.id);
-
-        if (user?.id) {
-          const { data: progressRows, error: progressError } = await supabase
-            .from("routine_progress")
-            .select("period, step")
-            .eq("user_id", user.id)
-            .eq("routine_id", data.id)
-            .eq("completed_date", getTodayStr());
-          if (progressError) throw progressError;
-
-          setCompletedSteps(
-            new Set((progressRows ?? []).map((r) => `${r.period}-${r.step}`)),
-          );
-        }
-      } catch (err) {
-        console.error("Error fetching routine:", err);
-        setRoutine(null);
-      } finally {
-        setLoadingRoutine(false);
-      }
-    };
-
-    fetchUserProfile();
-    fetchSkinProfile();
-    fetchRoutine();
+    loadAll();
   }, []);
 
-  const toggleStep = async (period: Period, step: number) => {
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadAll();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  const handleToggleStep = async (period: Period, step: number) => {
     const key = `${period}-${step}`;
     const isCurrentlyDone = completedSteps.has(key);
 
@@ -186,36 +160,8 @@ export default function Home() {
     });
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user || routineId == null) throw new Error("Missing user/routine");
-
-      const todayStr = getTodayStr();
-
-      if (isCurrentlyDone) {
-        const { error } = await supabase
-          .from("routine_progress")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("routine_id", routineId)
-          .eq("period", period)
-          .eq("step", step)
-          .eq("completed_date", todayStr);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("routine_progress").upsert(
-          {
-            user_id: user.id,
-            routine_id: routineId,
-            period,
-            step,
-            completed_date: todayStr,
-          },
-          { onConflict: "user_id,routine_id,period,step,completed_date" },
-        );
-        if (error) throw error;
-      }
+      if (routineId == null) throw new Error("Missing routine");
+      await toggleStepDb(routineId, period, step, isCurrentlyDone);
     } catch (err) {
       console.error("Error toggling step:", err);
       // Revert optimistic update on failure
@@ -252,6 +198,14 @@ export default function Home() {
         className="flex-1 px-6"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#15803D"
+            colors={["#15803D"]}
+          />
+        }
       >
         {/* Header */}
         <View className="flex-row items-center justify-between">
@@ -278,29 +232,25 @@ export default function Home() {
         {/* Skin health score */}
         <View className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-row items-center gap-4 mt-5">
           <CircularProgress
-            progress={Number(skinProfile?.healthscore ?? 0)}
+            progress={Number(result?.healthscore ?? 0)}
             size={68}
             strokeWidth={6}
             color="#15803D"
             trackColor="#DCFCE7"
           >
             <Text className="text-lg font-bold text-green-700">
-              {skinProfile?.healthscore ?? 0}%
+              {result?.healthscore ?? 0}%
             </Text>
           </CircularProgress>
           <View className="flex-col flex-1">
             <Text className="font-bold text-gray-900 text-[15px]">
               Skin Health Score
             </Text>
-            {loadingSkin ? (
+            {loadingResult ? (
               <Skeleton className="w-28 h-4 mt-1" />
             ) : (
               <Text className="text-xs text-gray-500 mt-0.5">
-                {formatter(
-                  getHealthScoreResponse(Number(skinProfile?.healthscore ?? 0))
-                    .severity,
-                )}{" "}
-                Progress
+                {formatter(result?.severity ?? "—")} Progress
               </Text>
             )}
             <Pressable className="bg-green-700 rounded-full self-start px-4 py-1.5 mt-2.5 active:opacity-80">
@@ -390,7 +340,7 @@ export default function Home() {
                   return (
                     <Pressable
                       key={item.step}
-                      onPress={() => toggleStep(activePeriod, item.step)}
+                      onPress={() => handleToggleStep(activePeriod, item.step)}
                       className="flex-col items-center gap-1.5 flex-1 active:opacity-70"
                     >
                       <View

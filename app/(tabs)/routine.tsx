@@ -1,14 +1,17 @@
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { supabase } from "@/utils/supabase";
 import { useEffect, useMemo, useState } from "react";
-import { Routine, RoutineStep } from "@/types/schema";
+import { Routine, RoutineStep, Period } from "@/types/schema";
+import {
+  getLatestRoutine,
+  getTodayProgress,
+  toggleStep as toggleStepDb,
+} from "@/lib/db";
 import type React from "react";
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
-type Period = "morning" | "afternoon" | "evening";
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
 const PERIOD_CONFIG: Record<
@@ -24,16 +27,6 @@ const PERIOD_CONFIG: Record<
   evening: { label: "Evening", icon: "moon", key: "evening_routine" },
 };
 
-// Local date string (YYYY-MM-DD) so completion resets at local midnight,
-// not UTC midnight.
-function getTodayStr() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 export default function Routines() {
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [routineId, setRoutineId] = useState<number | null>(null);
@@ -47,40 +40,15 @@ export default function Routines() {
       setLoadingRoutine(true);
       setLoadError(false);
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const { data, error } = await supabase
-          .from("routines")
-          .select("id, routine_json")
-          .eq("user_id", user?.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (error) throw error;
-        if (!data?.routine_json) {
+        const data = await getLatestRoutine();
+        if (!data) {
           setRoutine(null);
           setRoutineId(null);
           setCompletedSteps(new Set());
         } else {
-          const parsedRoutine: Routine = JSON.parse(data.routine_json);
-          setRoutine(parsedRoutine);
+          setRoutine(data.routine);
           setRoutineId(data.id);
-          // Load today's completed steps for this routine
-          if (user?.id) {
-            const { data: progressRows, error: progressError } = await supabase
-              .from("routine_progress")
-              .select("period, step")
-              .eq("user_id", user.id)
-              .eq("routine_id", data.id)
-              .eq("completed_date", getTodayStr());
-
-            if (progressError) throw progressError;
-
-            setCompletedSteps(
-              new Set((progressRows ?? []).map((r) => `${r.period}-${r.step}`)),
-            );
-          }
+          setCompletedSteps(await getTodayProgress(data.id));
         }
       } catch {
         setLoadError(true);
@@ -114,7 +82,7 @@ export default function Routines() {
   const doneCount = completedSteps.size;
   const progressPct =
     totalSteps > 0 ? Math.round((doneCount / totalSteps) * 100) : 0;
-  const toggleStep = async (period: Period, step: number) => {
+  const handleToggleStep = async (period: Period, step: number) => {
     const key = `${period}-${step}`;
     // Ignore taps while a write for this step is already in flight
     if (pendingSteps.has(key)) return;
@@ -128,38 +96,8 @@ export default function Routines() {
     });
     setPendingSteps((prev) => new Set(prev).add(key));
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user || routineId == null) {
-        throw new Error("Missing user or routine id");
-      }
-      const todayStr = getTodayStr();
-      if (isCurrentlyDone) {
-        // Was done -> mark as not done (delete today's row)
-        const { error } = await supabase
-          .from("routine_progress")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("routine_id", routineId)
-          .eq("period", period)
-          .eq("step", step)
-          .eq("completed_date", todayStr);
-        if (error) throw error;
-      } else {
-        // Was not done -> mark as done (upsert today's row)
-        const { error } = await supabase.from("routine_progress").upsert(
-          {
-            user_id: user.id,
-            routine_id: routineId,
-            period,
-            step,
-            completed_date: todayStr,
-          },
-          { onConflict: "user_id,routine_id,period,step,completed_date" },
-        );
-        if (error) throw error;
-      }
+      if (routineId == null) throw new Error("Missing routine id");
+      await toggleStepDb(routineId, period, step, isCurrentlyDone);
     } catch {
       // Revert optimistic update on failure
       setCompletedSteps((prev) => {
@@ -275,7 +213,7 @@ export default function Routines() {
               return (
                 <Pressable
                   key={key}
-                  onPress={() => toggleStep(activePeriod, item.step)}
+                  onPress={() => handleToggleStep(activePeriod, item.step)}
                   disabled={isPending}
                   className={`bg-white rounded-3xl shadow-sm py-4 px-4 flex-row items-start gap-3 ${
                     isDone ? "opacity-60" : ""

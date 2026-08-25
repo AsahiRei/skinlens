@@ -4,17 +4,7 @@ import { useState } from "react";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import * as Location from "expo-location";
 import Skeleton from "@/components/Skeleton";
-
-type Dermatologist = {
-  id: string;
-  name: string;
-  specialty: string;
-  clinic: string;
-  address: string;
-  distanceKm: number;
-  rating: number;
-  availableToday: boolean;
-};
+import type { Dermatologist } from "@/types/schema";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
 

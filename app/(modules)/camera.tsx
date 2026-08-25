@@ -13,20 +13,16 @@ import {
 import { Camera, Face } from "react-native-vision-camera-face-detector";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useRouter } from "expo-router";
+import type { FaceBounds } from "@/types/schema";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-type FaceBounds = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
 
 export default function FaceDetectionScreen() {
   const router = useRouter();
   const { hasPermission, requestPermission } = useCameraPermission();
-  const [cameraPosition, setCameraPosition] = useState<"front" | "back">("front");
+  const [cameraPosition, setCameraPosition] = useState<"front" | "back">(
+    "front",
+  );
   const device = useCameraDevice(cameraPosition);
   const [faceBox, setFaceBox] = useState<FaceBounds | null>(null);
   const handleFacesDetected = useCallback((faces: Face[]) => {

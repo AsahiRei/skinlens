@@ -9,7 +9,7 @@ import {
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useState, useEffect } from "react";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import { supabase } from "@/utils/supabase";
+import { getAllProfiles } from "@/lib/db";
 import { InfoCard, InfoCardSkeleton } from "@/components/Info";
 import { SkinProfile, UserProfile, LifestyleProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
@@ -29,66 +29,22 @@ export default function Profile() {
   const [appointmentAlerts, setAppointmentAlerts] = useState(true);
   const [dailyTips, setDailyTips] = useState(false);
   useEffect(() => {
-    //user profile
-    const fetchUserProfile = async () => {
+    const fetchProfiles = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const { data, error } = await supabase
-          .from("user_profile")
-          .select("*")
-          .eq("id", user?.id)
-          .single();
-        if (error) throw error;
-        setUserProfile(data);
+        const { userProfile, skinProfile, lifestyleProfile } =
+          await getAllProfiles();
+        setUserProfile(userProfile);
+        setSkinProfile(skinProfile);
+        setLifestyleProfile(lifestyleProfile);
       } catch (err) {
-        console.error("Error fetching user profile:", err);
+        console.error("Error fetching profiles:", err);
       } finally {
         setLoadingUser(false);
-      }
-    };
-    //skin profile
-    const fetchSkinProfile = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const { data, error } = await supabase
-          .from("skin_profile")
-          .select("*")
-          .eq("id", user?.id)
-          .single();
-        if (error) throw error;
-        setSkinProfile(data);
-      } catch (err) {
-        console.error("Error fetching skin profile:", err);
-      } finally {
         setLoadingSkin(false);
-      }
-    };
-    //life style profile
-    const fetchLifestyleProfile = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const { data, error } = await supabase
-          .from("lifestyle_profile")
-          .select("*")
-          .eq("id", user?.id)
-          .single();
-        if (error) throw error;
-        setLifestyleProfile(data);
-      } catch (err) {
-        console.error("Error fetching skin profile:", err);
-      } finally {
         setLoadingLifestyle(false);
       }
     };
-    fetchLifestyleProfile();
-    fetchUserProfile();
-    fetchSkinProfile();
+    fetchProfiles();
   }, []);
 
   return (

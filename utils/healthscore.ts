@@ -1,12 +1,4 @@
-export type Severity = "excellent" | "good" | "fair" | "poor" | "critical";
-
-export interface HealthScoreResponse {
-  severity: Severity;
-  label: string;
-  message: string;
-  color: string;
-  trackColor: string;
-}
+import type { Severity, HealthScoreResponse } from "@/types/health";
 
 const concernLabels: Record<string, string> = {
   none: "maintaining clear skin",
@@ -31,7 +23,6 @@ export const getHealthScoreResponse = (
   const skinType = skinTypeLabels[answers.skin_type] ?? "";
   const concern = concernLabels[answers.main_concern] ?? "";
 
-  // build a personalized clause when we have enough info, otherwise fall back
   const personalizedClause =
     skinType && concern
       ? ` for your ${skinType} skin, with a focus on ${concern}`

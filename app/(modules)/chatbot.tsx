@@ -9,20 +9,12 @@ import {
 } from "react-native";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useEffect, useRef, useState } from "react";
-import { useChatUserContext } from "@/utils/chat-context";
-import { generateChatReply, type ChatTurn } from "@/utils/chat-assistant";
+import { useChatUserContext } from "@/hooks/useChatUserContext";
+import { generateChatReply } from "@/utils/chat-assistant";
+import type { ChatTurn, ChatMessage } from "@/types/chat";
 import TypewriterText from "@/components/TypewriterText";
 import TypingDots from "@/components/TypingDots";
 import Ionicons from "@react-native-vector-icons/ionicons";
-
-type ChatRole = "user" | "assistant";
-
-type ChatMessage = {
-  id: string;
-  role: ChatRole;
-  content: string;
-  animate?: boolean;
-};
 
 const INITIAL_MESSAGES: ChatMessage[] = [];
 
