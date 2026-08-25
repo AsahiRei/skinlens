@@ -40,7 +40,8 @@
         }
       ],
       "@react-native-vector-icons/ionicons",
-      "react-native-fast-tflite"
+      "react-native-fast-tflite",
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true

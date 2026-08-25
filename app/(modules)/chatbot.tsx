@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "expo-router";
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import { generateChatReply } from "@/utils/chat-assistant";
 import type { ChatTurn, ChatMessage } from "@/types/chat";
@@ -19,6 +20,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 const INITIAL_MESSAGES: ChatMessage[] = [];
 
 export default function Chatbot() {
+  const router = useRouter();
   const { userContext } = useChatUserContext();
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
@@ -78,6 +80,17 @@ export default function Chatbot() {
       prev.map((m) => (m.id === id ? { ...m, animate: false } : m)),
     );
   };
+
+  const BackButton = (
+    <Pressable
+      onPress={() => router.back()}
+      hitSlop={8}
+      className="h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm"
+    >
+      <Ionicons name="arrow-back" size={18} color="#15803D" />
+    </Pressable>
+  );
+
   const InputBar = (
     <View className="flex-row items-center gap-2 bg-white rounded-full shadow-sm px-2 py-2">
       <TextInput
@@ -134,6 +147,7 @@ export default function Chatbot() {
   if (!hasStarted) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="px-6 pt-2">{BackButton}</View>
         <KeyboardAvoidingView
           className="flex-1"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -164,10 +178,17 @@ export default function Chatbot() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
       >
         <View className="px-6 pt-2">
-          <Text className="font-bold text-green-700 text-2xl">Nerma AI</Text>
-          <Text className="text-gray-500">
-            Ask me anything about your skincare routine
-          </Text>
+          <View className="flex-row items-center gap-3">
+            {BackButton}
+            <View className="flex-col flex-1">
+              <Text className="font-bold text-green-700 text-2xl">
+                Nerma AI
+              </Text>
+              <Text className="text-gray-500">
+                Ask me anything about your skincare routine
+              </Text>
+            </View>
+          </View>
         </View>
         <ScrollView
           ref={scrollRef}

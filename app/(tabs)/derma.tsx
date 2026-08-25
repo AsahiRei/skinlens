@@ -1,12 +1,19 @@
 import { View, Text, Pressable, ScrollView, TextInput } from "react-native";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useRouter } from "expo-router";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import * as Location from "expo-location";
+import { Map, Camera, Marker } from "@maplibre/maplibre-react-native";
+import type { MapRef, CameraRef } from "@maplibre/maplibre-react-native";
 import Skeleton from "@/components/Skeleton";
 import type { Dermatologist } from "@/types/schema";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
+
+const MAP_STYLE_URL = `https://maps.geoapify.com/v1/styles/osm-bright/style.json?apiKey=${GEOAPIFY_API_KEY}`;
+
+type Coords = { latitude: number; longitude: number };
 
 export default function Derma() {
   const [query, setQuery] = useState("");
@@ -14,6 +21,11 @@ export default function Derma() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [results, setResults] = useState<Dermatologist[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [userLocation, setUserLocation] = useState<Coords | null>(null);
+  const [clinicCoords, setClinicCoords] = useState<Record<string, Coords>>({});
+  const mapRef = useRef<MapRef>(null);
+  const cameraRef = useRef<CameraRef>(null);
+  const router = useRouter();
 
   const filtered = results.filter((d) =>
     `${d.name} ${d.specialty} ${d.clinic}`
@@ -38,6 +50,7 @@ export default function Derma() {
         accuracy: Location.Accuracy.Balanced,
       });
       const { latitude, longitude } = position.coords;
+      setUserLocation({ latitude, longitude });
 
       const url =
         `https://api.geoapify.com/v2/places` +
@@ -69,11 +82,28 @@ export default function Derma() {
         },
       );
 
+      // Keep a lookup of coordinates per result id so the map can pin them.
+      const coordLookup: Record<string, Coords> = {};
+      (data.features ?? []).forEach((f: any, idx: number) => {
+        const id = f.properties.place_id ?? String(idx);
+        const [lon, lat] = f.geometry?.coordinates ?? [null, null];
+        if (lat != null && lon != null) {
+          coordLookup[id] = { latitude: lat, longitude: lon };
+        }
+      });
+      setClinicCoords(coordLookup);
+
       mapped.sort((a, b) =>
         a.specialty === "Dermatology" && b.specialty !== "Dermatology" ? -1 : 0,
       );
 
       setResults(mapped);
+
+      cameraRef.current?.flyTo({
+        center: [longitude, latitude],
+        zoom: 13,
+        duration: 600,
+      });
     } catch (err) {
       console.error(err);
       setErrorMsg("Couldn't fetch nearby clinics. Try again.");
@@ -89,7 +119,9 @@ export default function Derma() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <Text className="font-bold text-green-700 text-2xl">Dermatologist</Text>
+        <Text className="font-bold text-green-700 text-2xl">
+          Find Dermatologist
+        </Text>
         <Text className="text-gray-500">
           Find trusted skin specialists near you
         </Text>
@@ -145,6 +177,57 @@ export default function Derma() {
           </Text>
         )}
 
+        {/* Map: user location + clinic pins */}
+        {(locating || hasSearched) && (
+          <View className="rounded-3xl overflow-hidden shadow-sm mt-4 h-56 bg-gray-200">
+            {locating || !userLocation ? (
+              <Skeleton className="h-full w-full" />
+            ) : (
+              <Map ref={mapRef} mapStyle={MAP_STYLE_URL} logo={false}>
+                <Camera
+                  ref={cameraRef}
+                  initialViewState={{
+                    center: [userLocation.longitude, userLocation.latitude],
+                    zoom: 13,
+                  }}
+                />
+
+                {/* You are here */}
+                <Marker
+                  id="user-location"
+                  lngLat={[userLocation.longitude, userLocation.latitude]}
+                >
+                  <View className="h-4 w-4 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
+                </Marker>
+
+                {/* Clinic pins */}
+                {filtered.map((d) => {
+                  const coord = clinicCoords[d.id];
+                  if (!coord) return null;
+                  return (
+                    <Marker
+                      key={d.id}
+                      id={`clinic-${d.id}`}
+                      lngLat={[coord.longitude, coord.latitude]}
+                      onPress={() =>
+                        cameraRef.current?.flyTo({
+                          center: [coord.longitude, coord.latitude],
+                          zoom: 15,
+                          duration: 400,
+                        })
+                      }
+                    >
+                      <View className="h-7 w-7 items-center justify-center rounded-full bg-green-700 border-2 border-white shadow-sm">
+                        <Ionicons name="medkit" size={13} color="white" />
+                      </View>
+                    </Marker>
+                  );
+                })}
+              </Map>
+            )}
+          </View>
+        )}
+
         {/* Results header */}
         {(locating || hasSearched) && (
           <View className="flex-row items-center justify-between mt-6 mb-1">
@@ -189,7 +272,11 @@ export default function Derma() {
               >
                 <View className="flex-row items-center gap-3">
                   <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
-                    <Ionicons name="person-outline" size={22} color="#15803D" />
+                    <Ionicons
+                      name="medical-outline"
+                      size={22}
+                      color="#15803D"
+                    />
                   </View>
                   <View className="flex-col flex-1">
                     <Text className="font-bold text-gray-900 text-[15px]">
@@ -246,8 +333,27 @@ export default function Derma() {
                       {d.distanceKm.toFixed(1)} km away
                     </Text>
                   </View>
-                  <Pressable className="bg-green-700 rounded-full px-4 py-1.5 active:opacity-80">
-                    <Text className="text-xs text-white font-bold">Book</Text>
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: "/derma-info/[id]",
+                        params: {
+                          id: d.id, // this IS the Geoapify place_id already
+                          name: d.name,
+                          specialty: d.specialty,
+                          clinic: d.clinic,
+                          address: d.address,
+                          distanceKm: String(d.distanceKm),
+                          rating: String(d.rating),
+                          availableToday: String(d.availableToday),
+                        },
+                      })
+                    }
+                    className="bg-green-700 rounded-full px-4 py-1.5 active:opacity-80"
+                  >
+                    <Text className="text-xs text-white font-bold">
+                      View more
+                    </Text>
                   </Pressable>
                 </View>
               </View>
