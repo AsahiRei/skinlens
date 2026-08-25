@@ -45,6 +45,7 @@ export async function getLlamaContext(
         n_ctx: 4096,
         n_threads: 4,
         n_gpu_layers: 0,
+        n_batch: 128,
       });
       llamaContext = ctx;
       return ctx;
