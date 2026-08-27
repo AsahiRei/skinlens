@@ -1,0 +1,71 @@
+{
+  "name": "skinlens",
+  "main": "expo-router/entry",
+  "version": "1.0.0",
+  "dependencies": {
+    "@maplibre/maplibre-react-native": "^11.3.7",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/netinfo": "12.0.1",
+    "@react-native-vector-icons/ionicons": "^13.1.2",
+    "@supabase/supabase-js": "^2.112.3",
+    "buffer": "^6.0.3",
+    "expo": "~57.0.16",
+    "expo-asset": "~57.0.15",
+    "expo-auth-session": "~57.0.9",
+    "expo-constants": "~57.0.10",
+    "expo-crypto": "~57.0.2",
+    "expo-dev-client": "~57.0.15",
+    "expo-font": "~57.0.1",
+    "expo-image-manipulator": "~57.0.13",
+    "expo-image-picker": "~57.0.13",
+    "expo-linking": "~57.0.7",
+    "expo-location": "~57.0.13",
+    "expo-router": "~57.0.16",
+    "expo-splash-screen": "~57.0.8",
+    "expo-sqlite": "~57.0.1",
+    "expo-status-bar": "~57.0.1",
+    "expo-symbols": "~57.0.2",
+    "expo-system-ui": "~57.0.2",
+    "expo-web-browser": "~57.0.2",
+    "jpeg-js": "^0.4.4",
+    "llama.rn": "^0.13.0-rc.0",
+    "nativewind": "^5.0.0-preview.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-css": "^3.0.7",
+    "react-native-fast-tflite": "^3.0.1",
+    "react-native-nitro-image": "^0.15.2",
+    "react-native-nitro-modules": "^0.37.0",
+    "react-native-pager-view": "8.0.2",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "react-native-vision-camera": "^5.2.3",
+    "react-native-vision-camera-face-detector": "^2.0.6",
+    "react-native-vision-camera-worklets": "^5.2.3",
+    "react-native-web": "~0.21.0",
+    "react-native-worklets": "0.10.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/react": "~19.2.2",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "private": true,
+  "overrides": {
+    "lightningcss": "1.30.1"
+  },
+  "allowScripts": {
+    "llama.rn@0.13.0-rc.0": true
+  }
+}
