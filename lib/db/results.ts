@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import type { RecommendedProduct, Result, ResultData } from "@/types/schema";
 import { supabase } from "@/utils/supabase";
 
@@ -127,49 +126,6 @@ export async function getLatestResultDetail(): Promise<ResultData | null> {
 export async function getLatestHealthscore(): Promise<number | null> {
   const result = await getLatestResult();
   return result?.healthscore ?? null;
-=======
-import { supabase } from "@/utils/supabase";
-import { requireUser } from "./auth";
-import type { Result, ResultData, RecommendedProduct } from "@/types/schema";
-
-export async function getLatestResult(): Promise<Result | null> {
-  const user = await requireUser();
-  const { data, error } = await supabase
-    .from("results")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-}
-
-export async function getLatestResultDetail(): Promise<ResultData | null> {
-  const user = await requireUser();
-  const { data, error } = await supabase
-    .from("results")
-    .select("severity, description, healthscore, recommendations")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-}
-
-export async function getLatestHealthscore(): Promise<number | null> {
-  const user = await requireUser();
-  const { data, error } = await supabase
-    .from("results")
-    .select("healthscore")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data?.healthscore ?? null;
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 }
 
 export async function insertResult(result: {
@@ -177,7 +133,6 @@ export async function insertResult(result: {
   description: string;
   healthscore: number;
   recommendations: RecommendedProduct[] | null;
-<<<<<<< HEAD
   image_url?: string | null;
   source_type?: string;
 }): Promise<Result> {
@@ -211,18 +166,10 @@ export async function insertResult(result: {
     const tempId = Math.min(maxRow?.max_id ?? 0, 0) - 1;
     serverResult = {
       id: tempId,
-=======
-}): Promise<Result> {
-  const user = await requireUser();
-  const { data, error } = await supabase
-    .from("results")
-    .insert({
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
       user_id: user.id,
       severity: result.severity,
       description: result.description,
       healthscore: result.healthscore,
-<<<<<<< HEAD
       image_url: result.image_url ?? null,
       source_type: sourceType,
       recommendations: result.recommendations,
@@ -258,13 +205,4 @@ export async function insertResult(result: {
     ],
   );
   return serverResult;
-=======
-      source_type: "ai_generated",
-      recommendations: result.recommendations,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 }

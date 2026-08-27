@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -6,14 +5,6 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-=======
-import { View, Text, Pressable, ScrollView, Linking } from "react-native";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import Skeleton from "@/components/Skeleton";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
 

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -13,21 +12,6 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { supabase, updatePassword } from "@/utils/supabase";
-=======
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ToastAndroid,
-  ActivityIndicator,
-} from "react-native";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useRouter } from "expo-router";
-import { useState } from "react";
-import { updatePassword, supabase } from "@/utils/supabase";
-import Ionicons from "@react-native-vector-icons/ionicons";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 export default function CreateNewPassword() {
   const [password, setPassword] = useState("");

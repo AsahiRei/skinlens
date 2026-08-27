@@ -1,17 +1,9 @@
-<<<<<<< HEAD
 import { Alert, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-=======
-import { View, Text, Pressable, Alert } from "react-native";
-import { useRouter } from "expo-router";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import * as ImagePicker from "expo-image-picker";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 const HOW_IT_WORKS = [
   {
@@ -51,13 +43,8 @@ export default function Scan() {
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
       router.push({
-<<<<<<< HEAD
         pathname: "/(modules)/analyzing",
         params: { imageUri: result.assets[0].uri, sourceType: "gallery" },
-=======
-        pathname: "/(modules)/analyzing" as any,
-        params: { imageUri: result.assets[0].uri },
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
       });
     }
   };

@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
-<<<<<<< HEAD
 
 import { getDatabase } from "@/lib/db/database";
 import { requireUser } from "@/lib/db/auth";
-=======
-import { supabase } from "@/utils/supabase";
-import { requireUser } from "@/lib/db";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 import type { ChatUserContext } from "@/types/chat";
 
 function summarizeRoutine(routineJson: string | null): string | null {
@@ -31,7 +26,6 @@ export function useChatUserContext() {
     const load = async () => {
       try {
         const user = await requireUser();
-<<<<<<< HEAD
         const db = await getDatabase();
 
         const [userRow, skinRow, lifestyleRow, routineRow, resultRow] =
@@ -72,51 +66,6 @@ export function useChatUserContext() {
           water_intake: lifestyleRow?.water_intake,
           stress_level: lifestyleRow?.stress_level,
           routine_summary: summarizeRoutine(routineRow?.routine_json ?? null),
-=======
-        const [
-          { data: userProfile },
-          { data: skinProfile },
-          { data: lifestyleProfile },
-          { data: latestRoutine },
-          { data: latestResult },
-        ] = await Promise.all([
-          supabase.from("user_profile").select("username").eq("id", user.id).single(),
-          supabase
-            .from("skin_profile")
-            .select("skin_type, main_concerns")
-            .eq("id", user.id)
-            .single(),
-          supabase
-            .from("lifestyle_profile")
-            .select("sleep_quality, water_intake, stress_level")
-            .eq("id", user.id)
-            .single(),
-          supabase
-            .from("routines")
-            .select("routine_json")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("results")
-            .select("healthscore")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
-        if (!isMounted) return;
-        setUserContext({
-          username: userProfile?.username,
-          skin_type: skinProfile?.skin_type,
-          main_concerns: skinProfile?.main_concerns,
-          healthscore: latestResult?.healthscore,
-          sleep_quality: lifestyleProfile?.sleep_quality,
-          water_intake: lifestyleProfile?.water_intake,
-          stress_level: lifestyleProfile?.stress_level,
-          routine_summary: summarizeRoutine(latestRoutine?.routine_json ?? null),
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
         });
       } catch (err) {
         console.error("Error building chat user context:", err);

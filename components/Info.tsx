@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 import { Text, View } from "react-native";
 
-=======
-import { View, Text } from "react-native";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 import Skeleton from "./Skeleton";
 
 export function InfoCard({ label, value }: { label: string; value: string }) {

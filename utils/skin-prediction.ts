@@ -1,8 +1,5 @@
 import { loadTensorflowModel } from "react-native-fast-tflite";
-<<<<<<< HEAD
 import { Asset } from "expo-asset";
-=======
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import jpeg from "jpeg-js";
@@ -12,7 +9,6 @@ let model: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 
 async function getModel() {
   if (!model) {
-<<<<<<< HEAD
     const [asset] = await Asset.loadAsync(
       require("@/assets/models/detection_model.tflite"),
     );
@@ -21,10 +17,6 @@ async function getModel() {
     }
     model = await loadTensorflowModel(
       { url: asset.localUri },
-=======
-    model = await loadTensorflowModel(
-      require("@/assets/models/detection_model.tflite"),
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
       ["android-gpu"],
     );
   }

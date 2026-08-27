@@ -78,7 +78,6 @@ export type ResultData = {
   healthscore: number;
   recommendations: RecommendedProduct[] | null;
 };
-<<<<<<< HEAD
 
 export type ScanDetectionResult = {
   label: string;
@@ -93,5 +92,3 @@ export type SurveyAnswer = {
   value: string;
   points: number;
 };
-=======
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38

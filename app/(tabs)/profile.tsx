@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import {
   Pressable,
@@ -18,25 +17,6 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { getAllProfiles } from "@/lib/db";
 import type { LifestyleProfile, SkinProfile, UserProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
-=======
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Switch,
-  ScrollView,
-  Pressable,
-} from "react-native";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useState, useEffect } from "react";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import { getAllProfiles } from "@/lib/db";
-import { InfoCard, InfoCardSkeleton } from "@/components/Info";
-import { SkinProfile, UserProfile, LifestyleProfile } from "@/types/schema";
-import { formatter } from "@/utils/formatter";
-import LogoutModal from "@/components/LogoutModal";
-import Skeleton from "@/components/Skeleton";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 export default function Profile() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -50,7 +30,6 @@ export default function Profile() {
   const [scanReminders, setScanReminders] = useState(true);
   const [appointmentAlerts, setAppointmentAlerts] = useState(true);
   const [dailyTips, setDailyTips] = useState(false);
-<<<<<<< HEAD
   const [refreshing, setRefreshing] = useState(false);
   const fetchProfiles = async () => {
     try {
@@ -78,26 +57,6 @@ export default function Profile() {
       setRefreshing(false);
     }
   };
-=======
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      try {
-        const { userProfile, skinProfile, lifestyleProfile } =
-          await getAllProfiles();
-        setUserProfile(userProfile);
-        setSkinProfile(skinProfile);
-        setLifestyleProfile(lifestyleProfile);
-      } catch (err) {
-        console.error("Error fetching profiles:", err);
-      } finally {
-        setLoadingUser(false);
-        setLoadingSkin(false);
-        setLoadingLifestyle(false);
-      }
-    };
-    fetchProfiles();
-  }, []);
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
   return (
     <>
@@ -107,7 +66,6 @@ export default function Profile() {
           className="flex-1 px-6"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 32 }}
-<<<<<<< HEAD
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -116,8 +74,6 @@ export default function Profile() {
               colors={["#15803D"]}
             />
           }
-=======
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
         >
           {loadingUser ? (
             <View className="gap-2">

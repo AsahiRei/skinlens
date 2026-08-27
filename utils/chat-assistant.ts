@@ -1,11 +1,6 @@
-<<<<<<< HEAD
 import type { ChatTurn, ChatUserContext } from "@/types/chat";
 
 import { getLlamaContext } from "./llama";
-=======
-import { getLlamaContext } from "./llama";
-import type { ChatTurn, ChatUserContext } from "@/types/chat";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 const BASE_SYSTEM_PROMPT = `You are SkinLens AI, a friendly and knowledgeable skincare assistant embedded in the SkinLens app. You answer questions about skincare routines, ingredients, and general skin health.
 

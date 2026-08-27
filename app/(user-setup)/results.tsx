@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,25 +16,6 @@ import { getLatestResultDetail, updateUserProfile } from "@/lib/db";
 import type { ResultData } from "@/types/schema";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { formatter } from "@/utils/formatter";
-=======
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  ToastAndroid,
-  ActivityIndicator,
-} from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { formatter } from "@/utils/formatter";
-import { getHealthScoreResponse } from "@/utils/healthscore";
-import { useState, useEffect } from "react";
-import { updateUserProfile, getLatestResultDetail } from "@/lib/db";
-import type { ResultData } from "@/types/schema";
-import CircularProgress from "@/components/CircularProgress";
-import Ionicons from "@react-native-vector-icons/ionicons";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 export default function results() {
   const [resultData, setResultData] = useState<ResultData | null>(null);

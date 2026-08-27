@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import type React from "react";
 import { useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -19,40 +18,6 @@ import {
 } from "@/lib/db";
 import type { Period, Routine, RoutineStep, Result, SkinProfile, UserProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
-=======
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  RefreshControl,
-} from "react-native";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import type React from "react";
-import { useEffect, useState } from "react";
-import {
-  SkinProfile,
-  UserProfile,
-  Result,
-  Routine,
-  RoutineStep,
-  Period,
-} from "@/types/schema";
-import { formatter } from "@/utils/formatter";
-import {
-  getUserProfile,
-  getSkinProfile,
-  getLatestResult,
-  getLatestRoutine,
-  getTodayProgress,
-  toggleStep as toggleStepDb,
-} from "@/lib/db";
-import Skeleton from "@/components/Skeleton";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import CircularProgress from "@/components/CircularProgress";
-import InlineProgress from "@/components/InlineProgress";
-import { router } from "expo-router";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 const PERIOD_ORDER: Period[] = ["morning", "afternoon", "evening"];
 

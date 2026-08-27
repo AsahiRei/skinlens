@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -9,17 +8,6 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-=======
-import { View, Text, Pressable, ScrollView, TextInput } from "react-native";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useState, useRef } from "react";
-import { useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import * as Location from "expo-location";
-import { Map, Camera, Marker } from "@maplibre/maplibre-react-native";
-import type { MapRef, CameraRef } from "@maplibre/maplibre-react-native";
-import Skeleton from "@/components/Skeleton";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 import type { Dermatologist } from "@/types/schema";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";

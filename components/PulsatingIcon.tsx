@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useEffect } from "react";
 import { View } from "react-native";
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -9,18 +8,6 @@ import Animated, {
   withDelay,
   withRepeat,
   withTiming,
-=======
-import { View } from "react-native";
-import { useEffect } from "react";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-  withRepeat,
-  Easing,
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 } from "react-native-reanimated";
 
 const RING_SIZE = 140;

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import PagerView from "react-native-pager-view";
@@ -7,15 +6,6 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { useRouter } from "expo-router";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-=======
-import { View, Text, Pressable } from "react-native";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useState, useRef } from "react";
-import { useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import PagerView from "react-native-pager-view";
-import AsyncStorage from "@react-native-async-storage/async-storage";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 const onboardingPage = [
   {

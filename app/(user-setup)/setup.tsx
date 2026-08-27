@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -7,15 +6,6 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-=======
-import { View, Text, Pressable, TextInput } from "react-native";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useState, useRef } from "react";
-import { useRouter } from "expo-router";
-import PagerView from "react-native-pager-view";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import InlineProgress from "@/components/InlineProgress";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 const questionPage = [
   {

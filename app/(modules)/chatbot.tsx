@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -19,26 +18,6 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import type { ChatMessage, ChatTurn } from "@/types/chat";
 import { generateChatReply } from "@/utils/chat-assistant";
-=======
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "expo-router";
-import { useChatUserContext } from "@/hooks/useChatUserContext";
-import { generateChatReply } from "@/utils/chat-assistant";
-import type { ChatTurn, ChatMessage } from "@/types/chat";
-import TypewriterText from "@/components/TypewriterText";
-import TypingDots from "@/components/TypingDots";
-import Ionicons from "@react-native-vector-icons/ionicons";
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 const INITIAL_MESSAGES: ChatMessage[] = [];
 
@@ -49,10 +28,7 @@ export default function Chatbot() {
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-<<<<<<< HEAD
   const downloadToastShown = useRef(false);
-=======
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
   const hasStarted = messages.length > 0;
   useEffect(() => {
     requestAnimationFrame(() => {
@@ -76,7 +52,6 @@ export default function Chatbot() {
         role: m.role,
         content: m.content,
       }));
-<<<<<<< HEAD
       const reply = await generateChatReply(history, userContext ?? undefined, (fraction) => {
         if (fraction < 0.1 && !downloadToastShown.current) {
           downloadToastShown.current = true;
@@ -86,9 +61,6 @@ export default function Chatbot() {
           );
         }
       });
-=======
-      const reply = await generateChatReply(history, userContext ?? undefined);
->>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
       setMessages((prev) => [
         ...prev,
         {
