@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useEffect, useRef } from "react";
 import { Animated } from "react-native";
+=======
+import { Animated } from "react-native";
+import { useEffect, useRef } from "react";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 export default function Skeleton({ className }: { className: string }) {
   const opacity = useRef(new Animated.Value(0.3)).current;

@@ -1,9 +1,17 @@
+<<<<<<< HEAD
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import Login from "@/components/Login";
 import Register from "@/components/Register";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+=======
+import { View, Text, Pressable } from "react-native";
+import { useState } from "react";
+import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import Login from "@/components/Login";
+import Register from "@/components/Register";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 export default function Welcome() {
   const [selected, setSelect] = useState("login");

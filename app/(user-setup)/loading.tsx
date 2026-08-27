@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -17,6 +18,25 @@ import {
 } from "@/lib/db";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
+=======
+import { View, Text, Pressable } from "react-native";
+import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import Ionicons from "@react-native-vector-icons/ionicons";
+import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
+import { getHealthScoreResponse } from "@/utils/healthscore";
+import {
+  requireUser,
+  updateUserProfile,
+  upsertSkinProfile,
+  upsertLifestyleProfile,
+  insertResult,
+  insertRoutine,
+} from "@/lib/db";
+import PulsatingIcon from "@/components/PulsatingIcon";
+import InlineProgress from "@/components/InlineProgress";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 const steps = [
   { label: "Analyzing your skin profile" },

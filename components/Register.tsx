@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -14,6 +15,22 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { supabase } from "@/utils/supabase";
 
+=======
+import {
+  View,
+  Text,
+  Pressable,
+  TextInput,
+  ScrollView,
+  ToastAndroid,
+  ActivityIndicator,
+} from "react-native";
+import { useState } from "react";
+import { supabase } from "@/utils/supabase";
+import { useRouter } from "expo-router";
+import Ionicons from "@react-native-vector-icons/ionicons";
+
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 export default function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");

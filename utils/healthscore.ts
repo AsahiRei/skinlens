@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import type { HealthScoreResponse, Severity } from "@/types/health";
+=======
+import type { Severity, HealthScoreResponse } from "@/types/health";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 const concernLabels: Record<string, string> = {
   none: "maintaining clear skin",

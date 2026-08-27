@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useEffect } from "react";
 import { Stack, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
@@ -8,6 +9,12 @@ import { createSessionFromUrl, supabase } from "@/utils/supabase";
 
 import { StatusBar } from "react-native";
 
+=======
+import { Stack, useRouter } from "expo-router";
+import { useEffect } from "react";
+import { createSessionFromUrl, supabase } from "@/utils/supabase";
+import * as Linking from "expo-linking";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 import "../global.css";
 
 export default function _Layout() {
@@ -36,6 +43,7 @@ export default function _Layout() {
     };
   }, []);
   return (
+<<<<<<< HEAD
     <>
       <StatusBar barStyle="dark-content" />
       <NetworkProvider>
@@ -48,5 +56,13 @@ export default function _Layout() {
         />
       </NetworkProvider>
     </>
+=======
+    <Stack
+      screenOptions={{
+        animation: "ios_from_right",
+        headerShown: false,
+      }}
+    />
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
   );
 }

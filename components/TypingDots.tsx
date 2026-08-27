@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useEffect, useRef } from "react";
 import { Animated, View } from "react-native";
+=======
+import { View, Animated } from "react-native";
+import { useEffect, useRef } from "react";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 export default function TypingDots() {
   const dot1 = useRef(new Animated.Value(0)).current;

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -9,6 +10,12 @@ import {
 import { useRouter } from "expo-router";
 
 import { supabase } from "@/utils/supabase";
+=======
+import { View, Text, Modal, Pressable, ActivityIndicator } from "react-native";
+import { supabase } from "@/utils/supabase";
+import { useState } from "react";
+import { useRouter } from "expo-router";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 type LogoutModalProps = {
   isVisible: boolean;

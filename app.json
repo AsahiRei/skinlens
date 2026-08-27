@@ -41,9 +41,13 @@
       ],
       "@react-native-vector-icons/ionicons",
       "react-native-fast-tflite",
+<<<<<<< HEAD
       "@maplibre/maplibre-react-native",
       "expo-sqlite",
       "expo-asset"
+=======
+      "@maplibre/maplibre-react-native"
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
     ],
     "experiments": {
       "typedRoutes": true

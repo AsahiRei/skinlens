@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { Pressable, Text, View } from "react-native";
+=======
+import { View, Text, Pressable } from "react-native";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 import { useRouter } from "expo-router";
 
 export default function index() {

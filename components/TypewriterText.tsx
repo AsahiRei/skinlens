@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import { Text } from "react-native";
+=======
+import { Text } from "react-native";
+import { useEffect, useState } from "react";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 export default function TypewriterText({
   text,

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -12,6 +13,21 @@ import { useRouter } from "expo-router";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { sendResetEmail } from "@/utils/supabase";
+=======
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  ToastAndroid,
+  ActivityIndicator,
+} from "react-native";
+import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { useState } from "react";
+import { useRouter } from "expo-router";
+import { sendResetEmail } from "@/utils/supabase";
+import Ionicons from "@react-native-vector-icons/ionicons";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -12,12 +13,25 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+=======
+import { View, Text, Pressable, ScrollView } from "react-native";
+import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { useEffect, useMemo, useState } from "react";
+import { Routine, RoutineStep, Period } from "@/types/schema";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 import {
   getLatestRoutine,
   getTodayProgress,
   toggleStep as toggleStepDb,
 } from "@/lib/db";
+<<<<<<< HEAD
 import type { Period, Routine, RoutineStep } from "@/types/schema";
+=======
+import type React from "react";
+import InlineProgress from "@/components/InlineProgress";
+import Skeleton from "@/components/Skeleton";
+import Ionicons from "@react-native-vector-icons/ionicons";
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -42,6 +56,7 @@ export default function Routines() {
   const [activePeriod, setActivePeriod] = useState<Period>("morning");
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [pendingSteps, setPendingSteps] = useState<Set<string>>(new Set());
+<<<<<<< HEAD
   const [refreshing, setRefreshing] = useState(false);
   const fetchRoutine = async () => {
     setLoadingRoutine(true);
@@ -74,6 +89,31 @@ export default function Routines() {
       setRefreshing(false);
     }
   };
+=======
+  useEffect(() => {
+    const fetchRoutine = async () => {
+      setLoadingRoutine(true);
+      setLoadError(false);
+      try {
+        const data = await getLatestRoutine();
+        if (!data) {
+          setRoutine(null);
+          setRoutineId(null);
+          setCompletedSteps(new Set());
+        } else {
+          setRoutine(data.routine);
+          setRoutineId(data.id);
+          setCompletedSteps(await getTodayProgress(data.id));
+        }
+      } catch {
+        setLoadError(true);
+      } finally {
+        setLoadingRoutine(false);
+      }
+    };
+    fetchRoutine();
+  }, []);
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
   const activeSteps = routine
     ? (routine[PERIOD_CONFIG[activePeriod].key] as RoutineStep[])
     : [];
@@ -136,6 +176,7 @@ export default function Routines() {
         className="flex-1 px-6"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
+<<<<<<< HEAD
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -144,6 +185,8 @@ export default function Routines() {
             colors={["#15803D"]}
           />
         }
+=======
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
       >
         <Text className="font-bold text-green-700 text-2xl">My Routine</Text>
         <Text className="text-gray-500">AI Personalized Routine Generator</Text>

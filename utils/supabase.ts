@@ -4,6 +4,7 @@ import * as QueryParams from "expo-auth-session/build/QueryParams";
 import * as WebBrowser from "expo-web-browser";
 import { createClient } from "@supabase/supabase-js";
 
+<<<<<<< HEAD
 const REQUEST_TIMEOUT_MS = 10_000;
 
 async function fetchWithTimeout(
@@ -19,6 +20,8 @@ async function fetchWithTimeout(
   }
 }
 
+=======
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
 export const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_URL!,
   process.env.EXPO_PUBLIC_SUPABASE_KEY!,
@@ -29,9 +32,12 @@ export const supabase = createClient(
       persistSession: true,
       detectSessionInUrl: false,
     },
+<<<<<<< HEAD
     global: {
       fetch: fetchWithTimeout,
     },
+=======
+>>>>>>> 45c2537b977d5138d5a295f5abba52b9f277cf38
   },
 );
 
