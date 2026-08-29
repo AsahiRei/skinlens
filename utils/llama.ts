@@ -79,10 +79,10 @@ export async function getLlamaContext(
         const modelPath = await getModelPath(onModelDownloadProgress);
         const ctx = await initLlama({
           model: modelPath,
-          n_ctx: 4096,
+          n_ctx: 2048,
           n_threads: 4,
-          n_gpu_layers: 0,
-          n_batch: 128,
+          n_gpu_layers: 99,
+          n_batch: 512,
         });
         llamaContext = ctx;
         return ctx;

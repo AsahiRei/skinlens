@@ -43,7 +43,14 @@
       "react-native-fast-tflite",
       "@maplibre/maplibre-react-native",
       "expo-sqlite",
-      "expo-asset"
+      "expo-asset",
+      [
+        "llama.rn",
+        {
+          "enableEntitlements": true
+        }
+      ],
+      "./plugins/withOpenCL"
     ],
     "experiments": {
       "typedRoutes": true
