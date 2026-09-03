@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { Sparkles } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -100,10 +100,10 @@ export default function results() {
             </View>
           </View>
 
-          <View className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-3">
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-3">
             <View className="flex-row items-center gap-3">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
-                <Ionicons name="sparkles-outline" size={20} color="#15803D" />
+                <Sparkles size={20} color="#15803D" />
               </View>
               <Text className="flex-1 text-base font-bold text-gray-900">
                 Your routine is ready
@@ -113,7 +113,7 @@ export default function results() {
           </View>
 
           {resultLoading ? (
-            <View className="bg-white rounded-3xl shadow-sm py-10 px-6 items-center gap-3">
+            <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-3">
               <ActivityIndicator color="#15803D" size="small" />
               <Text className="text-sm text-gray-500">
                 Loading your recommended products...
@@ -122,7 +122,7 @@ export default function results() {
           ) : (
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
-              <View className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-4">
+              <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-4">
                 <Text className="font-bold text-gray-800 text-lg">
                   Recommended Products
                 </Text>
@@ -159,7 +159,7 @@ export default function results() {
           )}
 
           {Object.keys(parsedAnswers).length > 0 && (
-            <View className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-3">
+            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-3">
               <Text className="font-bold text-gray-800 text-lg">
                 Your Answers
               </Text>

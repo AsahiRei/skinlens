@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { User, Phone, Mail, Calendar, Lock, Eye, EyeOff, Check } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { supabase } from "@/utils/supabase";
@@ -115,7 +115,7 @@ export default function Register() {
           <View className="flex-1 flex-col gap-2">
             <Text className="font-medium">Username</Text>
             <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-              <Ionicons name="person" size={20} color="#4B5563" />
+              <User size={20} color="#4B5563" />
               <TextInput
                 value={username}
                 onChangeText={setUsername}
@@ -129,7 +129,7 @@ export default function Register() {
           <View className="flex-1 flex-col gap-2">
             <Text className="font-medium">Phone Number</Text>
             <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-              <Ionicons name="call" size={20} color="#4B5563" />
+              <Phone size={20} color="#4B5563" />
               <TextInput
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
@@ -144,7 +144,7 @@ export default function Register() {
         <View className="flex-col gap-2">
           <Text className="font-medium">Email Address</Text>
           <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Ionicons name="mail" size={22} color="#4B5563" />
+            <Mail size={22} color="#4B5563" />
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -159,7 +159,7 @@ export default function Register() {
         <View className="flex-col gap-2">
           <Text className="font-medium">Age</Text>
           <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Ionicons name="calendar" size={22} color="#4B5563" />
+            <Calendar size={22} color="#4B5563" />
             <TextInput
               value={age}
               onChangeText={setAge}
@@ -174,7 +174,7 @@ export default function Register() {
         <View className="flex-col gap-2">
           <Text className="font-medium">Password</Text>
           <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Ionicons name="lock-closed" size={22} color="#4B5563" />
+            <Lock size={22} color="#4B5563" />
             <TextInput
               value={password}
               onChangeText={setPassword}
@@ -188,18 +188,18 @@ export default function Register() {
               onPress={() => setShowPassword(!showPassword)}
               className="active:opacity-60"
             >
-              <Ionicons
-                name={showPassword ? "eye-off" : "eye"}
-                size={22}
-                color="#4B5563"
-              />
+              {showPassword ? (
+                <EyeOff size={22} color="#4B5563" />
+              ) : (
+                <Eye size={22} color="#4B5563" />
+              )}
             </Pressable>
           </View>
         </View>
         <View className="flex-col gap-2">
           <Text className="font-medium">Confirm Password</Text>
           <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Ionicons name="lock-closed" size={22} color="#4B5563" />
+            <Lock size={22} color="#4B5563" />
             <TextInput
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -212,11 +212,11 @@ export default function Register() {
               onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               className="active:opacity-60"
             >
-              <Ionicons
-                name={showConfirmPassword ? "eye-off" : "eye"}
-                size={22}
-                color="#4B5563"
-              />
+              {showConfirmPassword ? (
+                <EyeOff size={22} color="#4B5563" />
+              ) : (
+                <Eye size={22} color="#4B5563" />
+              )}
             </Pressable>
           </View>
         </View>
@@ -227,21 +227,21 @@ export default function Register() {
           <View
             className={`w-5 h-5 rounded border items-center justify-center ${
               agreed
-                ? "bg-green-800 border-green-800"
+                ? "bg-green-700 border-green-700"
                 : "bg-white border-gray-400"
             }`}
           >
-            {agreed && <Ionicons name="checkmark" size={16} color="white" />}
+            {agreed && <Check size={16} color="white" />}
           </View>
           <Text className="flex-1 text-gray-500">
             I agree to the{" "}
-            <Text className="text-green-800 font-medium underline">
+            <Text className="text-green-700 font-medium underline">
               Terms and Conditions
             </Text>
           </Text>
         </Pressable>
         <Pressable
-          className={`rounded-full ${loading ? "bg-gray-500" : "bg-green-800"} active:opacity-80 p-4`}
+          className={`rounded-full ${loading ? "bg-gray-500" : "bg-green-700"} active:opacity-80 p-4`}
           onPress={handleRegister}
           disabled={loading}
         >

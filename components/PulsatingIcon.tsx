@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { View } from "react-native";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { Scan } from "lucide-react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -72,9 +72,9 @@ export default function PulsatingIcon() {
           height: CORE_SIZE,
           borderRadius: CORE_SIZE / 2,
         }}
-        className="bg-green-800 items-center justify-center"
+        className="bg-green-700 items-center justify-center"
       >
-        <Ionicons name="scan-outline" size={28} color="white" />
+        <Scan size={28} color="white" />
       </View>
     </View>
   );

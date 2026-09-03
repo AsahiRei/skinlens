@@ -57,10 +57,10 @@ export default function LogoutModal({
             </View>
           </Pressable>
           <Pressable
-            className="bg-green-700 py-3 mt-2 rounded-full active:opacity-80"
+            className="bg-white border border-green-700 py-3 mt-2 rounded-full active:opacity-80"
             onPress={() => setVisible(false)}
           >
-            <Text className="text-center font-bold text-white">Cancel</Text>
+            <Text className="text-center font-bold text-green-700">Cancel</Text>
           </Pressable>
         </View>
       </View>

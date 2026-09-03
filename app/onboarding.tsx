@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import PagerView from "react-native-pager-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { ArrowRight } from "lucide-react-native";
 import { useRouter } from "expo-router";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -51,7 +51,7 @@ export default function Onboarding() {
           <View
             key={index}
             className={`h-2 flex-1 rounded-full ${
-              page === index ? "bg-green-800" : "bg-gray-300"
+              page === index ? "bg-green-700" : "bg-gray-300"
             }`}
           />
         ))}
@@ -66,7 +66,7 @@ export default function Onboarding() {
       >
         {onboardingPage.map((item, index) => (
           <View key={index} className="items-center justify-center px-6">
-            <Text className="text-3xl font-bold text-center text-green-800">
+            <Text className="text-3xl font-bold text-center text-green-700">
               {item.title}
             </Text>
             <Text className="mt-3 text-center text-gray-600">
@@ -77,7 +77,7 @@ export default function Onboarding() {
       </PagerView>
       <View className="mx-6 mb-8 gap-2">
         <Pressable
-          className="rounded-full bg-green-800 active:opacity-80 p-4"
+          className="rounded-full bg-green-700 active:opacity-80 p-4"
           onPress={handleNext}
         >
           <View className="flex-row items-center justify-center gap-1">
@@ -85,7 +85,7 @@ export default function Onboarding() {
               {page === onboardingPage.length - 1 ? "Get Started" : "Next"}
             </Text>
             {page !== onboardingPage.length - 1 && (
-              <Ionicons name="arrow-forward" size={16} color="white" />
+              <ArrowRight size={16} color="white" />
             )}
           </View>
         </Pressable>

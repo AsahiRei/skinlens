@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { AlertCircle, FileText, RefreshCw } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -155,8 +155,8 @@ export default function ScanResults() {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <View className="flex-1 px-6 items-center justify-center">
-          <View className="bg-white rounded-3xl shadow-sm py-10 px-6 items-center gap-2 w-full">
-            <Ionicons name="alert-circle-outline" size={28} color="#B91C1C" />
+          <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2 w-full">
+            <AlertCircle size={28} color="#B91C1C" />
             <Text className="font-bold text-gray-800">
               Couldn't generate results
             </Text>
@@ -246,11 +246,10 @@ export default function ScanResults() {
           </View>
 
           {/* Detection explanation */}
-          <View className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-3">
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-3">
             <View className="flex-row items-center gap-3">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
-                <Ionicons
-                  name="document-text-outline"
+                <FileText
                   size={20}
                   color="#15803D"
                 />
@@ -267,7 +266,7 @@ export default function ScanResults() {
 
           {/* Generating indicator */}
           {generating && (
-            <View className="bg-white rounded-3xl shadow-sm py-10 px-6 items-center gap-3">
+            <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-3">
               <ActivityIndicator color="#15803D" size="small" />
               <Text className="text-sm text-gray-500">
                 Generating your personalized routine...
@@ -279,7 +278,7 @@ export default function ScanResults() {
           {!generating &&
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
-              <View className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-4">
+              <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-4">
                 <Text className="font-bold text-gray-800 text-lg">
                   Recommended Products
                 </Text>
@@ -335,7 +334,7 @@ export default function ScanResults() {
           disabled={generating}
         >
           <View className="flex-row items-center justify-center gap-1">
-            <Ionicons name="refresh" size={16} color="#15803D" />
+            <RefreshCw size={16} color="#15803D" />
             <Text className="text-center font-bold text-green-700">
               Scan Again
             </Text>

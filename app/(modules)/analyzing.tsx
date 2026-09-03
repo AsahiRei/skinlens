@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { AlertCircle, Check } from "lucide-react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -95,8 +95,8 @@ export default function Analyzing() {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <View className="flex-1 px-6 items-center justify-center">
-          <View className="bg-white rounded-3xl shadow-sm py-10 px-6 items-center gap-2 w-full">
-            <Ionicons name="alert-circle-outline" size={28} color="#B91C1C" />
+          <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2 w-full">
+            <AlertCircle size={28} color="#B91C1C" />
             <Text className="font-bold text-gray-800">Analysis failed</Text>
             <Text className="text-sm text-gray-500 text-center">{error}</Text>
             <Pressable
@@ -229,7 +229,7 @@ export default function Analyzing() {
             <InlineProgress progress={progressPct} height={8} color="#15803D" />
           </View>
 
-          <View className="bg-white rounded-3xl shadow-sm py-4 px-4 w-full gap-3">
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 w-full gap-3">
             {steps.map((step, i) => {
               const isDone = i < stepIndex;
               const isActive = i === stepIndex;
@@ -245,7 +245,7 @@ export default function Analyzing() {
                     }`}
                   >
                     {isDone ? (
-                      <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                      <Check size={14} color="#FFFFFF" />
                     ) : (
                       <Text
                         className={`text-xs font-bold ${

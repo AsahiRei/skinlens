@@ -1,6 +1,6 @@
 import { Pressable, View } from "react-native";
 import { Tabs } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { Home, List, Scan, Cross, User } from "lucide-react-native";
 
 import { OfflineBanner } from "@/components/OfflineBanner";
 
@@ -20,11 +20,7 @@ export default function Layout() {
           options={{
             title: "Home",
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? "home" : "home-outline"}
-                size={size}
-                color={color}
-              />
+              <Home size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
             ),
             tabBarButton: ({ ref, ...props }) => (
               <Pressable
@@ -43,11 +39,7 @@ export default function Layout() {
           options={{
             title: "Routine",
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? "list" : "list-outline"}
-                size={size}
-                color={color}
-              />
+              <List size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
             ),
             tabBarButton: ({ ref, ...props }) => (
               <Pressable
@@ -90,7 +82,7 @@ export default function Layout() {
                       transform: [{ scale: pressed ? 0.95 : 1 }],
                     }}
                   >
-                    <Ionicons name="scan" size={26} color="#fff" />
+                    <Scan size={26} color="#fff" />
                   </View>
                 )}
               </Pressable>
@@ -102,11 +94,7 @@ export default function Layout() {
           options={{
             title: "Derma",
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? "medkit" : "medkit-outline"}
-                size={size}
-                color={color}
-              />
+              <Cross size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
             ),
             tabBarButton: ({ ref, ...props }) => (
               <Pressable
@@ -125,11 +113,7 @@ export default function Layout() {
           options={{
             title: "Profile",
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? "person" : "person-outline"}
-                size={size}
-                color={color}
-              />
+              <User size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
             ),
             tabBarButton: ({ ref, ...props }) => (
               <Pressable

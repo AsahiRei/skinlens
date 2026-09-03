@@ -7,7 +7,7 @@ import {
   ToastAndroid,
   View,
 } from "react-native";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { Mail } from "lucide-react-native";
 import { useRouter } from "expo-router";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -44,7 +44,7 @@ export default function ForgotPassword() {
           Enter your email account to reset password
         </Text>
         <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2 mt-6">
-          <Ionicons name="mail" size={22} color="#4B5563" />
+          <Mail size={22} color="#4B5563" />
           <TextInput
             value={email}
             onChangeText={setEmail}
@@ -70,11 +70,11 @@ export default function ForgotPassword() {
             </View>
           </Pressable>
           <Pressable
-            className="rounded-full border border-gray-400 active:opacity-80 p-4"
+            className="rounded-full border border-green-700 active:opacity-80 p-4"
             onPress={() => router.back()}
           >
             <View className="flex-row items-center justify-center gap-1">
-              <Text className="text-center font-bold text-gray-700">
+              <Text className="text-center font-bold text-green-700">
                 Cancel
               </Text>
             </View>

@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { ArrowLeft, Send, MessageSquare } from "lucide-react-native";
 
 import TypewriterText from "@/components/TypewriterText";
 import TypingDots from "@/components/TypingDots";
@@ -98,7 +98,7 @@ export default function Chatbot() {
       hitSlop={8}
       className="h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm"
     >
-      <Ionicons name="arrow-back" size={18} color="#15803D" />
+      <ArrowLeft size={18} color="#15803D" />
     </Pressable>
   );
 
@@ -121,8 +121,7 @@ export default function Chatbot() {
           !input.trim() || isThinking ? "bg-green-100" : "bg-green-700"
         }`}
       >
-        <Ionicons
-          name="send"
+        <Send
           size={16}
           color={!input.trim() || isThinking ? "#15803D" : "#FFFFFF"}
         />
@@ -166,7 +165,7 @@ export default function Chatbot() {
         >
           <View className="flex-1 items-center justify-center px-6 gap-6">
             <View className="items-center gap-2">
-              <Ionicons name="chatbubbles-outline" size={32} color="#15803D" />
+              <MessageSquare size={32} color="#15803D" />
               <Text className="font-bold text-green-700 text-2xl">
                 Nerma AI Assistant
               </Text>

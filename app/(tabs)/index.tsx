@@ -2,12 +2,28 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import {
+  Bell,
+  Sun,
+  CloudSun,
+  Moon,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Sparkles,
+  Camera,
+  ArrowRight,
+  MessageSquare,
+  TrendingUp,
+  Scan,
+} from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
+import FadeInView from "@/components/FadeInView";
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { useFocusTrigger } from "@/hooks";
 import {
   getLatestResult,
   getLatestRoutine,
@@ -25,20 +41,21 @@ const PERIOD_CONFIG: Record<
   Period,
   {
     label: string;
-    icon: React.ComponentProps<typeof Ionicons>["name"];
+    icon: typeof Sun;
     key: keyof Routine;
   }
 > = {
-  morning: { label: "Morning Routine", icon: "sunny", key: "morning_routine" },
+  morning: { label: "Morning Routine", icon: Sun, key: "morning_routine" },
   afternoon: {
     label: "Afternoon Routine",
-    icon: "partly-sunny",
+    icon: CloudSun,
     key: "afternoon_routine",
   },
-  evening: { label: "Evening Routine", icon: "moon", key: "evening_routine" },
+  evening: { label: "Evening Routine", icon: Moon, key: "evening_routine" },
 };
 
 export default function Home() {
+  const focusTrigger = useFocusTrigger();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -181,7 +198,7 @@ export default function Home() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50">
       <ScrollView
         className="flex-1 px-6"
         showsVerticalScrollIndicator={false}
@@ -210,7 +227,7 @@ export default function Home() {
             )}
           </View>
           <Pressable className="h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm active:opacity-80">
-            <Ionicons name="notifications-outline" color="#15803D" size={20} />
+            <Bell size={20} color="#15803D" />
             {hasNotifications && (
               <View className="absolute top-2 right-2.5 h-2.5 w-2.5 rounded-full bg-red-500 border border-white" />
             )}
@@ -218,54 +235,56 @@ export default function Home() {
         </View>
 
         {/* Skin health score */}
-        <View className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-row items-center gap-4 mt-5">
-          <CircularProgress
-            progress={Number(result?.healthscore ?? 0)}
-            size={68}
-            strokeWidth={6}
-            color="#15803D"
-            trackColor="#DCFCE7"
-          >
-            <Text className="text-lg font-bold text-green-700">
-              {result?.healthscore ?? 0}%
-            </Text>
-          </CircularProgress>
-          <View className="flex-col flex-1">
-            <Text className="font-bold text-gray-900 text-[15px]">
-              Skin Health Score
-            </Text>
-            {loadingResult ? (
-              <Skeleton className="w-28 h-4 mt-1" />
-            ) : (
-              <Text className="text-xs text-gray-500 mt-0.5">
-                {formatter(result?.severity ?? "—")} Progress
+        <FadeInView delay={100} triggerKey={focusTrigger}>
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-row items-center gap-4 mt-5">
+            <CircularProgress
+              progress={Number(result?.healthscore ?? 0)}
+              size={68}
+              strokeWidth={6}
+              color="#15803D"
+              trackColor="#DCFCE7"
+            >
+              <Text className="text-lg font-bold text-green-700">
+                {result?.healthscore ?? 0}%
               </Text>
-            )}
-            <Pressable className="bg-green-700 rounded-full self-start px-4 py-1.5 mt-2.5 active:opacity-80">
-              <Text className="text-xs text-white font-bold">
-                View Progress
+            </CircularProgress>
+            <View className="flex-col flex-1">
+              <Text className="font-bold text-gray-900 text-[15px]">
+                Skin Health Score
               </Text>
-            </Pressable>
+              {loadingResult ? (
+                <Skeleton className="w-28 h-4 mt-1" />
+              ) : (
+                <Text className="text-xs text-gray-500 mt-0.5">
+                  {formatter(result?.severity ?? "—")} Progress
+                </Text>
+              )}
+              <Pressable className="bg-green-700 rounded-full self-start px-4 py-1.5 mt-2.5 active:opacity-80">
+                <Text className="text-xs text-white font-bold">
+                  View Progress
+                </Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
+        </FadeInView>
 
         {/* Routine (paginated: morning / afternoon / evening) */}
-        <View className="bg-white rounded-3xl shadow-sm py-4 px-4 mt-4 flex-col gap-3">
+        <FadeInView delay={200} triggerKey={focusTrigger}>
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-col gap-3">
           <View className="flex-row items-center justify-between">
             <Pressable
               onPress={() => goToPeriod(-1)}
               hitSlop={8}
               className="h-8 w-8 items-center justify-center rounded-full bg-gray-50 active:opacity-70"
             >
-              <Ionicons name="chevron-back" size={16} color="#15803D" />
+              <ChevronLeft size={16} color="#15803D" />
             </Pressable>
 
             <View className="flex-row items-center gap-2">
-              <Ionicons
-                name={PERIOD_CONFIG[activePeriod].icon}
-                size={18}
-                color="#15803D"
-              />
+              {(() => {
+                const Icon = PERIOD_CONFIG[activePeriod].icon;
+                return <Icon size={18} color="#15803D" />;
+              })()}
               <Text className="font-bold text-gray-900 text-[15px]">
                 {PERIOD_CONFIG[activePeriod].label}
               </Text>
@@ -276,7 +295,7 @@ export default function Home() {
               hitSlop={8}
               className="h-8 w-8 items-center justify-center rounded-full bg-gray-50 active:opacity-70"
             >
-              <Ionicons name="chevron-forward" size={16} color="#15803D" />
+              <ChevronRight size={16} color="#15803D" />
             </Pressable>
           </View>
 
@@ -306,7 +325,7 @@ export default function Home() {
             <Skeleton className="h-16 w-full rounded-2xl" />
           ) : totalCount === 0 ? (
             <View className="items-center py-4">
-              <Ionicons name="sparkles-outline" size={22} color="#D1D5DB" />
+              <Sparkles size={22} color="#D1D5DB" />
               <Text className="text-xs text-gray-400 mt-2 text-center">
                 No {PERIOD_CONFIG[activePeriod].label.toLowerCase()} yet.
                 Generate a routine to see it here.
@@ -337,7 +356,7 @@ export default function Home() {
                         }`}
                       >
                         {isDone ? (
-                          <Ionicons name="checkmark" size={16} color="white" />
+                          <Check size={16} color="white" />
                         ) : (
                           <View className="h-2.5 w-2.5 rounded-full bg-green-700/40" />
                         )}
@@ -355,10 +374,12 @@ export default function Home() {
             </>
           )}
         </View>
-        <Pressable className="bg-white rounded-3xl shadow-sm py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90">
+        </FadeInView>
+        <FadeInView delay={300} triggerKey={focusTrigger}>
+          <Pressable className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90">
           <View className="flex-row items-center gap-3 flex-1">
             <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
-              <Ionicons name="camera-outline" size={22} color="#15803D" />
+              <Camera size={22} color="#15803D" />
             </View>
             <View className="flex-col flex-1">
               <Text className="font-bold text-gray-900 text-[15px]">
@@ -370,19 +391,20 @@ export default function Home() {
             </View>
           </View>
           <View className="bg-green-100 h-9 w-9 items-center justify-center rounded-full">
-            <Ionicons name="arrow-forward" size={16} color="#15803D" />
+            <ArrowRight size={16} color="#15803D" />
           </View>
-        </Pressable>
+          </Pressable>
+        </FadeInView>
 
         {/* Chatbot & Progress quick actions */}
-        <View className="flex-row gap-3 mt-4">
+        <FadeInView delay={400} triggerKey={focusTrigger}>
+          <View className="flex-row gap-3 mt-4">
           <Pressable
-            className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
+            className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
             onPress={() => router.push("/(modules)/chatbot")}
           >
             <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
-              <Ionicons
-                name="chatbubble-ellipses-outline"
+              <MessageSquare
                 size={22}
                 color="#15803D"
               />
@@ -395,9 +417,9 @@ export default function Home() {
             </Text>
           </Pressable>
 
-          <Pressable className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-1 items-center gap-2 active:opacity-90">
+          <Pressable className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-1 items-center gap-2 active:opacity-90">
             <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
-              <Ionicons name="trending-up-outline" size={22} color="#15803D" />
+              <TrendingUp size={22} color="#15803D" />
             </View>
             <Text className="font-bold text-gray-900 text-[13px] text-center">
               Progress
@@ -407,9 +429,11 @@ export default function Home() {
             </Text>
           </Pressable>
         </View>
+        </FadeInView>
 
         {/* Last scan result */}
-        <View className="bg-white rounded-3xl shadow-sm py-4 px-4 mt-4">
+        <FadeInView delay={500} triggerKey={focusTrigger}>
+        <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
           <View className="flex-row items-center justify-between">
             <Text className="font-bold text-gray-900 text-[15px]">
               Last Scan Result
@@ -428,7 +452,7 @@ export default function Home() {
           {skinProfile ? (
             <View className="flex-row items-center gap-3 mt-3 pt-3 border-t border-gray-100">
               <View className="bg-green-50 h-11 w-11 items-center justify-center rounded-2xl">
-                <Ionicons name="sparkles-outline" size={20} color="#15803D" />
+                <Sparkles size={20} color="#15803D" />
               </View>
               <View className="flex-col flex-1">
                 <Text className="text-sm font-semibold text-gray-800">
@@ -442,18 +466,19 @@ export default function Home() {
                 </Text>
               </View>
               <Pressable className="active:opacity-70">
-                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                <ChevronRight size={18} color="#9CA3AF" />
               </Pressable>
             </View>
           ) : (
             <View className="items-center py-6">
-              <Ionicons name="scan-outline" size={28} color="#D1D5DB" />
+              <Scan size={28} color="#D1D5DB" />
               <Text className="text-xs text-gray-400 mt-2">
                 Run your first scan to see results here
               </Text>
             </View>
           )}
         </View>
+        </FadeInView>
       </ScrollView>
     </SafeAreaView>
   );

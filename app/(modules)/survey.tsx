@@ -2,10 +2,51 @@ import { useRef, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import PagerView from "react-native-pager-view";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import {
+  ArrowRight,
+  Check,
+  Clock,
+  Eye,
+  User,
+  Hand,
+  Square,
+  StopCircle,
+  CheckSquare,
+  Zap,
+  Smile,
+  MinusCircle,
+  Frown,
+  CheckCircle,
+  Droplets,
+  AlertCircle,
+  FlaskConical,
+  Bandage,
+  Cross,
+} from "lucide-react-native";
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+
+const ICON_MAP: Record<string, typeof Clock> = {
+  "time-outline": Clock,
+  "eye-outline": Eye,
+  "person-outline": User,
+  "hand-left-outline": Hand,
+  "square-outline": Square,
+  "stop-outline": StopCircle,
+  "checkbox-outline": CheckSquare,
+  "flash-outline": Zap,
+  "happy-outline": Smile,
+  "remove-circle-outline": MinusCircle,
+  "sad-outline": Frown,
+  "checkmark-circle-outline": CheckCircle,
+  "checkmark-circle": CheckCircle,
+  "water-outline": Droplets,
+  "alert-circle-outline": AlertCircle,
+  "flask-outline": FlaskConical,
+  "bandage-outline": Bandage,
+  "medkit-outline": Cross,
+};
 
 const detectionQuestions: Record<
   string,
@@ -258,7 +299,10 @@ export default function Survey() {
             className="h-10 w-10 rounded-full items-center justify-center"
             style={{ backgroundColor: "white" }}
           >
-            <Ionicons name={meta.icon as any} size={20} color={meta.color} />
+            {(() => {
+              const IconComp = ICON_MAP[meta.icon] || AlertCircle;
+              return <IconComp size={20} color={meta.color} />;
+            })()}
           </View>
           <View className="flex-1">
             <Text className="font-bold text-gray-900">{meta.description}</Text>
@@ -281,7 +325,7 @@ export default function Survey() {
             <Text className="text-2xl font-bold text-green-700">
               {item.label}
             </Text>
-            <View className="bg-white rounded-3xl shadow-sm p-3 flex-col gap-2">
+            <View className="bg-white rounded-xl border border-gray-100 p-3 flex-col gap-2">
               {item.options.map((option, optIndex) => {
                 const isSelected = answers[item.id] === option.value;
                 return (
@@ -299,11 +343,10 @@ export default function Survey() {
                         isSelected ? "bg-white/20" : "bg-white"
                       }`}
                     >
-                      <Ionicons
-                        name={option.icon as any}
-                        size={18}
-                        color={isSelected ? "white" : "#15803D"}
-                      />
+                      {(() => {
+                        const IconComp = ICON_MAP[option.icon] || AlertCircle;
+                        return <IconComp size={18} color={isSelected ? "white" : "#15803D"} />;
+                      })()}
                     </View>
                     <Text
                       className={`flex-1 font-semibold ${
@@ -313,8 +356,7 @@ export default function Survey() {
                       {option.label}
                     </Text>
                     {isSelected && (
-                      <Ionicons
-                        name="checkmark-circle"
+                      <Check
                         size={20}
                         color="white"
                       />
@@ -340,7 +382,7 @@ export default function Survey() {
               {isLastPage ? "See Results" : "Next"}
             </Text>
             {!isLastPage && (
-              <Ionicons name="arrow-forward" size={16} color="white" />
+              <ArrowRight size={16} color="white" />
             )}
           </View>
         </Pressable>

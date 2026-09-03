@@ -1,7 +1,17 @@
 import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import {
+  ArrowLeft,
+  User,
+  Building,
+  MapPin,
+  Navigation,
+  Star,
+  Phone,
+  Globe,
+  Clock,
+} from "lucide-react-native";
 
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -90,16 +100,16 @@ export default function DermatologistDetails() {
             hitSlop={8}
             className="h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm"
           >
-            <Ionicons name="arrow-back" size={18} color="#15803D" />
+            <ArrowLeft size={18} color="#15803D" />
           </Pressable>
           <Text className="font-bold text-green-700 text-xl">Details</Text>
         </View>
 
         {/* Profile card */}
-        <View className="bg-white rounded-3xl shadow-sm py-5 px-4 mt-5 flex-col gap-4">
+        <View className="bg-white rounded-xl border border-gray-100 py-5 px-4 mt-5 flex-col gap-4">
           <View className="flex-row items-center gap-3">
             <View className="bg-green-100 h-14 w-14 items-center justify-center rounded-2xl">
-              <Ionicons name="person-outline" size={26} color="#15803D" />
+              <User size={26} color="#15803D" />
             </View>
             <View className="flex-col flex-1">
               <Text className="font-bold text-gray-900 text-lg">
@@ -120,24 +130,24 @@ export default function DermatologistDetails() {
 
           <View className="flex-col gap-2 pt-3 border-t border-gray-100">
             <View className="flex-row items-center gap-2">
-              <Ionicons name="business-outline" size={16} color="#9CA3AF" />
+              <Building size={16} color="#9CA3AF" />
               <Text className="text-sm text-gray-600">{params.clinic}</Text>
             </View>
             <View className="flex-row items-center gap-2">
-              <Ionicons name="location-outline" size={16} color="#9CA3AF" />
+              <MapPin size={16} color="#9CA3AF" />
               <Text className="text-sm text-gray-600 flex-1">
                 {params.address}
               </Text>
             </View>
             <View className="flex-row items-center gap-2">
-              <Ionicons name="navigate-outline" size={16} color="#9CA3AF" />
+              <Navigation size={16} color="#9CA3AF" />
               <Text className="text-sm text-gray-600">
                 {distanceKm.toFixed(1)} km away
               </Text>
             </View>
             {rating > 0 && (
               <View className="flex-row items-center gap-2">
-                <Ionicons name="star" size={16} color="#F59E0B" />
+                <Star size={16} color="#F59E0B" />
                 <Text className="text-sm font-semibold text-gray-700">
                   {rating.toFixed(1)} rating
                 </Text>
@@ -147,7 +157,7 @@ export default function DermatologistDetails() {
         </View>
 
         {/* Contact info card */}
-        <View className="bg-white rounded-3xl shadow-sm py-5 px-4 mt-4 flex-col gap-3">
+        <View className="bg-white rounded-xl border border-gray-100 py-5 px-4 mt-4 flex-col gap-3">
           <Text className="font-bold text-gray-900 text-[15px]">
             Contact & Hours
           </Text>
@@ -163,7 +173,7 @@ export default function DermatologistDetails() {
           ) : (
             <View className="flex-col gap-2">
               <View className="flex-row items-center gap-2">
-                <Ionicons name="call-outline" size={16} color="#9CA3AF" />
+                <Phone size={16} color="#9CA3AF" />
                 {details?.phone ? (
                   <Pressable
                     onPress={() => Linking.openURL(`tel:${details.phone}`)}
@@ -178,7 +188,7 @@ export default function DermatologistDetails() {
               </View>
 
               <View className="flex-row items-center gap-2">
-                <Ionicons name="globe-outline" size={16} color="#9CA3AF" />
+                <Globe size={16} color="#9CA3AF" />
                 {details?.website ? (
                   <Pressable onPress={() => Linking.openURL(details.website!)}>
                     <Text
@@ -194,7 +204,7 @@ export default function DermatologistDetails() {
               </View>
 
               <View className="flex-row items-center gap-2">
-                <Ionicons name="time-outline" size={16} color="#9CA3AF" />
+                <Clock size={16} color="#9CA3AF" />
                 <Text className="text-sm text-gray-600 flex-1">
                   {details?.openingHours ?? "Hours not available"}
                 </Text>
@@ -204,7 +214,7 @@ export default function DermatologistDetails() {
         </View>
 
         {/* Book button */}
-        <Pressable className="bg-green-700 rounded-3xl shadow-sm py-4 px-4 mt-5 items-center active:opacity-90">
+        <Pressable className="bg-green-700 rounded-xl border border-gray-100 py-4 px-4 mt-5 items-center active:opacity-90">
           <Text className="text-white font-bold text-[15px]">
             Book Appointment
           </Text>

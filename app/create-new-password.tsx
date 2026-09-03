@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { Lock, Eye, EyeOff } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { supabase, updatePassword } from "@/utils/supabase";
@@ -47,7 +47,7 @@ export default function CreateNewPassword() {
         </Text>
         <View className="flex-col gap-4 mt-6">
           <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Ionicons name="lock-closed" size={22} color="#4B5563" />
+            <Lock size={22} color="#4B5563" />
             <TextInput
               value={password}
               onChangeText={setPassword}
@@ -60,15 +60,15 @@ export default function CreateNewPassword() {
               onPress={() => setShowPassword(!showPassword)}
               className="active:opacity-60"
             >
-              <Ionicons
-                name={showPassword ? "eye-off" : "eye"}
-                size={22}
-                color="#4B5563"
-              />
+              {showPassword ? (
+                <EyeOff size={22} color="#4B5563" />
+              ) : (
+                <Eye size={22} color="#4B5563" />
+              )}
             </Pressable>
           </View>
           <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Ionicons name="lock-closed" size={22} color="#4B5563" />
+            <Lock size={22} color="#4B5563" />
             <TextInput
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -81,11 +81,11 @@ export default function CreateNewPassword() {
               onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               className="active:opacity-60"
             >
-              <Ionicons
-                name={showConfirmPassword ? "eye-off" : "eye"}
-                size={22}
-                color="#4B5563"
-              />
+              {showConfirmPassword ? (
+                <EyeOff size={22} color="#4B5563" />
+              ) : (
+                <Eye size={22} color="#4B5563" />
+              )}
             </Pressable>
           </View>
         </View>
@@ -104,11 +104,11 @@ export default function CreateNewPassword() {
             </View>
           </Pressable>
           <Pressable
-            className="rounded-full border border-gray-400 active:opacity-80 p-4"
+            className="rounded-full border border-green-700 active:opacity-80 p-4"
             onPress={() => router.back()}
           >
             <View className="flex-row items-center justify-center gap-1">
-              <Text className="text-center font-bold text-gray-700">
+              <Text className="text-center font-bold text-green-700">
                 Cancel
               </Text>
             </View>

@@ -29,6 +29,7 @@
     "expo-web-browser": "~57.0.2",
     "jpeg-js": "^0.4.4",
     "llama.rn": "^0.13.0-rc.0",
+    "lucide-react-native": "^1.39.0",
     "nativewind": "^5.0.0-preview.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",

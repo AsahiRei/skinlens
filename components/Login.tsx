@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 
 import { signInWithGoogle, supabase } from "@/utils/supabase";
 
@@ -91,7 +91,7 @@ export default function Login() {
         <View className="flex-col gap-2">
           <Text className="font-medium">Email Address</Text>
           <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Ionicons name="mail" size={22} color="#4B5563" />
+            <Mail size={22} color="#4B5563" />
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -106,7 +106,7 @@ export default function Login() {
         <View className="flex-col gap-2">
           <Text className="font-medium">Password</Text>
           <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Ionicons name="lock-closed" size={22} color="#4B5563" />
+            <Lock size={22} color="#4B5563" />
             <TextInput
               value={password}
               onChangeText={setPassword}
@@ -119,11 +119,11 @@ export default function Login() {
               onPress={() => setShowPassword(!showPassword)}
               className="active:opacity-60"
             >
-              <Ionicons
-                name={showPassword ? "eye-off" : "eye"}
-                size={22}
-                color="#4B5563"
-              />
+              {showPassword ? (
+                <EyeOff size={22} color="#4B5563" />
+              ) : (
+                <Eye size={22} color="#4B5563" />
+              )}
             </Pressable>
           </View>
         </View>

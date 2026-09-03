@@ -2,10 +2,57 @@ import { useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import PagerView from "react-native-pager-view";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import {
+  ArrowRight,
+  Check,
+  User,
+  Leaf,
+  Layers,
+  Sun,
+  Droplets,
+  AlertCircle,
+  CheckCircle,
+  Palette,
+  FlaskConical,
+  Bandage,
+  Cross,
+  Moon,
+  CloudSun,
+  Coffee,
+  Smile,
+  MinusCircle,
+  Frown,
+  AlertTriangle,
+} from "lucide-react-native";
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+
+const ICON_MAP: Record<string, typeof User> = {
+  "male-outline": User,
+  "female-outline": User,
+  "leaf-outline": Leaf,
+  "layers-outline": Layers,
+  "sunny-outline": Sun,
+  "water-outline": Droplets,
+  "water": Droplets,
+  "alert-circle-outline": AlertCircle,
+  "checkmark-circle-outline": CheckCircle,
+  "checkmark-circle": CheckCircle,
+  "color-palette-outline": Palette,
+  "flask-outline": FlaskConical,
+  "bandage-outline": Bandage,
+  "medkit-outline": Cross,
+  "moon": Moon,
+  "moon-outline": Moon,
+  "partly-sunny-outline": CloudSun,
+  "cafe-outline": Coffee,
+  "happy-outline": Smile,
+  "remove-circle-outline": MinusCircle,
+  "sad-outline": Frown,
+  "beaker-outline": FlaskConical,
+  "warning-outline": AlertTriangle,
+};
 
 const questionPage = [
   {
@@ -237,7 +284,7 @@ export default function setup() {
               {item.label}
             </Text>
             {item.type === "options" && (
-              <View className="bg-white rounded-3xl shadow-sm p-3 flex-col gap-2">
+              <View className="bg-white rounded-xl border border-gray-100 p-3 flex-col gap-2">
                 {item.options?.map((option: any, index: any) => {
                   const isSelected = answers[item.id] === option.value;
                   return (
@@ -255,11 +302,10 @@ export default function setup() {
                           isSelected ? "bg-white/20" : "bg-white"
                         }`}
                       >
-                        <Ionicons
-                          name={option.icon}
-                          size={18}
-                          color={isSelected ? "white" : "#15803D"}
-                        />
+                        {(() => {
+                          const IconComp = ICON_MAP[option.icon] || AlertCircle;
+                          return <IconComp size={18} color={isSelected ? "white" : "#15803D"} />;
+                        })()}
                       </View>
                       <Text
                         className={`flex-1 font-semibold ${
@@ -269,8 +315,7 @@ export default function setup() {
                         {option.label}
                       </Text>
                       {isSelected && (
-                        <Ionicons
-                          name="checkmark-circle"
+                        <Check
                           size={20}
                           color="white"
                         />
@@ -296,7 +341,7 @@ export default function setup() {
               {isLastPage ? "Get Started" : "Next"}
             </Text>
             {!isLastPage && (
-              <Ionicons name="arrow-forward" size={16} color="white" />
+              <ArrowRight size={16} color="white" />
             )}
           </View>
         </Pressable>

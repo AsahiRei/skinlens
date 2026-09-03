@@ -15,7 +15,15 @@ import {
 import type { Photo } from "react-native-vision-camera";
 import { Camera, Face } from "react-native-vision-camera-face-detector";
 import { useRouter } from "expo-router";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import {
+  ChevronLeft,
+  AlertTriangle,
+  Scan,
+  Camera as CameraIcon,
+  RotateCcw,
+  RefreshCw,
+  Check,
+} from "lucide-react-native";
 
 import type { FaceBounds } from "@/types/schema";
 
@@ -154,13 +162,13 @@ export default function FaceDetectionScreen() {
             onPress={isPreview ? handleRetake : () => router.back()}
             className="items-center flex-row gap-1"
           >
-            <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
+            <ChevronLeft size={18} color="#FFFFFF" />
             <Text className="text-white font-semibold">
               {isPreview ? "Retake" : "Back"}
             </Text>
           </Pressable>
           <Pressable className="w-6 h-6 bg-white rounded-full items-center justify-center">
-            <Ionicons name="alert" size={16} />
+            <AlertTriangle size={16} />
           </Pressable>
         </View>
       </View>
@@ -238,7 +246,7 @@ export default function FaceDetectionScreen() {
         >
           <View className="bg-black/50 px-3 py-1.5 rounded-full">
             <View className="bg-white/50 p-2 rounded-xl flex-row items-center gap-1">
-              <Ionicons name="scan" size={16} color="white" />
+              <Scan size={16} color="white" />
               <Text className="font-semibold text-white">
                 {faceBox ? "Face detected" : "Looking for face"}
               </Text>
@@ -260,8 +268,7 @@ export default function FaceDetectionScreen() {
             <View
               className={`w-15 h-15 rounded-full ${faceBox ? "bg-white" : "bg-gray-400"} items-center justify-center`}
             >
-              <Ionicons
-                name="camera"
+              <CameraIcon
                 size={28}
                 color={faceBox ? "#15803D" : "#374151"}
               />
@@ -271,7 +278,7 @@ export default function FaceDetectionScreen() {
             onPress={handleFlipCamera}
             className="absolute right-8 w-12 h-12 rounded-full bg-black/40 items-center justify-center"
           >
-            <Ionicons name="camera-reverse" size={34} color="#FFFFFF" />
+            <RotateCcw size={34} color="#FFFFFF" />
           </Pressable>
         </View>
       ) : (
@@ -283,13 +290,13 @@ export default function FaceDetectionScreen() {
             onPress={handleRetake}
             className="w-20 h-20 rounded-full border-2 border-white items-center justify-center"
           >
-            <Ionicons name="refresh" size={32} color="#FFFFFF" />
+            <RefreshCw size={32} color="#FFFFFF" />
           </Pressable>
           <Pressable
             onPress={handleConfirm}
             className="w-20 h-20 rounded-full bg-[#15803D] items-center justify-center"
           >
-            <Ionicons name="checkmark" size={32} color="#FFFFFF" />
+            <Check size={32} color="#FFFFFF" />
           </Pressable>
         </View>
       )}

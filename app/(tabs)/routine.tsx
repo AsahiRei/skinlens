@@ -7,11 +7,13 @@ import {
   Text,
   View,
 } from "react-native";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { Sun, CloudSun, Moon, Check, Sparkles, AlertCircle } from "lucide-react-native";
 
 import InlineProgress from "@/components/InlineProgress";
+import FadeInView from "@/components/FadeInView";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { useFocusTrigger } from "@/hooks";
 import {
   getLatestRoutine,
   getTodayProgress,
@@ -19,22 +21,23 @@ import {
 } from "@/lib/db";
 import type { Period, Routine, RoutineStep } from "@/types/schema";
 
-type IconName = React.ComponentProps<typeof Ionicons>["name"];
+type IconComponent = typeof Sun;
 
 const PERIOD_CONFIG: Record<
   Period,
-  { label: string; icon: IconName; key: keyof Routine }
+  { label: string; icon: IconComponent; key: keyof Routine }
 > = {
-  morning: { label: "Morning", icon: "sunny", key: "morning_routine" },
+  morning: { label: "Morning", icon: Sun, key: "morning_routine" },
   afternoon: {
     label: "Afternoon",
-    icon: "partly-sunny",
+    icon: CloudSun,
     key: "afternoon_routine",
   },
-  evening: { label: "Evening", icon: "moon", key: "evening_routine" },
+  evening: { label: "Evening", icon: Moon, key: "evening_routine" },
 };
 
 export default function Routines() {
+  const focusTrigger = useFocusTrigger();
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [routineId, setRoutineId] = useState<number | null>(null);
   const [loadingRoutine, setLoadingRoutine] = useState(false);
@@ -131,7 +134,7 @@ export default function Routines() {
     }
   };
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50">
       <ScrollView
         className="flex-1 px-6"
         showsVerticalScrollIndicator={false}
@@ -145,63 +148,74 @@ export default function Routines() {
           />
         }
       >
-        <Text className="font-bold text-green-700 text-2xl">My Routine</Text>
-        <Text className="text-gray-500">AI Personalized Routine Generator</Text>
-        <View className="flex-row items-center gap-2 mt-5">
-          {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
-            const { label, icon } = PERIOD_CONFIG[period];
-            const isActive = activePeriod === period;
-            return (
-              <Pressable
-                key={period}
-                onPress={() => setActivePeriod(period)}
-                className={`flex-1 rounded-full py-3 flex-row justify-center items-center gap-1.5 border ${
-                  isActive
-                    ? "bg-green-700 border-green-700"
-                    : "border-green-700"
-                }`}
-              >
-                <Ionicons
-                  name={icon}
-                  size={14}
-                  color={isActive ? "#FFFFFF" : "#15803D"}
-                />
-                <Text
-                  className={`text-center font-bold text-sm ${
-                    isActive ? "text-white" : "text-green-700"
+        <FadeInView delay={0} triggerKey={focusTrigger}>
+          <Text className="font-bold text-green-700 text-2xl">My Routine</Text>
+          <Text className="text-gray-500">AI Personalized Routine Generator</Text>
+        </FadeInView>
+        <FadeInView delay={100} triggerKey={focusTrigger}>
+          <View className="flex-row items-center gap-2 mt-5">
+            {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
+              const { label, icon } = PERIOD_CONFIG[period];
+              const isActive = activePeriod === period;
+              return (
+                <Pressable
+                  key={period}
+                  onPress={() => setActivePeriod(period)}
+                  className={`flex-1 rounded-full py-3 flex-row justify-center items-center gap-1.5 border ${
+                    isActive
+                      ? "bg-green-700 border-green-700"
+                      : "border-green-700"
                   }`}
                 >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  {(() => {
+                    const Icon = PERIOD_CONFIG[period].icon;
+                    return (
+                      <Icon
+                        size={14}
+                        color={isActive ? "#FFFFFF" : "#15803D"}
+                      />
+                    );
+                  })()}
+                  <Text
+                    className={`text-center font-bold text-sm ${
+                      isActive ? "text-white" : "text-green-700"
+                    }`}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </FadeInView>
 
         {/* Progress */}
         {!loadingRoutine && routine && totalSteps > 0 && (
-          <View className="mt-5 gap-2">
-            <View className="flex-row justify-between items-center">
-              <Text className="font-bold text-gray-800">
-                {doneCount}/{totalSteps} completed
-              </Text>
-              <Text className="text-xs text-gray-500">{progressPct}%</Text>
+          <FadeInView delay={200} triggerKey={focusTrigger}>
+            <View className="mt-5 gap-2">
+              <View className="flex-row justify-between items-center">
+                <Text className="font-bold text-gray-800">
+                  {doneCount}/{totalSteps} completed
+                </Text>
+                <Text className="text-xs text-gray-500">{progressPct}%</Text>
+              </View>
+              <InlineProgress progress={progressPct} height={8} color="#15803D" />
             </View>
-            <InlineProgress progress={progressPct} height={8} color="#15803D" />
-          </View>
+          </FadeInView>
         )}
 
         {/* Steps */}
-        <View className="flex-col gap-3 mt-5">
+        <FadeInView delay={300} triggerKey={focusTrigger}>
+          <View className="flex-col gap-3 mt-5">
           {loadingRoutine ? (
             <>
-              <Skeleton className="h-24 w-full rounded-3xl" />
-              <Skeleton className="h-24 w-full rounded-3xl" />
-              <Skeleton className="h-24 w-full rounded-3xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
             </>
           ) : loadError ? (
-            <View className="bg-white rounded-3xl py-10 px-6 items-center gap-2">
-              <Ionicons name="alert-circle-outline" size={28} color="#B91C1C" />
+            <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2">
+              <AlertCircle size={28} color="#B91C1C" />
               <Text className="font-bold text-gray-800">
                 Couldn't load your routine
               </Text>
@@ -210,20 +224,19 @@ export default function Routines() {
               </Text>
             </View>
           ) : !routine ? (
-            <View className="bg-white rounded-3xl py-10 px-6 items-center gap-2">
-              <Ionicons name="sparkles-outline" size={28} color="#15803D" />
+            <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2">
+              <Sparkles size={28} color="#15803D" />
               <Text className="font-bold text-gray-800">No routine yet</Text>
               <Text className="text-sm text-gray-500 text-center">
                 Generate a personalized routine to see your steps here.
               </Text>
             </View>
           ) : activeSteps.length === 0 ? (
-            <View className="bg-white rounded-3xl py-10 px-6 items-center gap-2">
-              <Ionicons
-                name={PERIOD_CONFIG[activePeriod].icon}
-                size={28}
-                color="#15803D"
-              />
+            <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2">
+              {(() => {
+                const Icon = PERIOD_CONFIG[activePeriod].icon;
+                return <Icon size={28} color="#15803D" />;
+              })()}
               <Text className="text-sm text-gray-500 text-center">
                 No {PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps in
                 this routine.
@@ -239,7 +252,7 @@ export default function Routines() {
                   key={key}
                   onPress={() => handleToggleStep(activePeriod, item.step)}
                   disabled={isPending}
-                  className={`bg-white rounded-3xl shadow-sm py-4 px-4 flex-row items-start gap-3 ${
+                  className={`bg-white rounded-xl border border-gray-100 py-4 px-4 flex-row items-start gap-3 ${
                     isDone ? "opacity-60" : ""
                   } ${isPending ? "opacity-40" : ""}`}
                 >
@@ -249,7 +262,7 @@ export default function Routines() {
                     }`}
                   >
                     {isDone ? (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      <Check size={16} color="#FFFFFF" />
                     ) : (
                       <Text className="text-green-700 font-bold">
                         {item.step}
@@ -274,41 +287,44 @@ export default function Routines() {
             })
           )}
         </View>
+        </FadeInView>
 
         {/* Recommended products */}
         {!loadingRoutine &&
           routine &&
           routine.recommended_products?.length > 0 && (
-            <View className="mt-8 gap-3">
-              <Text className="font-bold text-gray-800 text-lg">
-                Recommended Products
-              </Text>
-              {routine.recommended_products.map((product, index) => (
-                <View
-                  key={index}
-                  className="bg-white rounded-3xl shadow-sm py-4 px-4 gap-1.5"
-                >
-                  <Text className="font-bold text-gray-900">
-                    {product.product_type}
-                  </Text>
-                  <View className="flex-row flex-wrap gap-1.5 mt-1">
-                    {product.recommended_ingredients.map((ingredient, i) => (
-                      <View
-                        key={i}
-                        className="bg-green-50 rounded-full px-3 py-1"
-                      >
-                        <Text className="text-xs text-green-700 font-medium">
-                          {ingredient}
-                        </Text>
-                      </View>
-                    ))}
+            <FadeInView delay={400} triggerKey={focusTrigger}>
+              <View className="mt-8 gap-3">
+                <Text className="font-bold text-gray-800 text-lg">
+                  Recommended Products
+                </Text>
+                {routine.recommended_products.map((product, index) => (
+                  <View
+                    key={index}
+                    className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-1.5"
+                  >
+                    <Text className="font-bold text-gray-900">
+                      {product.product_type}
+                    </Text>
+                    <View className="flex-row flex-wrap gap-1.5 mt-1">
+                      {product.recommended_ingredients.map((ingredient, i) => (
+                        <View
+                          key={i}
+                          className="bg-green-50 rounded-full px-3 py-1"
+                        >
+                          <Text className="text-xs text-green-700 font-medium">
+                            {ingredient}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                    <Text className="text-xs text-gray-400 mt-1">
+                      {product.reason}
+                    </Text>
                   </View>
-                  <Text className="text-xs text-gray-400 mt-1">
-                    {product.reason}
-                  </Text>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            </FadeInView>
           )}
       </ScrollView>
     </SafeAreaView>

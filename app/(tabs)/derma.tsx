@@ -4,10 +4,23 @@ import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import { Camera, Map, Marker } from "@maplibre/maplibre-react-native";
 import type { CameraRef, MapRef } from "@maplibre/maplibre-react-native";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import {
+  Search,
+  XCircle,
+  Locate,
+  Navigation,
+  ArrowRight,
+  Building,
+  MapPin,
+  Star,
+  Stethoscope,
+  Cross,
+} from "lucide-react-native";
 
 import Skeleton from "@/components/Skeleton";
+import FadeInView from "@/components/FadeInView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { useFocusTrigger } from "@/hooks";
 import type { Dermatologist } from "@/types/schema";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
@@ -17,6 +30,7 @@ const MAP_STYLE_URL = `https://maps.geoapify.com/v1/styles/osm-bright/style.json
 type Coords = { latitude: number; longitude: number };
 
 export default function Derma() {
+  const focusTrigger = useFocusTrigger();
   const [query, setQuery] = useState("");
   const [locating, setLocating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -114,63 +128,69 @@ export default function Derma() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50">
       <ScrollView
         className="flex-1 px-6"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <Text className="font-bold text-green-700 text-2xl">
-          Find Dermatologist
-        </Text>
-        <Text className="text-gray-500">
-          Find trusted skin specialists near you
-        </Text>
+        <FadeInView delay={0} triggerKey={focusTrigger}>
+          <Text className="font-bold text-green-700 text-2xl">
+            Find Dermatologist
+          </Text>
+          <Text className="text-gray-500">
+            Find trusted skin specialists near you
+          </Text>
+        </FadeInView>
 
         {/* Search bar */}
-        <View className="flex-row items-center bg-white rounded-2xl shadow-sm px-4 py-3 mt-5 gap-2">
-          <Ionicons name="search-outline" size={18} color="#9CA3AF" />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search by name, clinic, or specialty"
-            placeholderTextColor="#9CA3AF"
-            className="flex-1 text-sm text-gray-800"
-          />
-          {query.length > 0 && (
-            <Pressable onPress={() => setQuery("")} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color="#D1D5DB" />
-            </Pressable>
-          )}
-        </View>
+        <FadeInView delay={100} triggerKey={focusTrigger}>
+          <View className="flex-row items-center bg-white rounded-2xl shadow-sm px-4 py-3 mt-5 gap-2">
+            <Search size={18} color="#9CA3AF" />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search by name, clinic, or specialty"
+              placeholderTextColor="#9CA3AF"
+              className="flex-1 text-sm text-gray-800"
+            />
+            {query.length > 0 && (
+              <Pressable onPress={() => setQuery("")} hitSlop={8}>
+                <XCircle size={18} color="#D1D5DB" />
+              </Pressable>
+            )}
+          </View>
+        </FadeInView>
 
         {/* Find nearby CTA */}
-        <Pressable
-          onPress={handleFindNearby}
-          disabled={locating}
-          className="bg-green-700 rounded-3xl shadow-sm py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90"
-        >
-          <View className="flex-row items-center gap-3 flex-1">
-            <View className="bg-white/20 h-12 w-12 items-center justify-center rounded-2xl">
-              <Ionicons
-                name={locating ? "locate" : "navigate-outline"}
-                size={22}
-                color="white"
-              />
+        <FadeInView delay={200} triggerKey={focusTrigger}>
+          <Pressable
+            onPress={handleFindNearby}
+            disabled={locating}
+            className="bg-green-700 rounded-xl py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90"
+          >
+            <View className="flex-row items-center gap-3 flex-1">
+              <View className="bg-white/20 h-12 w-12 items-center justify-center rounded-2xl">
+                {locating ? (
+                  <Locate size={22} color="white" />
+                ) : (
+                  <Navigation size={22} color="white" />
+                )}
+              </View>
+              <View className="flex-col flex-1">
+                <Text className="font-bold text-white text-[15px]">
+                  {locating ? "Locating..." : "Find Dermatologist Nearby"}
+                </Text>
+                <Text className="text-xs text-green-100 mt-0.5">
+                  Uses your current location
+                </Text>
+              </View>
             </View>
-            <View className="flex-col flex-1">
-              <Text className="font-bold text-white text-[15px]">
-                {locating ? "Locating..." : "Find Dermatologist Nearby"}
-              </Text>
-              <Text className="text-xs text-green-100 mt-0.5">
-                Uses your current location
-              </Text>
+            <View className="bg-white/20 h-9 w-9 items-center justify-center rounded-full">
+              <ArrowRight size={16} color="white" />
             </View>
-          </View>
-          <View className="bg-white/20 h-9 w-9 items-center justify-center rounded-full">
-            <Ionicons name="arrow-forward" size={16} color="white" />
-          </View>
-        </Pressable>
+          </Pressable>
+        </FadeInView>
 
         {errorMsg && (
           <Text className="text-xs text-red-500 mt-2 text-center">
@@ -180,101 +200,109 @@ export default function Derma() {
 
         {/* Map: user location + clinic pins */}
         {(locating || hasSearched) && (
-          <View className="rounded-3xl overflow-hidden shadow-sm mt-4 h-56 bg-gray-200">
-            {locating || !userLocation ? (
-              <Skeleton className="h-full w-full" />
-            ) : (
-              <Map ref={mapRef} mapStyle={MAP_STYLE_URL} logo={false}>
-                <Camera
-                  ref={cameraRef}
-                  initialViewState={{
-                    center: [userLocation.longitude, userLocation.latitude],
-                    zoom: 13,
-                  }}
-                />
+          <FadeInView delay={0} triggerKey={focusTrigger}>
+            <View className="rounded-xl overflow-hidden border border-gray-100 mt-4 h-56 bg-gray-200">
+              {locating || !userLocation ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <Map ref={mapRef} mapStyle={MAP_STYLE_URL} logo={false}>
+                  <Camera
+                    ref={cameraRef}
+                    initialViewState={{
+                      center: [userLocation.longitude, userLocation.latitude],
+                      zoom: 13,
+                    }}
+                  />
 
-                {/* You are here */}
-                <Marker
-                  id="user-location"
-                  lngLat={[userLocation.longitude, userLocation.latitude]}
-                >
-                  <View className="h-4 w-4 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
-                </Marker>
+                  {/* You are here */}
+                  <Marker
+                    id="user-location"
+                    lngLat={[userLocation.longitude, userLocation.latitude]}
+                  >
+                    <View className="h-4 w-4 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
+                  </Marker>
 
-                {/* Clinic pins */}
-                {filtered.map((d) => {
-                  const coord = clinicCoords[d.id];
-                  if (!coord) return null;
-                  return (
-                    <Marker
-                      key={d.id}
-                      id={`clinic-${d.id}`}
-                      lngLat={[coord.longitude, coord.latitude]}
-                      onPress={() =>
-                        cameraRef.current?.flyTo({
-                          center: [coord.longitude, coord.latitude],
-                          zoom: 15,
-                          duration: 400,
-                        })
-                      }
-                    >
-                      <View className="h-7 w-7 items-center justify-center rounded-full bg-green-700 border-2 border-white shadow-sm">
-                        <Ionicons name="medkit" size={13} color="white" />
-                      </View>
-                    </Marker>
-                  );
-                })}
-              </Map>
-            )}
-          </View>
+                  {/* Clinic pins */}
+                  {filtered.map((d) => {
+                    const coord = clinicCoords[d.id];
+                    if (!coord) return null;
+                    return (
+                      <Marker
+                        key={d.id}
+                        id={`clinic-${d.id}`}
+                        lngLat={[coord.longitude, coord.latitude]}
+                        onPress={() =>
+                          cameraRef.current?.flyTo({
+                            center: [coord.longitude, coord.latitude],
+                            zoom: 15,
+                            duration: 400,
+                          })
+                        }
+                      >
+                        <View className="h-7 w-7 items-center justify-center rounded-full bg-green-700 border-2 border-white shadow-sm">
+                          <Cross size={13} color="white" />
+                        </View>
+                      </Marker>
+                    );
+                  })}
+                </Map>
+              )}
+            </View>
+          </FadeInView>
         )}
 
         {/* Results header */}
         {(locating || hasSearched) && (
-          <View className="flex-row items-center justify-between mt-6 mb-1">
-            <Text className="font-bold text-gray-900 text-[15px]">
-              Nearby Dermatologists
-            </Text>
-            {!locating && (
-              <Text className="text-xs text-gray-400">
-                {filtered.length} found
+          <FadeInView delay={100} triggerKey={focusTrigger}>
+            <View className="flex-row items-center justify-between mt-6 mb-1">
+              <Text className="font-bold text-gray-900 text-[15px]">
+                Nearby Dermatologists
               </Text>
-            )}
-          </View>
+              {!locating && (
+                <Text className="text-xs text-gray-400">
+                  {filtered.length} found
+                </Text>
+              )}
+            </View>
+          </FadeInView>
         )}
 
         {/* Results list */}
         {locating ? (
           <View className="flex-col gap-3 mt-2">
-            <Skeleton className="h-32 w-full rounded-3xl" />
-            <Skeleton className="h-32 w-full rounded-3xl" />
-            <Skeleton className="h-32 w-full rounded-3xl" />
+            <Skeleton className="h-32 w-full rounded-xl" />
+            <Skeleton className="h-32 w-full rounded-xl" />
+            <Skeleton className="h-32 w-full rounded-xl" />
           </View>
         ) : !hasSearched ? (
-          <View className="items-center py-10 bg-white rounded-3xl shadow-sm mt-2">
-            <Ionicons name="navigate-outline" size={26} color="#D1D5DB" />
-            <Text className="text-xs text-gray-400 mt-2 text-center">
-              Tap "Find Dermatologist Nearby" to search.
-            </Text>
-          </View>
+          <FadeInView delay={200} triggerKey={focusTrigger}>
+            <View className="items-center py-10 bg-white rounded-xl border border-gray-100 mt-2">
+              <Navigation size={26} color="#D1D5DB" />
+              <Text className="text-xs text-gray-400 mt-2 text-center">
+                Tap "Find Dermatologist Nearby" to search.
+              </Text>
+            </View>
+          </FadeInView>
         ) : filtered.length === 0 ? (
-          <View className="items-center py-10 bg-white rounded-3xl shadow-sm mt-2">
-            <Ionicons name="medkit-outline" size={26} color="#D1D5DB" />
-            <Text className="text-xs text-gray-400 mt-2 text-center">
-              No dermatologists match your search.
-            </Text>
-          </View>
+          <FadeInView delay={200} triggerKey={focusTrigger}>
+            <View className="items-center py-10 bg-white rounded-xl border border-gray-100 mt-2">
+              <Cross size={26} color="#D1D5DB" />
+              <Text className="text-xs text-gray-400 mt-2 text-center">
+                No dermatologists match your search.
+              </Text>
+            </View>
+          </FadeInView>
         ) : (
-          <View className="flex-col gap-3 mt-2">
-            {filtered.map((d) => (
+          <FadeInView delay={200} triggerKey={focusTrigger}>
+            <View className="flex-col gap-3 mt-2">
+              {filtered.map((d) => (
               <View
                 key={d.id}
-                className="bg-white rounded-3xl shadow-sm py-4 px-4 flex-col gap-3"
+                className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3"
               >
                 <View className="flex-row items-center gap-3">
                   <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
-                    <Ionicons
-                      name="medical-outline"
+                    <Stethoscope
                       size={22}
                       color="#15803D"
                     />
@@ -298,16 +326,14 @@ export default function Derma() {
 
                 <View className="flex-col gap-1 pt-3 border-t border-gray-100">
                   <View className="flex-row items-center gap-2">
-                    <Ionicons
-                      name="business-outline"
+                    <Building
                       size={14}
                       color="#9CA3AF"
                     />
                     <Text className="text-xs text-gray-600">{d.clinic}</Text>
                   </View>
                   <View className="flex-row items-center gap-2">
-                    <Ionicons
-                      name="location-outline"
+                    <MapPin
                       size={14}
                       color="#9CA3AF"
                     />
@@ -324,7 +350,7 @@ export default function Derma() {
                   <View className="flex-row items-center gap-3">
                     {d.rating > 0 && (
                       <View className="flex-row items-center gap-1">
-                        <Ionicons name="star" size={14} color="#F59E0B" />
+                        <Star size={14} color="#F59E0B" />
                         <Text className="text-xs font-semibold text-gray-700">
                           {d.rating.toFixed(1)}
                         </Text>
@@ -360,6 +386,7 @@ export default function Derma() {
               </View>
             ))}
           </View>
+          </FadeInView>
         )}
       </ScrollView>
     </SafeAreaView>
