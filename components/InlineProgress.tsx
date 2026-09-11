@@ -1,26 +1,22 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, Easing, View } from "react-native";
+import React, { useEffect } from "react";
+import { View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 
 type InlineProgressBarProps = {
-  /** 0 - 100 */
   progress: number;
-  /** Width of the bar. Number (px) or percentage string, e.g. "100%" */
   width?: number | `${number}%`;
-  /** Thickness (height) of the bar in px */
   height?: number;
-  /** Color of the filled progress */
   color?: string;
-  /** Color of the track behind the progress */
   trackColor?: string;
-  /** Border radius of the bar. Defaults to fully rounded (height / 2) */
   borderRadius?: number;
-  /** Animate when progress changes */
   animated?: boolean;
-  /** Animation duration in ms */
   duration?: number;
-  /** Extra NativeWind classes for the outer wrapper */
   className?: string;
-  /** Optional content rendered to the right of the bar (label, %, icon, etc.) */
   children?: React.ReactNode;
 };
 
@@ -39,25 +35,22 @@ export default function InlineProgress({
   const clamped = Math.max(0, Math.min(100, progress));
   const radius = borderRadius ?? height / 2;
 
-  const animatedValue = useRef(new Animated.Value(0)).current;
+  const progressValue = useSharedValue(0);
 
   useEffect(() => {
     if (animated) {
-      Animated.timing(animatedValue, {
-        toValue: clamped,
+      progressValue.value = withTiming(clamped, {
         duration,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
+      });
     } else {
-      animatedValue.setValue(clamped);
+      progressValue.value = clamped;
     }
   }, [clamped, animated, duration]);
 
-  const fillWidth = animatedValue.interpolate({
-    inputRange: [0, 100],
-    outputRange: ["0%", "100%"],
-  });
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${progressValue.value}%`,
+  }));
 
   return (
     <View
@@ -68,7 +61,6 @@ export default function InlineProgress({
         width,
       }}
     >
-      {/* Track */}
       <View
         style={{
           flex: 1,
@@ -78,18 +70,18 @@ export default function InlineProgress({
           overflow: "hidden",
         }}
       >
-        {/* Fill */}
         <Animated.View
-          style={{
-            height: "100%",
-            width: fillWidth,
-            borderRadius: radius,
-            backgroundColor: color,
-          }}
+          style={[
+            {
+              height: "100%",
+              borderRadius: radius,
+              backgroundColor: color,
+            },
+            fillStyle,
+          ]}
         />
       </View>
 
-      {/* Optional trailing content (e.g. percentage label) */}
       {children && <View style={{ marginLeft: 8 }}>{children}</View>}
     </View>
   );

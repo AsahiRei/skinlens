@@ -16,5 +16,6 @@ export {
   getModelPath,
   preloadLlama,
   releaseLlama,
+  stripThinkingTags,
 } from "./llama";
 export { getTodayStr } from "./date";

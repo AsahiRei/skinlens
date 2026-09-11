@@ -1,29 +1,24 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, Easing, View } from "react-native";
+import React, { useEffect } from "react";
+import { View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+import Animated, {
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+  Easing,
+  useDerivedValue,
+} from "react-native-reanimated";
 
 type CircularProgressProps = {
-  /** 0 - 100 */
   progress: number;
-  /** Diameter of the ring in px */
   size?: number;
-  /** Thickness of the ring stroke */
   strokeWidth?: number;
-  /** Color of the filled progress arc */
   color?: string;
-  /** Color of the track behind the progress arc */
   trackColor?: string;
-  /** Rounded vs flat line caps */
   strokeLinecap?: "round" | "butt";
-  /** Animate when progress changes */
   animated?: boolean;
-  /** Animation duration in ms */
   duration?: number;
-  /** Extra NativeWind classes for the outer wrapper */
   className?: string;
-  /** Anything you want rendered in the center (score, label, icon, etc.) */
   children?: React.ReactNode;
 };
 
@@ -43,25 +38,26 @@ export default function CircularProgress({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  const animatedValue = useRef(new Animated.Value(0)).current;
+  const progressValue = useSharedValue(0);
 
   useEffect(() => {
     if (animated) {
-      Animated.timing(animatedValue, {
-        toValue: clamped,
+      progressValue.value = withTiming(clamped, {
         duration,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
+      });
     } else {
-      animatedValue.setValue(clamped);
+      progressValue.value = clamped;
     }
   }, [clamped, animated, duration]);
 
-  const strokeDashoffset = animatedValue.interpolate({
-    inputRange: [0, 100],
-    outputRange: [circumference, 0],
+  const derivedOffset = useDerivedValue(() => {
+    return circumference - (progressValue.value / 100) * circumference;
   });
+
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: derivedOffset.value,
+  }));
 
   return (
     <View
@@ -74,7 +70,6 @@ export default function CircularProgress({
       }}
     >
       <Svg width={size} height={size}>
-        {/* Background track */}
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -83,7 +78,6 @@ export default function CircularProgress({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Progress arc */}
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
@@ -92,16 +86,14 @@ export default function CircularProgress({
           strokeWidth={strokeWidth}
           fill="none"
           strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
           strokeLinecap={strokeLinecap}
-          // Start from the top (12 o'clock) instead of 3 o'clock
           rotation="-90"
           originX={size / 2}
           originY={size / 2}
+          animatedProps={animatedProps}
         />
       </Svg>
 
-      {/* Center content, absolutely positioned over the SVG */}
       <View
         style={{
           position: "absolute",
@@ -114,3 +106,5 @@ export default function CircularProgress({
     </View>
   );
 }
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);

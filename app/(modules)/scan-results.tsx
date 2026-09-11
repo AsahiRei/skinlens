@@ -15,6 +15,7 @@ import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { getLatestResultDetail, insertResult, insertRoutine } from "@/lib/db";
 import type { ResultData } from "@/types/schema";
+import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
 
@@ -92,6 +93,15 @@ export default function ScanResults() {
     try {
       setGenerating(true);
       setError(null);
+
+      const decodedUri = imageUri
+        ? (() => {
+            try { return decodeURIComponent(imageUri); } catch { return imageUri; }
+          })()
+        : null;
+      console.log("[scan-results] raw imageUri:", imageUri);
+      console.log("[scan-results] decoded imageUri:", decodedUri);
+
       await preloadLlama((fraction) => {
         if (fraction < 0.1 && !downloadToastShown.current) {
           downloadToastShown.current = true;
@@ -115,18 +125,37 @@ export default function ScanResults() {
         main_concern: detectionLabel,
       });
       const parsedRoutine = JSON.parse(routineJson);
+
+      // Upload image to Cloudinary
+      const cloudinaryUrl = decodedUri
+        ? await uploadImageToCloudinary(decodedUri)
+        : null;
+
+      if (cloudinaryUrl) {
+        ToastAndroid.show("Image uploaded to cloud", ToastAndroid.SHORT);
+      } else if (decodedUri) {
+        ToastAndroid.show("Cloud upload failed, saving locally", ToastAndroid.SHORT);
+      }
+
+      console.log("[scan-results] cloudinaryUrl:", cloudinaryUrl);
+
       await insertResult({
         severity: healthResponse.severity,
         description: healthResponse.message,
         healthscore: overallScore,
         recommendations: parsedRoutine.recommended_products ?? null,
-        image_url: imageUri ?? null,
+        image_url: cloudinaryUrl ?? null,
+        local_image_uri: decodedUri ?? null,
         source_type: `scan_${sourceType ?? "gallery"}`,
+        confidence: conf > 0 ? conf : null,
+        detection_label: detectionLabel,
+        survey_answers: JSON.stringify(parsedSurveyAnswers),
       });
       const latestResult = await getLatestResultDetail();
       if (latestResult) setResultData(latestResult);
       setRoutineGenerated(true);
     } catch (e) {
+      console.error("[scan-results] Error:", e);
       setError(
         e instanceof Error
           ? e.message

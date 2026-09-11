@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { View } from "react-native";
 import { Scan } from "lucide-react-native";
 import Animated, {
@@ -13,6 +13,13 @@ import Animated, {
 const RING_SIZE = 140;
 const CORE_SIZE = 72;
 const RING_DURATION = 2200;
+
+const RING_STYLE = {
+  position: "absolute" as const,
+  width: RING_SIZE,
+  height: RING_SIZE,
+  borderRadius: RING_SIZE / 2,
+};
 
 export default function PulsatingIcon() {
   const ring1 = useSharedValue(0);
@@ -54,15 +61,7 @@ export default function PulsatingIcon() {
       {[ring1Style, ring2Style, ring3Style].map((style, i) => (
         <Animated.View
           key={i}
-          style={[
-            style,
-            {
-              position: "absolute",
-              width: RING_SIZE,
-              height: RING_SIZE,
-              borderRadius: RING_SIZE / 2,
-            },
-          ]}
+          style={[style, RING_STYLE]}
           className="bg-green-700"
         />
       ))}

@@ -16,12 +16,14 @@ import LogoutModal from "@/components/LogoutModal";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useFocusTrigger } from "@/hooks";
+import { useNotifications } from "@/hooks/useNotifications";
 import { getAllProfiles } from "@/lib/db";
 import type { LifestyleProfile, SkinProfile, UserProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 
 export default function Profile() {
   const focusTrigger = useFocusTrigger();
+  const { settings, updateSettings } = useNotifications();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
   const [lifestyleProfile, setLifestyleProfile] =
@@ -30,9 +32,6 @@ export default function Profile() {
   const [loadingSkin, setLoadingSkin] = useState(true);
   const [loadingLifestyle, setLoadingLifestyle] = useState(true);
   const [logoutModal, setLogoutModal] = useState(false);
-  const [scanReminders, setScanReminders] = useState(true);
-  const [appointmentAlerts, setAppointmentAlerts] = useState(true);
-  const [dailyTips, setDailyTips] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const fetchProfiles = async () => {
     try {
@@ -78,6 +77,7 @@ export default function Profile() {
             />
           }
         >
+          {/* Header */}
           {loadingUser ? (
             <View className="gap-2">
               <Skeleton className="h-7 w-40" />
@@ -114,66 +114,66 @@ export default function Profile() {
               </View>
             </FadeInView>
           )}
+
           {/* Skin profile */}
-          <FadeInView delay={100} triggerKey={focusTrigger}>
+          {loadingSkin ? (
             <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-5">
-              <Text className="text-base font-semibold text-gray-900">
-                Skin Profile
-              </Text>
-              <View className="gap-3">
-                <View className="flex-row gap-3">
-                  {loadingSkin ? (
-                    <>
-                      <InfoCardSkeleton />
-                      <InfoCardSkeleton />
-                    </>
-                  ) : (
-                    <>
-                      <InfoCard
-                        label="Skin Type"
-                        value={formatter(skinProfile?.skin_type || "") ?? "—"}
-                      />
-                      <InfoCard
-                        label="Primary Concern"
-                        value={formatter(skinProfile?.main_concerns || "") ?? "—"}
-                      />
-                    </>
-                  )}
-                </View>
+              <Skeleton className="h-5 w-28" />
+              <View className="flex-row gap-3">
+                <InfoCardSkeleton />
+                <InfoCardSkeleton />
               </View>
             </View>
-          </FadeInView>
+          ) : (
+            <FadeInView delay={100} triggerKey={focusTrigger}>
+              <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-5">
+                <Text className="text-base font-semibold text-gray-900">
+                  Skin Profile
+                </Text>
+                <View className="gap-3">
+                  <View className="flex-row gap-3">
+                    <InfoCard
+                      label="Skin Type"
+                      value={formatter(skinProfile?.skin_type || "") ?? "—"}
+                    />
+                    <InfoCard
+                      label="Primary Concern"
+                      value={formatter(skinProfile?.main_concerns || "") ?? "—"}
+                    />
+                  </View>
+                </View>
+              </View>
+            </FadeInView>
+          )}
 
           {/* Lifestyle info */}
-          <FadeInView delay={200} triggerKey={focusTrigger}>
+          {loadingLifestyle ? (
             <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">
-              <Text className="text-base font-semibold text-gray-900 mb-1">
-                Lifestyle Info
-              </Text>
-            {loadingLifestyle ? (
-              <>
-                {[0, 1, 2].map((i) => (
-                  <View
-                    key={i}
-                    className={`flex-row items-center py-3 ${
-                      i < 2 ? "border-b border-gray-100" : ""
-                    }`}
-                  >
-                    <Skeleton className="w-10 h-10 rounded-full mr-3" />
-                    <View className="flex-1 gap-1">
-                      <Skeleton className="h-3 w-24" />
-                      <Skeleton className="h-4 w-32" />
-                    </View>
+              <Skeleton className="h-5 w-28 mb-1" />
+              {[0, 1, 2].map((i) => (
+                <View
+                  key={i}
+                  className={`flex-row items-center py-3 ${
+                    i < 2 ? "border-b border-gray-100" : ""
+                  }`}
+                >
+                  <Skeleton className="w-10 h-10 rounded-full mr-3" />
+                  <View className="flex-1 gap-1">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-4 w-32" />
                   </View>
-                ))}
-              </>
-            ) : (
-              <>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <FadeInView delay={200} triggerKey={focusTrigger}>
+              <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">
+                <Text className="text-base font-semibold text-gray-900 mb-1">
+                  Lifestyle Info
+                </Text>
                 <TouchableOpacity
                   activeOpacity={0.6}
-                  onPress={() => {
-                    // navigate to sleep detail
-                  }}
+                  onPress={() => {}}
                   className="flex-row items-center py-3 border-b border-gray-100"
                 >
                   <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
@@ -189,9 +189,7 @@ export default function Profile() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   activeOpacity={0.6}
-                  onPress={() => {
-                    // navigate to water intake detail
-                  }}
+                  onPress={() => {}}
                   className="flex-row items-center py-3 border-b border-gray-100"
                 >
                   <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
@@ -207,9 +205,7 @@ export default function Profile() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   activeOpacity={0.6}
-                  onPress={() => {
-                    // navigate to stress level detail
-                  }}
+                  onPress={() => {}}
                   className="flex-row items-center py-3"
                 >
                   <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
@@ -223,10 +219,9 @@ export default function Profile() {
                   </View>
                   <ChevronRight size={18} color="#D1D5DB" />
                 </TouchableOpacity>
-              </>
-            )}
-            </View>
-          </FadeInView>
+              </View>
+            </FadeInView>
+          )}
 
           {/* Notifications */}
           <FadeInView delay={300} triggerKey={focusTrigger}>
@@ -244,24 +239,8 @@ export default function Profile() {
                   </Text>
                 </View>
                 <Switch
-                  value={scanReminders}
-                  onValueChange={setScanReminders}
-                  trackColor={{ false: "#E5E7EB", true: "#15803D" }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-              <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                <View className="flex-col flex-1 pr-3">
-                  <Text className="text-base font-semibold text-gray-900">
-                    Appointment Alerts
-                  </Text>
-                  <Text className="text-sm text-gray-400">
-                    Upcoming appointment notifications
-                  </Text>
-                </View>
-                <Switch
-                  value={appointmentAlerts}
-                  onValueChange={setAppointmentAlerts}
+                  value={settings.scanReminders}
+                  onValueChange={(val) => updateSettings({ scanReminders: val })}
                   trackColor={{ false: "#E5E7EB", true: "#15803D" }}
                   thumbColor="#FFFFFF"
                 />
@@ -276,8 +255,8 @@ export default function Profile() {
                   </Text>
                 </View>
                 <Switch
-                  value={dailyTips}
-                  onValueChange={setDailyTips}
+                  value={settings.dailyTips}
+                  onValueChange={(val) => updateSettings({ dailyTips: val })}
                   trackColor={{ false: "#E5E7EB", true: "#15803D" }}
                   thumbColor="#FFFFFF"
                 />

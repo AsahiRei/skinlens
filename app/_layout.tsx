@@ -3,6 +3,7 @@ import { Stack, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 
 import { NetworkProvider } from "@/hooks/useNetwork";
+import { NotificationProvider } from "@/hooks/useNotifications";
 import { SyncManager } from "@/components/SyncManager";
 import { createSessionFromUrl, supabase } from "@/utils/supabase";
 
@@ -39,13 +40,15 @@ export default function _Layout() {
     <>
       <StatusBar barStyle="dark-content" />
       <NetworkProvider>
-        <SyncManager />
-        <Stack
-          screenOptions={{
-            animation: "ios_from_right",
-            headerShown: false,
-          }}
-        />
+        <NotificationProvider>
+          <SyncManager />
+          <Stack
+            screenOptions={{
+              animation: "ios_from_right",
+              headerShown: false,
+            }}
+          />
+        </NotificationProvider>
       </NetworkProvider>
     </>
   );

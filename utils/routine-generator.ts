@@ -1,16 +1,4 @@
-import { getLlamaContext } from "./llama";
-
-const JSON_GRAMMAR = `
-root   ::= object
-object ::= "{" ws members ws "}"
-members ::= member ("," ws member)*
-member ::= string ws ":" ws value
-value  ::= object | array | string | number | ("true" | "false" | "null")
-array  ::= "[" ws (value ("," ws value)*)? ws "]"
-string ::= "\\"" ([^"\\\\] | "\\\\" .)* "\\""
-number ::= "-"? [0-9]+ ("." [0-9]+)?
-ws     ::= [ \\t\\n]*
-`;
+import { getLlamaContext, stripThinkingTags } from "./llama";
 
 function extractJsonObject(raw: string): string {
   const cleaned = raw
@@ -42,7 +30,8 @@ export async function generateRoutine({
   water_intake: string;
   health_score: number;
 }) {
-  const systemPrompt = `You are SkinLens AI, a skincare guidance assistant. You always respond with valid JSON only — no Markdown, no code fences, no commentary before or after the JSON.`;
+  const systemPrompt = `/no_think
+You are SkinLens AI, a skincare guidance assistant. You always respond with valid JSON only — no Markdown, no code fences, no commentary before or after the JSON.`;
   const userPrompt = `
     Create a simple and personalized skincare routine based on the user's skin profile, main concern, lifestyle, and health score.
     USER INFORMATION:
@@ -157,11 +146,11 @@ export async function generateRoutine({
     n_predict: 1024,
     temperature: 0.4,
     top_p: 0.9,
-    grammar: JSON_GRAMMAR,
     stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
   });
-  console.log("LLAMA.RN RESPONSE:", text);
-  return extractJsonObject(text);
+  const cleaned = stripThinkingTags(text);
+  console.log("LLAMA.RN RESPONSE:", cleaned);
+  return extractJsonObject(cleaned);
 }
 
 export { preloadLlama, releaseLlama } from "./llama";

@@ -1,6 +1,6 @@
 import type { ChatTurn, ChatUserContext } from "@/types/chat";
 
-import { getLlamaContext } from "./llama";
+import { getLlamaContext, stripThinkingTags } from "./llama";
 
 const BASE_SYSTEM_PROMPT = `You are SkinLens AI, a friendly and knowledgeable skincare assistant embedded in the SkinLens app. You answer questions about skincare routines, ingredients, and general skin health.
 
@@ -47,7 +47,7 @@ export async function generateChatReply(
     top_p: 0.9,
     stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
   });
-  return text.trim();
+  return stripThinkingTags(text);
 }
 
 export { preloadLlama, releaseLlama } from "./llama";

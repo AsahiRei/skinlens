@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { uploadImageToCloudinary } from "@/utils/cloudinary";
 
 import { getDatabase } from "./database";
 import { dequeueSync, removeSyncEntry } from "./sync-queue";
@@ -58,16 +59,25 @@ export async function processSyncQueue(): Promise<void> {
           break;
         }
         case "results": {
+          const payload = entry.payload as Record<string, unknown>;
+          if (
+            typeof payload.image_url === "string" &&
+            payload.image_url.startsWith("file://")
+          ) {
+            const cloudUrl = await uploadImageToCloudinary(payload.image_url);
+            payload.image_url = cloudUrl ?? null;
+          }
           const { error } = await supabase
             .from("results")
-            .insert(entry.payload);
+            .upsert(payload, { onConflict: "id", ignoreDuplicates: false });
           if (error) throw error;
           break;
         }
         case "routines": {
+          const payload = entry.payload as Record<string, unknown>;
           const { error } = await supabase
             .from("routines")
-            .insert(entry.payload);
+            .upsert(payload, { onConflict: "id", ignoreDuplicates: false });
           if (error) throw error;
           break;
         }
@@ -104,11 +114,61 @@ export async function processSyncQueue(): Promise<void> {
           }
           break;
         }
+        case "notifications": {
+          const payload = entry.payload as {
+            id: string;
+            user_id: string;
+            type: string;
+            title: string;
+            message: string;
+            read: boolean;
+            created_at: string;
+          };
+          if (entry.operation === "delete") {
+            if (payload.id) {
+              const { error } = await supabase
+                .from("notifications")
+                .delete()
+                .eq("id", payload.id);
+              if (error) throw error;
+            } else {
+              const { error } = await supabase
+                .from("notifications")
+                .delete()
+                .eq("user_id", payload.user_id);
+              if (error) throw error;
+            }
+          } else if (entry.operation === "update") {
+            const { error } = await supabase
+              .from("notifications")
+              .update({ read: payload.read })
+              .eq("id", payload.id);
+            if (error) throw error;
+          } else {
+            const { error } = await supabase
+              .from("notifications")
+              .upsert(
+                {
+                  id: payload.id,
+                  user_id: payload.user_id,
+                  type: payload.type,
+                  title: payload.title,
+                  message: payload.message,
+                  read: payload.read,
+                  created_at: payload.created_at,
+                },
+                { onConflict: "id", ignoreDuplicates: false },
+              );
+            if (error) throw error;
+          }
+          break;
+        }
       }
       syncedTables.add(entry.table_name);
       await removeSyncEntry(entry.id);
-    } catch {
-      break;
+    } catch (err) {
+      console.error(`Sync failed for ${entry.table_name} entry ${entry.id}:`, err);
+      continue;
     }
   }
 

@@ -23,6 +23,9 @@ export type Result = {
   recommendations: RecommendedProduct[] | null;
   user_id: string;
   created_at: any;
+  confidence?: number | null;
+  detection_label?: string | null;
+  survey_answers?: string | null;
 };
 
 export type LifestyleProfile = {
@@ -91,4 +94,20 @@ export type SurveyAnswer = {
   questionId: string;
   value: string;
   points: number;
+};
+
+export type NotificationType = "scan_reminder" | "daily_tip";
+
+export type Notification = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+};
+
+export type NotificationSettings = {
+  scanReminders: boolean;
+  dailyTips: boolean;
 };
