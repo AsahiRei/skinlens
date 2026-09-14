@@ -4,7 +4,7 @@ export type ChatTurn = {
 };
 
 export type ChatUserContext = {
-  username?: string | null;
+  first_name?: string | null;
   skin_type?: string | null;
   main_concerns?: string | null;
   healthscore?: number | null;

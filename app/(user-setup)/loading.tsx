@@ -61,7 +61,11 @@ export default function Loading() {
       setError(null);
       const user = await requireUser();
       goToStep(0);
-      await updateUserProfile({ gender: parsedAnswers.gender });
+      await updateUserProfile({
+        first_name: parsedAnswers.first_name,
+        age: parsedAnswers.age,
+        gender: parsedAnswers.gender,
+      });
       goToStep(0);
       await upsertSkinProfile({
         skin_type: parsedAnswers.skin_type,

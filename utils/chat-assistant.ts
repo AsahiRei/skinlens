@@ -1,6 +1,8 @@
 import type { ChatTurn, ChatUserContext } from "@/types/chat";
 
-import { getLlamaContext, stripThinkingTags } from "./llama";
+import { getLlamaContext } from "./llama";
+import { formatKnowledgeForPrompt } from "./knowledge";
+import { stripThinkTags } from "./llm-helpers";
 
 const BASE_SYSTEM_PROMPT = `You are SkinLens AI, a friendly and knowledgeable skincare assistant embedded in the SkinLens app. You answer questions about skincare routines, ingredients, and general skin health.
 
@@ -16,7 +18,7 @@ Guidelines:
 function buildContextBlock(ctx?: ChatUserContext): string {
   if (!ctx) return "";
   const lines: string[] = [];
-  if (ctx.username) lines.push(`Name: ${ctx.username}`);
+  if (ctx.first_name) lines.push(`Name: ${ctx.first_name}`);
   if (ctx.skin_type) lines.push(`Skin type: ${ctx.skin_type}`);
   if (ctx.main_concerns) lines.push(`Main concern: ${ctx.main_concerns}`);
   if (ctx.healthscore != null)
@@ -36,18 +38,33 @@ export async function generateChatReply(
   onModelDownloadProgress?: (fraction: number) => void,
 ): Promise<string> {
   const context = await getLlamaContext(onModelDownloadProgress);
-  const systemPrompt = BASE_SYSTEM_PROMPT + buildContextBlock(userContext);
+  const knowledgeBlock = formatKnowledgeForPrompt(
+    userContext?.main_concerns ?? "normal",
+    userContext?.main_concerns,
+  );
+  const systemPrompt =
+    BASE_SYSTEM_PROMPT +
+    buildContextBlock(userContext) +
+    (knowledgeBlock
+      ? `\n\nDERMATOLOGIST KNOWLEDGE (use when relevant to the user's question):\n${knowledgeBlock}`
+      : "");
+  const maxHistoryTurns = 10;
+  const trimmedHistory =
+    history.length > maxHistoryTurns
+      ? history.slice(history.length - maxHistoryTurns)
+      : history;
   const { text } = await context.completion({
     messages: [
       { role: "system", content: systemPrompt },
-      ...history.map((turn) => ({ role: turn.role, content: turn.content })),
+      ...trimmedHistory.map((turn) => ({ role: turn.role, content: turn.content })),
     ],
     n_predict: 512,
     temperature: 0.6,
     top_p: 0.9,
     stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
+    chat_template_kwargs: { enable_thinking: false },
   });
-  return stripThinkingTags(text);
+  return stripThinkTags(text);
 }
 
 export { preloadLlama, releaseLlama } from "./llama";

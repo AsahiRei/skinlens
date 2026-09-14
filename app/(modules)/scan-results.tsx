@@ -133,8 +133,6 @@ export default function ScanResults() {
 
       if (cloudinaryUrl) {
         ToastAndroid.show("Image uploaded to cloud", ToastAndroid.SHORT);
-      } else if (decodedUri) {
-        ToastAndroid.show("Cloud upload failed, saving locally", ToastAndroid.SHORT);
       }
 
       console.log("[scan-results] cloudinaryUrl:", cloudinaryUrl);

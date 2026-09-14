@@ -4,9 +4,25 @@ import { Platform } from "react-native";
 import { initLlama, type LlamaContext } from "llama.rn";
 import { requestNotificationPermissions } from "@/lib/push-notifications";
 
-const MODEL_FILENAME = "Qwen3-0.6B-Q4_K_M.gguf";
-const MODEL_URL =
-  "https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf";
+type ModelConfig = {
+  filename: string;
+  url: string;
+  label: string;
+  n_ctx: number;
+  n_threads: number;
+};
+
+const MODEL: ModelConfig = {
+  filename: "Qwen3-0.6B-Q4_K_M.gguf",
+  url: "https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf",
+  label: "Qwen3 0.6B",
+  n_ctx: 4096,
+  n_threads: 4,
+};
+
+export async function getSelectedModel(): Promise<ModelConfig> {
+  return MODEL;
+}
 
 let llamaContext: LlamaContext | null = null;
 let llamaContextPromise: Promise<LlamaContext> | null = null;
@@ -19,14 +35,15 @@ const MAX_RETRIES = 3;
 export async function getModelPath(
   onProgress?: (fraction: number) => void,
 ): Promise<string> {
-  const localPath = `${FileSystem.documentDirectory}${MODEL_FILENAME}`;
+  const model = MODEL;
+  const localPath = `${FileSystem.documentDirectory}${model.filename}`;
   const info = await FileSystem.getInfoAsync(localPath);
   if (info.exists) return localPath;
 
   downloadAborted = false;
 
   let downloadResumable = FileSystem.createDownloadResumable(
-    MODEL_URL,
+    model.url,
     localPath,
       {},
     (progress) => {
@@ -84,15 +101,19 @@ export async function getLlamaContext(
         const modelPath = await getModelPath(onModelDownloadProgress);
         const ctx = await initLlama({
           model: modelPath,
-          n_ctx: 2048,
-          n_threads: 4,
+          n_ctx: MODEL.n_ctx,
+          n_threads: MODEL.n_threads,
           n_gpu_layers: 99,
           n_batch: 512,
+          n_ubatch: 512,
+          use_mlock: true,
+          flash_attn_type: "auto",
+          cache_type_k: "q8_0",
+          cache_type_v: "q8_0",
         });
         llamaContext = ctx;
         return ctx;
       } catch (err) {
-        // Clear promise so callers can retry
         llamaContextPromise = null;
         throw err;
       }
@@ -193,27 +214,12 @@ export async function downloadModelWithNotifications(): Promise<void> {
 
 export async function isModelDownloaded(): Promise<boolean> {
   try {
-    const localPath = `${FileSystem.documentDirectory}${MODEL_FILENAME}`;
+    const localPath = `${FileSystem.documentDirectory}${MODEL.filename}`;
     const info = await FileSystem.getInfoAsync(localPath);
     return info.exists;
   } catch {
     return false;
   }
-}
-
-export function stripThinkingTags(text: string): string {
-  const openTag = String.fromCharCode(60, 116, 104, 105, 110, 107, 62);
-  const closeTag =
-    String.fromCharCode(60, 47, 116, 104, 105, 110, 107, 62);
-  const lastClose = text.lastIndexOf(closeTag);
-  if (lastClose !== -1) {
-    return text.slice(lastClose + closeTag.length).trim();
-  }
-  const firstOpen = text.indexOf(openTag);
-  if (firstOpen !== -1) {
-    return text.slice(0, firstOpen).trim();
-  }
-  return text.trim();
 }
 
 export async function releaseLlama() {

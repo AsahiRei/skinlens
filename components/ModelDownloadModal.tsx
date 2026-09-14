@@ -6,6 +6,7 @@ import InlineProgress from "@/components/InlineProgress";
 import {
   downloadModelWithNotifications,
   getModelPath,
+  getSelectedModel,
 } from "@/utils/llama";
 
 type ModelDownloadModalProps = {
@@ -22,6 +23,7 @@ export default function ModelDownloadModal({
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<"downloading" | "error">("downloading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [modelLabel, setModelLabel] = useState("");
 
   useEffect(() => {
     if (!visible) return;
@@ -34,6 +36,9 @@ export default function ModelDownloadModal({
       setErrorMessage("");
 
       try {
+        const model = await getSelectedModel();
+        if (!cancelled) setModelLabel(model.label);
+
         await getModelPath((fraction) => {
           if (!cancelled) setProgress(Math.round(fraction * 100));
         });
@@ -93,8 +98,9 @@ export default function ModelDownloadModal({
             Downloading AI Model
           </Text>
           <Text className="text-center text-gray-500 text-sm">
-            The AI model is required for skin analysis. This may take a few
-            minutes on first download.
+            {modelLabel
+              ? `${modelLabel} is required for skin analysis. This may take a few minutes on first download.`
+              : "The AI model is required for skin analysis. This may take a few minutes on first download."}
           </Text>
 
           {status === "downloading" ? (

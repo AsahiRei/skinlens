@@ -4,6 +4,11 @@ import * as FileSystem from "expo-file-system/legacy";
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET ?? "";
 
+function isNetworkError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /network request failed|fetch failed|network|timeout|ECONNREFUSED|ENOTFOUND/i.test(msg);
+}
+
 async function uploadOnce(localUri: string): Promise<string | null> {
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     const msg = "Missing Cloudinary env vars";
@@ -55,6 +60,10 @@ export async function uploadImageToCloudinary(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn("[Cloudinary] Upload attempt", attempt, "error:", msg);
+      if (isNetworkError(err)) {
+        console.log("[Cloudinary] Network unavailable, skipping upload");
+        return null;
+      }
       ToastAndroid.show("Cloudinary error: " + msg, ToastAndroid.LONG);
     }
     if (attempt < retries) {

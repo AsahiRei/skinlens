@@ -28,6 +28,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   const local = await db.getFirstAsync<{
     id: string;
     username: string;
+    first_name: string | null;
     email: string;
     age: string;
     phone_number: string;
@@ -47,11 +48,12 @@ export async function getUserProfile(): Promise<UserProfile | null> {
           .single();
         if (data) {
           await db.runAsync(
-            `INSERT OR REPLACE INTO user_profile (id, username, email, age, phone_number, gender, user_setup, created_at, synced_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, phone_number, gender, user_setup, created_at, synced_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               data.id,
               data.username,
+              data.first_name ?? null,
               data.email,
               data.age ?? "",
               data.phone_number ?? "",
@@ -66,6 +68,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     );
     return {
       username: local.username,
+      first_name: local.first_name ?? undefined,
       email: local.email,
       age: local.age,
       phone_number: local.phone_number,
@@ -90,11 +93,12 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     if (error) throw error;
 
     await db.runAsync(
-      `INSERT OR REPLACE INTO user_profile (id, username, email, age, phone_number, gender, user_setup, created_at, synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, phone_number, gender, user_setup, created_at, synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.id,
         data.username,
+        data.first_name ?? null,
         data.email,
         data.age ?? "",
         data.phone_number ?? "",
@@ -111,7 +115,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 }
 
 export async function updateUserProfile(
-  updates: Partial<Pick<UserProfile, "gender" | "user_setup">>,
+  updates: Partial<Pick<UserProfile, "gender" | "user_setup" | "first_name" | "age">>,
 ): Promise<void> {
   const user = await requireUser();
   const db = await getDatabase();
@@ -126,6 +130,18 @@ export async function updateUserProfile(
   if (updates.user_setup !== undefined) {
     await db.runAsync(`UPDATE user_profile SET user_setup = ? WHERE id = ?`, [
       updates.user_setup ? 1 : 0,
+      user.id,
+    ]);
+  }
+  if (updates.first_name !== undefined) {
+    await db.runAsync(`UPDATE user_profile SET first_name = ? WHERE id = ?`, [
+      updates.first_name,
+      user.id,
+    ]);
+  }
+  if (updates.age !== undefined) {
+    await db.runAsync(`UPDATE user_profile SET age = ? WHERE id = ?`, [
+      updates.age,
       user.id,
     ]);
   }
@@ -153,14 +169,15 @@ export async function upsertUserProfile(profile: {
   id: string;
   username: string;
   email: string;
+  first_name?: string;
 }): Promise<void> {
   const db = await getDatabase();
   const ts = now();
 
   await db.runAsync(
-    `INSERT OR REPLACE INTO user_profile (id, username, email, age, phone_number, gender, user_setup, created_at, synced_at)
-     VALUES (?, ?, ?, '', '', NULL, NULL, ?, ?)`,
-    [profile.id, profile.username, profile.email, ts, ts],
+    `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, phone_number, gender, user_setup, created_at, synced_at)
+     VALUES (?, ?, ?, ?, '', '', NULL, NULL, ?, ?)`,
+    [profile.id, profile.username, profile.first_name ?? null, profile.email, ts, ts],
   );
 
   await enqueueSync("user_profile", "upsert", profile.id, profile);

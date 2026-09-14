@@ -143,75 +143,98 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
     );
   }
 
-  // Extract symptoms from survey answers
-  const symptomKeys = ["itching", "dryness", "oiliness", "sensitivity"];
-  const symptomLabels: Record<string, string> = {
-    itching: "Itching",
-    dryness: "Dryness",
-    oiliness: "Oiliness",
-    sensitivity: "Sensitivity",
-  };
-
-  // Calculate symptom presence per scan (0-1 scale)
-  const symptomData = reversed.map((r) => {
-    if (!r.survey_answers) return { itching: 0, dryness: 0 };
-    try {
-      const answers = JSON.parse(r.survey_answers);
-      // Map survey answers to symptoms
-      const itching =
-        answers.itch_level === "very_itchy"
-          ? 1
-          : answers.itch_level === "moderate"
-            ? 0.7
-            : answers.itch_level === "mild"
-              ? 0.4
-              : 0;
-      const dryness =
-        answers.concern === "dryness"
-          ? 0.8
-          : answers.concern === "sensitivity"
-            ? 0.5
-            : 0;
-      return { itching, dryness };
-    } catch {
-      return { itching: 0, dryness: 0 };
-    }
-  });
-
-  const activeSymptoms = ["itching", "dryness"];
   const labels = reversed.map((r) => getDayLabel(r.created_at));
   const maxBarHeight = 80;
   const barWidth = reversed.length > 5 ? 14 : 20;
-  const groupWidth = barWidth * activeSymptoms.length + 4;
+  const groupWidth = barWidth * 2 + 4;
+
+  const metricLabels = ["Severity", "Duration"];
+
+  const metricData = reversed.map((r) => {
+    if (!r.survey_answers) return { severity: 0, duration: 0 };
+    try {
+      const answers = JSON.parse(r.survey_answers);
+      const type = r.detection_label ?? "normal";
+
+      if (type === "acne") {
+        const severity =
+          answers.severity === "severe" ? 1
+          : answers.severity === "moderate" ? 0.7
+          : answers.severity === "mild" ? 0.4
+          : 0;
+        const duration =
+          answers.duration === "more_than_6_months" ? 1
+          : answers.duration === "3_to_6_months" ? 0.75
+          : answers.duration === "1_to_3_months" ? 0.5
+          : 0.25;
+        return { severity, duration };
+      }
+
+      if (type === "eczema") {
+        const severity =
+          answers.itch_level === "very_itchy" ? 1
+          : answers.itch_level === "moderate" ? 0.7
+          : answers.itch_level === "mild" ? 0.4
+          : 0;
+        const duration =
+          answers.coverage === "large_area" ? 1
+          : answers.coverage === "medium_area" ? 0.6
+          : 0.3;
+        return { severity, duration };
+      }
+
+      if (type === "psoriasis") {
+        const severity =
+          answers.flare_frequency === "weekly" ? 1
+          : answers.flare_frequency === "monthly" ? 0.6
+          : 0.2;
+        const duration =
+          answers.coverage === "extensive" ? 1
+          : answers.coverage === "moderate" ? 0.6
+          : 0.3;
+        return { severity, duration };
+      }
+
+      const severity =
+        answers.concern === "sensitivity" ? 0.8
+        : answers.concern === "dryness" ? 0.6
+        : answers.concern === "oiliness" ? 0.5
+        : 0;
+      const duration =
+        answers.routine === "no" ? 1
+        : answers.routine === "sometimes" ? 0.5
+        : 0;
+      return { severity, duration };
+    } catch {
+      return { severity: 0, duration: 0 };
+    }
+  });
 
   return (
     <View>
       {/* Legend */}
       <View className="flex-row items-center gap-4 mb-3">
-        {activeSymptoms.map((key, i) => (
-          <View key={key} className="flex-row items-center gap-1.5">
+        {metricLabels.map((label, i) => (
+          <View key={label} className="flex-row items-center gap-1.5">
             <View
               style={{ backgroundColor: BAR_COLORS[i] }}
               className="h-2.5 w-2.5 rounded-full"
             />
-            <Text className="text-xs text-gray-500">
-              {symptomLabels[key] ?? key}
-            </Text>
+            <Text className="text-xs text-gray-500">{label}</Text>
           </View>
         ))}
       </View>
 
       {/* Bars */}
       <View className="flex-row items-end justify-between" style={{ height: maxBarHeight + 20 }}>
-        {symptomData.map((data, dayIndex) => (
+        {metricData.map((data, dayIndex) => (
           <View key={dayIndex} className="items-center" style={{ width: groupWidth + 8 }}>
             <View className="flex-row items-end" style={{ height: maxBarHeight }}>
-              {activeSymptoms.map((key, symIndex) => {
-                const val = key === "itching" ? data.itching : data.dryness;
+              {[data.severity, data.duration].map((val, symIndex) => {
                 const barH = Math.max(val * maxBarHeight, 2);
                 return (
                   <View
-                    key={key}
+                    key={symIndex}
                     style={{
                       height: barH,
                       width: barWidth,
@@ -260,6 +283,8 @@ export default function Progress() {
 
   useEffect(() => {
     fetchData();
+    const timer = setTimeout(() => fetchData(), 2000);
+    return () => clearTimeout(timer);
   }, [focusTrigger]);
 
   useEffect(() => {
@@ -318,6 +343,7 @@ export default function Progress() {
 
   // Before vs Today
   const firstResult = sortedByDate[0] ?? null;
+  const firstResultWithImage = sortedByDate.find((r) => r.image_url) ?? firstResult;
   const latestResult = sortedByDate[sortedByDate.length - 1] ?? null;
 
   if (loading) {
@@ -413,9 +439,9 @@ export default function Progress() {
               {/* Before */}
               <View className="items-center flex-1">
                 <View className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-100">
-                  {firstResult.image_url ? (
+                  {firstResultWithImage.image_url ? (
                     <Image
-                      source={{ uri: firstResult.image_url }}
+                      source={{ uri: firstResultWithImage.image_url }}
                       className="w-full h-full"
                       resizeMode="cover"
                     />

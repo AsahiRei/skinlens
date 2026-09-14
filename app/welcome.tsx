@@ -1,21 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import Login from "@/components/Login";
-import ModelDownloadModal from "@/components/ModelDownloadModal";
 import Register from "@/components/Register";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { isModelDownloaded } from "@/utils/llama";
 
 export default function Welcome() {
   const [selected, setSelect] = useState("login");
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
-
-  useEffect(() => {
-    isModelDownloaded().then((downloaded) => {
-      if (!downloaded) setShowDownloadModal(true);
-    });
-  }, []);
   return (
     <SafeAreaView className="flex-1 bg-white">
       <Text className="text-2xl font-bold text-green-700 text-center">
@@ -57,11 +48,6 @@ export default function Welcome() {
       <View className="flex-1 bg-gray-50">
         {selected === "login" ? <Login /> : <Register />}
       </View>
-      <ModelDownloadModal
-        visible={showDownloadModal}
-        onComplete={() => setShowDownloadModal(false)}
-        onCancel={() => setShowDownloadModal(false)}
-      />
     </SafeAreaView>
   );
 }

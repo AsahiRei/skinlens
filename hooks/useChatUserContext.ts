@@ -30,8 +30,8 @@ export function useChatUserContext() {
 
         const [userRow, skinRow, lifestyleRow, routineRow, resultRow] =
           await Promise.all([
-            db.getFirstAsync<{ username: string }>(
-              `SELECT username FROM user_profile WHERE id = ?`,
+            db.getFirstAsync<{ first_name: string }>(
+              `SELECT first_name FROM user_profile WHERE id = ?`,
               [user.id],
             ),
             db.getFirstAsync<{ skin_type: string; main_concerns: string }>(
@@ -58,7 +58,7 @@ export function useChatUserContext() {
 
         if (!isMounted) return;
         setUserContext({
-          username: userRow?.username,
+          first_name: userRow?.first_name,
           skin_type: skinRow?.skin_type,
           main_concerns: skinRow?.main_concerns,
           healthscore: resultRow?.healthscore,

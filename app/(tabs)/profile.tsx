@@ -88,7 +88,7 @@ export default function Profile() {
               <Text className="text-gray-500">Your personal profile</Text>
               <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col mt-4">
                 <Text className="text-gray-700 mt-0.5 text-xl font-semibold">
-                  {userProfile?.username}
+                  {userProfile?.first_name || userProfile?.username}
                 </Text>
                 <Text className="text-gray-500 text-sm mt-0.5">
                   {userProfile?.email}

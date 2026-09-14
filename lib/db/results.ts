@@ -16,6 +16,22 @@ function swallow(p: PromiseLike<unknown>) {
 const RESULT_COLUMNS =
   "id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, confidence, detection_label, survey_answers";
 
+const UPSERT_RESULT_SQL = `INSERT INTO results (id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ ON CONFLICT(id) DO UPDATE SET
+   user_id = excluded.user_id,
+   severity = excluded.severity,
+   description = excluded.description,
+   healthscore = excluded.healthscore,
+   image_url = COALESCE(excluded.image_url, results.image_url),
+   source_type = excluded.source_type,
+   recommendations = excluded.recommendations,
+   created_at = excluded.created_at,
+   synced_at = excluded.synced_at,
+   confidence = COALESCE(excluded.confidence, results.confidence),
+   detection_label = COALESCE(excluded.detection_label, results.detection_label),
+   survey_answers = COALESCE(excluded.survey_answers, results.survey_answers)`;
+
 function rowToResult(row: {
   id: number;
   user_id: string;
@@ -81,8 +97,7 @@ export async function getLatestResult(): Promise<Result | null> {
           .maybeSingle();
         if (data) {
           await db.runAsync(
-            `INSERT OR REPLACE INTO results (id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            UPSERT_RESULT_SQL,
             [
               data.id,
               data.user_id,
@@ -119,8 +134,7 @@ export async function getLatestResult(): Promise<Result | null> {
     if (!data) return null;
 
     await db.runAsync(
-      `INSERT OR REPLACE INTO results (id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      UPSERT_RESULT_SQL,
       [
         data.id,
         data.user_id,
@@ -192,8 +206,7 @@ export async function getAllResults(): Promise<Result[]> {
       if (data && data.length > 0) {
         for (const row of data) {
           await db.runAsync(
-            `INSERT OR REPLACE INTO results (id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            UPSERT_RESULT_SQL,
             [
               row.id,
               row.user_id,
@@ -247,8 +260,7 @@ export async function getAllResults(): Promise<Result[]> {
       if (data && data.length > 0) {
         for (const row of data) {
           await db.runAsync(
-            `INSERT OR REPLACE INTO results (id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            UPSERT_RESULT_SQL,
             [
               row.id,
               row.user_id,
@@ -312,8 +324,7 @@ export async function getThisWeekResults(): Promise<Result[]> {
       if (data && data.length > 0) {
         for (const row of data) {
           await db.runAsync(
-            `INSERT OR REPLACE INTO results (id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            UPSERT_RESULT_SQL,
             [
               row.id,
               row.user_id,
@@ -368,8 +379,7 @@ export async function getThisWeekResults(): Promise<Result[]> {
       if (data && data.length > 0) {
         for (const row of data) {
           await db.runAsync(
-            `INSERT OR REPLACE INTO results (id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            UPSERT_RESULT_SQL,
             [
               row.id,
               row.user_id,
@@ -430,6 +440,9 @@ export async function insertResult(result: {
         image_url: result.image_url ?? null,
         source_type: sourceType,
         recommendations: result.recommendations,
+        confidence: result.confidence ?? null,
+        detection_label: result.detection_label ?? null,
+        survey_answers: result.survey_answers ?? null,
       })
       .select()
       .single();
@@ -471,14 +484,16 @@ export async function insertResult(result: {
       image_url: result.image_url ?? result.local_image_uri ?? null,
       source_type: sourceType,
       recommendations: result.recommendations,
+      confidence: result.confidence ?? null,
+      detection_label: result.detection_label ?? null,
+      survey_answers: result.survey_answers ?? null,
     });
   }
 
-  const localImageUrl = result.local_image_uri ?? serverResult.image_url ?? null;
+  const localImageUrl = serverResult.image_url ?? result.local_image_uri ?? null;
 
   await db.runAsync(
-    `INSERT OR REPLACE INTO results (id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    UPSERT_RESULT_SQL,
     [
       serverResult.id,
       serverResult.user_id,

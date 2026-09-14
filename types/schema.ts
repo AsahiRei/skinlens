@@ -1,5 +1,6 @@
 export type UserProfile = {
   username: string;
+  first_name?: string;
   email: string;
   age: string;
   phone_number: string;

@@ -9,16 +9,14 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { User, Phone, Mail, Calendar, Lock, Eye, EyeOff, Check } from "lucide-react-native";
+import { Phone, Mail, Lock, Eye, EyeOff, Check } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { supabase } from "@/utils/supabase";
 
 export default function Register() {
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [age, setAge] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,7 +34,7 @@ export default function Register() {
       );
       return;
     }
-    if (!username || !email || !phoneNumber || !age || !password) {
+    if (!email || !phoneNumber || !password) {
       ToastAndroid.show(
         "Please fill in all required fields",
         ToastAndroid.SHORT,
@@ -79,10 +77,8 @@ export default function Register() {
         .from("user_profile")
         .insert({
           id: user.id,
-          username: username.trim(),
           email: email.trim(),
           phone_number: phoneNumber.trim(),
-          age: Number(age),
         });
 
       if (insertError) {
@@ -111,34 +107,18 @@ export default function Register() {
       showsVerticalScrollIndicator={false}
     >
       <View className="flex-col gap-4">
-        <View className="flex-row gap-3">
-          <View className="flex-1 flex-col gap-2">
-            <Text className="font-medium">Username</Text>
-            <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-              <User size={20} color="#4B5563" />
-              <TextInput
-                value={username}
-                onChangeText={setUsername}
-                placeholder="Username"
-                className="flex-1 text-gray-600"
-                placeholderTextColor="gray"
-                autoCapitalize="none"
-              />
-            </View>
-          </View>
-          <View className="flex-1 flex-col gap-2">
-            <Text className="font-medium">Phone Number</Text>
-            <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-              <Phone size={20} color="#4B5563" />
-              <TextInput
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                placeholder="Phone Number"
-                className="flex-1 text-gray-600"
-                placeholderTextColor="gray"
-                keyboardType="phone-pad"
-              />
-            </View>
+        <View className="flex-col gap-2">
+          <Text className="font-medium">Phone Number</Text>
+          <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
+            <Phone size={20} color="#4B5563" />
+            <TextInput
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              placeholder="Phone Number"
+              className="flex-1 text-gray-600"
+              placeholderTextColor="gray"
+              keyboardType="phone-pad"
+            />
           </View>
         </View>
         <View className="flex-col gap-2">
@@ -153,21 +133,6 @@ export default function Register() {
               placeholderTextColor="gray"
               keyboardType="email-address"
               autoCapitalize="none"
-            />
-          </View>
-        </View>
-        <View className="flex-col gap-2">
-          <Text className="font-medium">Age</Text>
-          <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Calendar size={22} color="#4B5563" />
-            <TextInput
-              value={age}
-              onChangeText={setAge}
-              placeholder="Enter your age"
-              className="flex-1 text-gray-600"
-              placeholderTextColor="gray"
-              keyboardType="number-pad"
-              maxLength={3}
             />
           </View>
         </View>

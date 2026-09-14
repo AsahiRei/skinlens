@@ -219,7 +219,7 @@ export default function Home() {
               <Skeleton className="h-7 w-40 mt-1" />
             ) : (
               <Text className="font-bold text-green-700 text-2xl mt-0.5">
-                {userProfile?.username}
+                {userProfile?.first_name || userProfile?.username}
               </Text>
             )}
           </View>

@@ -1,5 +1,6 @@
 import type { Result } from "@/types/schema";
-import { getLlamaContext, stripThinkingTags } from "./llama";
+import { getLlamaContext } from "./llama";
+import { stripThinkTags } from "./llm-helpers";
 
 export async function generateWeeklySummary(
   results: Result[],
@@ -27,7 +28,7 @@ export async function generateWeeklySummary(
     messages: [
       {
         role: "system",
-        content: `You are a skincare assistant. Write a very short 1-2 sentence summary of the user's weekly skin scan results. Be warm and encouraging. Do not use markdown.`,
+        content: `You are a skincare assistant. Write a very short 1-2 sentence summary of the user's weekly skin scan results. Be warm and encouraging. Do not use markdown. You MUST respond in English only. Do not use any other language.`,
       },
       {
         role: "user",
@@ -38,7 +39,8 @@ export async function generateWeeklySummary(
     temperature: 0.7,
     top_p: 0.9,
     stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
+    chat_template_kwargs: { enable_thinking: false },
   });
 
-  return stripThinkingTags(text) || `You scanned ${results.length} times this week with an average score of ${avg}%.`;
+  return stripThinkTags(text) || `You scanned ${results.length} times this week with an average score of ${avg}%.`;
 }

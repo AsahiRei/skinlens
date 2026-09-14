@@ -67,9 +67,10 @@ export async function processSyncQueue(): Promise<void> {
             const cloudUrl = await uploadImageToCloudinary(payload.image_url);
             payload.image_url = cloudUrl ?? null;
           }
+          const { confidence: _c, detection_label: _d, survey_answers: _s, ...remotePayload } = payload;
           const { error } = await supabase
             .from("results")
-            .upsert(payload, { onConflict: "id", ignoreDuplicates: false });
+            .upsert(remotePayload, { onConflict: "id", ignoreDuplicates: false });
           if (error) throw error;
           break;
         }

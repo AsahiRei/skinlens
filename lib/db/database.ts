@@ -13,6 +13,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
       CREATE TABLE IF NOT EXISTS user_profile (
         id TEXT PRIMARY KEY,
         username TEXT,
+        first_name TEXT,
         email TEXT,
         age TEXT,
         phone_number TEXT,
@@ -102,6 +103,13 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
       } catch {
         // Column already exists, ignore
       }
+    }
+
+    // Migration: add first_name column to user_profile if it doesn't exist
+    try {
+      await db.runAsync(`ALTER TABLE user_profile ADD COLUMN first_name TEXT`);
+    } catch {
+      // Column already exists, ignore
     }
 
     // Clean stuck notification entries from sync queue (string IDs can't sync to bigint column)

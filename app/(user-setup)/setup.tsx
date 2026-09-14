@@ -23,9 +23,11 @@ import {
   MinusCircle,
   Frown,
   AlertTriangle,
+  Calendar,
 } from "lucide-react-native";
 
 import InlineProgress from "@/components/InlineProgress";
+import ScrollPicker from "@/components/ScrollPicker";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 
 const ICON_MAP: Record<string, typeof User> = {
@@ -54,7 +56,25 @@ const ICON_MAP: Record<string, typeof User> = {
   "warning-outline": AlertTriangle,
 };
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: CURRENT_YEAR - 1949 }, (_, i) => String(CURRENT_YEAR - i));
+
 const questionPage = [
+  {
+    id: "first_name",
+    label: "What's your first name?",
+    type: "text",
+  },
+  {
+    id: "age",
+    label: "What's your date of birth?",
+    type: "date",
+  },
   {
     id: "gender",
     label: "What's your gender?",
@@ -205,9 +225,22 @@ export default function setup() {
   const pagerRef = useRef<PagerView>(null);
   const [page, setPage] = useState(0);
   const router = useRouter();
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({
+    age: `${MONTHS[0]} ${DAYS[0]}, ${YEARS[0]}`,
+  });
+  const [dateValues, setDateValues] = useState({
+    month: 0,
+    day: 0,
+    year: 0,
+  });
+
   const currentQuestion = questionPage[page];
-  const isAnswered = !!answers[currentQuestion.id];
+  const isAnswered =
+    currentQuestion.type === "text"
+      ? !!answers[currentQuestion.id]?.trim()
+      : currentQuestion.type === "date"
+        ? !!answers[currentQuestion.id]
+        : !!answers[currentQuestion.id];
   const isLastPage = page === questionPage.length - 1;
   const progressPct = Math.round(((page + 1) / questionPage.length) * 100);
   //calculate the health score
@@ -278,7 +311,9 @@ export default function setup() {
           setPage(e.nativeEvent.position);
         }}
       >
-        {questionPage.map((item, index) => (
+        {questionPage.map((item, index) => {
+          if (Math.abs(index - page) > 1) return <View key={index} />;
+          return (
           <View key={index} className="px-6 gap-4">
             <Text className="text-2xl font-bold text-green-700">
               {item.label}
@@ -325,8 +360,72 @@ export default function setup() {
                 })}
               </View>
             )}
+            {item.type === "text" && (
+              <View className="bg-white rounded-xl border border-gray-100 p-4">
+                <TextInput
+                  value={answers[item.id] || ""}
+                  onChangeText={(text) => handleSelect(item.id, text)}
+                  placeholder="Type here..."
+                  className="text-gray-900"
+                  placeholderTextColor="#9CA3AF"
+                  autoFocus
+                />
+              </View>
+            )}
+            {item.type === "date" && (
+              <View className="bg-white rounded-xl border border-gray-100 p-4">
+                <View className="flex-row gap-3">
+                  <View className="flex-1 items-center gap-2">
+                    <Text className="text-xs font-semibold text-gray-500">Month</Text>
+                    <ScrollPicker
+                      items={MONTHS}
+                      selectedIndex={dateValues.month}
+                      onValueChange={(idx) => {
+                        const updated = { ...dateValues, month: idx };
+                        setDateValues(updated);
+                        handleSelect(
+                          item.id,
+                          `${MONTHS[updated.month]} ${DAYS[updated.day]}, ${YEARS[updated.year]}`,
+                        );
+                      }}
+                    />
+                  </View>
+                  <View className="flex-1 items-center gap-2">
+                    <Text className="text-xs font-semibold text-gray-500">Day</Text>
+                    <ScrollPicker
+                      items={DAYS}
+                      selectedIndex={dateValues.day}
+                      onValueChange={(idx) => {
+                        const updated = { ...dateValues, day: idx };
+                        setDateValues(updated);
+                        handleSelect(
+                          item.id,
+                          `${MONTHS[updated.month]} ${DAYS[updated.day]}, ${YEARS[updated.year]}`,
+                        );
+                      }}
+                    />
+                  </View>
+                  <View className="flex-1 items-center gap-2">
+                    <Text className="text-xs font-semibold text-gray-500">Year</Text>
+                    <ScrollPicker
+                      items={YEARS}
+                      selectedIndex={dateValues.year}
+                      onValueChange={(idx) => {
+                        const updated = { ...dateValues, year: idx };
+                        setDateValues(updated);
+                        handleSelect(
+                          item.id,
+                          `${MONTHS[updated.month]} ${DAYS[updated.day]}, ${YEARS[updated.year]}`,
+                        );
+                      }}
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
-        ))}
+          );
+        })}
       </PagerView>
       <View className="gap-3 px-6 pb-6">
         <Pressable
