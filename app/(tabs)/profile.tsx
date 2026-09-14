@@ -11,18 +11,15 @@ import {
 import { Moon, Droplets, Activity, ChevronRight, LogOut } from "lucide-react-native";
 
 import { InfoCard, InfoCardSkeleton } from "@/components/Info";
-import FadeInView from "@/components/FadeInView";
 import LogoutModal from "@/components/LogoutModal";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useFocusTrigger } from "@/hooks";
 import { useNotifications } from "@/hooks/useNotifications";
 import { getAllProfiles } from "@/lib/db";
 import type { LifestyleProfile, SkinProfile, UserProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 
 export default function Profile() {
-  const focusTrigger = useFocusTrigger();
   const { settings, updateSettings } = useNotifications();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
@@ -84,7 +81,7 @@ export default function Profile() {
               <Skeleton className="h-4 w-44 mt-1" />
             </View>
           ) : (
-            <FadeInView delay={0} triggerKey={focusTrigger}>
+            <View>
               <Text className="font-bold text-green-700 text-2xl">
                 My Profile
               </Text>
@@ -112,7 +109,7 @@ export default function Profile() {
                   </Text>
                 </View>
               </View>
-            </FadeInView>
+            </View>
           )}
 
           {/* Skin profile */}
@@ -125,25 +122,23 @@ export default function Profile() {
               </View>
             </View>
           ) : (
-            <FadeInView delay={100} triggerKey={focusTrigger}>
-              <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-5">
-                <Text className="text-base font-semibold text-gray-900">
-                  Skin Profile
-                </Text>
-                <View className="gap-3">
-                  <View className="flex-row gap-3">
-                    <InfoCard
-                      label="Skin Type"
-                      value={formatter(skinProfile?.skin_type || "") ?? "—"}
-                    />
-                    <InfoCard
-                      label="Primary Concern"
-                      value={formatter(skinProfile?.main_concerns || "") ?? "—"}
-                    />
-                  </View>
+            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-5">
+              <Text className="text-base font-semibold text-gray-900">
+                Skin Profile
+              </Text>
+              <View className="gap-3">
+                <View className="flex-row gap-3">
+                  <InfoCard
+                    label="Skin Type"
+                    value={formatter(skinProfile?.skin_type || "") ?? "—"}
+                  />
+                  <InfoCard
+                    label="Primary Concern"
+                    value={formatter(skinProfile?.main_concerns || "") ?? "—"}
+                  />
                 </View>
               </View>
-            </FadeInView>
+            </View>
           )}
 
           {/* Lifestyle info */}
@@ -166,112 +161,107 @@ export default function Profile() {
               ))}
             </View>
           ) : (
-            <FadeInView delay={200} triggerKey={focusTrigger}>
-              <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">
-                <Text className="text-base font-semibold text-gray-900 mb-1">
-                  Lifestyle Info
-                </Text>
-                <TouchableOpacity
-                  activeOpacity={0.6}
-                  onPress={() => {}}
-                  className="flex-row items-center py-3 border-b border-gray-100"
-                >
-                  <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
-                    <Moon size={18} color="#15803D" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm text-gray-400">Sleep Quality</Text>
-                    <Text className="text-base font-bold text-gray-900">
-                      {formatter(lifestyleProfile?.sleep_quality || "") ?? "—"}
-                    </Text>
-                  </View>
-                  <ChevronRight size={18} color="#D1D5DB" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.6}
-                  onPress={() => {}}
-                  className="flex-row items-center py-3 border-b border-gray-100"
-                >
-                  <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
-                    <Droplets size={18} color="#15803D" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm text-gray-400">Water Intake</Text>
-                    <Text className="text-base font-bold text-gray-900">
-                      {formatter(lifestyleProfile?.water_intake || "") ?? "—"}
-                    </Text>
-                  </View>
-                  <ChevronRight size={18} color="#D1D5DB" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.6}
-                  onPress={() => {}}
-                  className="flex-row items-center py-3"
-                >
-                  <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
-                    <Activity size={18} color="#15803D" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm text-gray-400">Stress Level</Text>
-                    <Text className="text-base font-bold text-gray-900">
-                      {formatter(lifestyleProfile?.stress_level || "") ?? "—"}
-                    </Text>
-                  </View>
-                  <ChevronRight size={18} color="#D1D5DB" />
-                </TouchableOpacity>
-              </View>
-            </FadeInView>
+            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">
+              <Text className="text-base font-semibold text-gray-900 mb-1">
+                Lifestyle Info
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                onPress={() => {}}
+                className="flex-row items-center py-3 border-b border-gray-100"
+              >
+                <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
+                  <Moon size={18} color="#15803D" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm text-gray-400">Sleep Quality</Text>
+                  <Text className="text-base font-bold text-gray-900">
+                    {formatter(lifestyleProfile?.sleep_quality || "") ?? "—"}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color="#D1D5DB" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                onPress={() => {}}
+                className="flex-row items-center py-3 border-b border-gray-100"
+              >
+                <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
+                  <Droplets size={18} color="#15803D" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm text-gray-400">Water Intake</Text>
+                  <Text className="text-base font-bold text-gray-900">
+                    {formatter(lifestyleProfile?.water_intake || "") ?? "—"}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color="#D1D5DB" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                onPress={() => {}}
+                className="flex-row items-center py-3"
+              >
+                <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
+                  <Activity size={18} color="#15803D" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm text-gray-400">Stress Level</Text>
+                  <Text className="text-base font-bold text-gray-900">
+                    {formatter(lifestyleProfile?.stress_level || "") ?? "—"}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color="#D1D5DB" />
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* Notifications */}
-          <FadeInView delay={300} triggerKey={focusTrigger}>
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">
-              <Text className="text-base font-semibold text-gray-900 mb-1">
-                Notifications
-              </Text>
-              <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                <View className="flex-col flex-1 pr-3">
-                  <Text className="text-base font-semibold text-gray-900">
-                    Scan Reminders
-                  </Text>
-                  <Text className="text-sm text-gray-400">
-                    Weekly skin check reminders
-                  </Text>
-                </View>
-                <Switch
-                  value={settings.scanReminders}
-                  onValueChange={(val) => updateSettings({ scanReminders: val })}
-                  trackColor={{ false: "#E5E7EB", true: "#15803D" }}
-                  thumbColor="#FFFFFF"
-                />
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">
+            <Text className="text-base font-semibold text-gray-900 mb-1">
+              Notifications
+            </Text>
+            <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+              <View className="flex-col flex-1 pr-3">
+                <Text className="text-base font-semibold text-gray-900">
+                  Scan Reminders
+                </Text>
+                <Text className="text-sm text-gray-400">
+                  Weekly skin check reminders
+                </Text>
               </View>
-              <View className="flex-row items-center justify-between py-3">
-                <View className="flex-col flex-1 pr-3">
-                  <Text className="text-base font-semibold text-gray-900">
-                    Daily Skincare Tips
-                  </Text>
-                  <Text className="text-sm text-gray-400">
-                    Personalized tips & advice
-                  </Text>
-                </View>
-                <Switch
-                  value={settings.dailyTips}
-                  onValueChange={(val) => updateSettings({ dailyTips: val })}
-                  trackColor={{ false: "#E5E7EB", true: "#15803D" }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
+              <Switch
+                value={settings.scanReminders}
+                onValueChange={(val) => updateSettings({ scanReminders: val })}
+                trackColor={{ false: "#E5E7EB", true: "#15803D" }}
+                thumbColor="#FFFFFF"
+              />
             </View>
-          </FadeInView>
-          <FadeInView delay={400} triggerKey={focusTrigger}>
-            <Pressable
-              className="bg-red-500 active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
-              onPress={() => setLogoutModal(true)}
-            >
-              <LogOut size={18} color="#FFFFFF" />
-              <Text className="font-bold text-white text-center">Logout</Text>
-            </Pressable>
-          </FadeInView>
+            <View className="flex-row items-center justify-between py-3">
+              <View className="flex-col flex-1 pr-3">
+                <Text className="text-base font-semibold text-gray-900">
+                  Daily Skincare Tips
+                </Text>
+                <Text className="text-sm text-gray-400">
+                  Personalized tips & advice
+                </Text>
+              </View>
+              <Switch
+                value={settings.dailyTips}
+                onValueChange={(val) => updateSettings({ dailyTips: val })}
+                trackColor={{ false: "#E5E7EB", true: "#15803D" }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+          </View>
+
+          <Pressable
+            className="bg-red-500 active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
+            onPress={() => setLogoutModal(true)}
+          >
+            <LogOut size={18} color="#FFFFFF" />
+            <Text className="font-bold text-white text-center">Logout</Text>
+          </Pressable>
         </ScrollView>
       </SafeAreaView>
     </>

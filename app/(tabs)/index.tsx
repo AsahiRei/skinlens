@@ -19,7 +19,6 @@ import {
 } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
-import FadeInView from "@/components/FadeInView";
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -246,37 +245,35 @@ export default function Home() {
             </View>
           </View>
         ) : (
-          <FadeInView delay={100} triggerKey={focusTrigger}>
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-row items-center gap-4 mt-5">
-              <CircularProgress
-                progress={Number(result?.healthscore ?? 0)}
-                size={68}
-                strokeWidth={6}
-                color="#15803D"
-                trackColor="#DCFCE7"
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-row items-center gap-4 mt-5">
+            <CircularProgress
+              progress={Number(result?.healthscore ?? 0)}
+              size={68}
+              strokeWidth={6}
+              color="#15803D"
+              trackColor="#DCFCE7"
+            >
+              <Text className="text-lg font-bold text-green-700">
+                {result?.healthscore ?? 0}%
+              </Text>
+            </CircularProgress>
+            <View className="flex-col flex-1">
+              <Text className="font-bold text-gray-900 text-[15px]">
+                Skin Health Score
+              </Text>
+              <Text className="text-xs text-gray-500 mt-0.5">
+                {formatter(result?.severity ?? "—")} Progress
+              </Text>
+              <Pressable
+                className="bg-green-700 rounded-full self-start px-4 py-1.5 mt-2.5 active:opacity-80"
+                onPress={() => router.push("/(modules)/progress")}
               >
-                <Text className="text-lg font-bold text-green-700">
-                  {result?.healthscore ?? 0}%
+                <Text className="text-xs text-white font-bold">
+                  View Progress
                 </Text>
-              </CircularProgress>
-              <View className="flex-col flex-1">
-                <Text className="font-bold text-gray-900 text-[15px]">
-                  Skin Health Score
-                </Text>
-                <Text className="text-xs text-gray-500 mt-0.5">
-                  {formatter(result?.severity ?? "—")} Progress
-                </Text>
-                <Pressable
-                  className="bg-green-700 rounded-full self-start px-4 py-1.5 mt-2.5 active:opacity-80"
-                  onPress={() => router.push("/(modules)/progress")}
-                >
-                  <Text className="text-xs text-white font-bold">
-                    View Progress
-                  </Text>
-                </Pressable>
-              </View>
+              </Pressable>
             </View>
-          </FadeInView>
+          </View>
         )}
 
         {/* Routine (paginated: morning / afternoon / evening) */}
@@ -286,8 +283,7 @@ export default function Home() {
             <Skeleton className="h-16 w-full rounded-2xl" />
           </View>
         ) : (
-          <FadeInView delay={200} triggerKey={focusTrigger}>
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-col gap-3">
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-col gap-3">
             <View className="flex-row items-center justify-between">
               <Pressable
                 onPress={() => goToPeriod(-1)}
@@ -388,12 +384,10 @@ export default function Home() {
               </>
             )}
           </View>
-          </FadeInView>
         )}
 
         {/* Quick AI Scan */}
-        <FadeInView delay={300} triggerKey={focusTrigger}>
-          <Pressable className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90">
+        <Pressable className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90" onPress={() => router.push("/scan")}>
           <View className="flex-row items-center gap-3 flex-1">
             <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
               <Camera size={22} color="#15803D" />
@@ -410,12 +404,10 @@ export default function Home() {
           <View className="bg-green-100 h-9 w-9 items-center justify-center rounded-full">
             <ArrowRight size={16} color="#15803D" />
           </View>
-          </Pressable>
-        </FadeInView>
+        </Pressable>
 
         {/* Chatbot & Progress quick actions */}
-        <FadeInView delay={400} triggerKey={focusTrigger}>
-          <View className="flex-row gap-3 mt-4">
+        <View className="flex-row gap-3 mt-4">
           <Pressable
             className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
             onPress={() => router.push("/(modules)/chatbot")}
@@ -449,7 +441,6 @@ export default function Home() {
               </Text>
             </Pressable>
         </View>
-        </FadeInView>
 
         {/* Last scan result */}
         {loadingResult ? (
@@ -464,7 +455,6 @@ export default function Home() {
             </View>
           </View>
         ) : (
-          <FadeInView delay={500} triggerKey={focusTrigger}>
           <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
             <View className="flex-row items-center justify-between">
               <Text className="font-bold text-gray-900 text-[15px]">
@@ -525,7 +515,6 @@ export default function Home() {
               </View>
             )}
           </View>
-          </FadeInView>
         )}
       </ScrollView>
     </SafeAreaView>

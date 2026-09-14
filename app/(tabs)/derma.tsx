@@ -18,9 +18,7 @@ import {
 } from "lucide-react-native";
 
 import Skeleton from "@/components/Skeleton";
-import FadeInView from "@/components/FadeInView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useFocusTrigger } from "@/hooks";
 import type { Dermatologist } from "@/types/schema";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
@@ -30,7 +28,6 @@ const MAP_STYLE_URL = `https://maps.geoapify.com/v1/styles/osm-bright/style.json
 type Coords = { latitude: number; longitude: number };
 
 export default function Derma() {
-  const focusTrigger = useFocusTrigger();
   const [query, setQuery] = useState("");
   const [locating, setLocating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -134,63 +131,57 @@ export default function Derma() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <FadeInView delay={0} triggerKey={focusTrigger}>
-          <Text className="font-bold text-green-700 text-2xl">
-            Find Dermatologist
-          </Text>
-          <Text className="text-gray-500">
-            Find trusted skin specialists near you
-          </Text>
-        </FadeInView>
+        <Text className="font-bold text-green-700 text-2xl">
+          Find Dermatologist
+        </Text>
+        <Text className="text-gray-500">
+          Find trusted skin specialists near you
+        </Text>
 
         {/* Search bar */}
-        <FadeInView delay={100} triggerKey={focusTrigger}>
-          <View className="flex-row items-center bg-white rounded-2xl shadow-sm px-4 py-3 mt-5 gap-2">
-            <Search size={18} color="#9CA3AF" />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search by name, clinic, or specialty"
-              placeholderTextColor="#9CA3AF"
-              className="flex-1 text-sm text-gray-800"
-            />
-            {query.length > 0 && (
-              <Pressable onPress={() => setQuery("")} hitSlop={8}>
-                <XCircle size={18} color="#D1D5DB" />
-              </Pressable>
-            )}
-          </View>
-        </FadeInView>
+        <View className="flex-row items-center bg-white rounded-2xl shadow-sm px-4 py-3 mt-5 gap-2">
+          <Search size={18} color="#9CA3AF" />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search by name, clinic, or specialty"
+            placeholderTextColor="#9CA3AF"
+            className="flex-1 text-sm text-gray-800"
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery("")} hitSlop={8}>
+              <XCircle size={18} color="#D1D5DB" />
+            </Pressable>
+          )}
+        </View>
 
         {/* Find nearby CTA */}
-        <FadeInView delay={200} triggerKey={focusTrigger}>
-          <Pressable
-            onPress={handleFindNearby}
-            disabled={locating}
-            className="bg-green-700 rounded-xl py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90"
-          >
-            <View className="flex-row items-center gap-3 flex-1">
-              <View className="bg-white/20 h-12 w-12 items-center justify-center rounded-2xl">
-                {locating ? (
-                  <Locate size={22} color="white" />
-                ) : (
-                  <Navigation size={22} color="white" />
-                )}
-              </View>
-              <View className="flex-col flex-1">
-                <Text className="font-bold text-white text-[15px]">
-                  {locating ? "Locating..." : "Find Dermatologist Nearby"}
-                </Text>
-                <Text className="text-xs text-green-100 mt-0.5">
-                  Uses your current location
-                </Text>
-              </View>
+        <Pressable
+          onPress={handleFindNearby}
+          disabled={locating}
+          className="bg-green-700 rounded-xl py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90"
+        >
+          <View className="flex-row items-center gap-3 flex-1">
+            <View className="bg-white/20 h-12 w-12 items-center justify-center rounded-2xl">
+              {locating ? (
+                <Locate size={22} color="white" />
+              ) : (
+                <Navigation size={22} color="white" />
+              )}
             </View>
-            <View className="bg-white/20 h-9 w-9 items-center justify-center rounded-full">
-              <ArrowRight size={16} color="white" />
+            <View className="flex-col flex-1">
+              <Text className="font-bold text-white text-[15px]">
+                {locating ? "Locating..." : "Find Dermatologist Nearby"}
+              </Text>
+              <Text className="text-xs text-green-100 mt-0.5">
+                Uses your current location
+              </Text>
             </View>
-          </Pressable>
-        </FadeInView>
+          </View>
+          <View className="bg-white/20 h-9 w-9 items-center justify-center rounded-full">
+            <ArrowRight size={16} color="white" />
+          </View>
+        </Pressable>
 
         {errorMsg && (
           <Text className="text-xs text-red-500 mt-2 text-center">
@@ -200,71 +191,67 @@ export default function Derma() {
 
         {/* Map: user location + clinic pins */}
         {(locating || hasSearched) && (
-          <FadeInView delay={0} triggerKey={focusTrigger}>
-            <View className="rounded-xl overflow-hidden border border-gray-100 mt-4 h-56 bg-gray-200">
-              {locating || !userLocation ? (
-                <Skeleton className="h-full w-full" />
-              ) : (
-                <Map ref={mapRef} mapStyle={MAP_STYLE_URL} logo={false}>
-                  <Camera
-                    ref={cameraRef}
-                    initialViewState={{
-                      center: [userLocation.longitude, userLocation.latitude],
-                      zoom: 13,
-                    }}
-                  />
+          <View className="rounded-xl overflow-hidden border border-gray-100 mt-4 h-56 bg-gray-200">
+            {locating || !userLocation ? (
+              <Skeleton className="h-full w-full" />
+            ) : (
+              <Map ref={mapRef} mapStyle={MAP_STYLE_URL} logo={false}>
+                <Camera
+                  ref={cameraRef}
+                  initialViewState={{
+                    center: [userLocation.longitude, userLocation.latitude],
+                    zoom: 13,
+                  }}
+                />
 
-                  {/* You are here */}
-                  <Marker
-                    id="user-location"
-                    lngLat={[userLocation.longitude, userLocation.latitude]}
-                  >
-                    <View className="h-4 w-4 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
-                  </Marker>
+                {/* You are here */}
+                <Marker
+                  id="user-location"
+                  lngLat={[userLocation.longitude, userLocation.latitude]}
+                >
+                  <View className="h-4 w-4 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
+                </Marker>
 
-                  {/* Clinic pins */}
-                  {filtered.map((d) => {
-                    const coord = clinicCoords[d.id];
-                    if (!coord) return null;
-                    return (
-                      <Marker
-                        key={d.id}
-                        id={`clinic-${d.id}`}
-                        lngLat={[coord.longitude, coord.latitude]}
-                        onPress={() =>
-                          cameraRef.current?.flyTo({
-                            center: [coord.longitude, coord.latitude],
-                            zoom: 15,
-                            duration: 400,
-                          })
-                        }
-                      >
-                        <View className="h-7 w-7 items-center justify-center rounded-full bg-green-700 border-2 border-white shadow-sm">
-                          <Cross size={13} color="white" />
-                        </View>
-                      </Marker>
-                    );
-                  })}
-                </Map>
-              )}
-            </View>
-          </FadeInView>
+                {/* Clinic pins */}
+                {filtered.map((d) => {
+                  const coord = clinicCoords[d.id];
+                  if (!coord) return null;
+                  return (
+                    <Marker
+                      key={d.id}
+                      id={`clinic-${d.id}`}
+                      lngLat={[coord.longitude, coord.latitude]}
+                      onPress={() =>
+                        cameraRef.current?.flyTo({
+                          center: [coord.longitude, coord.latitude],
+                          zoom: 15,
+                          duration: 400,
+                        })
+                      }
+                    >
+                      <View className="h-7 w-7 items-center justify-center rounded-full bg-green-700 border-2 border-white shadow-sm">
+                        <Cross size={13} color="white" />
+                      </View>
+                    </Marker>
+                  );
+                })}
+              </Map>
+            )}
+          </View>
         )}
 
         {/* Results header */}
         {(locating || hasSearched) && (
-          <FadeInView delay={100} triggerKey={focusTrigger}>
-            <View className="flex-row items-center justify-between mt-6 mb-1">
-              <Text className="font-bold text-gray-900 text-[15px]">
-                Nearby Dermatologists
+          <View className="flex-row items-center justify-between mt-6 mb-1">
+            <Text className="font-bold text-gray-900 text-[15px]">
+              Nearby Dermatologists
+            </Text>
+            {!locating && (
+              <Text className="text-xs text-gray-400">
+                {filtered.length} found
               </Text>
-              {!locating && (
-                <Text className="text-xs text-gray-400">
-                  {filtered.length} found
-                </Text>
-              )}
-            </View>
-          </FadeInView>
+            )}
+          </View>
         )}
 
         {/* Results list */}
@@ -275,27 +262,22 @@ export default function Derma() {
             <Skeleton className="h-32 w-full rounded-xl" />
           </View>
         ) : !hasSearched ? (
-          <FadeInView delay={200} triggerKey={focusTrigger}>
-            <View className="items-center py-10 bg-white rounded-xl border border-gray-100 mt-2">
-              <Navigation size={26} color="#D1D5DB" />
-              <Text className="text-xs text-gray-400 mt-2 text-center">
-                Tap "Find Dermatologist Nearby" to search.
-              </Text>
-            </View>
-          </FadeInView>
+          <View className="items-center py-10 bg-white rounded-xl border border-gray-100 mt-2">
+            <Navigation size={26} color="#D1D5DB" />
+            <Text className="text-xs text-gray-400 mt-2 text-center">
+              Tap "Find Dermatologist Nearby" to search.
+            </Text>
+          </View>
         ) : filtered.length === 0 ? (
-          <FadeInView delay={200} triggerKey={focusTrigger}>
-            <View className="items-center py-10 bg-white rounded-xl border border-gray-100 mt-2">
-              <Cross size={26} color="#D1D5DB" />
-              <Text className="text-xs text-gray-400 mt-2 text-center">
-                No dermatologists match your search.
-              </Text>
-            </View>
-          </FadeInView>
+          <View className="items-center py-10 bg-white rounded-xl border border-gray-100 mt-2">
+            <Cross size={26} color="#D1D5DB" />
+            <Text className="text-xs text-gray-400 mt-2 text-center">
+              No dermatologists match your search.
+            </Text>
+          </View>
         ) : (
-          <FadeInView delay={200} triggerKey={focusTrigger}>
-            <View className="flex-col gap-3 mt-2">
-              {filtered.map((d) => (
+          <View className="flex-col gap-3 mt-2">
+            {filtered.map((d) => (
               <View
                 key={d.id}
                 className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3"
@@ -386,7 +368,6 @@ export default function Derma() {
               </View>
             ))}
           </View>
-          </FadeInView>
         )}
       </ScrollView>
     </SafeAreaView>

@@ -10,10 +10,8 @@ import {
 import { Sun, CloudSun, Moon, Check, Sparkles, AlertCircle } from "lucide-react-native";
 
 import InlineProgress from "@/components/InlineProgress";
-import FadeInView from "@/components/FadeInView";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { useFocusTrigger } from "@/hooks";
 import {
   getLatestRoutine,
   getTodayProgress,
@@ -37,7 +35,6 @@ const PERIOD_CONFIG: Record<
 };
 
 export default function Routines() {
-  const focusTrigger = useFocusTrigger();
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [routineId, setRoutineId] = useState<number | null>(null);
   const [loadingRoutine, setLoadingRoutine] = useState(true);
@@ -163,65 +160,59 @@ export default function Routines() {
           </View>
         ) : (
           <>
-            <FadeInView delay={0} triggerKey={focusTrigger}>
-              <Text className="font-bold text-green-700 text-2xl">My Routine</Text>
-              <Text className="text-gray-500">AI Personalized Routine Generator</Text>
-            </FadeInView>
-            <FadeInView delay={100} triggerKey={focusTrigger}>
-              <View className="flex-row items-center gap-2 mt-5">
-                {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
-                  const { label, icon } = PERIOD_CONFIG[period];
-                  const isActive = activePeriod === period;
-                  return (
-                    <Pressable
-                      key={period}
-                      onPress={() => setActivePeriod(period)}
-                      className={`flex-1 rounded-full py-3 flex-row justify-center items-center gap-1.5 border ${
-                        isActive
-                          ? "bg-green-700 border-green-700"
-                          : "border-green-700"
+            <Text className="font-bold text-green-700 text-2xl">My Routine</Text>
+            <Text className="text-gray-500">AI Personalized Routine Generator</Text>
+
+            <View className="flex-row items-center gap-2 mt-5">
+              {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
+                const { label, icon } = PERIOD_CONFIG[period];
+                const isActive = activePeriod === period;
+                return (
+                  <Pressable
+                    key={period}
+                    onPress={() => setActivePeriod(period)}
+                    className={`flex-1 rounded-full py-3 flex-row justify-center items-center gap-1.5 border ${
+                      isActive
+                        ? "bg-green-700 border-green-700"
+                        : "border-green-700"
+                    }`}
+                  >
+                    {(() => {
+                      const Icon = PERIOD_CONFIG[period].icon;
+                      return (
+                        <Icon
+                          size={14}
+                          color={isActive ? "#FFFFFF" : "#15803D"}
+                        />
+                      );
+                    })()}
+                    <Text
+                      className={`text-center font-bold text-sm ${
+                        isActive ? "text-white" : "text-green-700"
                       }`}
                     >
-                      {(() => {
-                        const Icon = PERIOD_CONFIG[period].icon;
-                        return (
-                          <Icon
-                            size={14}
-                            color={isActive ? "#FFFFFF" : "#15803D"}
-                          />
-                        );
-                      })()}
-                      <Text
-                        className={`text-center font-bold text-sm ${
-                          isActive ? "text-white" : "text-green-700"
-                        }`}
-                      >
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </FadeInView>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
             {/* Progress */}
             {routine && totalSteps > 0 && (
-              <FadeInView delay={200} triggerKey={focusTrigger}>
-                <View className="mt-5 gap-2">
-                  <View className="flex-row justify-between items-center">
-                    <Text className="font-bold text-gray-800">
-                      {doneCount}/{totalSteps} completed
-                    </Text>
-                    <Text className="text-xs text-gray-500">{progressPct}%</Text>
-                  </View>
-                  <InlineProgress progress={progressPct} height={8} color="#15803D" />
+              <View className="mt-5 gap-2">
+                <View className="flex-row justify-between items-center">
+                  <Text className="font-bold text-gray-800">
+                    {doneCount}/{totalSteps} completed
+                  </Text>
+                  <Text className="text-xs text-gray-500">{progressPct}%</Text>
                 </View>
-              </FadeInView>
+                <InlineProgress progress={progressPct} height={8} color="#15803D" />
+              </View>
             )}
 
             {/* Steps */}
-            <FadeInView delay={300} triggerKey={focusTrigger}>
-              <View className="flex-col gap-3 mt-5">
+            <View className="flex-col gap-3 mt-5">
               {loadError ? (
                 <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2">
                   <AlertCircle size={28} color="#B91C1C" />
@@ -296,42 +287,39 @@ export default function Routines() {
                 })
               )}
             </View>
-            </FadeInView>
 
             {/* Recommended products */}
             {routine && routine.recommended_products?.length > 0 && (
-              <FadeInView delay={400} triggerKey={focusTrigger}>
-                <View className="mt-8 gap-3">
-                  <Text className="font-bold text-gray-800 text-lg">
-                    Recommended Products
-                  </Text>
-                  {routine.recommended_products.map((product, index) => (
-                    <View
-                      key={index}
-                      className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-1.5"
-                    >
-                      <Text className="font-bold text-gray-900">
-                        {product.product_type}
-                      </Text>
-                      <View className="flex-row flex-wrap gap-1.5 mt-1">
-                        {product.recommended_ingredients.map((ingredient, i) => (
-                          <View
-                            key={i}
-                            className="bg-green-50 rounded-full px-3 py-1"
-                          >
-                            <Text className="text-xs text-green-700 font-medium">
-                              {ingredient}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                      <Text className="text-xs text-gray-400 mt-1">
-                        {product.reason}
-                      </Text>
+              <View className="mt-8 gap-3">
+                <Text className="font-bold text-gray-800 text-lg">
+                  Recommended Products
+                </Text>
+                {routine.recommended_products.map((product, index) => (
+                  <View
+                    key={index}
+                    className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-1.5"
+                  >
+                    <Text className="font-bold text-gray-900">
+                      {product.product_type}
+                    </Text>
+                    <View className="flex-row flex-wrap gap-1.5 mt-1">
+                      {product.recommended_ingredients.map((ingredient, i) => (
+                        <View
+                          key={i}
+                          className="bg-green-50 rounded-full px-3 py-1"
+                        >
+                          <Text className="text-xs text-green-700 font-medium">
+                            {ingredient}
+                          </Text>
+                        </View>
+                      ))}
                     </View>
-                  ))}
-                </View>
-              </FadeInView>
+                    <Text className="text-xs text-gray-400 mt-1">
+                      {product.reason}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             )}
           </>
         )}

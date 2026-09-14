@@ -58,6 +58,6 @@ export default function FadeInView({
   }));
 
   return (
-    <Animated.View style={animatedStyle}>{children}</Animated.View>
+    <Animated.View key={triggerKey} style={animatedStyle}>{children}</Animated.View>
   );
 }

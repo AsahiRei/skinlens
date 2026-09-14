@@ -3,7 +3,6 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native"
 import { useRouter } from "expo-router";
 import { ArrowLeft, Bell, Trash2, CheckCheck } from "lucide-react-native";
 
-import FadeInView from "@/components/FadeInView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useNotifications } from "@/hooks/useNotifications";
 function formatTime(dateStr: string): string {
@@ -93,57 +92,54 @@ export default function NotificationsScreen() {
         {/* Notifications list */}
         <View className="mt-5 gap-3">
           {notifications.length === 0 ? (
-            <FadeInView delay={100}>
-              <View className="bg-white rounded-xl border border-gray-100 py-12 px-4 items-center">
-                <Bell size={32} color="#D1D5DB" />
-                <Text className="text-sm text-gray-400 mt-3 text-center">
-                  No notifications yet
-                </Text>
-                <Text className="text-xs text-gray-300 mt-1 text-center">
-                  Enable scan reminders or daily tips in your profile settings
-                </Text>
-              </View>
-            </FadeInView>
+            <View className="bg-white rounded-xl border border-gray-100 py-12 px-4 items-center">
+              <Bell size={32} color="#D1D5DB" />
+              <Text className="text-sm text-gray-400 mt-3 text-center">
+                No notifications yet
+              </Text>
+              <Text className="text-xs text-gray-300 mt-1 text-center">
+                Enable scan reminders or daily tips in your profile settings
+              </Text>
+            </View>
           ) : (
-            notifications.map((notification, index) => (
-              <FadeInView key={notification.id} delay={index * 50}>
-                <Pressable
-                  onPress={() => markAsRead(notification.id)}
-                  className={`bg-white rounded-xl border py-4 px-4 flex-row items-start active:opacity-90 ${
-                    notification.read ? "border-gray-100" : "border-green-200"
-                  }`}
-                >
-                  <View className="flex-1">
-                    <View className="flex-row items-center justify-between">
-                      <Text
-                        className={`text-[15px] flex-1 ${
-                          notification.read
-                            ? "font-medium text-gray-700"
-                            : "font-bold text-gray-900"
-                        }`}
-                        numberOfLines={1}
-                      >
-                        {notification.title}
-                      </Text>
-                      {!notification.read && (
-                        <View className="h-2 w-2 rounded-full bg-green-700 ml-2" />
-                      )}
-                    </View>
-                    <Text className="text-sm text-gray-500 mt-1">
-                      {notification.message}
+            notifications.map((notification) => (
+              <Pressable
+                key={notification.id}
+                onPress={() => markAsRead(notification.id)}
+                className={`bg-white rounded-xl border py-4 px-4 flex-row items-start active:opacity-90 ${
+                  notification.read ? "border-gray-100" : "border-green-200"
+                }`}
+              >
+                <View className="flex-1">
+                  <View className="flex-row items-center justify-between">
+                    <Text
+                      className={`text-[15px] flex-1 ${
+                        notification.read
+                          ? "font-medium text-gray-700"
+                          : "font-bold text-gray-900"
+                      }`}
+                      numberOfLines={1}
+                    >
+                      {notification.title}
                     </Text>
-                    <Text className="text-xs text-gray-400 mt-2">
-                      {formatTime(notification.created_at)}
-                    </Text>
+                    {!notification.read && (
+                      <View className="h-2 w-2 rounded-full bg-green-700 ml-2" />
+                    )}
                   </View>
-                  <Pressable
-                    onPress={() => deleteNotification(notification.id)}
-                    className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
-                  >
-                    <Trash2 size={14} color="#9CA3AF" />
-                  </Pressable>
+                  <Text className="text-sm text-gray-500 mt-1">
+                    {notification.message}
+                  </Text>
+                  <Text className="text-xs text-gray-400 mt-2">
+                    {formatTime(notification.created_at)}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => deleteNotification(notification.id)}
+                  className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                >
+                  <Trash2 size={14} color="#9CA3AF" />
                 </Pressable>
-              </FadeInView>
+              </Pressable>
             ))
           )}
         </View>

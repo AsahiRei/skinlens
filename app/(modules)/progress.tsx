@@ -12,7 +12,6 @@ import { useRouter } from "expo-router";
 import { ArrowLeft, TrendingUp, Calendar } from "lucide-react-native";
 import Svg, { Path, Circle, Rect, Line as SvgLine } from "react-native-svg";
 
-import FadeInView from "@/components/FadeInView";
 import Skeleton from "@/components/Skeleton";
 import TypewriterText from "@/components/TypewriterText";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -350,239 +349,223 @@ export default function Progress() {
         }
       >
         {/* Header */}
-        <FadeInView delay={0}>
-          <View className="flex-row items-center gap-3 mb-1">
-            <Pressable
-              onPress={() => router.back()}
-              className="h-9 w-9 items-center justify-center rounded-full bg-white active:opacity-70"
-            >
-              <ArrowLeft size={18} color="#15803D" />
-            </Pressable>
-            <Text className="font-bold text-green-700 text-2xl">Progress</Text>
-          </View>
-        </FadeInView>
+        <View className="flex-row items-center gap-3 mb-1">
+          <Pressable
+            onPress={() => router.back()}
+            className="h-9 w-9 items-center justify-center rounded-full bg-white active:opacity-70"
+          >
+            <ArrowLeft size={18} color="#15803D" />
+          </Pressable>
+          <Text className="font-bold text-green-700 text-2xl">Progress</Text>
+        </View>
 
         {/* Overall Improvement */}
-        <FadeInView delay={100}>
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-row items-center justify-between">
-            <View className="flex-col">
-              <Text className="text-gray-500 text-sm">Overall Improvement</Text>
-              <Text className="font-bold text-green-700 text-3xl mt-1">
-                {isImproving ? "+" : ""}
-                {improvement.toFixed(1)}%
-              </Text>
-              <Text className="text-xs text-gray-400 mt-1">
-                Since {mondayStr} · {weekScans} scans
-              </Text>
-            </View>
-            <View className="items-end gap-2">
-              <View className="bg-green-50 h-12 w-12 items-center justify-center rounded-2xl">
-                <TrendingUp size={22} color="#15803D" />
-              </View>
-              {isImproving && (
-                <View className="bg-green-50 rounded-full px-3 py-1">
-                  <Text className="text-xs font-bold text-green-700">
-                    Improving ↑
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </FadeInView>
-
-        {/* AI Confidence Trend */}
-        <FadeInView delay={200}>
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
-            <Text className="font-bold text-gray-900 text-[15px] mb-3">
-              AI Confidence Trend
+        <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-row items-center justify-between">
+          <View className="flex-col">
+            <Text className="text-gray-500 text-sm">Overall Improvement</Text>
+            <Text className="font-bold text-green-700 text-3xl mt-1">
+              {isImproving ? "+" : ""}
+              {improvement.toFixed(1)}%
             </Text>
-            <ConfidenceTrendChart results={allResults} />
-          </View>
-        </FadeInView>
-
-        {/* Symptom Trend */}
-        <FadeInView delay={300}>
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
-            <Text className="font-bold text-gray-900 text-[15px]">
-              Symptom Trend
+            <Text className="text-xs text-gray-400 mt-1">
+              Since {mondayStr} · {weekScans} scans
             </Text>
-            <View className="mt-2">
-              <SymptomTrendChart results={allResults} />
-            </View>
           </View>
-        </FadeInView>
-
-        {/* Before vs. Today */}
-        {firstResult && latestResult && firstResult.id !== latestResult.id && (
-          <FadeInView delay={400}>
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
-              <Text className="font-bold text-gray-900 text-[15px] mb-3">
-                Before vs. Today
-              </Text>
-              <View className="flex-row items-center justify-between">
-                {/* Before */}
-                <View className="items-center flex-1">
-                  <View className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-100">
-                    {firstResult.image_url ? (
-                      <Image
-                        source={{ uri: firstResult.image_url }}
-                        className="w-full h-full"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center">
-                        <Text className="text-xs text-gray-400">No image</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text className="text-xs text-gray-400 mt-2">
-                    {formatDateFull(firstResult.created_at)}
-                  </Text>
-                </View>
-
-                {/* Arrow + improvement */}
-                <View className="items-center px-3">
-                  <Text className="text-green-700 font-bold text-lg">
-                    {improvement > 0 ? "+" : ""}
-                    {improvement.toFixed(1)}%
-                  </Text>
-                  <Text className="text-gray-400 text-lg">→</Text>
-                </View>
-
-                {/* Today */}
-                <View className="items-center flex-1">
-                  <View className="w-28 h-28 rounded-2xl overflow-hidden bg-green-50 border-2 border-green-200">
-                    {latestResult.image_url ? (
-                      <Image
-                        source={{ uri: latestResult.image_url }}
-                        className="w-full h-full"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center">
-                        <Text className="text-xs text-gray-400">No image</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text className="text-xs text-green-700 font-bold mt-2">
-                    Today ✓
-                  </Text>
-                </View>
-              </View>
+          <View className="items-end gap-2">
+            <View className="bg-green-50 h-12 w-12 items-center justify-center rounded-2xl">
+              <TrendingUp size={22} color="#15803D" />
             </View>
-          </FadeInView>
-        )}
-
-        {/* Scan History */}
-        <FadeInView delay={500}>
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
-            <Text className="font-bold text-gray-900 text-[15px] mb-3">
-              Scan History
-            </Text>
-            {allResults.length === 0 ? (
-              <View className="items-center py-6">
-                <Calendar size={28} color="#D1D5DB" />
-                <Text className="text-xs text-gray-400 mt-2">
-                  No scans yet. Start scanning to track your progress.
+            {isImproving && (
+              <View className="bg-green-50 rounded-full px-3 py-1">
+                <Text className="text-xs font-bold text-green-700">
+                  Improving ↑
                 </Text>
-              </View>
-            ) : (
-              <View className="gap-3">
-                {allResults.slice(0, 3).map((result) => {
-                  const label = formatter(result.detection_label ?? result.severity);
-                  const dayLabel = formatDate(result.created_at);
-                  const conf = result.confidence
-                    ? `${(result.confidence * 100).toFixed(0)}%`
-                    : "—";
-                  return (
-                    <View
-                      key={result.id}
-                      className="flex-row items-center justify-between py-2 border-b border-gray-50 last:border-b-0"
-                    >
-                      <View className="flex-row items-center gap-3 flex-1">
-                        <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
-                          <Text className="text-green-700 text-xs font-bold">
-                            {result.confidence
-                              ? `${Math.round(result.confidence * 100)}`
-                              : "—"}
-                          </Text>
-                        </View>
-                        <View className="flex-col">
-                          <Text className="font-bold text-gray-900 text-sm">
-                            {label} Detection · {dayLabel}
-                          </Text>
-                          <Text className="text-xs text-gray-400">
-                            Confidence: {conf}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text className="text-sm font-bold text-green-700">
-                        {result.healthscore}%
-                      </Text>
-                    </View>
-                  );
-                })}
               </View>
             )}
           </View>
-        </FadeInView>
+        </View>
+
+        {/* AI Confidence Trend */}
+        <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+          <Text className="font-bold text-gray-900 text-[15px] mb-3">
+            AI Confidence Trend
+          </Text>
+          <ConfidenceTrendChart results={allResults} />
+        </View>
+
+        {/* Symptom Trend */}
+        <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+          <Text className="font-bold text-gray-900 text-[15px]">
+            Symptom Trend
+          </Text>
+          <View className="mt-2">
+            <SymptomTrendChart results={allResults} />
+          </View>
+        </View>
+
+        {/* Before vs. Today */}
+        {firstResult && latestResult && firstResult.id !== latestResult.id && (
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+            <Text className="font-bold text-gray-900 text-[15px] mb-3">
+              Before vs. Today
+            </Text>
+            <View className="flex-row items-center justify-between">
+              {/* Before */}
+              <View className="items-center flex-1">
+                <View className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-100">
+                  {firstResult.image_url ? (
+                    <Image
+                      source={{ uri: firstResult.image_url }}
+                      className="w-full h-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View className="w-full h-full items-center justify-center">
+                      <Text className="text-xs text-gray-400">No image</Text>
+                    </View>
+                  )}
+                </View>
+                <Text className="text-xs text-gray-400 mt-2">
+                  {formatDateFull(firstResult.created_at)}
+                </Text>
+              </View>
+
+              {/* Arrow + improvement */}
+              <View className="items-center px-3">
+                <Text className="text-green-700 font-bold text-lg">
+                  {improvement > 0 ? "+" : ""}
+                  {improvement.toFixed(1)}%
+                </Text>
+                <Text className="text-gray-400 text-lg">→</Text>
+              </View>
+
+              {/* Today */}
+              <View className="items-center flex-1">
+                <View className="w-28 h-28 rounded-2xl overflow-hidden bg-green-50 border-2 border-green-200">
+                  {latestResult.image_url ? (
+                    <Image
+                      source={{ uri: latestResult.image_url }}
+                      className="w-full h-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View className="w-full h-full items-center justify-center">
+                      <Text className="text-xs text-gray-400">No image</Text>
+                    </View>
+                  )}
+                </View>
+                <Text className="text-xs text-green-700 font-bold mt-2">
+                  Today ✓
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Scan History */}
+        <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+          <Text className="font-bold text-gray-900 text-[15px] mb-3">
+            Scan History
+          </Text>
+          {allResults.length === 0 ? (
+            <View className="items-center py-6">
+              <Calendar size={28} color="#D1D5DB" />
+              <Text className="text-xs text-gray-400 mt-2">
+                No scans yet. Start scanning to track your progress.
+              </Text>
+            </View>
+          ) : (
+            <View className="gap-3">
+              {allResults.slice(0, 3).map((result) => {
+                const label = formatter(result.detection_label ?? result.severity);
+                const dayLabel = formatDate(result.created_at);
+                const conf = result.confidence
+                  ? `${(result.confidence * 100).toFixed(0)}%`
+                  : "—";
+                return (
+                  <View
+                    key={result.id}
+                    className="flex-row items-center justify-between py-2 border-b border-gray-50 last:border-b-0"
+                  >
+                    <View className="flex-row items-center gap-3 flex-1">
+                      <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
+                        <Text className="text-green-700 text-xs font-bold">
+                          {result.confidence
+                            ? `${Math.round(result.confidence * 100)}`
+                            : "—"}
+                        </Text>
+                      </View>
+                      <View className="flex-col">
+                        <Text className="font-bold text-gray-900 text-sm">
+                          {label} Detection · {dayLabel}
+                        </Text>
+                        <Text className="text-xs text-gray-400">
+                          Confidence: {conf}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text className="text-sm font-bold text-green-700">
+                      {result.healthscore}%
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
 
         {/* Weekly Summary */}
-        <FadeInView delay={600}>
-          <View className="bg-green-700 rounded-xl py-4 px-4 mt-4">
-            <Text className="font-bold text-white text-base">
-              WEEKLY SUMMARY
-            </Text>
-            <Text className="text-green-100 text-xs mt-1">
-              {weekScans} scans · Avg score: {weekAvgScore}%
-            </Text>
-            {summaryLoading ? (
-              <ActivityIndicator size="small" color="#BBF7D0" style={{ marginTop: 10 }} />
-            ) : aiSummary ? (
-              <TypewriterText
-                text={aiSummary}
-                className="text-green-200 text-xs mt-2 leading-5"
-              />
-            ) : null}
-          </View>
-        </FadeInView>
+        <View className="bg-green-700 rounded-xl py-4 px-4 mt-4">
+          <Text className="font-bold text-white text-base">
+            WEEKLY SUMMARY
+          </Text>
+          <Text className="text-green-100 text-xs mt-1">
+            {weekScans} scans · Avg score: {weekAvgScore}%
+          </Text>
+          {summaryLoading ? (
+            <ActivityIndicator size="small" color="#BBF7D0" style={{ marginTop: 10 }} />
+          ) : aiSummary ? (
+            <TypewriterText
+              text={aiSummary}
+              className="text-green-200 text-xs mt-2 leading-5"
+            />
+          ) : null}
+        </View>
 
         {/* Weekly detail cards */}
         {weekResults.length > 0 && (
-          <FadeInView delay={700}>
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
-              <Text className="font-bold text-gray-900 text-[15px] mb-3">
-                This Week's Scans
-              </Text>
-              <View className="gap-2">
-                {weekResults.slice(0, 3).map((result) => (
-                  <View
-                    key={result.id}
-                    className="flex-row items-center gap-3 py-2 border-b border-gray-50 last:border-b-0"
-                  >
-                    <View className="flex-1">
-                      <Text className="font-bold text-gray-900 text-sm">
-                        {formatter(result.detection_label ?? result.severity)}
-                      </Text>
-                      <Text className="text-xs text-gray-400">
-                        {formatDateFull(result.created_at)} · Score:{" "}
-                        {result.healthscore}%
-                      </Text>
-                    </View>
-                    {result.image_url && (
-                      <View className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100">
-                        <Image
-                          source={{ uri: result.image_url }}
-                          className="w-full h-full"
-                          resizeMode="cover"
-                        />
-                      </View>
-                    )}
+          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+            <Text className="font-bold text-gray-900 text-[15px] mb-3">
+              This Week's Scans
+            </Text>
+            <View className="gap-2">
+              {weekResults.slice(0, 3).map((result) => (
+                <View
+                  key={result.id}
+                  className="flex-row items-center gap-3 py-2 border-b border-gray-50 last:border-b-0"
+                >
+                  <View className="flex-1">
+                    <Text className="font-bold text-gray-900 text-sm">
+                      {formatter(result.detection_label ?? result.severity)}
+                    </Text>
+                    <Text className="text-xs text-gray-400">
+                      {formatDateFull(result.created_at)} · Score:{" "}
+                      {result.healthscore}%
+                    </Text>
                   </View>
-                ))}
-              </View>
+                  {result.image_url && (
+                    <View className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100">
+                      <Image
+                        source={{ uri: result.image_url }}
+                        className="w-full h-full"
+                        resizeMode="cover"
+                      />
+                    </View>
+                  )}
+                </View>
+              ))}
             </View>
-          </FadeInView>
+          </View>
         )}
 
         <View className="h-4" />
