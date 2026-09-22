@@ -116,6 +116,15 @@ export type SurveyAnswer = {
   points: number;
 };
 
+export type SensitivityEntry = {
+  id: number;
+  trigger_cause: string;
+  severity: string;
+  notes: string | null;
+  occurred_at: string;
+  created_at: string;
+};
+
 export type NotificationType = "scan_reminder" | "daily_tip";
 
 export type Notification = {

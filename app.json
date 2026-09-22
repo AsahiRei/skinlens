@@ -50,7 +50,8 @@
           "enableEntitlements": true
         }
       ],
-      "./plugins/withOpenCL"
+      "./plugins/withOpenCL",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

@@ -8,28 +8,46 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Moon, Droplets, Activity, ChevronRight, LogOut } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import {
+  Moon,
+  Droplets,
+  Activity,
+  ChevronRight,
+  LogOut,
+  Pencil,
+  ShieldAlert,
+} from "lucide-react-native";
 
 import { InfoCard, InfoCardSkeleton } from "@/components/Info";
 import LogoutModal from "@/components/LogoutModal";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { useNotifications } from "@/hooks/useNotifications";
-import { getAllProfiles } from "@/lib/db";
-import type { LifestyleProfile, SkinProfile, UserProfile } from "@/types/schema";
+import { getAllProfiles, getSensitivityHistory } from "@/lib/db";
+import type {
+  LifestyleProfile,
+  SensitivityEntry,
+  SkinProfile,
+  UserProfile,
+} from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 
 export default function Profile() {
+  const router = useRouter();
   const { settings, updateSettings } = useNotifications();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
   const [lifestyleProfile, setLifestyleProfile] =
     useState<LifestyleProfile | null>(null);
+  const [sensitivity, setSensitivity] = useState<SensitivityEntry[]>([]);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingSkin, setLoadingSkin] = useState(true);
   const [loadingLifestyle, setLoadingLifestyle] = useState(true);
   const [logoutModal, setLogoutModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const focusTrigger = useFocusTrigger();
   const fetchProfiles = async () => {
     try {
       const { userProfile, skinProfile, lifestyleProfile } =
@@ -37,6 +55,7 @@ export default function Profile() {
       setUserProfile(userProfile);
       setSkinProfile(skinProfile);
       setLifestyleProfile(lifestyleProfile);
+      setSensitivity(await getSensitivityHistory());
     } catch (err) {
       console.error("Error fetching profiles:", err);
     } finally {
@@ -47,7 +66,7 @@ export default function Profile() {
   };
   useEffect(() => {
     fetchProfiles();
-  }, []);
+  }, [focusTrigger]);
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -56,6 +75,9 @@ export default function Profile() {
       setRefreshing(false);
     }
   };
+
+  const goEdit = () => router.push("/(modules)/edit-profile");
+  const latestSensitivity = sensitivity[0];
 
   return (
     <>
@@ -82,10 +104,21 @@ export default function Profile() {
             </View>
           ) : (
             <View>
-              <Text className="font-bold text-green-700 text-2xl">
-                My Profile
-              </Text>
-              <Text className="text-gray-500">Your personal profile</Text>
+              <View className="flex-row items-start justify-between">
+                <View>
+                  <Text className="font-bold text-green-700 text-2xl">
+                    My Profile
+                  </Text>
+                  <Text className="text-gray-500">Your personal profile</Text>
+                </View>
+                <Pressable
+                  onPress={goEdit}
+                  className="flex-row items-center gap-1.5 bg-white border border-gray-100 rounded-full px-3.5 py-2 active:opacity-70"
+                >
+                  <Pencil size={14} color="#15803D" />
+                  <Text className="text-sm font-bold text-green-700">Edit</Text>
+                </Pressable>
+              </View>
               <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col mt-4">
                 <Text className="text-gray-700 mt-0.5 text-xl font-semibold">
                   {userProfile?.first_name || userProfile?.username}
@@ -108,6 +141,20 @@ export default function Profile() {
                       : ""}
                   </Text>
                 </View>
+              </View>
+              <View className="flex-row gap-3 mt-3">
+                <InfoCard
+                  label="Date of Birth"
+                  value={userProfile?.age || "—"}
+                />
+                <InfoCard
+                  label="Gender"
+                  value={
+                    userProfile?.gender
+                      ? formatter(userProfile.gender)
+                      : "—"
+                  }
+                />
               </View>
             </View>
           )}
@@ -165,11 +212,7 @@ export default function Profile() {
               <Text className="text-base font-semibold text-gray-900 mb-1">
                 Lifestyle Info
               </Text>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => {}}
-                className="flex-row items-center py-3 border-b border-gray-100"
-              >
+              <View className="flex-row items-center py-3 border-b border-gray-100">
                 <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
                   <Moon size={18} color="#15803D" />
                 </View>
@@ -179,13 +222,8 @@ export default function Profile() {
                     {formatter(lifestyleProfile?.sleep_quality || "") ?? "—"}
                   </Text>
                 </View>
-                <ChevronRight size={18} color="#D1D5DB" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => {}}
-                className="flex-row items-center py-3 border-b border-gray-100"
-              >
+              </View>
+              <View className="flex-row items-center py-3 border-b border-gray-100">
                 <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
                   <Droplets size={18} color="#15803D" />
                 </View>
@@ -195,13 +233,8 @@ export default function Profile() {
                     {formatter(lifestyleProfile?.water_intake || "") ?? "—"}
                   </Text>
                 </View>
-                <ChevronRight size={18} color="#D1D5DB" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => {}}
-                className="flex-row items-center py-3"
-              >
+              </View>
+              <View className="flex-row items-center py-3">
                 <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-green-50">
                   <Activity size={18} color="#15803D" />
                 </View>
@@ -211,10 +244,44 @@ export default function Profile() {
                     {formatter(lifestyleProfile?.stress_level || "") ?? "—"}
                   </Text>
                 </View>
-                <ChevronRight size={18} color="#D1D5DB" />
-              </TouchableOpacity>
+              </View>
             </View>
           )}
+
+          {/* Sensitivity history */}
+          <TouchableOpacity
+            onPress={() => router.push("/(modules)/sensitivity")}
+            activeOpacity={0.7}
+            className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4"
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3 flex-1 pr-2">
+                <View className="w-10 h-10 rounded-full items-center justify-center bg-green-50">
+                  <ShieldAlert size={18} color="#15803D" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-gray-900">
+                    Skin Sensitivity
+                  </Text>
+                  <Text className="text-sm text-gray-500">
+                    {latestSensitivity
+                      ? `${formatter(latestSensitivity.severity)} · ${formatter(latestSensitivity.trigger_cause)}`
+                      : "No episodes logged yet"}
+                  </Text>
+                </View>
+              </View>
+              <View className="flex-row items-center gap-1.5">
+                {sensitivity.length > 0 && (
+                  <View className="bg-green-50 rounded-full px-2.5 py-1">
+                    <Text className="text-xs font-bold text-green-700">
+                      {sensitivity.length}
+                    </Text>
+                  </View>
+                )}
+                <ChevronRight size={18} color="#D1D5DB" />
+              </View>
+            </View>
+          </TouchableOpacity>
 
           {/* Notifications */}
           <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">

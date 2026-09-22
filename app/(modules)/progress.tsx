@@ -6,10 +6,11 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  ToastAndroid,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, TrendingUp, Calendar } from "lucide-react-native";
+import { ArrowLeft, TrendingUp, Calendar, FileText } from "lucide-react-native";
 import Svg, { Path, Circle, Rect, Line as SvgLine } from "react-native-svg";
 
 import Skeleton from "@/components/Skeleton";
@@ -20,6 +21,7 @@ import { getAllResults, getThisWeekResults } from "@/lib/db";
 import type { Result } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 import { generateWeeklySummary } from "@/utils/weekly-summary";
+import { exportSkinReport } from "@/utils/report";
 
 const CONFIDENCE_COLOR = "#15803D";
 const CONFIDENCE_BG = "#DCFCE7";
@@ -279,7 +281,24 @@ export default function Progress() {
   const [refreshing, setRefreshing] = useState(false);
   const [aiSummary, setAiSummary] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const focusTrigger = useFocusTrigger();
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportSkinReport();
+    } catch (err) {
+      console.error("Error generating report:", err);
+      ToastAndroid.show(
+        "Failed to generate report. Please try again.",
+        ToastAndroid.SHORT,
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -398,6 +417,25 @@ export default function Progress() {
             <ArrowLeft size={18} color="#15803D" />
           </Pressable>
           <Text className="font-bold text-green-700 text-2xl">Progress</Text>
+          <View className="flex-1" />
+          <Pressable
+            onPress={handleExport}
+            disabled={exporting}
+            className={`flex-row items-center gap-1.5 rounded-full border px-3.5 py-2 ${
+              exporting
+                ? "bg-green-50 border-green-100 opacity-70"
+                : "bg-white border-gray-100 active:opacity-70"
+            }`}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color="#15803D" />
+            ) : (
+              <FileText size={14} color="#15803D" />
+            )}
+            <Text className="text-sm font-bold text-green-700">
+              {exporting ? "Generating…" : "Export PDF"}
+            </Text>
+          </Pressable>
         </View>
 
         {/* Overall Improvement */}

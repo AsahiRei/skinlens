@@ -115,6 +115,25 @@ export async function processSyncQueue(): Promise<void> {
           }
           break;
         }
+        case "sensitivity_history": {
+          const payload = entry.payload as { id: number } & Record<
+            string,
+            unknown
+          >;
+          if (entry.operation === "delete") {
+            const { error } = await supabase
+              .from("sensitivity_history")
+              .delete()
+              .eq("id", payload.id);
+            if (error) throw error;
+          } else {
+            const { error } = await supabase
+              .from("sensitivity_history")
+              .upsert(payload, { onConflict: "id", ignoreDuplicates: false });
+            if (error) throw error;
+          }
+          break;
+        }
         case "notifications": {
           const payload = entry.payload as {
             id: string;

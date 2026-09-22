@@ -13,7 +13,13 @@ import { AlertCircle, FileText, RefreshCw } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { getLatestResultDetail, insertResult, insertRoutine } from "@/lib/db";
+import {
+  getLatestResultDetail,
+  getLifestyleProfile,
+  getSkinProfile,
+  insertResult,
+  insertRoutine,
+} from "@/lib/db";
 import type { ResultData } from "@/types/schema";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { getHealthScoreResponse } from "@/utils/healthscore";
@@ -66,16 +72,7 @@ export default function ScanResults() {
   const detectionBaseline = detectionSeverityMap[detectionLabel] ?? 50;
   const overallScore = Math.round(detectionBaseline * 0.6 + surveyScore * 0.4);
 
-  const {
-    label: severityLabel,
-    message,
-    color,
-    trackColor,
-  } = getHealthScoreResponse(overallScore, {
-    skin_type: "normal",
-    main_concern: detectionLabel,
-  });
-
+  const [skinType, setSkinType] = useState("normal");
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(true);
   const [resultData, setResultData] = useState<ResultData | null>(null);
@@ -83,6 +80,16 @@ export default function ScanResults() {
   const [error, setError] = useState<string | null>(null);
   const ranRef = useRef(false);
   const downloadToastShown = useRef(false);
+
+  const {
+    label: severityLabel,
+    message,
+    color,
+    trackColor,
+  } = getHealthScoreResponse(overallScore, {
+    skin_type: skinType,
+    main_concern: detectionLabel,
+  });
 
   useEffect(() => {
     if (ranRef.current) return;
@@ -112,17 +119,24 @@ export default function ScanResults() {
           );
         }
       });
+      const [skinProfile, lifestyleProfile] = await Promise.all([
+        getSkinProfile(),
+        getLifestyleProfile(),
+      ]);
+      const resolvedSkinType = skinProfile?.skin_type || "normal";
+      setSkinType(resolvedSkinType);
+
       const routineJson = await generateRoutine({
-        skin_type: "normal",
+        skin_type: resolvedSkinType,
         main_concern: detectionLabel,
-        sleep_quality: parsedSurveyAnswers.duration ?? "fair",
-        stress_level: parsedSurveyAnswers.severity ?? "moderate",
-        water_intake: parsedSurveyAnswers.area ?? "1_to_1_5l",
+        sleep_quality: lifestyleProfile?.sleep_quality ?? "fair",
+        stress_level: lifestyleProfile?.stress_level ?? "moderate",
+        water_intake: lifestyleProfile?.water_intake ?? "1_to_1_5l",
         health_score: overallScore,
       });
       await insertRoutine(routineJson);
       const healthResponse = getHealthScoreResponse(overallScore, {
-        skin_type: "normal",
+        skin_type: resolvedSkinType,
         main_concern: detectionLabel,
       });
       const parsedRoutine = JSON.parse(routineJson);

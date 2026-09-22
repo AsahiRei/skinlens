@@ -70,6 +70,17 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
         PRIMARY KEY (user_id, routine_id, period, step, completed_date)
       );
 
+      CREATE TABLE IF NOT EXISTS sensitivity_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        trigger_cause TEXT,
+        severity TEXT,
+        notes TEXT,
+        occurred_at TEXT,
+        created_at TEXT,
+        synced_at TEXT
+      );
+
       CREATE TABLE IF NOT EXISTS notifications (
         id TEXT PRIMARY KEY,
         user_id TEXT,
