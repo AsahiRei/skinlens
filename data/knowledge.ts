@@ -55,31 +55,58 @@ export const ingredients: Ingredient[] = [
     concerns: ["eczema"],
   },
 
-  // PSORIASIS
+  // DRY
   {
-    name: "Salicylic Acid (low concentration)",
-    description: "Helps lift and remove psoriasis scales gently",
-    concerns: ["psoriasis"],
+    name: "Hyaluronic Acid",
+    description: "Attracts and retains moisture to keep skin hydrated",
+    concerns: ["dry"],
   },
   {
-    name: "Coal Tar",
-    description: "Slows skin cell growth and reduces scaling and itching",
-    concerns: ["psoriasis"],
+    name: "Ceramides",
+    description: "Lipids that restore and protect the skin's moisture barrier",
+    concerns: ["dry"],
   },
   {
-    name: "Urea",
-    description: "Softens thick scales and helps remove dead skin buildup",
-    concerns: ["psoriasis"],
+    name: "Squalane",
+    description: "Lightweight oil that deeply hydrates without clogging pores",
+    concerns: ["dry"],
   },
   {
-    name: "Aloe Vera",
-    description: "Soothes irritation and provides cooling relief for inflamed plaques",
-    concerns: ["psoriasis"],
+    name: "Glycerin",
+    description: "Humectant that draws moisture into the skin for lasting hydration",
+    concerns: ["dry"],
   },
   {
-    name: "Vitamin D",
-    description: "Helps regulate skin cell growth and may reduce plaque formation",
-    concerns: ["psoriasis"],
+    name: "Shea Butter",
+    description: "Rich emollient that deeply moisturizes and softens rough, dry skin",
+    concerns: ["dry"],
+  },
+
+  // OILY
+  {
+    name: "Niacinamide",
+    description: "Regulates sebum production and minimizes the appearance of pores",
+    concerns: ["oily"],
+  },
+  {
+    name: "Salicylic Acid",
+    description: "Penetrates pores to dissolve excess oil and prevent breakouts",
+    concerns: ["oily"],
+  },
+  {
+    name: "Zinc Oxide",
+    description: "Helps control oil production and provides UV protection",
+    concerns: ["oily"],
+  },
+  {
+    name: "Green Tea Extract",
+    description: "Antioxidant that reduces sebum production and soothes inflammation",
+    concerns: ["oily"],
+  },
+  {
+    name: "Clay (Kaolin/Bentonite)",
+    description: "Absorbs excess oil and draws out impurities from pores",
+    concerns: ["oily"],
   },
 
   // NORMAL (maintenance and prevention)
@@ -135,21 +162,38 @@ export const products: ProductEntry[] = [
     concerns: ["eczema"],
   },
 
-  // PSORIASIS
+  // DRY
   {
-    product_type: "Soothing Body Wash",
-    recommended_ingredients: ["Colloidal Oatmeal", "Aloe Vera"],
-    concerns: ["psoriasis"],
+    product_type: "Hydrating Cleanser",
+    recommended_ingredients: ["Ceramides", "Glycerin"],
+    concerns: ["dry"],
   },
   {
-    product_type: "Scale Removal Treatment",
-    recommended_ingredients: ["Salicylic Acid (low concentration)", "Urea"],
-    concerns: ["psoriasis"],
+    product_type: "Moisture Repair Cream",
+    recommended_ingredients: ["Ceramides", "Shea Butter", "Squalane"],
+    concerns: ["dry"],
   },
   {
-    product_type: "Moisturizing Ointment",
-    recommended_ingredients: ["Shea Butter", "Ceramides"],
-    concerns: ["psoriasis"],
+    product_type: "Hydrating Serum",
+    recommended_ingredients: ["Hyaluronic Acid", "Glycerin"],
+    concerns: ["dry"],
+  },
+
+  // OILY
+  {
+    product_type: "Foaming Cleanser",
+    recommended_ingredients: ["Salicylic Acid", "Green Tea Extract"],
+    concerns: ["oily"],
+  },
+  {
+    product_type: "Oil-Control Serum",
+    recommended_ingredients: ["Niacinamide", "Zinc Oxide"],
+    concerns: ["oily"],
+  },
+  {
+    product_type: "Lightweight Moisturizer",
+    recommended_ingredients: ["Hyaluronic Acid", "Niacinamide"],
+    concerns: ["oily"],
   },
 
   // NORMAL

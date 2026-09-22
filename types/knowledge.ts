@@ -1,4 +1,4 @@
-export type SkinCondition = "acne" | "eczema" | "psoriasis" | "normal";
+export type SkinCondition = "acne" | "dry" | "eczema" | "oily" | "normal";
 
 export type Ingredient = {
   name: string;

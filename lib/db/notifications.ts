@@ -48,10 +48,9 @@ export async function getNotifications(): Promise<Notification[]> {
     message: string;
     read: number;
     created_at: string;
-  }>(
-    `SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC`,
-    [user.id],
-  );
+  }>(`SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC`, [
+    user.id,
+  ]);
 
   if (local.length > 0) {
     swallow(
@@ -174,10 +173,9 @@ export async function markAllNotificationsAsRead(): Promise<void> {
   }
   const db = await getDatabase();
 
-  await db.runAsync(
-    `UPDATE notifications SET read = 1 WHERE user_id = ?`,
-    [user.id],
-  );
+  await db.runAsync(`UPDATE notifications SET read = 1 WHERE user_id = ?`, [
+    user.id,
+  ]);
 }
 
 export async function deleteNotification(id: string): Promise<void> {
@@ -189,10 +187,10 @@ export async function deleteNotification(id: string): Promise<void> {
   }
   const db = await getDatabase();
 
-  await db.runAsync(
-    `DELETE FROM notifications WHERE id = ? AND user_id = ?`,
-    [id, user.id],
-  );
+  await db.runAsync(`DELETE FROM notifications WHERE id = ? AND user_id = ?`, [
+    id,
+    user.id,
+  ]);
 }
 
 export async function clearAllNotifications(): Promise<void> {
@@ -204,8 +202,5 @@ export async function clearAllNotifications(): Promise<void> {
   }
   const db = await getDatabase();
 
-  await db.runAsync(
-    `DELETE FROM notifications WHERE user_id = ?`,
-    [user.id],
-  );
+  await db.runAsync(`DELETE FROM notifications WHERE user_id = ?`, [user.id]);
 }

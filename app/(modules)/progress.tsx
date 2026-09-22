@@ -183,14 +183,29 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
         return { severity, duration };
       }
 
-      if (type === "psoriasis") {
+      if (type === "dry") {
         const severity =
-          answers.flare_frequency === "weekly" ? 1
-          : answers.flare_frequency === "monthly" ? 0.6
-          : 0.2;
+          answers.severity === "severe" ? 1
+          : answers.severity === "moderate" ? 0.7
+          : answers.severity === "mild" ? 0.4
+          : 0;
         const duration =
-          answers.coverage === "extensive" ? 1
-          : answers.coverage === "moderate" ? 0.6
+          answers.duration === "more_than_6_months" ? 1
+          : answers.duration === "3_to_6_months" ? 0.75
+          : answers.duration === "1_to_3_months" ? 0.5
+          : 0.25;
+        return { severity, duration };
+      }
+
+      if (type === "oily") {
+        const severity =
+          answers.severity === "severe" ? 1
+          : answers.severity === "moderate" ? 0.7
+          : answers.severity === "mild" ? 0.4
+          : 0;
+        const duration =
+          answers.breakouts === "frequently" ? 1
+          : answers.breakouts === "sometimes" ? 0.6
           : 0.3;
         return { severity, duration };
       }

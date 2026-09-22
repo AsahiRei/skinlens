@@ -118,33 +118,62 @@ const detectionQuestions: Record<
       ],
     },
   ],
-  psoriasis: [
+  dry: [
+    {
+      id: "severity",
+      label: "How dry does your skin feel?",
+      options: [
+        { value: "mild", label: "Mild (slightly tight)", points: 4, icon: "eye-outline" },
+        { value: "moderate", label: "Moderate (visible flaking)", points: 2, icon: "eye-outline" },
+        { value: "severe", label: "Severe (cracking, peeling)", points: 1, icon: "eye-outline" },
+      ],
+    },
+    {
+      id: "area",
+      label: "Where is the dryness located?",
+      options: [
+        { value: "cheeks", label: "Cheeks", points: 3, icon: "person-outline" },
+        { value: "forehead", label: "Forehead", points: 3, icon: "person-outline" },
+        { value: "all_over", label: "All over the face", points: 1, icon: "person-outline" },
+      ],
+    },
     {
       id: "duration",
-      label: "How long have you had psoriasis?",
+      label: "How long have you experienced dry skin?",
       options: [
-        { value: "less_than_6_months", label: "Less than 6 months", points: 4, icon: "time-outline" },
-        { value: "6_to_12_months", label: "6–12 months", points: 3, icon: "time-outline" },
-        { value: "1_to_5_years", label: "1–5 years", points: 2, icon: "time-outline" },
-        { value: "more_than_5_years", label: "More than 5 years", points: 1, icon: "time-outline" },
+        { value: "less_than_1_month", label: "Less than a month", points: 4, icon: "time-outline" },
+        { value: "1_to_3_months", label: "1–3 months", points: 3, icon: "time-outline" },
+        { value: "3_to_6_months", label: "3–6 months", points: 2, icon: "time-outline" },
+        { value: "more_than_6_months", label: "More than 6 months", points: 1, icon: "time-outline" },
+      ],
+    },
+  ],
+  oily: [
+    {
+      id: "severity",
+      label: "How oily does your skin feel?",
+      options: [
+        { value: "mild", label: "Mild (slight shine by midday)", points: 4, icon: "eye-outline" },
+        { value: "moderate", label: "Moderate (noticeable shine throughout day)", points: 2, icon: "eye-outline" },
+        { value: "severe", label: "Severe (very oily, prone to breakouts)", points: 1, icon: "eye-outline" },
       ],
     },
     {
-      id: "coverage",
-      label: "How widespread are the plaques?",
+      id: "area",
+      label: "Where is the oiliness mainly located?",
       options: [
-        { value: "few_spots", label: "A few small spots", points: 5, icon: "square-outline" },
-        { value: "moderate", label: "Moderate coverage", points: 3, icon: "stop-outline" },
-        { value: "extensive", label: "Extensive coverage", points: 1, icon: "checkbox-outline" },
+        { value: "t_zone", label: "T-zone (forehead, nose, chin)", points: 3, icon: "person-outline" },
+        { value: "cheeks", label: "Cheeks", points: 3, icon: "person-outline" },
+        { value: "all_over", label: "All over the face", points: 1, icon: "person-outline" },
       ],
     },
     {
-      id: "flare_frequency",
-      label: "How often do flare-ups occur?",
+      id: "breakouts",
+      label: "Do you experience frequent breakouts?",
       options: [
-        { value: "rarely", label: "Rarely (a few times a year)", points: 5, icon: "flash-outline" },
-        { value: "monthly", label: "Monthly", points: 3, icon: "flash-outline" },
-        { value: "weekly", label: "Weekly or constant", points: 1, icon: "flash-outline" },
+        { value: "rarely", label: "Rarely", points: 4, icon: "flash-outline" },
+        { value: "sometimes", label: "Sometimes", points: 2, icon: "flash-outline" },
+        { value: "frequently", label: "Frequently", points: 1, icon: "flash-outline" },
       ],
     },
   ],
@@ -191,17 +220,23 @@ const detectionMeta: Record<
     bg: "#FEF3C7",
     description: "Acne detected on your skin",
   },
+  dry: {
+    icon: "water-outline",
+    color: "#2563EB",
+    bg: "#DBEAFE",
+    description: "Dry skin detected",
+  },
   eczema: {
     icon: "bandage-outline",
     color: "#DC2626",
     bg: "#FEE2E2",
     description: "Eczema detected on your skin",
   },
-  psoriasis: {
-    icon: "medkit-outline",
-    color: "#7C3AED",
-    bg: "#EDE9FE",
-    description: "Psoriasis detected on your skin",
+  oily: {
+    icon: "flask-outline",
+    color: "#D97706",
+    bg: "#FEF3C7",
+    description: "Oily skin detected",
   },
   normal: {
     icon: "checkmark-circle-outline",

@@ -96,26 +96,21 @@ export async function getLatestResult(): Promise<Result | null> {
           .limit(1)
           .maybeSingle();
         if (data) {
-          await db.runAsync(
-            UPSERT_RESULT_SQL,
-            [
-              data.id,
-              data.user_id,
-              data.severity,
-              data.description,
-              data.healthscore,
-              data.image_url ?? null,
-              data.source_type,
-              data.recommendations
-                ? JSON.stringify(data.recommendations)
-                : null,
-              data.created_at,
-              now(),
-              data.confidence ?? null,
-              data.detection_label ?? null,
-              data.survey_answers ?? null,
-            ],
-          );
+          await db.runAsync(UPSERT_RESULT_SQL, [
+            data.id,
+            data.user_id,
+            data.severity,
+            data.description,
+            data.healthscore,
+            data.image_url ?? null,
+            data.source_type,
+            data.recommendations ? JSON.stringify(data.recommendations) : null,
+            data.created_at,
+            now(),
+            data.confidence ?? null,
+            data.detection_label ?? null,
+            data.survey_answers ?? null,
+          ]);
         }
       })(),
     );
@@ -133,24 +128,21 @@ export async function getLatestResult(): Promise<Result | null> {
     if (error) throw error;
     if (!data) return null;
 
-    await db.runAsync(
-      UPSERT_RESULT_SQL,
-      [
-        data.id,
-        data.user_id,
-        data.severity,
-        data.description,
-        data.healthscore,
-        data.image_url ?? null,
-        data.source_type,
-        data.recommendations ? JSON.stringify(data.recommendations) : null,
-        data.created_at,
-        now(),
-        data.confidence ?? null,
-        data.detection_label ?? null,
-        data.survey_answers ?? null,
-      ],
-    );
+    await db.runAsync(UPSERT_RESULT_SQL, [
+      data.id,
+      data.user_id,
+      data.severity,
+      data.description,
+      data.healthscore,
+      data.image_url ?? null,
+      data.source_type,
+      data.recommendations ? JSON.stringify(data.recommendations) : null,
+      data.created_at,
+      now(),
+      data.confidence ?? null,
+      data.detection_label ?? null,
+      data.survey_answers ?? null,
+    ]);
     return data as Result;
   } catch {
     return null;
@@ -205,24 +197,21 @@ export async function getAllResults(): Promise<Result[]> {
       if (error) throw error;
       if (data && data.length > 0) {
         for (const row of data) {
-          await db.runAsync(
-            UPSERT_RESULT_SQL,
-            [
-              row.id,
-              row.user_id,
-              row.severity,
-              row.description,
-              row.healthscore,
-              row.image_url ?? null,
-              row.source_type,
-              row.recommendations ? JSON.stringify(row.recommendations) : null,
-              row.created_at,
-              now(),
-              row.confidence ?? null,
-              row.detection_label ?? null,
-              row.survey_answers ?? null,
-            ],
-          );
+          await db.runAsync(UPSERT_RESULT_SQL, [
+            row.id,
+            row.user_id,
+            row.severity,
+            row.description,
+            row.healthscore,
+            row.image_url ?? null,
+            row.source_type,
+            row.recommendations ? JSON.stringify(row.recommendations) : null,
+            row.created_at,
+            now(),
+            row.confidence ?? null,
+            row.detection_label ?? null,
+            row.survey_answers ?? null,
+          ]);
         }
         // Re-read from local after caching
         const cached = await db.getAllAsync<{
@@ -259,24 +248,21 @@ export async function getAllResults(): Promise<Result[]> {
       if (error) throw error;
       if (data && data.length > 0) {
         for (const row of data) {
-          await db.runAsync(
-            UPSERT_RESULT_SQL,
-            [
-              row.id,
-              row.user_id,
-              row.severity,
-              row.description,
-              row.healthscore,
-              row.image_url ?? null,
-              row.source_type,
-              row.recommendations ? JSON.stringify(row.recommendations) : null,
-              row.created_at,
-              now(),
-              row.confidence ?? null,
-              row.detection_label ?? null,
-              row.survey_answers ?? null,
-            ],
-          );
+          await db.runAsync(UPSERT_RESULT_SQL, [
+            row.id,
+            row.user_id,
+            row.severity,
+            row.description,
+            row.healthscore,
+            row.image_url ?? null,
+            row.source_type,
+            row.recommendations ? JSON.stringify(row.recommendations) : null,
+            row.created_at,
+            now(),
+            row.confidence ?? null,
+            row.detection_label ?? null,
+            row.survey_answers ?? null,
+          ]);
         }
       }
     })(),
@@ -323,24 +309,21 @@ export async function getThisWeekResults(): Promise<Result[]> {
       if (error) throw error;
       if (data && data.length > 0) {
         for (const row of data) {
-          await db.runAsync(
-            UPSERT_RESULT_SQL,
-            [
-              row.id,
-              row.user_id,
-              row.severity,
-              row.description,
-              row.healthscore,
-              row.image_url ?? null,
-              row.source_type,
-              row.recommendations ? JSON.stringify(row.recommendations) : null,
-              row.created_at,
-              now(),
-              row.confidence ?? null,
-              row.detection_label ?? null,
-              row.survey_answers ?? null,
-            ],
-          );
+          await db.runAsync(UPSERT_RESULT_SQL, [
+            row.id,
+            row.user_id,
+            row.severity,
+            row.description,
+            row.healthscore,
+            row.image_url ?? null,
+            row.source_type,
+            row.recommendations ? JSON.stringify(row.recommendations) : null,
+            row.created_at,
+            now(),
+            row.confidence ?? null,
+            row.detection_label ?? null,
+            row.survey_answers ?? null,
+          ]);
         }
         const cached = await db.getAllAsync<{
           id: number;
@@ -378,24 +361,21 @@ export async function getThisWeekResults(): Promise<Result[]> {
       if (error) throw error;
       if (data && data.length > 0) {
         for (const row of data) {
-          await db.runAsync(
-            UPSERT_RESULT_SQL,
-            [
-              row.id,
-              row.user_id,
-              row.severity,
-              row.description,
-              row.healthscore,
-              row.image_url ?? null,
-              row.source_type,
-              row.recommendations ? JSON.stringify(row.recommendations) : null,
-              row.created_at,
-              now(),
-              row.confidence ?? null,
-              row.detection_label ?? null,
-              row.survey_answers ?? null,
-            ],
-          );
+          await db.runAsync(UPSERT_RESULT_SQL, [
+            row.id,
+            row.user_id,
+            row.severity,
+            row.description,
+            row.healthscore,
+            row.image_url ?? null,
+            row.source_type,
+            row.recommendations ? JSON.stringify(row.recommendations) : null,
+            row.created_at,
+            now(),
+            row.confidence ?? null,
+            row.detection_label ?? null,
+            row.survey_answers ?? null,
+          ]);
         }
       }
     })(),
@@ -455,7 +435,10 @@ export async function insertResult(result: {
       survey_answers: result.survey_answers ?? null,
     };
   } catch (err) {
-    console.warn("[insertResult] Supabase insert failed, queuing for sync:", err);
+    console.warn(
+      "[insertResult] Supabase insert failed, queuing for sync:",
+      err,
+    );
     const maxRow = await db.getFirstAsync<{ max_id: number | null }>(
       `SELECT MAX(id) as max_id FROM results WHERE user_id = ?`,
       [user.id],
@@ -490,27 +473,25 @@ export async function insertResult(result: {
     });
   }
 
-  const localImageUrl = serverResult.image_url ?? result.local_image_uri ?? null;
+  const localImageUrl =
+    serverResult.image_url ?? result.local_image_uri ?? null;
 
-  await db.runAsync(
-    UPSERT_RESULT_SQL,
-    [
-      serverResult.id,
-      serverResult.user_id,
-      serverResult.severity,
-      serverResult.description,
-      serverResult.healthscore,
-      localImageUrl,
-      serverResult.source_type,
-      serverResult.recommendations
-        ? JSON.stringify(serverResult.recommendations)
-        : null,
-      serverResult.created_at,
-      now(),
-      serverResult.confidence ?? null,
-      serverResult.detection_label ?? null,
-      serverResult.survey_answers ?? null,
-    ],
-  );
+  await db.runAsync(UPSERT_RESULT_SQL, [
+    serverResult.id,
+    serverResult.user_id,
+    serverResult.severity,
+    serverResult.description,
+    serverResult.healthscore,
+    localImageUrl,
+    serverResult.source_type,
+    serverResult.recommendations
+      ? JSON.stringify(serverResult.recommendations)
+      : null,
+    serverResult.created_at,
+    now(),
+    serverResult.confidence ?? null,
+    serverResult.detection_label ?? null,
+    serverResult.survey_answers ?? null,
+  ]);
   return serverResult;
 }

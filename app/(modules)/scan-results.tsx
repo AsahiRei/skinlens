@@ -21,19 +21,20 @@ import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
 
 const detectionDescriptions: Record<string, string> = {
   acne: "Our AI detected signs of acne on your skin. Acne is a common skin condition caused by clogged pores, excess oil, and bacteria. With the right routine, it can be managed effectively.",
+  dry: "Our AI detected that your skin tends to be dry. Dry skin lacks moisture and can feel tight, rough, or flaky. A hydrating routine can help restore your skin's moisture barrier.",
   eczema:
     "Our AI detected signs of eczema on your skin. Eczema is a condition that causes dry, itchy, and inflamed patches of skin. A gentle skincare routine can help manage flare-ups.",
-  psoriasis:
-    "Our AI detected signs of psoriasis on your skin. Psoriasis causes rapid skin cell buildup, resulting in scaling on the skin's surface. Consistent care can help reduce flare-ups.",
+  oily: "Our AI detected that your skin tends to be oily. Excess oil production can lead to shine and clogged pores. A balanced routine can help control oil without over-drying.",
   normal:
     "No significant skin conditions were detected. Your skin appears healthy. A good maintenance routine will help keep it that way.",
 };
 
 const detectionSeverityMap: Record<string, number> = {
   normal: 85,
+  dry: 60,
+  oily: 55,
   acne: 55,
   eczema: 40,
-  psoriasis: 35,
 };
 
 export default function ScanResults() {

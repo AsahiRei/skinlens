@@ -1,7 +1,7 @@
 import type { SkinCondition } from "@/types/knowledge";
 import { ingredients, products } from "@/data/knowledge";
 
-const VALID_CONDITIONS: SkinCondition[] = ["acne", "eczema", "psoriasis", "normal"];
+const VALID_CONDITIONS: SkinCondition[] = ["acne", "dry", "eczema", "oily", "normal"];
 
 function normalizeCondition(label: string): SkinCondition {
   const lower = label.toLowerCase().trim();

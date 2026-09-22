@@ -4,8 +4,9 @@ const concernLabels: Record<string, string> = {
   none: "maintaining clear skin",
   pigmentation: "pigmentation",
   acne: "acne",
+  dry: "dryness",
   eczema: "eczema",
-  psoriasis: "psoriasis",
+  oily: "oiliness",
 };
 
 const skinTypeLabels: Record<string, string> = {

@@ -74,7 +74,26 @@ export type FaceBounds = {
   y: number;
   width: number;
   height: number;
+  pitchAngle?: number;
+  rollAngle?: number;
+  yawAngle?: number;
+  leftEyeOpenProbability?: number;
+  rightEyeOpenProbability?: number;
+  smilingProbability?: number;
+  frameWidth?: number;
+  frameHeight?: number;
 };
+
+export type LightingQuality = "dark" | "dim" | "good" | "bright" | "glare";
+
+export type AlignmentStatus = {
+  isCentered: boolean;
+  isLevel: boolean;
+  isFacingFront: boolean;
+  score: number;
+};
+
+export type ScanAngle = "front" | "left" | "right";
 
 export type ResultData = {
   severity: string;
