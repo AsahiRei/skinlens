@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -64,9 +64,19 @@ export default function ScanResults() {
   const detectionLabel = label ?? "normal";
   const surveyScore = Number(severityScore) || 50;
   const conf = Number(confidence) || 0;
-  const parsedSurveyAnswers: Record<string, string> = surveyAnswers
-    ? JSON.parse(surveyAnswers)
-    : {};
+  // surveyAnswers comes from navigation params — never trust it blindly.
+  const parsedSurveyAnswers: Record<string, string> = useMemo(() => {
+    if (!surveyAnswers) return {};
+    try {
+      const parsed: unknown = JSON.parse(surveyAnswers);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, string>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }, [surveyAnswers]);
 
   // Calculate overall health score: blend detection baseline with survey severity
   const detectionBaseline = detectionSeverityMap[detectionLabel] ?? 50;
@@ -76,9 +86,9 @@ export default function ScanResults() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(true);
   const [resultData, setResultData] = useState<ResultData | null>(null);
-  const [routineGenerated, setRoutineGenerated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ranRef = useRef(false);
+  const cancelledRef = useRef(false);
   const downloadToastShown = useRef(false);
 
   const {
@@ -91,12 +101,6 @@ export default function ScanResults() {
     main_concern: detectionLabel,
   });
 
-  useEffect(() => {
-    if (ranRef.current) return;
-    ranRef.current = true;
-    generateAndSave();
-  }, []);
-
   const generateAndSave = async () => {
     try {
       setGenerating(true);
@@ -107,10 +111,10 @@ export default function ScanResults() {
             try { return decodeURIComponent(imageUri); } catch { return imageUri; }
           })()
         : null;
-      console.log("[scan-results] raw imageUri:", imageUri);
-      console.log("[scan-results] decoded imageUri:", decodedUri);
 
-      await preloadLlama((fraction) => {
+      // Load the model and fetch profiles in parallel — the model load
+      // dominates, so the DB reads effectively cost nothing.
+      const preloadPromise = preloadLlama((fraction) => {
         if (fraction < 0.1 && !downloadToastShown.current) {
           downloadToastShown.current = true;
           ToastAndroid.show(
@@ -119,10 +123,14 @@ export default function ScanResults() {
           );
         }
       });
-      const [skinProfile, lifestyleProfile] = await Promise.all([
+      const profilesPromise = Promise.all([
         getSkinProfile(),
         getLifestyleProfile(),
       ]);
+      await preloadPromise;
+      if (cancelledRef.current) return;
+      const [skinProfile, lifestyleProfile] = await profilesPromise;
+      if (cancelledRef.current) return;
       const resolvedSkinType = skinProfile?.skin_type || "normal";
       setSkinType(resolvedSkinType);
 
@@ -134,6 +142,7 @@ export default function ScanResults() {
         water_intake: lifestyleProfile?.water_intake ?? "1_to_1_5l",
         health_score: overallScore,
       });
+      if (cancelledRef.current) return;
       await insertRoutine(routineJson);
       const healthResponse = getHealthScoreResponse(overallScore, {
         skin_type: resolvedSkinType,
@@ -145,12 +154,11 @@ export default function ScanResults() {
       const cloudinaryUrl = decodedUri
         ? await uploadImageToCloudinary(decodedUri)
         : null;
+      if (cancelledRef.current) return;
 
       if (cloudinaryUrl) {
         ToastAndroid.show("Image uploaded to cloud", ToastAndroid.SHORT);
       }
-
-      console.log("[scan-results] cloudinaryUrl:", cloudinaryUrl);
 
       await insertResult({
         severity: healthResponse.severity,
@@ -164,10 +172,11 @@ export default function ScanResults() {
         detection_label: detectionLabel,
         survey_answers: JSON.stringify(parsedSurveyAnswers),
       });
+      if (cancelledRef.current) return;
       const latestResult = await getLatestResultDetail();
       if (latestResult) setResultData(latestResult);
-      setRoutineGenerated(true);
     } catch (e) {
+      if (cancelledRef.current) return;
       console.error("[scan-results] Error:", e);
       setError(
         e instanceof Error
@@ -175,9 +184,19 @@ export default function ScanResults() {
           : "Failed to generate your routine. Please try again.",
       );
     } finally {
-      setGenerating(false);
+      if (!cancelledRef.current) setGenerating(false);
     }
   };
+
+  useEffect(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
+    generateAndSave();
+    return () => {
+      cancelledRef.current = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -200,7 +219,7 @@ export default function ScanResults() {
           <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2 w-full">
             <AlertCircle size={28} color="#B91C1C" />
             <Text className="font-bold text-gray-800">
-              Couldn't generate results
+              {"Couldn't generate results"}
             </Text>
             <Text className="text-sm text-gray-500 text-center">{error}</Text>
             <Pressable

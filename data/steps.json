@@ -1,0 +1,15 @@
+{
+  "userSetup": [
+    { "label": "Analyzing your skin profile" },
+    { "label": "Reviewing lifestyle factors" },
+    { "label": "Preparing AI model" },
+    { "label": "Generating your routine" },
+    { "label": "Finalizing your results" }
+  ],
+  "analyzing": [
+    { "label": "Analyzing skin image" },
+    { "label": "Running AI detection" },
+    { "label": "Preparing results" }
+  ],
+  "angleLabels": ["Front", "Left", "Right"]
+}

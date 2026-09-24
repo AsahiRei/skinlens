@@ -9,14 +9,12 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Phone, Mail, Lock, Eye, EyeOff, Check } from "lucide-react-native";
+import { Mail, Lock, Eye, EyeOff, Check } from "lucide-react-native";
 
-import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { supabase } from "@/utils/supabase";
 
 export default function Register() {
   const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -34,7 +32,7 @@ export default function Register() {
       );
       return;
     }
-    if (!email || !phoneNumber || !password) {
+    if (!email || !password) {
       ToastAndroid.show(
         "Please fill in all required fields",
         ToastAndroid.SHORT,
@@ -78,7 +76,6 @@ export default function Register() {
         .insert({
           id: user.id,
           email: email.trim(),
-          phone_number: phoneNumber.trim(),
         });
 
       if (insertError) {
@@ -107,20 +104,6 @@ export default function Register() {
       showsVerticalScrollIndicator={false}
     >
       <View className="flex-col gap-4">
-        <View className="flex-col gap-2">
-          <Text className="font-medium">Phone Number</Text>
-          <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
-            <Phone size={20} color="#4B5563" />
-            <TextInput
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              placeholder="Phone Number"
-              className="flex-1 text-gray-600"
-              placeholderTextColor="gray"
-              keyboardType="phone-pad"
-            />
-          </View>
-        </View>
         <View className="flex-col gap-2">
           <Text className="font-medium">Email Address</Text>
           <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">

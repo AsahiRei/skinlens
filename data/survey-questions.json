@@ -1,0 +1,154 @@
+{
+  "acne": [
+    {
+      "id": "duration",
+      "label": "How long have you had acne?",
+      "options": [
+        { "value": "less_than_1_month", "label": "Less than a month", "points": 4, "icon": "time-outline" },
+        { "value": "1_to_3_months", "label": "1–3 months", "points": 3, "icon": "time-outline" },
+        { "value": "3_to_6_months", "label": "3–6 months", "points": 2, "icon": "time-outline" },
+        { "value": "more_than_6_months", "label": "More than 6 months", "points": 1, "icon": "time-outline" }
+      ]
+    },
+    {
+      "id": "severity",
+      "label": "How severe would you rate your acne?",
+      "options": [
+        { "value": "mild", "label": "Mild (a few spots)", "points": 4, "icon": "eye-outline" },
+        { "value": "moderate", "label": "Moderate (several spots)", "points": 2, "icon": "eye-outline" },
+        { "value": "severe", "label": "Severe (widespread, painful)", "points": 1, "icon": "eye-outline" }
+      ]
+    },
+    {
+      "id": "area",
+      "label": "Where is the acne mainly located?",
+      "options": [
+        { "value": "forehead", "label": "Forehead", "points": 3, "icon": "person-outline" },
+        { "value": "cheeks", "label": "Cheeks", "points": 3, "icon": "person-outline" },
+        { "value": "chin", "label": "Chin / Jawline", "points": 3, "icon": "person-outline" },
+        { "value": "all_over", "label": "All over the face", "points": 1, "icon": "person-outline" }
+      ]
+    }
+  ],
+  "eczema": [
+    {
+      "id": "duration",
+      "label": "How long have you had eczema?",
+      "options": [
+        { "value": "less_than_1_month", "label": "Less than a month", "points": 4, "icon": "time-outline" },
+        { "value": "1_to_3_months", "label": "1–3 months", "points": 3, "icon": "time-outline" },
+        { "value": "3_to_6_months", "label": "3–6 months", "points": 2, "icon": "time-outline" },
+        { "value": "more_than_6_months", "label": "More than 6 months", "points": 1, "icon": "time-outline" }
+      ]
+    },
+    {
+      "id": "itch_level",
+      "label": "How itchy is the affected area?",
+      "options": [
+        { "value": "not_itchy", "label": "Not itchy", "points": 5, "icon": "hand-left-outline" },
+        { "value": "mild", "label": "Mildly itchy", "points": 3, "icon": "hand-left-outline" },
+        { "value": "moderate", "label": "Moderately itchy", "points": 2, "icon": "hand-left-outline" },
+        { "value": "very_itchy", "label": "Very itchy, disrupts sleep", "points": 1, "icon": "hand-left-outline" }
+      ]
+    },
+    {
+      "id": "coverage",
+      "label": "How much area is affected?",
+      "options": [
+        { "value": "small_spot", "label": "Small spot (< palm size)", "points": 5, "icon": "square-outline" },
+        { "value": "medium_area", "label": "Medium area (1–3 patches)", "points": 3, "icon": "stop-outline" },
+        { "value": "large_area", "label": "Large area (widespread)", "points": 1, "icon": "checkbox-outline" }
+      ]
+    }
+  ],
+  "dry": [
+    {
+      "id": "severity",
+      "label": "How dry does your skin feel?",
+      "options": [
+        { "value": "mild", "label": "Mild (slightly tight)", "points": 4, "icon": "eye-outline" },
+        { "value": "moderate", "label": "Moderate (visible flaking)", "points": 2, "icon": "eye-outline" },
+        { "value": "severe", "label": "Severe (cracking, peeling)", "points": 1, "icon": "eye-outline" }
+      ]
+    },
+    {
+      "id": "area",
+      "label": "Where is the dryness located?",
+      "options": [
+        { "value": "cheeks", "label": "Cheeks", "points": 3, "icon": "person-outline" },
+        { "value": "forehead", "label": "Forehead", "points": 3, "icon": "person-outline" },
+        { "value": "all_over", "label": "All over the face", "points": 1, "icon": "person-outline" }
+      ]
+    },
+    {
+      "id": "duration",
+      "label": "How long have you experienced dry skin?",
+      "options": [
+        { "value": "less_than_1_month", "label": "Less than a month", "points": 4, "icon": "time-outline" },
+        { "value": "1_to_3_months", "label": "1–3 months", "points": 3, "icon": "time-outline" },
+        { "value": "3_to_6_months", "label": "3–6 months", "points": 2, "icon": "time-outline" },
+        { "value": "more_than_6_months", "label": "More than 6 months", "points": 1, "icon": "time-outline" }
+      ]
+    }
+  ],
+  "oily": [
+    {
+      "id": "severity",
+      "label": "How oily does your skin feel?",
+      "options": [
+        { "value": "mild", "label": "Mild (slight shine by midday)", "points": 4, "icon": "eye-outline" },
+        { "value": "moderate", "label": "Moderate (noticeable shine throughout day)", "points": 2, "icon": "eye-outline" },
+        { "value": "severe", "label": "Severe (very oily, prone to breakouts)", "points": 1, "icon": "eye-outline" }
+      ]
+    },
+    {
+      "id": "area",
+      "label": "Where is the oiliness mainly located?",
+      "options": [
+        { "value": "t_zone", "label": "T-zone (forehead, nose, chin)", "points": 3, "icon": "person-outline" },
+        { "value": "cheeks", "label": "Cheeks", "points": 3, "icon": "person-outline" },
+        { "value": "all_over", "label": "All over the face", "points": 1, "icon": "person-outline" }
+      ]
+    },
+    {
+      "id": "breakouts",
+      "label": "Do you experience frequent breakouts?",
+      "options": [
+        { "value": "rarely", "label": "Rarely", "points": 4, "icon": "flash-outline" },
+        { "value": "sometimes", "label": "Sometimes", "points": 2, "icon": "flash-outline" },
+        { "value": "frequently", "label": "Frequently", "points": 1, "icon": "flash-outline" }
+      ]
+    }
+  ],
+  "normal": [
+    {
+      "id": "satisfaction",
+      "label": "How satisfied are you with your skin?",
+      "options": [
+        { "value": "very_satisfied", "label": "Very satisfied", "points": 5, "icon": "happy-outline" },
+        { "value": "satisfied", "label": "Satisfied", "points": 4, "icon": "happy-outline" },
+        { "value": "neutral", "label": "Neutral", "points": 3, "icon": "remove-circle-outline" },
+        { "value": "unsatisfied", "label": "Unsatisfied", "points": 2, "icon": "sad-outline" }
+      ]
+    },
+    {
+      "id": "routine",
+      "label": "Do you follow a skincare routine?",
+      "options": [
+        { "value": "consistent", "label": "Yes, consistently", "points": 5, "icon": "checkmark-circle-outline" },
+        { "value": "sometimes", "label": "Sometimes", "points": 3, "icon": "checkmark-circle-outline" },
+        { "value": "no", "label": "No routine", "points": 1, "icon": "checkmark-circle-outline" }
+      ]
+    },
+    {
+      "id": "concern",
+      "label": "Any minor concerns?",
+      "options": [
+        { "value": "none", "label": "None at all", "points": 5, "icon": "checkmark-circle-outline" },
+        { "value": "dryness", "label": "Occasional dryness", "points": 3, "icon": "water-outline" },
+        { "value": "oiliness", "label": "Some oiliness", "points": 3, "icon": "water-outline" },
+        { "value": "sensitivity", "label": "Mild sensitivity", "points": 2, "icon": "alert-circle-outline" }
+      ]
+    }
+  ]
+}

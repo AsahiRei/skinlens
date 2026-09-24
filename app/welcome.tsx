@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, Image } from "react-native";
 
 import Login from "@/components/Login";
 import Register from "@/components/Register";
@@ -9,11 +9,15 @@ export default function Welcome() {
   const [selected, setSelect] = useState("login");
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <Text className="text-2xl font-bold text-green-700 text-center">
+      <Image
+        source={require("@/assets/images/skinlens-icon.png")}
+        className="w-18 h-18 mx-auto mt-6 rounded-4xl"
+      />
+      <Text className="text-2xl font-bold text-green-700 text-center mt-4">
         Welcome to SkinLens
       </Text>
       <Text className="text-center text-gray-600 mt-2">
-        Sign up or login bellow to manage your skin and productivity
+        Sign up or login below to manage your skin and productivity
       </Text>
       <View className="flex-row items-center mt-6 border-b border-gray-200">
         <Pressable

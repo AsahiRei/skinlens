@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { View } from "react-native";
 import { Scan } from "lucide-react-native";
 import Animated, {
@@ -38,7 +38,7 @@ export default function PulsatingIcon() {
     ring1.value = loop();
     ring2.value = withDelay(RING_DURATION / 3, loop());
     ring3.value = withDelay((RING_DURATION / 3) * 2, loop());
-  }, []);
+  }, [ring1, ring2, ring3]);
 
   const ring1Style = useAnimatedStyle(() => ({
     transform: [{ scale: 0.4 + ring1.value * 0.85 }],

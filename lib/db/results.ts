@@ -13,6 +13,49 @@ function swallow(p: PromiseLike<unknown>) {
   Promise.resolve(p).catch(() => {});
 }
 
+// Columns that exist on the Supabase `results` table. `confidence`,
+// `detection_label` and `survey_answers` are local-only until a server
+// migration adds them — sending them to Supabase fails the whole insert,
+// so every server payload must be filtered through toServerResultPayload.
+function toServerResultPayload(result: {
+  user_id: string;
+  severity: string;
+  description: string;
+  healthscore: number;
+  image_url?: string | null;
+  source_type?: string;
+  recommendations: RecommendedProduct[] | null;
+}): Record<string, unknown> {
+  return {
+    user_id: result.user_id,
+    severity: result.severity,
+    description: result.description,
+    healthscore: result.healthscore,
+    image_url: result.image_url ?? null,
+    source_type: result.source_type ?? "ai_generated",
+    recommendations: result.recommendations,
+  };
+}
+
+// Monotonic negative temp ids for rows created while the server insert
+// fails. Initialized below every id already in the table so temp ids stay
+// unique across app restarts (the old Math.min(max,0)-1 scheme always
+// produced -1 and each offline insert overwrote the previous one).
+let nextTempId: number | null = null;
+
+async function getNextTempId(userId: string): Promise<number> {
+  if (nextTempId === null) {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ min_id: number | null }>(
+      `SELECT MIN(id) as min_id FROM results WHERE user_id = ?`,
+      [userId],
+    );
+    nextTempId = Math.min(row?.min_id ?? 0, 0);
+  }
+  nextTempId -= 1;
+  return nextTempId;
+}
+
 const RESULT_COLUMNS =
   "id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, confidence, detection_label, survey_answers";
 
@@ -158,11 +201,6 @@ export async function getLatestResultDetail(): Promise<ResultData | null> {
     healthscore: result.healthscore,
     recommendations: result.recommendations,
   };
-}
-
-export async function getLatestHealthscore(): Promise<number | null> {
-  const result = await getLatestResult();
-  return result?.healthscore ?? null;
 }
 
 export async function getAllResults(): Promise<Result[]> {
@@ -412,18 +450,17 @@ export async function insertResult(result: {
   try {
     const { data, error } = await supabase
       .from("results")
-      .insert({
-        user_id: user.id,
-        severity: result.severity,
-        description: result.description,
-        healthscore: result.healthscore,
-        image_url: result.image_url ?? null,
-        source_type: sourceType,
-        recommendations: result.recommendations,
-        confidence: result.confidence ?? null,
-        detection_label: result.detection_label ?? null,
-        survey_answers: result.survey_answers ?? null,
-      })
+      .insert(
+        toServerResultPayload({
+          user_id: user.id,
+          severity: result.severity,
+          description: result.description,
+          healthscore: result.healthscore,
+          image_url: result.image_url ?? null,
+          source_type: sourceType,
+          recommendations: result.recommendations,
+        }),
+      )
       .select()
       .single();
     if (error) throw error;
@@ -439,11 +476,7 @@ export async function insertResult(result: {
       "[insertResult] Supabase insert failed, queuing for sync:",
       err,
     );
-    const maxRow = await db.getFirstAsync<{ max_id: number | null }>(
-      `SELECT MAX(id) as max_id FROM results WHERE user_id = ?`,
-      [user.id],
-    );
-    const tempId = Math.min(maxRow?.max_id ?? 0, 0) - 1;
+    const tempId = await getNextTempId(user.id);
     serverResult = {
       id: tempId,
       user_id: user.id,
@@ -458,19 +491,24 @@ export async function insertResult(result: {
       detection_label: result.detection_label ?? null,
       survey_answers: result.survey_answers ?? null,
     };
-    await enqueueSync("results", "upsert", String(tempId), {
-      id: tempId,
-      user_id: user.id,
-      severity: result.severity,
-      description: result.description,
-      healthscore: result.healthscore,
-      image_url: result.image_url ?? result.local_image_uri ?? null,
-      source_type: sourceType,
-      recommendations: result.recommendations,
-      confidence: result.confidence ?? null,
-      detection_label: result.detection_label ?? null,
-      survey_answers: result.survey_answers ?? null,
-    });
+    // Rows attributed to "anonymous" (no session) can never satisfy server
+    // RLS — keep them device-local only instead of queueing an entry that
+    // fails on every sync pass.
+    if (user.id !== "anonymous") {
+      await enqueueSync("results", "upsert", String(tempId), {
+        id: tempId,
+        user_id: user.id,
+        severity: result.severity,
+        description: result.description,
+        healthscore: result.healthscore,
+        image_url: result.image_url ?? result.local_image_uri ?? null,
+        source_type: sourceType,
+        recommendations: result.recommendations,
+        confidence: result.confidence ?? null,
+        detection_label: result.detection_label ?? null,
+        survey_answers: result.survey_answers ?? null,
+      });
+    }
   }
 
   const localImageUrl =

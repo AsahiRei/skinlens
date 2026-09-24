@@ -12,6 +12,7 @@ import { Sun, CloudSun, Moon, Check, Sparkles, AlertCircle } from "lucide-react-
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import {
   getLatestRoutine,
   getTodayProgress,
@@ -43,6 +44,7 @@ export default function Routines() {
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [pendingSteps, setPendingSteps] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const focusTrigger = useFocusTrigger();
   const fetchRoutine = async () => {
     setLoadingRoutine(true);
     setLoadError(false);
@@ -64,8 +66,11 @@ export default function Routines() {
     }
   };
   useEffect(() => {
+    // Fetch-on-focus effect: setState happens in async continuations after
+    // awaits, not synchronously — the extra render pass is inherent to loading.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRoutine();
-  }, []);
+  }, [focusTrigger]);
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -165,7 +170,7 @@ export default function Routines() {
 
             <View className="flex-row items-center gap-2 mt-5">
               {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
-                const { label, icon } = PERIOD_CONFIG[period];
+                const { label, icon: Icon } = PERIOD_CONFIG[period];
                 const isActive = activePeriod === period;
                 return (
                   <Pressable
@@ -177,15 +182,10 @@ export default function Routines() {
                         : "border-green-700"
                     }`}
                   >
-                    {(() => {
-                      const Icon = PERIOD_CONFIG[period].icon;
-                      return (
-                        <Icon
-                          size={14}
-                          color={isActive ? "#FFFFFF" : "#15803D"}
-                        />
-                      );
-                    })()}
+                    <Icon
+                      size={14}
+                      color={isActive ? "#FFFFFF" : "#15803D"}
+                    />
                     <Text
                       className={`text-center font-bold text-sm ${
                         isActive ? "text-white" : "text-green-700"
@@ -217,7 +217,7 @@ export default function Routines() {
                 <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2">
                   <AlertCircle size={28} color="#B91C1C" />
                   <Text className="font-bold text-gray-800">
-                    Couldn't load your routine
+                    {"Couldn't load your routine"}
                   </Text>
                   <Text className="text-sm text-gray-500 text-center">
                     Check your connection and try again.

@@ -34,12 +34,21 @@ async function uploadOnce(localUri: string): Promise<string | null> {
     },
   );
 
-  const data = await response.json();
-  console.log("[Cloudinary] Status:", response.status, "Response:", JSON.stringify(data).slice(0, 500));
-  if (data.secure_url) {
+  // Read text first: error bodies aren't always JSON, and awaiting .json()
+  // before checking ok turns HTTP errors into confusing parse errors.
+  const text = await response.text();
+  let data: { secure_url?: string; error?: { message?: string } } | null =
+    null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (response.ok && data?.secure_url) {
     return data.secure_url;
   }
-  const errMsg = data.error?.message ?? JSON.stringify(data);
+  const errMsg =
+    data?.error?.message || text.slice(0, 200) || `HTTP ${response.status}`;
   console.warn("[Cloudinary] Upload failed:", errMsg);
   ToastAndroid.show("Cloudinary: " + errMsg, ToastAndroid.LONG);
   return null;
@@ -49,19 +58,16 @@ export async function uploadImageToCloudinary(
   localUri: string,
   retries = 2,
 ): Promise<string | null> {
-  console.log("[Cloudinary] Starting upload for:", localUri);
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const url = await uploadOnce(localUri);
       if (url) {
-        console.log("[Cloudinary] Upload success:", url);
         return url;
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn("[Cloudinary] Upload attempt", attempt, "error:", msg);
       if (isNetworkError(err)) {
-        console.log("[Cloudinary] Network unavailable, skipping upload");
         return null;
       }
       ToastAndroid.show("Cloudinary error: " + msg, ToastAndroid.LONG);

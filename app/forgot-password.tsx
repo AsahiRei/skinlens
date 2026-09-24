@@ -25,7 +25,7 @@ export default function ForgotPassword() {
         "Email has been sent. Please check in your mailbox.",
         ToastAndroid.SHORT,
       );
-    } catch (error) {
+    } catch {
       ToastAndroid.show(
         "Something went wrong. Please try again.",
         ToastAndroid.SHORT,

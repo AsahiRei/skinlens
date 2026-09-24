@@ -49,8 +49,3 @@ export async function removeSyncEntry(id: number): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(`DELETE FROM sync_queue WHERE id = ?`, [id]);
 }
-
-export async function clearSyncQueue(): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(`DELETE FROM sync_queue`);
-}

@@ -28,6 +28,7 @@ type NotificationContextType = {
   deleteNotification: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   generateNotifications: () => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 const defaultSettings: NotificationSettings = {
@@ -74,16 +75,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setSettings(next);
       await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(next));
 
-      // Schedule or cancel push notifications based on new settings
-      if (partial.scanReminders !== undefined) {
-        if (partial.scanReminders) {
-          await scheduleWeeklyScanReminder();
-        }
+      // Apply the new schedule: cancel everything first so toggles that are
+      // switched off stop firing, then re-schedule what is still enabled.
+      await cancelAllScheduledNotifications();
+      if (next.scanReminders) {
+        await scheduleWeeklyScanReminder();
       }
-      if (partial.dailyTips !== undefined) {
-        if (partial.dailyTips) {
-          await scheduleDailySkincareTip();
-        }
+      if (next.dailyTips) {
+        await scheduleDailySkincareTip();
       }
     },
     [settings],
@@ -142,6 +141,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const refresh = useCallback(async () => {
+    try {
+      setNotifications(await getNotifications());
+    } catch (err) {
+      console.error("Error refreshing notifications:", err);
+    }
+  }, []);
+
   return (
     <NotificationContext.Provider
       value={{
@@ -154,6 +161,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         deleteNotification,
         clearAll,
         generateNotifications,
+        refresh,
       }}
     >
       {children}

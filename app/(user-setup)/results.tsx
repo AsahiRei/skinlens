@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -17,7 +17,7 @@ import type { ResultData } from "@/types/schema";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { formatter } from "@/utils/formatter";
 
-export default function results() {
+export default function Results() {
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [resultLoading, setResultLoading] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -26,9 +26,19 @@ export default function results() {
     answers: string;
   }>();
   const score = Number(healthScore) || 0;
-  const parsedAnswers: Record<string, string> = answers
-    ? JSON.parse(answers)
-    : {};
+  // answers comes from navigation params — never trust it blindly.
+  const parsedAnswers: Record<string, string> = useMemo(() => {
+    if (!answers) return {};
+    try {
+      const parsed: unknown = JSON.parse(answers);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, string>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }, [answers]);
   const { label, message, color, trackColor } = getHealthScoreResponse(
     score,
     parsedAnswers,

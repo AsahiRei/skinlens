@@ -75,8 +75,19 @@ export default function Derma() {
       if (!res.ok) throw new Error(`Geoapify request failed: ${res.status}`);
       const data = await res.json();
 
-      const mapped: Dermatologist[] = (data.features ?? []).map(
-        (f: any, idx: number) => {
+      type GeoapifyFeature = {
+        properties: {
+          place_id?: string;
+          name?: string;
+          formatted?: string;
+          distance?: number;
+        };
+        geometry?: { coordinates?: [number, number] };
+      };
+      const features: GeoapifyFeature[] = data.features ?? [];
+
+      const mapped: Dermatologist[] = features.map(
+        (f, idx: number) => {
           const name = f.properties.name ?? "Unnamed Clinic";
           const isDerma = /derma|skin/i.test(name);
           return {
@@ -96,7 +107,7 @@ export default function Derma() {
 
       // Keep a lookup of coordinates per result id so the map can pin them.
       const coordLookup: Record<string, Coords> = {};
-      (data.features ?? []).forEach((f: any, idx: number) => {
+      features.forEach((f, idx: number) => {
         const id = f.properties.place_id ?? String(idx);
         const [lon, lat] = f.geometry?.coordinates ?? [null, null];
         if (lat != null && lon != null) {
@@ -105,17 +116,18 @@ export default function Derma() {
       });
       setClinicCoords(coordLookup);
 
-      mapped.sort((a, b) =>
-        a.specialty === "Dermatology" && b.specialty !== "Dermatology" ? -1 : 0,
-      );
+      // Dermatologists first, then nearest first.
+      mapped.sort((a, b) => {
+        const aDerm = a.specialty === "Dermatology" ? 0 : 1;
+        const bDerm = b.specialty === "Dermatology" ? 0 : 1;
+        if (aDerm !== bDerm) return aDerm - bDerm;
+        return a.distanceKm - b.distanceKm;
+      });
 
       setResults(mapped);
-
-      cameraRef.current?.flyTo({
-        center: [longitude, latitude],
-        zoom: 13,
-        duration: 600,
-      });
+      // No flyTo needed here: the map mounts below with initialViewState
+      // centered on the user location (calling flyTo on the not-yet-mounted
+      // camera would silently do nothing).
     } catch (err) {
       console.error(err);
       setErrorMsg("Couldn't fetch nearby clinics. Try again.");
@@ -265,7 +277,7 @@ export default function Derma() {
           <View className="items-center py-10 bg-white rounded-xl border border-gray-100 mt-2">
             <Navigation size={26} color="#D1D5DB" />
             <Text className="text-xs text-gray-400 mt-2 text-center">
-              Tap "Find Dermatologist Nearby" to search.
+              {'Tap "Find Dermatologist Nearby" to search.'}
             </Text>
           </View>
         ) : filtered.length === 0 ? (

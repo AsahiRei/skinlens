@@ -49,7 +49,7 @@ export default function CircularProgress({
     } else {
       progressValue.value = clamped;
     }
-  }, [clamped, animated, duration]);
+  }, [clamped, animated, duration, progressValue]);
 
   const derivedOffset = useDerivedValue(() => {
     return circumference - (progressValue.value / 100) * circumference;

@@ -23,12 +23,13 @@ import {
   MinusCircle,
   Frown,
   AlertTriangle,
-  Calendar,
 } from "lucide-react-native";
 
 import InlineProgress from "@/components/InlineProgress";
 import ScrollPicker from "@/components/ScrollPicker";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import profileOptions from "@/data/profile-options.json";
+import questionPage from "@/data/user-setup-questions.json";
 
 const ICON_MAP: Record<string, typeof User> = {
   "male-outline": User,
@@ -56,196 +57,33 @@ const ICON_MAP: Record<string, typeof User> = {
   "warning-outline": AlertTriangle,
 };
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+const MONTHS = profileOptions.months;
 const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: CURRENT_YEAR - 1949 }, (_, i) => String(CURRENT_YEAR - i));
 
-const questionPage = [
-  {
-    id: "first_name",
-    label: "What's your first name?",
-    type: "text",
-  },
-  {
-    id: "age",
-    label: "What's your date of birth?",
-    type: "date",
-  },
-  {
-    id: "gender",
-    label: "What's your gender?",
-    type: "options",
-    options: [
-      { value: "male", label: "Male", points: 0, icon: "male-outline" },
-      { value: "female", label: "Female", points: 0, icon: "female-outline" },
-    ],
-  },
-  {
-    id: "skin_type",
-    label: "What best describes your skin type?",
-    type: "options",
-    options: [
-      { label: "Normal", value: "normal", points: 5, icon: "leaf-outline" },
-      {
-        label: "Combination",
-        value: "combination",
-        points: 4,
-        icon: "layers-outline",
-      },
-      { label: "Dry", value: "dry", points: 3, icon: "sunny-outline" },
-      { label: "Oily", value: "oily", points: 3, icon: "water-outline" },
-      {
-        label: "Sensitive",
-        value: "sensitive",
-        points: 2,
-        icon: "alert-circle-outline",
-      },
-    ],
-  },
-  {
-    id: "main_concern",
-    label: "What is your primary skin concern?",
-    type: "options",
-    options: [
-      {
-        label: "None",
-        value: "none",
-        points: 5,
-        icon: "checkmark-circle-outline",
-      },
-      {
-        label: "Pigmentation",
-        value: "pigmentation",
-        points: 3,
-        icon: "color-palette-outline",
-      },
-      { label: "Acne", value: "acne", points: 2, icon: "flask-outline" },
-      { label: "Eczema", value: "eczema", points: 1, icon: "bandage-outline" },
-      {
-        label: "Dry Skin",
-        value: "dry",
-        points: 1,
-        icon: "water-outline",
-      },
-      {
-        label: "Oily Skin",
-        value: "oily",
-        points: 1,
-        icon: "flask-outline",
-      },
-    ],
-  },
-  {
-    id: "sleep_quality",
-    label: "How many hours do you sleep on average each night?",
-    type: "options",
-    options: [
-      { label: "8–9 hours", value: "excellent", points: 5, icon: "moon" },
-      { label: "7 hours", value: "good", points: 4, icon: "moon-outline" },
-      {
-        label: "6 hours",
-        value: "fair",
-        points: 3,
-        icon: "partly-sunny-outline",
-      },
-      { label: "5 hours", value: "poor", points: 2, icon: "cafe-outline" },
-      {
-        label: "Less than 5 hours",
-        value: "very_poor",
-        points: 1,
-        icon: "alert-circle-outline",
-      },
-    ],
-  },
-  {
-    id: "stress_level",
-    label: "How would you rate your daily stress level?",
-    type: "options",
-    options: [
-      {
-        label: "Very Low",
-        value: "very_low",
-        points: 5,
-        icon: "happy-outline",
-      },
-      { label: "Low", value: "low", points: 4, icon: "happy-outline" },
-      {
-        label: "Moderate",
-        value: "moderate",
-        points: 3,
-        icon: "remove-circle-outline",
-      },
-      { label: "High", value: "high", points: 2, icon: "sad-outline" },
-      {
-        label: "Very High",
-        value: "very_high",
-        points: 1,
-        icon: "alert-circle-outline",
-      },
-    ],
-  },
-  {
-    id: "water_intake",
-    label: "How much water do you drink per day?",
-    type: "options",
-    options: [
-      {
-        label: "More than 2 liters",
-        value: "more_than_2l",
-        points: 5,
-        icon: "water",
-      },
-      {
-        label: "1.5–2 liters",
-        value: "1_5_to_2l",
-        points: 4,
-        icon: "water-outline",
-      },
-      {
-        label: "1–1.5 liters",
-        value: "1_to_1_5l",
-        points: 3,
-        icon: "beaker-outline",
-      },
-      {
-        label: "500 mL–1 liter",
-        value: "500ml_to_1l",
-        points: 2,
-        icon: "flask-outline",
-      },
-      {
-        label: "Less than 500 mL",
-        value: "less_than_500ml",
-        points: 1,
-        icon: "warning-outline",
-      },
-    ],
-  },
-];
-
-export default function setup() {
+export default function Setup() {
   const pagerRef = useRef<PagerView>(null);
   const [page, setPage] = useState(0);
   const router = useRouter();
-  const [answers, setAnswers] = useState<Record<string, string>>({
-    age: `${MONTHS[0]} ${DAYS[0]}, ${YEARS[0]}`,
-  });
+  // NOTE: no pre-filled date of birth — the wheels visually start at
+  // January 1 of the current year, but the answer only counts once the user
+  // actually touches them (dateTouched), so nobody saves themselves as a
+  // newborn by skipping the question.
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [dateValues, setDateValues] = useState({
     month: 0,
     day: 0,
     year: 0,
   });
+  const [dateTouched, setDateTouched] = useState(false);
 
   const currentQuestion = questionPage[page];
   const isAnswered =
     currentQuestion.type === "text"
       ? !!answers[currentQuestion.id]?.trim()
       : currentQuestion.type === "date"
-        ? !!answers[currentQuestion.id]
+        ? dateTouched && !!answers[currentQuestion.id]
         : !!answers[currentQuestion.id];
   const isLastPage = page === questionPage.length - 1;
   const progressPct = Math.round(((page + 1) / questionPage.length) * 100);
@@ -287,7 +125,6 @@ export default function setup() {
           answers: JSON.stringify(answers),
         },
       });
-      console.log(healthScore.toString());
       return;
     }
     pagerRef.current?.setPage(page + 1);
@@ -389,6 +226,7 @@ export default function setup() {
                       onValueChange={(idx) => {
                         const updated = { ...dateValues, month: idx };
                         setDateValues(updated);
+                        setDateTouched(true);
                         handleSelect(
                           item.id,
                           `${MONTHS[updated.month]} ${DAYS[updated.day]}, ${YEARS[updated.year]}`,
@@ -404,6 +242,7 @@ export default function setup() {
                       onValueChange={(idx) => {
                         const updated = { ...dateValues, day: idx };
                         setDateValues(updated);
+                        setDateTouched(true);
                         handleSelect(
                           item.id,
                           `${MONTHS[updated.month]} ${DAYS[updated.day]}, ${YEARS[updated.year]}`,
@@ -419,6 +258,7 @@ export default function setup() {
                       onValueChange={(idx) => {
                         const updated = { ...dateValues, year: idx };
                         setDateValues(updated);
+                        setDateTouched(true);
                         handleSelect(
                           item.id,
                           `${MONTHS[updated.month]} ${DAYS[updated.day]}, ${YEARS[updated.year]}`,

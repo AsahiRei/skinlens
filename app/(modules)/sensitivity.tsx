@@ -12,6 +12,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { ArrowLeft, Plus, ShieldAlert, Trash2, X } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import profileOptions from "@/data/profile-options.json";
 import {
   addSensitivityEntry,
   deleteSensitivityEntry,
@@ -20,23 +21,12 @@ import {
 import type { SensitivityEntry } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 
-const TRIGGER_OPTIONS = [
-  "product",
-  "sun",
-  "weather",
-  "food",
-  "stress",
-  "medication",
-  "other",
-];
+const TRIGGER_OPTIONS: string[] = profileOptions.triggers;
 
-const SEVERITY_OPTIONS = ["mild", "moderate", "severe"];
+const SEVERITY_OPTIONS: string[] = profileOptions.severities;
 
-const SEVERITY_STYLES: Record<string, { bg: string; text: string }> = {
-  mild: { bg: "bg-green-50", text: "text-green-700" },
-  moderate: { bg: "bg-amber-50", text: "text-amber-700" },
-  severe: { bg: "bg-red-50", text: "text-red-700" },
-};
+const SEVERITY_STYLES: Record<string, { bg: string; text: string }> =
+  profileOptions.severityStyles;
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);

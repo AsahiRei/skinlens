@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import PagerView from "react-native-pager-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -7,28 +7,8 @@ import { useRouter } from "expo-router";
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { getModelPath, getSelectedModel } from "@/utils/llama";
-
-const onboardingPage = [
-  {
-    title: "Understand Your Skin",
-    description:
-      "Learn more about your skin and identify possible skin concerns.",
-  },
-  {
-    title: "Take a Clear Photo",
-    description: "Capture a clear photo of your skin to get better results.",
-  },
-  {
-    title: "Get AI-Powered Insights",
-    description:
-      "SkinLens analyzes your photo and provides helpful skin insights.",
-  },
-  {
-    title: "Track Your Skin",
-    description: "Monitor your skin over time and keep track of your progress.",
-  },
-];
+import onboardingPage from "@/data/onboarding.json";
+import { cancelDownload, getModelPath, getSelectedModel } from "@/utils/llama";
 
 export default function Onboarding() {
   const pagerRef = useRef<PagerView>(null);
@@ -39,11 +19,24 @@ export default function Onboarding() {
   const [errorMessage, setErrorMessage] = useState("");
   const [modelLabel, setModelLabel] = useState("");
   const router = useRouter();
+  const downloadingRef = useRef(false);
+
+  // Abort the model download if the screen unmounts mid-download.
+  useEffect(() => {
+    return () => {
+      if (downloadingRef.current) {
+        void cancelDownload();
+      }
+    };
+  }, []);
 
   const handleNext = async () => {
     if (page < onboardingPage.length - 1) {
       pagerRef.current?.setPage(page + 1);
     } else {
+      // Guard against double-taps starting two concurrent downloads.
+      if (downloadingRef.current) return;
+      downloadingRef.current = true;
       setDownloading(true);
       try {
         const model = await getSelectedModel();
@@ -60,11 +53,15 @@ export default function Onboarding() {
             ? err.message
             : "Download failed. Please try again.",
         );
+      } finally {
+        downloadingRef.current = false;
       }
     }
   };
 
   const handleRetry = async () => {
+    if (downloadingRef.current) return;
+    downloadingRef.current = true;
     setStatus("downloading");
     setProgress(0);
     setErrorMessage("");
@@ -81,6 +78,8 @@ export default function Onboarding() {
           ? err.message
           : "Download failed. Please try again.",
       );
+    } finally {
+      downloadingRef.current = false;
     }
   };
 

@@ -6,9 +6,4 @@ export * from "./sensitivity";
 export * from "./routines";
 export { getDatabase } from "./database";
 export { processSyncQueue } from "./sync";
-export {
-  clearSyncQueue,
-  dequeueSync,
-  enqueueSync,
-  removeSyncEntry,
-} from "./sync-queue";
+export { dequeueSync, enqueueSync, removeSyncEntry } from "./sync-queue";

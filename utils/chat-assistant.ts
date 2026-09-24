@@ -1,6 +1,6 @@
 import type { ChatTurn, ChatUserContext } from "@/types/chat";
 
-import { getLlamaContext } from "./llama";
+import { getLlamaContext, runExclusive } from "./llama";
 import { formatKnowledgeForPrompt } from "./knowledge";
 import { stripThinkTags } from "./llm-helpers";
 
@@ -40,7 +40,7 @@ export async function generateChatReply(
   const context = await getLlamaContext(onModelDownloadProgress);
   const knowledgeBlock = formatKnowledgeForPrompt(
     userContext?.main_concerns ?? "normal",
-    userContext?.main_concerns,
+    userContext?.main_concerns ?? undefined,
   );
   const systemPrompt =
     BASE_SYSTEM_PROMPT +
@@ -53,17 +53,19 @@ export async function generateChatReply(
     history.length > maxHistoryTurns
       ? history.slice(history.length - maxHistoryTurns)
       : history;
-  const { text } = await context.completion({
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...trimmedHistory.map((turn) => ({ role: turn.role, content: turn.content })),
-    ],
-    n_predict: 512,
-    temperature: 0.6,
-    top_p: 0.9,
-    stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
-    chat_template_kwargs: { enable_thinking: false },
-  });
+  const { text } = await runExclusive(() =>
+    context.completion({
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...trimmedHistory.map((turn) => ({ role: turn.role, content: turn.content })),
+      ],
+      n_predict: 512,
+      temperature: 0.6,
+      top_p: 0.9,
+      stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
+      chat_template_kwargs: { enable_thinking: false },
+    }),
+  );
   return stripThinkTags(text);
 }
 

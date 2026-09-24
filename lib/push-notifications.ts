@@ -74,7 +74,3 @@ export async function scheduleDailySkincareTip() {
 export async function cancelAllScheduledNotifications() {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
-
-export async function getScheduledNotifications() {
-  return await Notifications.getAllScheduledNotificationsAsync();
-}

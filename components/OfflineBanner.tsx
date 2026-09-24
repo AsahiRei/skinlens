@@ -13,7 +13,7 @@ export function OfflineBanner() {
     <View className="bg-green-500 px-4 py-2 flex-row items-center justify-center gap-2">
       <CloudOff size={16} color="white" />
       <Text className="text-white text-xs font-semibold">
-        You're offline. Changes will sync when connected.
+        {"You're offline. Changes will sync when connected."}
       </Text>
     </View>
   );

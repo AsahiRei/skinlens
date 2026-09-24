@@ -65,6 +65,9 @@ export default function Profile() {
     }
   };
   useEffect(() => {
+    // Fetch-on-focus effect: setState happens in async continuations after
+    // awaits, not synchronously — the extra render pass is inherent to loading.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProfiles();
   }, [focusTrigger]);
   const handleRefresh = async () => {
@@ -141,20 +144,20 @@ export default function Profile() {
                       : ""}
                   </Text>
                 </View>
-              </View>
-              <View className="flex-row gap-3 mt-3">
-                <InfoCard
-                  label="Date of Birth"
-                  value={userProfile?.age || "—"}
-                />
-                <InfoCard
-                  label="Gender"
-                  value={
-                    userProfile?.gender
-                      ? formatter(userProfile.gender)
-                      : "—"
-                  }
-                />
+                <View className="flex-row gap-3 mt-3">
+                  <InfoCard
+                    label="Date of Birth"
+                    value={userProfile?.age || "—"}
+                  />
+                  <InfoCard
+                    label="Gender"
+                    value={
+                      userProfile?.gender
+                        ? formatter(userProfile.gender)
+                        : "—"
+                    }
+                  />
+                </View>
               </View>
             </View>
           )}
@@ -177,11 +180,11 @@ export default function Profile() {
                 <View className="flex-row gap-3">
                   <InfoCard
                     label="Skin Type"
-                    value={formatter(skinProfile?.skin_type || "") ?? "—"}
+                    value={formatter(skinProfile?.skin_type || "") || "—"}
                   />
                   <InfoCard
                     label="Primary Concern"
-                    value={formatter(skinProfile?.main_concerns || "") ?? "—"}
+                    value={formatter(skinProfile?.main_concerns || "") || "—"}
                   />
                 </View>
               </View>
@@ -219,7 +222,7 @@ export default function Profile() {
                 <View className="flex-1">
                   <Text className="text-sm text-gray-400">Sleep Quality</Text>
                   <Text className="text-base font-bold text-gray-900">
-                    {formatter(lifestyleProfile?.sleep_quality || "") ?? "—"}
+                    {formatter(lifestyleProfile?.sleep_quality || "") || "—"}
                   </Text>
                 </View>
               </View>
@@ -230,7 +233,7 @@ export default function Profile() {
                 <View className="flex-1">
                   <Text className="text-sm text-gray-400">Water Intake</Text>
                   <Text className="text-base font-bold text-gray-900">
-                    {formatter(lifestyleProfile?.water_intake || "") ?? "—"}
+                    {formatter(lifestyleProfile?.water_intake || "") || "—"}
                   </Text>
                 </View>
               </View>
@@ -241,7 +244,7 @@ export default function Profile() {
                 <View className="flex-1">
                   <Text className="text-sm text-gray-400">Stress Level</Text>
                   <Text className="text-base font-bold text-gray-900">
-                    {formatter(lifestyleProfile?.stress_level || "") ?? "—"}
+                    {formatter(lifestyleProfile?.stress_level || "") || "—"}
                   </Text>
                 </View>
               </View>

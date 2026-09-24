@@ -14,42 +14,28 @@ import {
 } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import scanContent from "@/data/scan-content.json";
 
-const HOW_IT_WORKS = [
-  {
-    icon: Camera,
-    title: "Capture or upload",
-    description: "Take a clear photo or choose one from your gallery.",
-  },
-  {
-    icon: Sparkles,
-    title: "AI analyzes your skin",
-    description: "Our model scans the image for skin conditions and concerns.",
-  },
-  {
-    icon: FileText,
-    title: "Get your results",
-    description: "See a detailed breakdown with personalized recommendations.",
-  },
-];
+const SCAN_ICON_MAP: Record<string, typeof Camera> = {
+  camera: Camera,
+  sparkles: Sparkles,
+  "file-text": FileText,
+  sun: Sun,
+  move: Move,
+  focus: Focus,
+};
 
-const CAPTURE_TIPS = [
-  {
-    icon: Sun,
-    title: "Good lighting",
-    description: "Face a window or bright light source. Avoid harsh shadows.",
-  },
-  {
-    icon: Move,
-    title: "Center your face",
-    description: "Keep your face centered in the frame with even spacing.",
-  },
-  {
-    icon: Focus,
-    title: "Stay focused",
-    description: "Hold steady and ensure your face is in focus before capturing.",
-  },
-];
+const HOW_IT_WORKS = scanContent.howItWorks.map((item) => ({
+  ...item,
+  icon: SCAN_ICON_MAP[item.icon] ?? Camera,
+}));
+
+const CAPTURE_TIPS = scanContent.captureTips.map((item) => ({
+  ...item,
+  icon: SCAN_ICON_MAP[item.icon] ?? Sun,
+}));
+
+const DISCLAIMER = scanContent.disclaimer;
 
 export default function Scan() {
   const router = useRouter();
@@ -63,17 +49,24 @@ export default function Scan() {
       );
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      router.push({
-        pathname: "/(modules)/analyzing",
-        params: { imageUri: result.assets[0].uri, sourceType: "gallery" },
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 1,
+        allowsEditing: true,
+        aspect: [1, 1],
       });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        router.push({
+          pathname: "/(modules)/analyzing",
+          params: { imageUri: result.assets[0].uri, sourceType: "gallery" },
+        });
+      }
+    } catch {
+      Alert.alert(
+        "Couldn't open gallery",
+        "Please try again or use the camera instead.",
+      );
     }
   };
 
@@ -173,9 +166,7 @@ export default function Scan() {
         <View className="bg-amber-50 rounded-xl py-4 px-4 flex-row items-start gap-3 mt-6">
           <AlertTriangle size={18} color="#B45309" style={{ marginTop: 1 }} />
           <Text className="text-xs text-amber-800 flex-1 leading-5">
-            This app does not replace a dermatologist and is not a medical
-            diagnosis. If you notice unusual, painful, or rapidly changing skin
-            conditions, please consult a doctor or visit a hospital.
+            {DISCLAIMER}
           </Text>
         </View>
       </ScrollView>

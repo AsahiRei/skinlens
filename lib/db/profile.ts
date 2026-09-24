@@ -31,7 +31,6 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     first_name: string | null;
     email: string;
     age: string;
-    phone_number: string;
     gender: string | null;
     user_setup: number | null;
     created_at: string;
@@ -48,15 +47,14 @@ export async function getUserProfile(): Promise<UserProfile | null> {
           .single();
         if (data) {
           await db.runAsync(
-            `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, phone_number, gender, user_setup, created_at, synced_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, gender, user_setup, created_at, synced_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               data.id,
               data.username,
               data.first_name ?? null,
               data.email,
               data.age ?? "",
-              data.phone_number ?? "",
               data.gender ?? null,
               data.user_setup ? 1 : 0,
               data.created_at,
@@ -71,7 +69,6 @@ export async function getUserProfile(): Promise<UserProfile | null> {
       first_name: local.first_name ?? undefined,
       email: local.email,
       age: local.age,
-      phone_number: local.phone_number,
       gender: local.gender ?? undefined,
       user_setup:
         local.user_setup === 1
@@ -93,15 +90,14 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     if (error) throw error;
 
     await db.runAsync(
-      `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, phone_number, gender, user_setup, created_at, synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, gender, user_setup, created_at, synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.id,
         data.username,
         data.first_name ?? null,
         data.email,
         data.age ?? "",
-        data.phone_number ?? "",
         data.gender ?? null,
         data.user_setup ? 1 : 0,
         data.created_at,
@@ -162,36 +158,6 @@ export async function updateUserProfile(
     if (error) throw error;
   } catch {
     // Will be retried on next connectivity change
-  }
-}
-
-export async function upsertUserProfile(profile: {
-  id: string;
-  username: string;
-  email: string;
-  first_name?: string;
-}): Promise<void> {
-  const db = await getDatabase();
-  const ts = now();
-
-  await db.runAsync(
-    `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, phone_number, gender, user_setup, created_at, synced_at)
-     VALUES (?, ?, ?, ?, '', '', NULL, NULL, ?, ?)`,
-    [profile.id, profile.username, profile.first_name ?? null, profile.email, ts, ts],
-  );
-
-  await enqueueSync("user_profile", "upsert", profile.id, profile);
-
-  try {
-    const { error } = await supabase
-      .from("user_profile")
-      .upsert(
-        { id: profile.id, username: profile.username, email: profile.email },
-        { onConflict: "id", ignoreDuplicates: false },
-      );
-    if (error) throw error;
-  } catch {
-    // Will be retried
   }
 }
 
@@ -378,10 +344,10 @@ export async function getAllProfiles(): Promise<{
   skinProfile: SkinProfile | null;
   lifestyleProfile: LifestyleProfile | null;
 }> {
-  const [userProfile, skinProfile, lifestyleProfile] = await Promise.all([
-    getUserProfile(),
-    getSkinProfile(),
-    getLifestyleProfile(),
-  ]);
+  // Sequential: the app shares a single SQLite handle and concurrent
+  // prepare/execute/finalize lifecycles corrupt it on Android (expo#48995).
+  const userProfile = await getUserProfile();
+  const skinProfile = await getSkinProfile();
+  const lifestyleProfile = await getLifestyleProfile();
   return { userProfile, skinProfile, lifestyleProfile };
 }

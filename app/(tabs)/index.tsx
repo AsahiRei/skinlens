@@ -27,12 +27,11 @@ import { useNotifications } from "@/hooks/useNotifications";
 import {
   getLatestResult,
   getLatestRoutine,
-  getSkinProfile,
   getTodayProgress,
   getUserProfile,
   toggleStep as toggleStepDb,
 } from "@/lib/db";
-import type { Period, Routine, RoutineStep, Result, SkinProfile, UserProfile } from "@/types/schema";
+import type { Period, Routine, RoutineStep, Result, UserProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 
 const PERIOD_ORDER: Period[] = ["morning", "afternoon", "evening"];
@@ -58,10 +57,8 @@ export default function Home() {
   const focusTrigger = useFocusTrigger();
   const { unreadCount, generateNotifications } = useNotifications();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [loadingSkin, setLoadingSkin] = useState(true);
   const [loadingResult, setLoadingResult] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -88,15 +85,6 @@ export default function Home() {
       console.error("Error fetching user profile:", err);
     } finally {
       setLoadingUser(false);
-    }
-  };
-  const fetchSkinProfile = async () => {
-    try {
-      setSkinProfile(await getSkinProfile());
-    } catch (err) {
-      console.error("Error fetching skin profile:", err);
-    } finally {
-      setLoadingSkin(false);
     }
   };
   const fetchResult = async () => {
@@ -132,7 +120,6 @@ export default function Home() {
   const loadAll = async () => {
     await Promise.all([
       fetchUserProfile(),
-      fetchSkinProfile(),
       fetchResult(),
       fetchRoutine(),
       generateNotifications(),
@@ -140,7 +127,13 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // Fetch-on-focus effect: setState happens in async continuations after
+    // awaits, not synchronously — the extra render pass is inherent to loading.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll();
+    // loadAll is intentionally re-created each render; this effect must only
+    // re-run when the screen regains focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusTrigger]);
 
   const handleRefresh = async () => {

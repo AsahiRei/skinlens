@@ -4,11 +4,13 @@ import {
   Modal,
   Pressable,
   Text,
+  ToastAndroid,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
 
 import { supabase } from "@/utils/supabase";
+import { clearLocalUserData } from "@/lib/db/auth";
 
 type LogoutModalProps = {
   isVisible: boolean;
@@ -22,13 +24,29 @@ export default function LogoutModal({
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const logout = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
+      // Global sign-out revokes the server session, but it fails offline
+      // (or when the account was already deleted). Fall back to local
+      // scope so the user is never stuck logged in.
       const { error } = await supabase.auth.signOut();
-      if (error) throw error.message;
-      router.replace("/welcome")
+      if (error) throw error;
+      await clearLocalUserData();
+      router.replace("/welcome");
     } catch (err) {
-      console.log(err);
+      console.error("Sign-out failed, falling back to local:", err);
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+        await clearLocalUserData();
+        router.replace("/welcome");
+      } catch (fallbackErr) {
+        // Keep the modal open and surface the failure — the session persists.
+        console.error("Local sign-out failed:", fallbackErr);
+        ToastAndroid.show(
+          "Couldn't log out. Please try again.",
+          ToastAndroid.SHORT,
+        );
+      }
     } finally {
       setLoading(false);
     }

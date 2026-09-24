@@ -3,7 +3,6 @@ export type UserProfile = {
   first_name?: string;
   email: string;
   age: string;
-  phone_number: string;
   gender?: string;
   user_setup?: boolean;
   created_at: any;
@@ -100,20 +99,6 @@ export type ResultData = {
   description: string;
   healthscore: number;
   recommendations: RecommendedProduct[] | null;
-};
-
-export type ScanDetectionResult = {
-  label: string;
-  confidence: number;
-  probabilities: Record<string, number>;
-  imageUri: string;
-  sourceType: "camera" | "gallery";
-};
-
-export type SurveyAnswer = {
-  questionId: string;
-  value: string;
-  points: number;
 };
 
 export type SensitivityEntry = {

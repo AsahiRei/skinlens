@@ -14,6 +14,25 @@ function swallow(p: PromiseLike<unknown>) {
   Promise.resolve(p).catch(() => {});
 }
 
+// Monotonic negative temp ids for routines created while the server insert
+// fails. Initialized below every id already in the table so temp ids stay
+// unique across app restarts (the old Math.min(max,0)-1 scheme always
+// produced -1 and each offline insert overwrote the previous one).
+let nextTempId: number | null = null;
+
+async function getNextTempId(userId: string): Promise<number> {
+  if (nextTempId === null) {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ min_id: number | null }>(
+      `SELECT MIN(id) as min_id FROM routines WHERE user_id = ?`,
+      [userId],
+    );
+    nextTempId = Math.min(row?.min_id ?? 0, 0);
+  }
+  nextTempId -= 1;
+  return nextTempId;
+}
+
 export async function getLatestRoutine(): Promise<{
   id: number;
   routine: Routine;
@@ -95,11 +114,7 @@ export async function insertRoutine(routineJson: string): Promise<void> {
     serverId = data.id;
   } catch {
     // Offline — generate a temp negative id
-    const maxRow = await db.getFirstAsync<{ max_id: number | null }>(
-      `SELECT MAX(id) as max_id FROM routines WHERE user_id = ?`,
-      [user.id],
-    );
-    serverId = Math.min((maxRow?.max_id ?? 0), 0) - 1;
+    serverId = await getNextTempId(user.id);
     await enqueueSync("routines", "insert", String(serverId), {
       user_id: user.id,
       source_type: "ai_generated",

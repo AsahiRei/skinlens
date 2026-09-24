@@ -1,0 +1,59 @@
+{
+  "concernLabels": {
+    "none": "maintaining clear skin",
+    "pigmentation": "pigmentation",
+    "acne": "acne",
+    "dry": "dryness",
+    "eczema": "eczema",
+    "oily": "oiliness"
+  },
+  "skinTypeLabels": {
+    "normal": "normal",
+    "combination": "combination",
+    "dry": "dry",
+    "oily": "oily",
+    "sensitive": "sensitive"
+  },
+  "bands": [
+    {
+      "minScore": 85,
+      "severity": "excellent",
+      "label": "Excellent",
+      "color": "#16a34a",
+      "trackColor": "#dcfce7",
+      "messageTemplate": "Your skin health is in great shape. We've built a maintenance routine{personalizedClause} to help protect these results long-term."
+    },
+    {
+      "minScore": 70,
+      "severity": "good",
+      "label": "Good",
+      "color": "#65a30d",
+      "trackColor": "#ecfccb",
+      "messageTemplate": "You're doing well overall. We've generated a routine{personalizedClause} to fine-tune a few areas and help you reach your best skin yet."
+    },
+    {
+      "minScore": 50,
+      "severity": "fair",
+      "label": "Fair",
+      "color": "#f59e0b",
+      "trackColor": "#fef3c7",
+      "messageTemplate": "There's room to improve. Your routine{personalizedClause} targets the key habits holding your skin health back."
+    },
+    {
+      "minScore": 30,
+      "severity": "poor",
+      "label": "Poor",
+      "color": "#f97316",
+      "trackColor": "#ffedd5",
+      "messageTemplate": "Your skin health needs attention. We've created a focused routine{personalizedClause} to help you rebuild healthy habits step by step."
+    },
+    {
+      "minScore": 0,
+      "severity": "critical",
+      "label": "Critical",
+      "color": "#ef4444",
+      "trackColor": "#fee2e2",
+      "messageTemplate": "Your skin health score is quite low right now. We've built a routine{personalizedClause} to address the most pressing issues first."
+    }
+  ]
+}

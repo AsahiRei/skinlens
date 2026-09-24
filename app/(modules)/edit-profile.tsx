@@ -13,6 +13,7 @@ import { ArrowLeft } from "lucide-react-native";
 
 import ScrollPicker from "@/components/ScrollPicker";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import profileOptions from "@/data/profile-options.json";
 import {
   getAllProfiles,
   upsertLifestyleProfile,
@@ -21,39 +22,17 @@ import {
 } from "@/lib/db";
 import { formatter } from "@/utils/formatter";
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+const MONTHS: string[] = profileOptions.months;
 const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: CURRENT_YEAR - 1949 }, (_, i) => String(CURRENT_YEAR - i));
 
-const GENDER_OPTIONS = ["male", "female"];
-const SKIN_TYPE_OPTIONS = [
-  "normal",
-  "combination",
-  "dry",
-  "oily",
-  "sensitive",
-];
-const CONCERN_OPTIONS = [
-  "none",
-  "pigmentation",
-  "acne",
-  "eczema",
-  "dry",
-  "oily",
-];
-const SLEEP_OPTIONS = ["excellent", "good", "fair", "poor", "very_poor"];
-const STRESS_OPTIONS = ["very_low", "low", "moderate", "high", "very_high"];
-const WATER_OPTIONS = [
-  "more_than_2l",
-  "1_5_to_2l",
-  "1_to_1_5l",
-  "500ml_to_1l",
-  "less_than_500ml",
-];
+const GENDER_OPTIONS: string[] = profileOptions.genders;
+const SKIN_TYPE_OPTIONS: string[] = profileOptions.skinTypes;
+const CONCERN_OPTIONS: string[] = profileOptions.concerns;
+const SLEEP_OPTIONS: string[] = profileOptions.sleepOptions;
+const STRESS_OPTIONS: string[] = profileOptions.stressOptions;
+const WATER_OPTIONS: string[] = profileOptions.waterOptions;
 
 function parseAge(age?: string): { month: number; day: number; year: number } | null {
   if (!age) return null;
@@ -135,7 +114,13 @@ export default function EditProfile() {
   const [waterIntake, setWaterIntake] = useState("");
 
   const [dateValues, setDateValues] = useState({ month: 0, day: 0, year: 0 });
-  const ageString = `${MONTHS[dateValues.month]} ${DAYS[dateValues.day]}, ${YEARS[dateValues.year]}`;
+  // Whether the user touched the DOB wheels. Untouched wheels visually show
+  // January 1 of the current year but must not overwrite the saved DOB.
+  const [dateTouched, setDateTouched] = useState(false);
+  const [originalAge, setOriginalAge] = useState("");
+  const ageString = dateTouched
+    ? `${MONTHS[dateValues.month]} ${DAYS[dateValues.day]}, ${YEARS[dateValues.year]}`
+    : originalAge;
 
   useEffect(() => {
     (async () => {
@@ -144,6 +129,7 @@ export default function EditProfile() {
           await getAllProfiles();
         setFirstName(userProfile?.first_name ?? userProfile?.username ?? "");
         setGender(userProfile?.gender ?? "");
+        setOriginalAge(userProfile?.age ?? "");
         const parsed = parseAge(userProfile?.age);
         if (parsed) setDateValues(parsed);
         setSkinType(skinProfile?.skin_type ?? "");
@@ -256,9 +242,10 @@ export default function EditProfile() {
                   <ScrollPicker
                     items={MONTHS}
                     selectedIndex={dateValues.month}
-                    onValueChange={(idx) =>
-                      setDateValues((prev) => ({ ...prev, month: idx }))
-                    }
+                    onValueChange={(idx) => {
+                      setDateValues((prev) => ({ ...prev, month: idx }));
+                      setDateTouched(true);
+                    }}
                   />
                 </View>
                 <View className="flex-1 items-center gap-1">
@@ -268,9 +255,10 @@ export default function EditProfile() {
                   <ScrollPicker
                     items={DAYS}
                     selectedIndex={dateValues.day}
-                    onValueChange={(idx) =>
-                      setDateValues((prev) => ({ ...prev, day: idx }))
-                    }
+                    onValueChange={(idx) => {
+                      setDateValues((prev) => ({ ...prev, day: idx }));
+                      setDateTouched(true);
+                    }}
                   />
                 </View>
                 <View className="flex-1 items-center gap-1">
@@ -280,9 +268,10 @@ export default function EditProfile() {
                   <ScrollPicker
                     items={YEARS}
                     selectedIndex={dateValues.year}
-                    onValueChange={(idx) =>
-                      setDateValues((prev) => ({ ...prev, year: idx }))
-                    }
+                    onValueChange={(idx) => {
+                      setDateValues((prev) => ({ ...prev, year: idx }));
+                      setDateTouched(true);
+                    }}
                   />
                 </View>
               </View>

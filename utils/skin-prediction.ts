@@ -1,4 +1,5 @@
 import { loadTensorflowModel } from "react-native-fast-tflite";
+import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import jpeg from "jpeg-js";
@@ -13,10 +14,18 @@ let model: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 
 async function getModel() {
   if (!model) {
-    model = await loadTensorflowModel(
+    // Resolve bundled asset to a file:// URI that works in both dev (http) and
+    // release (embedded) builds. Directly passing require() id causes
+    // HybridAssetLoader to try `new URL("assets_models_detection_model")` ->
+    // MalformedURLException: no protocol in release builds.
+    const asset = Asset.fromModule(
       require("@/assets/models/detection_model.tflite"),
-      [],
     );
+    await asset.downloadAsync();
+    // localUri is file:// on device after download; fall back to uri (http in dev).
+    const uri = asset.localUri ?? asset.uri;
+    if (!uri) throw new Error("Failed to resolve detection_model.tflite asset");
+    model = await loadTensorflowModel({ url: uri }, []);
   }
   return model;
 }

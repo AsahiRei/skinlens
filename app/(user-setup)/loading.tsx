@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AlertCircle, Check } from "lucide-react-native";
@@ -7,7 +7,6 @@ import InlineProgress from "@/components/InlineProgress";
 import PulsatingIcon from "@/components/PulsatingIcon";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import {
-  getLatestResultDetail,
   insertResult,
   insertRoutine,
   requireUser,
@@ -15,16 +14,11 @@ import {
   upsertSkinProfile,
   updateUserProfile,
 } from "@/lib/db";
+import stepsData from "@/data/steps.json";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
 
-const steps = [
-  { label: "Analyzing your skin profile" },
-  { label: "Reviewing lifestyle factors" },
-  { label: "Preparing AI model" },
-  { label: "Generating your routine" },
-  { label: "Finalizing your results" },
-];
+const steps = stepsData.userSetup;
 
 const MODEL_STEP_INDEX = 2;
 
@@ -38,9 +32,20 @@ export default function Loading() {
   const [progressPct, setProgressPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const ranRef = useRef(false); // guard against double-run in dev/strict mode
-  const parsedAnswers: Record<string, string> = answers
-    ? JSON.parse(answers)
-    : {};
+  const cancelledRef = useRef(false);
+  // answers comes from navigation params — never trust it blindly.
+  const parsedAnswers: Record<string, string> = useMemo(() => {
+    if (!answers) return {};
+    try {
+      const parsed: unknown = JSON.parse(answers);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, string>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }, [answers]);
   const score = Number(healthScore) || 0;
 
   const goToStep = (i: number) => {
@@ -59,28 +64,33 @@ export default function Loading() {
   const run = async () => {
     try {
       setError(null);
-      const user = await requireUser();
+      await requireUser();
       goToStep(0);
-      await updateUserProfile({
-        first_name: parsedAnswers.first_name,
-        age: parsedAnswers.age,
-        gender: parsedAnswers.gender,
-      });
-      goToStep(0);
-      await upsertSkinProfile({
-        skin_type: parsedAnswers.skin_type,
-        main_concerns: parsedAnswers.main_concern,
-      });
+      // Kick off model download/load immediately — it runs in parallel
+      // with the (fast) DB writes below instead of blocking on them.
+      const preloadPromise = preloadLlama(updateModelDownloadProgress);
+      await Promise.all([
+        updateUserProfile({
+          first_name: parsedAnswers.first_name,
+          age: parsedAnswers.age,
+          gender: parsedAnswers.gender,
+        }),
+        upsertSkinProfile({
+          skin_type: parsedAnswers.skin_type,
+          main_concerns: parsedAnswers.main_concern,
+        }),
+        upsertLifestyleProfile({
+          sleep_quality: parsedAnswers.sleep_quality,
+          stress_level: parsedAnswers.stress_level,
+          water_intake: parsedAnswers.water_intake,
+        }),
+      ]);
       goToStep(1);
-      await upsertLifestyleProfile({
-        sleep_quality: parsedAnswers.sleep_quality,
-        stress_level: parsedAnswers.stress_level,
-        water_intake: parsedAnswers.water_intake,
-      });
       goToStep(MODEL_STEP_INDEX);
       // On first run this downloads + loads the on-device model (can take a
       // while); on later runs the model is already cached and this resolves fast.
-      await preloadLlama(updateModelDownloadProgress);
+      await preloadPromise;
+      if (cancelledRef.current) return;
       goToStep(3);
       const routineJson = await generateRoutine({
         skin_type: parsedAnswers.skin_type,
@@ -99,14 +109,17 @@ export default function Loading() {
         recommendations: parsedRoutine.recommended_products ?? null,
       });
       await insertRoutine(routineJson);
+      if (cancelledRef.current) return;
       goToStep(4);
       // brief pause so the last step is visibly checked off before navigating
       await new Promise((r) => setTimeout(r, 400));
+      if (cancelledRef.current) return;
       router.replace({
         pathname: "/(user-setup)/results",
         params: { healthScore, answers },
       });
     } catch (e) {
+      if (cancelledRef.current) return;
       setError(
         e instanceof Error
           ? e.message
@@ -119,6 +132,10 @@ export default function Loading() {
     if (ranRef.current) return;
     ranRef.current = true;
     run();
+    return () => {
+      cancelledRef.current = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {
@@ -128,7 +145,7 @@ export default function Loading() {
           <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2 w-full">
             <AlertCircle size={28} color="#B91C1C" />
             <Text className="font-bold text-gray-800">
-              Couldn't generate your routine
+              {"Couldn't generate your routine"}
             </Text>
             <Text className="text-sm text-gray-500 text-center">{error}</Text>
             <Pressable

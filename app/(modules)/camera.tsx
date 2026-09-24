@@ -64,23 +64,6 @@ const ANGLE_GUIDE: Record<ScanAngle, { label: string; instruction: string }> = {
   right: { label: "Right", instruction: "Turn head slightly to your left" },
 };
 
-const FaceOverlay = React.memo(function FaceOverlay({
-  x, y, w, h, color,
-}: { x: number; y: number; w: number; h: number; color: string }) {
-  return (
-    <View
-      pointerEvents="none"
-      style={{ position: "absolute", left: x, top: y, width: w, height: h }}
-    >
-      <View style={{ position: "absolute", inset: 0, borderRadius: 16, borderWidth: 2.5, borderColor: color }} />
-      <View style={{ position: "absolute", top: -1, left: -1, width: 24, height: 24, borderTopWidth: 4, borderLeftWidth: 4, borderColor: color, borderTopLeftRadius: 16 }} />
-      <View style={{ position: "absolute", top: -1, right: -1, width: 24, height: 24, borderTopWidth: 4, borderRightWidth: 4, borderColor: color, borderTopRightRadius: 16 }} />
-      <View style={{ position: "absolute", bottom: -1, left: -1, width: 24, height: 24, borderBottomWidth: 4, borderLeftWidth: 4, borderColor: color, borderBottomLeftRadius: 16 }} />
-      <View style={{ position: "absolute", bottom: -1, right: -1, width: 24, height: 24, borderBottomWidth: 4, borderRightWidth: 4, borderColor: color, borderBottomRightRadius: 16 }} />
-    </View>
-  );
-});
-
 const LightingBadge = React.memo(function LightingBadge({
   quality, message,
 }: { quality: LightingQuality; message: string }) {
@@ -209,7 +192,7 @@ export default function FaceDetectionScreen() {
       ),
       -1, false,
     );
-  }, []);
+  }, [guidePulse]);
 
   const guideStyle = useAnimatedStyle(() => ({ opacity: guidePulse.value }));
 
@@ -245,10 +228,17 @@ export default function FaceDetectionScreen() {
 
     if (faces.length > 0) {
       const f = faces[0];
+      // Reanimated shared values are mutable by design; the react-compiler
+      // immutability rule can't see that, hence the disables below.
+      // eslint-disable-next-line react-hooks/immutability
       faceX.value = f.bounds.x;
+      // eslint-disable-next-line react-hooks/immutability
       faceY.value = f.bounds.y;
+      // eslint-disable-next-line react-hooks/immutability
       faceW.value = f.bounds.width;
+      // eslint-disable-next-line react-hooks/immutability
       faceH.value = f.bounds.height;
+      // eslint-disable-next-line react-hooks/immutability
       faceVisible.value = 1;
 
       const bounds: FaceBounds = {
@@ -297,6 +287,7 @@ export default function FaceDetectionScreen() {
 
   const handleFlipCamera = useCallback(() => {
     setCameraPosition((prev) => (prev === "front" ? "back" : "front"));
+    // eslint-disable-next-line react-hooks/immutability
     faceVisible.value = 0;
   }, [faceVisible]);
 
@@ -369,7 +360,7 @@ export default function FaceDetectionScreen() {
 
   useEffect(() => {
     if (!hasPermission) requestPermission();
-  }, [hasPermission]);
+  }, [hasPermission, requestPermission]);
 
   if (!hasPermission) {
     return (
@@ -388,7 +379,10 @@ export default function FaceDetectionScreen() {
   }
 
   const isPreview = previewUri !== null;
-  const hasFace = faceVisible.value === 1;
+  // Derived from React state (updated on every detection callback), NOT from
+  // the faceVisible shared value — reading .value during render is stale
+  // because it never triggers a re-render.
+  const hasFace = qs.alignmentScore > 0;
   const scoreColor =
     qs.alignmentScore > 80 ? "#22C55E" : qs.alignmentScore > 50 ? "#FBBF24" : "#EF4444";
 

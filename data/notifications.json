@@ -1,0 +1,54 @@
+{
+  "scanReminders": [
+    {
+      "title": "Time for your weekly skin scan",
+      "message": "Keep track of your skin health by running a quick scan today."
+    },
+    {
+      "title": "Don't forget your skin check",
+      "message": "Regular scans help detect changes early. Take 30 seconds to scan now."
+    },
+    {
+      "title": "Your skin health update is due",
+      "message": "Run a scan to see how your skin is responding to your routine."
+    },
+    {
+      "title": "Weekly scan reminder",
+      "message": "Stay on top of your skincare journey with a quick scan."
+    }
+  ],
+  "dailyTips": [
+    {
+      "title": "Morning hydration tip",
+      "message": "Drink a glass of water before applying skincare to boost absorption."
+    },
+    {
+      "title": "SPF is essential",
+      "message": "Apply sunscreen even on cloudy days. UV rays penetrate through clouds."
+    },
+    {
+      "title": "Cleanse gently",
+      "message": "Use lukewarm water and pat your face dry instead of rubbing."
+    },
+    {
+      "title": "Nighttime routine matters",
+      "message": "Your skin repairs itself at night. Apply a richer moisturizer before bed."
+    },
+    {
+      "title": "Don't skip moisturizer",
+      "message": "Even oily skin needs hydration. Use a lightweight, non-comedogenic formula."
+    },
+    {
+      "title": "Check your ingredients",
+      "message": "Avoid mixing retinol with vitamin C. Use them at different times of day."
+    },
+    {
+      "title": "Hands off your face",
+      "message": "Touching your face can transfer bacteria and cause breakouts."
+    },
+    {
+      "title": "Exfoliate wisely",
+      "message": "Over-exfoliating damages your skin barrier. Limit to 2-3 times per week."
+    }
+  ]
+}

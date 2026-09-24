@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AlertCircle, Check } from "lucide-react-native";
@@ -12,16 +12,13 @@ import Animated, {
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import stepsData from "@/data/steps.json";
 import { classifyImage, enhanceImage } from "@/utils/skin-prediction";
 import type { ClassificationResult } from "@/types/skin";
 
-const steps = [
-  { label: "Analyzing skin image" },
-  { label: "Running AI detection" },
-  { label: "Preparing results" },
-];
+const steps = stepsData.analyzing;
 
-const ANGLE_LABELS = ["Front", "Left", "Right"];
+const ANGLE_LABELS = stepsData.angleLabels;
 
 export default function Analyzing() {
   const router = useRouter();
@@ -35,8 +32,19 @@ export default function Analyzing() {
   const [error, setError] = useState<string | null>(null);
   const [displayUris, setDisplayUris] = useState<(string | null)[]>([null, null, null]);
   const ranRef = useRef(false);
+  const cancelledRef = useRef(false);
 
-  const multiAngles: string[] = imageUris ? JSON.parse(imageUris) : [];
+  // imageUris comes from navigation params — never trust it blindly.
+  const multiAngles: string[] = useMemo(() => {
+    if (!imageUris) return [];
+    try {
+      const parsed: unknown = JSON.parse(imageUris);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((v): v is string => typeof v === "string");
+    } catch {
+      return [];
+    }
+  }, [imageUris]);
   const isMulti = multiAngles.length > 1;
 
   const scanLineY = useSharedValue(0);
@@ -50,7 +58,7 @@ export default function Analyzing() {
       -1,
       true,
     );
-  }, []);
+  }, [scanLineY]);
 
   const scanLineStyle = useAnimatedStyle(() => ({
     top: `${scanLineY.value * 100}%`,
@@ -94,22 +102,27 @@ export default function Analyzing() {
         const enhanced = await Promise.all(
           uris.map((uri) => enhanceImage(uri)),
         );
+        if (cancelledRef.current) return;
         setDisplayUris(enhanced);
       } else {
         const enhanced = await enhanceImage(uris[0]);
+        if (cancelledRef.current) return;
         setDisplayUris([enhanced]);
       }
       await new Promise((r) => setTimeout(r, 600));
+      if (cancelledRef.current) return;
 
       goToStep(1);
       const results = await Promise.all(
         uris.map((uri) => classifyImage(uri)),
       );
+      if (cancelledRef.current) return;
 
       const finalResult = isMulti ? aggregateResults(results) : results[0];
 
       goToStep(2);
       await new Promise((r) => setTimeout(r, 400));
+      if (cancelledRef.current) return;
 
       router.replace({
         pathname: "/(modules)/survey",
@@ -122,6 +135,7 @@ export default function Analyzing() {
         },
       });
     } catch (e) {
+      if (cancelledRef.current) return;
       setError(
         e instanceof Error
           ? e.message
@@ -134,6 +148,10 @@ export default function Analyzing() {
     if (ranRef.current) return;
     ranRef.current = true;
     run();
+    return () => {
+      cancelledRef.current = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {

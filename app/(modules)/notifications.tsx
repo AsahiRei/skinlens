@@ -22,7 +22,7 @@ function formatTime(dateStr: string): string {
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const { notifications, markAsRead, markAllAsRead, deleteNotification, clearAll } =
+  const { notifications, markAsRead, markAllAsRead, deleteNotification, clearAll, refresh } =
     useNotifications();
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -30,8 +30,11 @@ export default function NotificationsScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 300));
-    setRefreshing(false);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (

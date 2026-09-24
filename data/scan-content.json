@@ -1,0 +1,37 @@
+{
+  "howItWorks": [
+    {
+      "icon": "camera",
+      "title": "Capture or upload",
+      "description": "Take a clear photo or choose one from your gallery."
+    },
+    {
+      "icon": "sparkles",
+      "title": "AI analyzes your skin",
+      "description": "Our model scans the image for skin conditions and concerns."
+    },
+    {
+      "icon": "file-text",
+      "title": "Get your results",
+      "description": "See a detailed breakdown with personalized recommendations."
+    }
+  ],
+  "captureTips": [
+    {
+      "icon": "sun",
+      "title": "Good lighting",
+      "description": "Face a window or bright light source. Avoid harsh shadows."
+    },
+    {
+      "icon": "move",
+      "title": "Center your face",
+      "description": "Keep your face centered in the frame with even spacing."
+    },
+    {
+      "icon": "focus",
+      "title": "Stay focused",
+      "description": "Hold steady and ensure your face is in focus before capturing."
+    }
+  ],
+  "disclaimer": "This app does not replace a dermatologist and is not a medical diagnosis. If you notice unusual, painful, or rapidly changing skin conditions, please consult a doctor or visit a hospital."
+}

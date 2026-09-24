@@ -1,0 +1,32 @@
+{
+  "acne": {
+    "icon": "flask-outline",
+    "color": "#B45309",
+    "bg": "#FEF3C7",
+    "description": "Acne detected on your skin"
+  },
+  "dry": {
+    "icon": "water-outline",
+    "color": "#2563EB",
+    "bg": "#DBEAFE",
+    "description": "Dry skin detected"
+  },
+  "eczema": {
+    "icon": "bandage-outline",
+    "color": "#DC2626",
+    "bg": "#FEE2E2",
+    "description": "Eczema detected on your skin"
+  },
+  "oily": {
+    "icon": "flask-outline",
+    "color": "#D97706",
+    "bg": "#FEF3C7",
+    "description": "Oily skin detected"
+  },
+  "normal": {
+    "icon": "checkmark-circle-outline",
+    "color": "#15803D",
+    "bg": "#DCFCE7",
+    "description": "No significant conditions detected"
+  }
+}

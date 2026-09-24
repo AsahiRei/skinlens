@@ -21,13 +21,28 @@ export default function CreateNewPassword() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const handleUpdatePassword = async () => {
+    if (!password) {
+      ToastAndroid.show("Please enter a new password.", ToastAndroid.SHORT);
+      return;
+    }
+    if (password.length < 8) {
+      ToastAndroid.show(
+        "Password must be at least 8 characters.",
+        ToastAndroid.SHORT,
+      );
+      return;
+    }
+    if (password !== confirmPassword) {
+      ToastAndroid.show("Passwords do not match.", ToastAndroid.SHORT);
+      return;
+    }
     setLoading(true);
     try {
       await updatePassword(password);
       await supabase.auth.signOut();
       ToastAndroid.show("Change password successfully!", ToastAndroid.SHORT);
       router.replace("/welcome");
-    } catch (error) {
+    } catch {
       ToastAndroid.show(
         "Something went wrong. Please try again.",
         ToastAndroid.SHORT,

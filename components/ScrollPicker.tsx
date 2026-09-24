@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -77,10 +77,12 @@ export default function ScrollPicker({
   });
 
   useEffect(() => {
+    // Syncs the wheel when the parent sets a value programmatically
+    // (e.g. loading a saved date of birth after mount).
     const y = selectedIndex * ITEM_HEIGHT;
     scrollRef.current?.scrollTo({ y, animated: false });
     scrollY.value = y;
-  }, []);
+  }, [scrollY, selectedIndex]);
 
   return (
     <View style={[s.container, { height: containerHeight }]}>

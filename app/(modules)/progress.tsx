@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowLeft, TrendingUp, Calendar, FileText } from "lucide-react-native";
-import Svg, { Path, Circle, Rect, Line as SvgLine } from "react-native-svg";
+import Svg, { Path, Circle, Line as SvgLine } from "react-native-svg";
 
 import Skeleton from "@/components/Skeleton";
 import TypewriterText from "@/components/TypewriterText";
@@ -316,9 +316,10 @@ export default function Progress() {
   };
 
   useEffect(() => {
+    // Fetch-on-focus effect: setState happens in async continuations after
+    // awaits, not synchronously — the extra render pass is inherent to loading.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
-    const timer = setTimeout(() => fetchData(), 2000);
-    return () => clearTimeout(timer);
   }, [focusTrigger]);
 
   useEffect(() => {
@@ -482,6 +483,24 @@ export default function Progress() {
           </View>
         </View>
 
+        {/* Weekly Summary */}
+        <View className="bg-green-700 rounded-xl py-4 px-4 mt-4">
+          <Text className="font-bold text-white text-base">
+            WEEKLY SUMMARY
+          </Text>
+          <Text className="text-green-100 text-xs mt-1">
+            {weekScans} scans · Avg score: {weekAvgScore}%
+          </Text>
+          {summaryLoading ? (
+            <ActivityIndicator size="small" color="#BBF7D0" style={{ marginTop: 10 }} />
+          ) : aiSummary ? (
+            <TypewriterText
+              text={aiSummary}
+              className="text-green-200 text-xs mt-2 leading-5"
+            />
+          ) : null}
+        </View>
+
         {/* Before vs. Today */}
         {firstResult && latestResult && firstResult.id !== latestResult.id && (
           <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
@@ -593,29 +612,11 @@ export default function Progress() {
           )}
         </View>
 
-        {/* Weekly Summary */}
-        <View className="bg-green-700 rounded-xl py-4 px-4 mt-4">
-          <Text className="font-bold text-white text-base">
-            WEEKLY SUMMARY
-          </Text>
-          <Text className="text-green-100 text-xs mt-1">
-            {weekScans} scans · Avg score: {weekAvgScore}%
-          </Text>
-          {summaryLoading ? (
-            <ActivityIndicator size="small" color="#BBF7D0" style={{ marginTop: 10 }} />
-          ) : aiSummary ? (
-            <TypewriterText
-              text={aiSummary}
-              className="text-green-200 text-xs mt-2 leading-5"
-            />
-          ) : null}
-        </View>
-
         {/* Weekly detail cards */}
         {weekResults.length > 0 && (
           <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
             <Text className="font-bold text-gray-900 text-[15px] mb-3">
-              This Week's Scans
+              {"This Week's Scans"}
             </Text>
             <View className="gap-2">
               {weekResults.slice(0, 3).map((result) => (

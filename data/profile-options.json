@@ -1,0 +1,35 @@
+{
+  "months": [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ],
+  "genders": ["male", "female"],
+  "skinTypes": ["normal", "combination", "dry", "oily", "sensitive"],
+  "concerns": ["none", "pigmentation", "acne", "eczema", "dry", "oily"],
+  "sleepOptions": ["excellent", "good", "fair", "poor", "very_poor"],
+  "stressOptions": ["very_low", "low", "moderate", "high", "very_high"],
+  "waterOptions": [
+    "more_than_2l",
+    "1_5_to_2l",
+    "1_to_1_5l",
+    "500ml_to_1l",
+    "less_than_500ml"
+  ],
+  "triggers": ["product", "sun", "weather", "food", "stress", "medication", "other"],
+  "severities": ["mild", "moderate", "severe"],
+  "severityStyles": {
+    "mild": { "bg": "bg-green-50", "text": "text-green-700" },
+    "moderate": { "bg": "bg-amber-50", "text": "text-amber-700" },
+    "severe": { "bg": "bg-red-50", "text": "text-red-700" }
+  }
+}

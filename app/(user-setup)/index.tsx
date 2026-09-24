@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
-export default function index() {
+export default function Index() {
   const router = useRouter();
   return (
     <View className="flex-1 bg-white items-center justify-center p-6">

@@ -49,13 +49,13 @@ function fmtDateTime(dateStr: string): string {
 }
 
 export async function generateSkinReportHtml(): Promise<string> {
-  const [{ userProfile, skinProfile, lifestyleProfile }, results, routine, sensitivity] =
-    await Promise.all([
-      getAllProfiles(),
-      getAllResults(),
-      getLatestRoutine(),
-      getSensitivityHistory(),
-    ]);
+  // Sequential: single shared SQLite handle — concurrent statements corrupt
+  // it on Android (expo#48995). The proxy also serializes, this just reduces
+  // queue pressure for a 4-way fan-out.
+  const { userProfile, skinProfile, lifestyleProfile } = await getAllProfiles();
+  const results = await getAllResults();
+  const routine = await getLatestRoutine();
+  const sensitivity = await getSensitivityHistory();
 
   const latest = results[0] ?? null;
   const score = latest?.healthscore ?? 0;

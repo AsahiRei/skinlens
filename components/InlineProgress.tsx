@@ -46,7 +46,7 @@ export default function InlineProgress({
     } else {
       progressValue.value = clamped;
     }
-  }, [clamped, animated, duration]);
+  }, [clamped, animated, duration, progressValue]);
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${progressValue.value}%`,

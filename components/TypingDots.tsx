@@ -9,7 +9,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-const DOT_COUNT = 3;
 const BOUNCE = -4;
 const DURATION = 300;
 
@@ -32,7 +31,7 @@ export default function TypingDots() {
         ),
       );
     });
-  }, []);
+  }, [dot1, dot2, dot3]);
 
   const style1 = useAnimatedStyle(() => ({
     transform: [{ translateY: dot1.value }],

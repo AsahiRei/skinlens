@@ -1,5 +1,5 @@
 import type { Result } from "@/types/schema";
-import { getLlamaContext } from "./llama";
+import { getLlamaContext, runExclusive } from "./llama";
 import { stripThinkTags } from "./llm-helpers";
 
 export async function generateWeeklySummary(
@@ -10,8 +10,13 @@ export async function generateWeeklySummary(
 
   const scores = results.map((r) => r.healthscore);
   const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-  const latest = results[results.length - 1];
-  const earliest = results[0];
+  // Sort explicitly: callers pass newest-first (ORDER BY created_at DESC),
+  // but the trend math needs oldest -> latest.
+  const byDate = [...results].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  const latest = byDate[byDate.length - 1];
+  const earliest = byDate[0];
 
   const labels = results
     .map((r) => r.detection_label ?? r.severity)
@@ -24,23 +29,25 @@ export async function generateWeeklySummary(
       : 0;
 
   const context = await getLlamaContext(onModelDownloadProgress);
-  const { text } = await context.completion({
-    messages: [
-      {
-        role: "system",
-        content: `You are a skincare assistant. Write a very short 1-2 sentence summary of the user's weekly skin scan results. Be warm and encouraging. Do not use markdown. You MUST respond in English only. Do not use any other language.`,
-      },
-      {
-        role: "user",
-        content: `This week's scan data: ${results.length} scans, average health score ${avg}%, trend ${trend > 5 ? "improving" : trend < -5 ? "declining" : "stable"}, detected conditions: ${uniqueLabels.length > 0 ? uniqueLabels.join(", ") : "none"}. Write a short friendly summary.`,
-      },
-    ],
-    n_predict: 128,
-    temperature: 0.7,
-    top_p: 0.9,
-    stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
-    chat_template_kwargs: { enable_thinking: false },
-  });
+  const { text } = await runExclusive(() =>
+    context.completion({
+      messages: [
+        {
+          role: "system",
+          content: `You are a skincare assistant. Write a very short 1-2 sentence summary of the user's weekly skin scan results. Be warm and encouraging. Do not use markdown. You MUST respond in English only. Do not use any other language.`,
+        },
+        {
+          role: "user",
+          content: `This week's scan data: ${results.length} scans, average health score ${avg}%, trend ${trend > 5 ? "improving" : trend < -5 ? "declining" : "stable"}, detected conditions: ${uniqueLabels.length > 0 ? uniqueLabels.join(", ") : "none"}. Write a short friendly summary.`,
+        },
+      ],
+      n_predict: 128,
+      temperature: 0.7,
+      top_p: 0.9,
+      stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
+      chat_template_kwargs: { enable_thinking: false },
+    }),
+  );
 
   return stripThinkTags(text) || `You scanned ${results.length} times this week with an average score of ${avg}%.`;
 }

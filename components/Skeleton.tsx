@@ -18,7 +18,7 @@ export default function Skeleton({ className }: { className: string }) {
       ),
       -1,
     );
-  }, []);
+  }, [opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

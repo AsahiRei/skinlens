@@ -40,7 +40,7 @@ export default function Login() {
         return;
       }
       router.replace("/");
-    } catch (error) {
+    } catch {
       ToastAndroid.show(
         "Something went wrong. Please try again.",
         ToastAndroid.SHORT,
@@ -49,13 +49,13 @@ export default function Login() {
       setLoading(false);
     }
   };
-  const handeGoogleLogin = async () => {
+  const handleGoogleLogin = async () => {
     try {
       await signInWithGoogle();
       router.replace("/");
-    } catch (e: any) {
+    } catch (e) {
       ToastAndroid.show(
-        e?.message ?? "Something went wrong. Please try again.",
+        e instanceof Error ? e.message : "Something went wrong. Please try again.",
         ToastAndroid.LONG,
       );
     }
@@ -67,7 +67,7 @@ export default function Login() {
     >
       <Pressable
         className="bg-white p-4 rounded-full shadow active:opacity-80"
-        onPress={handeGoogleLogin}
+        onPress={handleGoogleLogin}
       >
         <View className="flex-row justify-center items-center gap-2">
           <Image
