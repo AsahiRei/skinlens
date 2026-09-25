@@ -214,7 +214,7 @@ export default function Routines() {
             {/* Steps */}
             <View className="flex-col gap-3 mt-5">
               {loadError ? (
-                <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2">
+                <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2">
                   <AlertCircle size={28} color="#B91C1C" />
                   <Text className="font-bold text-gray-800">
                     {"Couldn't load your routine"}
@@ -224,7 +224,7 @@ export default function Routines() {
                   </Text>
                 </View>
               ) : !routine ? (
-                <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2">
+                <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2">
                   <Sparkles size={28} color="#15803D" />
                   <Text className="font-bold text-gray-800">No routine yet</Text>
                   <Text className="text-sm text-gray-500 text-center">
@@ -232,7 +232,7 @@ export default function Routines() {
                   </Text>
                 </View>
               ) : activeSteps.length === 0 ? (
-                <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2">
+                <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2">
                   {(() => {
                     const Icon = PERIOD_CONFIG[activePeriod].icon;
                     return <Icon size={28} color="#15803D" />;
@@ -252,13 +252,16 @@ export default function Routines() {
                       key={key}
                       onPress={() => handleToggleStep(activePeriod, item.step)}
                       disabled={isPending}
-                      className={`bg-white rounded-xl border border-gray-100 py-4 px-4 flex-row items-start gap-3 ${
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isDone }}
+                      accessibilityLabel={`${item.product_type}, ${isDone ? "completed" : "not completed"}`}
+                      className={`bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-start gap-3 ${
                         isDone ? "opacity-60" : ""
                       } ${isPending ? "opacity-40" : ""}`}
                     >
                       <View
                         className={`h-8 w-8 rounded-full items-center justify-center mt-0.5 ${
-                          isDone ? "bg-green-700" : "bg-green-100"
+                          isDone ? "bg-green-700" : "bg-green-50 border border-green-700/30"
                         }`}
                       >
                         {isDone ? (
@@ -297,7 +300,7 @@ export default function Routines() {
                 {routine.recommended_products.map((product, index) => (
                   <View
                     key={index}
-                    className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-1.5"
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-1.5"
                   >
                     <Text className="font-bold text-gray-900">
                       {product.product_type}

@@ -84,7 +84,7 @@ export default function Scan() {
         <View className="flex-col gap-3 mt-6">
           <Pressable
             onPress={() => router.push("/(modules)/camera")}
-            className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-row items-center gap-3 active:opacity-80"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-center gap-3 active:opacity-80"
           >
             <View className="h-12 w-12 rounded-2xl items-center justify-center bg-green-100">
               <Camera size={22} color="#15803D" />
@@ -100,7 +100,7 @@ export default function Scan() {
 
           <Pressable
             onPress={handleUploadPhoto}
-            className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-row items-center gap-3 active:opacity-80"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-center gap-3 active:opacity-80"
           >
             <View className="h-12 w-12 rounded-2xl items-center justify-center bg-green-100">
               <Images size={22} color="#15803D" />
@@ -118,7 +118,7 @@ export default function Scan() {
         {/* How it works */}
         <View className="mt-8">
           <Text className="font-bold text-gray-900 text-lg">How It Works</Text>
-          <View className="bg-white rounded-xl border border-gray-100 mt-3 overflow-hidden">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm mt-3 overflow-hidden">
             {HOW_IT_WORKS.map((item, index) => (
               <View
                 key={item.title}
@@ -143,7 +143,7 @@ export default function Scan() {
         {/* Capture tips */}
         <View className="mt-6">
           <Text className="font-bold text-gray-900 text-lg">Tips for Best Results</Text>
-          <View className="bg-green-50 rounded-xl mt-3 overflow-hidden">
+          <View className="bg-green-50 border border-green-100 rounded-2xl mt-3 overflow-hidden">
             {CAPTURE_TIPS.map((item, index) => (
               <View
                 key={item.title}
@@ -163,7 +163,7 @@ export default function Scan() {
         </View>
 
         {/* Disclaimer */}
-        <View className="bg-amber-50 rounded-xl py-4 px-4 flex-row items-start gap-3 mt-6">
+        <View className="bg-amber-50 border border-amber-200 rounded-2xl py-4 px-4 flex-row items-start gap-3 mt-6">
           <AlertTriangle size={18} color="#B45309" style={{ marginTop: 1 }} />
           <Text className="text-xs text-amber-800 flex-1 leading-5">
             {DISCLAIMER}

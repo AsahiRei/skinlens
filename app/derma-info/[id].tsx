@@ -106,7 +106,7 @@ export default function DermatologistDetails() {
         </View>
 
         {/* Profile card */}
-        <View className="bg-white rounded-xl border border-gray-100 py-5 px-4 mt-5 flex-col gap-4">
+        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-5 px-4 mt-5 flex-col gap-4">
           <View className="flex-row items-center gap-3">
             <View className="bg-green-100 h-14 w-14 items-center justify-center rounded-2xl">
               <User size={26} color="#15803D" />
@@ -157,7 +157,7 @@ export default function DermatologistDetails() {
         </View>
 
         {/* Contact info card */}
-        <View className="bg-white rounded-xl border border-gray-100 py-5 px-4 mt-4 flex-col gap-3">
+        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-5 px-4 mt-4 flex-col gap-3">
           <Text className="font-bold text-gray-900 text-[15px]">
             Contact & Hours
           </Text>
@@ -214,7 +214,7 @@ export default function DermatologistDetails() {
         </View>
 
         {/* Book button */}
-        <Pressable className="bg-green-700 rounded-xl border border-gray-100 py-4 px-4 mt-5 items-center active:opacity-90">
+        <Pressable className="bg-green-700 rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-5 items-center active:opacity-90">
           <Text className="text-white font-bold text-[15px]">
             Book Appointment
           </Text>

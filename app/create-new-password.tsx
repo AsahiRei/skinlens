@@ -61,14 +61,14 @@ export default function CreateNewPassword() {
           Enter your email account to reset password
         </Text>
         <View className="flex-col gap-4 mt-6">
-          <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
+          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
             <Lock size={22} color="#4B5563" />
             <TextInput
               value={password}
               onChangeText={setPassword}
               placeholder="Enter your password"
-              className="flex-1 text-gray-600"
-              placeholderTextColor="gray"
+              className="flex-1 text-gray-900"
+              placeholderTextColor="#9CA3AF"
               secureTextEntry={!showPassword}
             />
             <Pressable
@@ -82,14 +82,14 @@ export default function CreateNewPassword() {
               )}
             </Pressable>
           </View>
-          <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
+          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
             <Lock size={22} color="#4B5563" />
             <TextInput
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirm your password"
-              className="flex-1 text-gray-600"
-              placeholderTextColor="gray"
+              className="flex-1 text-gray-900"
+              placeholderTextColor="#9CA3AF"
               secureTextEntry={!showConfirmPassword}
             />
             <Pressable

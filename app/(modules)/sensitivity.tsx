@@ -174,7 +174,7 @@ export default function SensitivityScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
       >
         {showForm && (
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-4 mt-4">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-4 mt-4">
             <View className="flex-row items-center justify-between">
               <Text className="font-bold text-gray-900 text-base">
                 Log an Episode
@@ -207,7 +207,7 @@ export default function SensitivityScreen() {
 
             <View className="gap-1.5">
               <Text className="text-sm text-gray-500">Notes (optional)</Text>
-              <View className="bg-gray-50 rounded-xl border border-gray-200 px-4">
+              <View className="bg-white rounded-2xl border border-gray-200 px-4">
                 <TextInput
                   value={notes}
                   onChangeText={setNotes}
@@ -240,7 +240,7 @@ export default function SensitivityScreen() {
             <ActivityIndicator color="#15803D" size="small" />
           </View>
         ) : entries.length === 0 ? (
-          <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2 mt-4">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2 mt-4">
             <ShieldAlert size={28} color="#15803D" />
             <Text className="font-bold text-gray-800">
               No sensitivity history yet
@@ -258,7 +258,7 @@ export default function SensitivityScreen() {
               return (
                 <View
                   key={entry.id}
-                  className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-2"
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-2"
                 >
                   <View className="flex-row items-center justify-between">
                     <View className="flex-row items-center gap-2">

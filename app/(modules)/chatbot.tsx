@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,7 +11,13 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Send, MessageSquare } from "lucide-react-native";
+import {
+  ArrowLeft,
+  Send,
+  MessageSquare,
+  MapPin,
+  Navigation,
+} from "lucide-react-native";
 
 import TypewriterText from "@/components/TypewriterText";
 import TypingDots from "@/components/TypingDots";
@@ -18,6 +25,19 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import type { ChatMessage, ChatTurn } from "@/types/chat";
 import { generateChatReply } from "@/utils/chat-assistant";
+import {
+  findNearbyDermatologists,
+  formatClinicsForChat,
+  isNearbyClinicIntent,
+} from "@/utils/nearby-derma";
+
+const showDownloadNotice = (message: string) => {
+  if (Platform.OS === "android") {
+    ToastAndroid.show(message, ToastAndroid.LONG);
+  } else {
+    Alert.alert("Downloading model", message);
+  }
+};
 
 const INITIAL_MESSAGES: ChatMessage[] = [];
 
@@ -27,6 +47,7 @@ export default function Chatbot() {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
+  const [thinkingLabel, setThinkingLabel] = useState("Thinking");
   const scrollRef = useRef<ScrollView>(null);
   const downloadToastShown = useRef(false);
   const hasStarted = messages.length > 0;
@@ -48,6 +69,43 @@ export default function Chatbot() {
     setMessages(nextMessages);
     setIsThinking(true);
     try {
+      // Fast path: nearby hospital/clinic requests reuse the same
+      // Geoapify lookup as the Derma tab (no LLM hallucinations).
+      if (isNearbyClinicIntent(trimmed)) {
+        setThinkingLabel("Locating");
+        try {
+          const { clinics } = await findNearbyDermatologists(5);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `${Date.now()}-assistant`,
+              role: "assistant",
+              content: formatClinicsForChat(clinics),
+              clinics,
+              animate: clinics.length === 0,
+            },
+          ]);
+        } catch (err) {
+          console.error("Nearby lookup from chat failed:", err);
+          const msg =
+            err instanceof Error &&
+            err.message.includes("permission")
+              ? "I need your location to find nearby hospitals. Please allow location access, then ask again — or tap Derma to search manually."
+              : "Sorry, I couldn't fetch nearby hospitals right now. Please try again, or open the Derma tab for the full map.";
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `${Date.now()}-error`,
+              role: "assistant",
+              content: msg,
+              animate: true,
+            },
+          ]);
+        } finally {
+          setThinkingLabel("Thinking");
+        }
+        return;
+      }
       const history: ChatTurn[] = nextMessages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -55,9 +113,8 @@ export default function Chatbot() {
       const reply = await generateChatReply(history, userContext ?? undefined, (fraction) => {
         if (fraction < 0.1 && !downloadToastShown.current) {
           downloadToastShown.current = true;
-          ToastAndroid.show(
+          showDownloadNotice(
             "AI model is downloading. This may take a moment...",
-            ToastAndroid.LONG,
           );
         }
       });
@@ -91,7 +148,6 @@ export default function Chatbot() {
       prev.map((m) => (m.id === id ? { ...m, animate: false } : m)),
     );
   };
-
   const BackButton = (
     <Pressable
       onPress={() => router.back()}
@@ -103,13 +159,13 @@ export default function Chatbot() {
   );
 
   const InputBar = (
-    <View className="flex-row items-center gap-2 bg-white rounded-full shadow-sm px-2 py-2">
+    <View className="flex-row items-end gap-2 bg-white rounded-2xl border border-gray-200 shadow-sm px-2 py-2">
       <TextInput
         value={input}
         onChangeText={setInput}
-        placeholder="Type a message..."
+        placeholder="Ask about your skin..."
         placeholderTextColor="#9CA3AF"
-        className="flex-1 px-3 text-sm text-gray-800"
+        className="flex-1 px-3 py-2 text-[15px] leading-6 text-gray-900"
         multiline
         editable={!isThinking}
         onSubmitEditing={sendMessage}
@@ -130,25 +186,105 @@ export default function Chatbot() {
   );
   const renderMessage = (message: ChatMessage) => {
     const isUser = message.role === "user";
+    if (isUser) {
+      return (
+        <View
+          key={message.id}
+          accessible
+          accessibilityRole="text"
+          accessibilityLabel={`You: ${message.content}`}
+          className="max-w-[80%] rounded-2xl px-4 py-3 self-end bg-green-700 rounded-br-md"
+        >
+          <Text className="text-[15px] leading-6 text-white">
+            {message.content}
+          </Text>
+        </View>
+      );
+    }
     return (
       <View
         key={message.id}
-        className={`max-w-[80%] rounded-3xl px-4 py-3 ${
-          isUser ? "self-end bg-green-700" : "self-start bg-white shadow-sm"
-        }`}
+        accessible
+        accessibilityRole="text"
+        accessibilityLabel={`Assistant: ${message.content}`}
+        className="max-w-[85%] rounded-2xl px-4 py-3 self-start bg-white border border-gray-100 shadow-sm rounded-bl-md flex-col gap-2"
       >
         {message.animate ? (
           <TypewriterText
             text={message.content}
-            className="text-sm text-gray-800"
+            className="text-[15px] leading-6 text-gray-800"
             onDone={() => markAnimationDone(message.id)}
           />
         ) : (
-          <Text
-            className={`text-sm ${isUser ? "text-white" : "text-gray-800"}`}
-          >
+          <Text className="text-[15px] leading-6 text-gray-800">
             {message.content}
           </Text>
+        )}
+        {message.clinics && message.clinics.length > 0 && (
+          <View className="flex-col gap-2 mt-1">
+            {message.clinics.map((c) => (
+              <View
+                key={c.id}
+                className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-2.5 flex-col gap-1"
+              >
+                <View className="flex-row items-center gap-1.5">
+                  <MapPin size={13} color="#15803D" />
+                  <Text
+                    className="font-bold text-gray-900 text-[13px] flex-1"
+                    numberOfLines={1}
+                  >
+                    {c.name}
+                  </Text>
+                </View>
+                <Text
+                  className="text-[11px] text-gray-500"
+                  numberOfLines={2}
+                >
+                  {c.specialty} •{" "}
+                  {c.distanceKm > 0
+                    ? `${c.distanceKm.toFixed(1)} km away`
+                    : "Nearby"}
+                </Text>
+                <Text
+                  className="text-[11px] text-gray-500"
+                  numberOfLines={1}
+                >
+                  {c.address}
+                </Text>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: "/derma-info/[id]",
+                      params: {
+                        id: c.id,
+                        name: c.name,
+                        specialty: c.specialty,
+                        clinic: c.clinic,
+                        address: c.address,
+                        distanceKm: String(c.distanceKm),
+                        rating: String(c.rating),
+                        availableToday: String(c.availableToday),
+                      },
+                    })
+                  }
+                  className="bg-green-700 rounded-full px-3 py-1.5 mt-1 self-start active:opacity-80"
+                >
+                  <Text className="text-[11px] text-white font-bold">
+                    View more
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+            <Pressable
+              onPress={() => router.push("/(tabs)/derma")}
+              className="flex-row items-center justify-center gap-1.5 rounded-full border border-green-700 px-3 py-2 mt-1 active:opacity-80"
+            >
+              <Navigation size={13} color="#15803D" />
+              <Text className="text-[12px] font-bold text-green-700">
+                Open full map
+              </Text>
+            </Pressable>
+          </View>
         )}
       </View>
     );
@@ -210,8 +346,8 @@ export default function Chatbot() {
             {messages.map(renderMessage)}
 
             {isThinking && (
-              <View className="self-start bg-white shadow-sm rounded-3xl px-3 py-2">
-                <TypingDots />
+              <View className="self-start bg-white border border-gray-100 shadow-sm rounded-2xl rounded-bl-md px-2 py-1">
+                <TypingDots label={thinkingLabel} />
               </View>
             )}
           </View>

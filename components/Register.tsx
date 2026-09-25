@@ -105,30 +105,30 @@ export default function Register() {
     >
       <View className="flex-col gap-4">
         <View className="flex-col gap-2">
-          <Text className="font-medium">Email Address</Text>
-          <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
+          <Text className="text-sm font-medium text-gray-900">Email Address</Text>
+          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
             <Mail size={22} color="#4B5563" />
             <TextInput
               value={email}
               onChangeText={setEmail}
               placeholder="Enter your email address"
-              className="flex-1 text-gray-600"
-              placeholderTextColor="gray"
+              className="flex-1 text-gray-900"
+              placeholderTextColor="#9CA3AF"
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
         </View>
         <View className="flex-col gap-2">
-          <Text className="font-medium">Password</Text>
-          <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
+          <Text className="text-sm font-medium text-gray-900">Password</Text>
+          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
             <Lock size={22} color="#4B5563" />
             <TextInput
               value={password}
               onChangeText={setPassword}
               placeholder="Enter your password"
-              className="flex-1 text-gray-600"
-              placeholderTextColor="gray"
+              className="flex-1 text-gray-900"
+              placeholderTextColor="#9CA3AF"
               secureTextEntry={!showPassword}
             />
 
@@ -145,15 +145,15 @@ export default function Register() {
           </View>
         </View>
         <View className="flex-col gap-2">
-          <Text className="font-medium">Confirm Password</Text>
-          <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2">
+          <Text className="text-sm font-medium text-gray-900">Confirm Password</Text>
+          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
             <Lock size={22} color="#4B5563" />
             <TextInput
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirm your password"
-              className="flex-1 text-gray-600"
-              placeholderTextColor="gray"
+              className="flex-1 text-gray-900"
+              placeholderTextColor="#9CA3AF"
               secureTextEntry={!showConfirmPassword}
             />
             <Pressable

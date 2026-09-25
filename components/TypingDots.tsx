@@ -9,13 +9,14 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-const BOUNCE = -4;
-const DURATION = 300;
+const BOUNCE = -3;
+const DURATION = 320;
 
-export default function TypingDots() {
+export default function TypingDots({ label = "Thinking" }: { label?: string }) {
   const dot1 = useSharedValue(0);
   const dot2 = useSharedValue(0);
   const dot3 = useSharedValue(0);
+  const pulse = useSharedValue(1);
 
   useEffect(() => {
     const dots = [dot1, dot2, dot3];
@@ -31,7 +32,14 @@ export default function TypingDots() {
         ),
       );
     });
-  }, [dot1, dot2, dot3]);
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(0.6, { duration: 700 }),
+        withTiming(1, { duration: 700 }),
+      ),
+      -1,
+    );
+  }, [dot1, dot2, dot3, pulse]);
 
   const style1 = useAnimatedStyle(() => ({
     transform: [{ translateY: dot1.value }],
@@ -44,16 +52,24 @@ export default function TypingDots() {
   }));
 
   const styles = [style1, style2, style3];
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: pulse.value,
+  }));
 
   return (
-    <View className="flex-row items-center gap-1 px-1 py-1">
-      {styles.map((style, i) => (
-        <Animated.View
-          key={i}
-          style={style}
-          className="w-2 h-2 rounded-full bg-gray-400"
-        />
-      ))}
+    <View className="flex-row items-center gap-2 px-2 py-1.5">
+      <Animated.Text style={pulseStyle} className="text-[13px] font-semibold text-green-700">
+        {label}
+      </Animated.Text>
+      <View className="flex-row items-center gap-1">
+        {styles.map((style, i) => (
+          <Animated.View
+            key={i}
+            style={style}
+            className="w-1.5 h-1.5 rounded-full bg-green-700"
+          />
+        ))}
+      </View>
     </View>
   );
 }

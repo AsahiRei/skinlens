@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -24,6 +26,14 @@ import type { ResultData } from "@/types/schema";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
+
+const showNotice = (message: string) => {
+  if (Platform.OS === "android") {
+    ToastAndroid.show(message, ToastAndroid.SHORT);
+  } else {
+    Alert.alert("SkinLens", message);
+  }
+};
 
 const detectionDescriptions: Record<string, string> = {
   acne: "Our AI detected signs of acne on your skin. Acne is a common skin condition caused by clogged pores, excess oil, and bacteria. With the right routine, it can be managed effectively.",
@@ -50,6 +60,7 @@ export default function ScanResults() {
     sourceType,
     label,
     confidence,
+    probabilities,
     surveyAnswers,
     severityScore,
   } = useLocalSearchParams<{
@@ -57,6 +68,7 @@ export default function ScanResults() {
     sourceType: string;
     label: string;
     confidence: string;
+    probabilities: string;
     surveyAnswers: string;
     severityScore: string;
   }>();
@@ -64,6 +76,33 @@ export default function ScanResults() {
   const detectionLabel = label ?? "normal";
   const surveyScore = Number(severityScore) || 50;
   const conf = Number(confidence) || 0;
+  // probabilities comes from analyzing via survey — never trust it blindly.
+  const topPredictions: { label: string; confidence: number }[] = useMemo(() => {
+    if (probabilities) {
+      try {
+        const parsed: unknown = JSON.parse(probabilities);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          const entries = Object.entries(parsed as Record<string, unknown>)
+            .filter(
+              (entry): entry is [string, number] =>
+                typeof entry[1] === "number" && Number.isFinite(entry[1]),
+            )
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([predLabel, predConf]) => ({
+              label: predLabel,
+              confidence: predConf,
+            }));
+          if (entries.length > 0) return entries;
+        }
+      } catch {
+        // fall through to fallback below
+      }
+    }
+    // Fallback when probabilities are missing/malformed: show top detection only.
+    return [{ label: detectionLabel, confidence: conf }];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [probabilities]);
   // surveyAnswers comes from navigation params — never trust it blindly.
   const parsedSurveyAnswers: Record<string, string> = useMemo(() => {
     if (!surveyAnswers) return {};
@@ -117,10 +156,7 @@ export default function ScanResults() {
       const preloadPromise = preloadLlama((fraction) => {
         if (fraction < 0.1 && !downloadToastShown.current) {
           downloadToastShown.current = true;
-          ToastAndroid.show(
-            "AI model is downloading. This may take a moment...",
-            ToastAndroid.LONG,
-          );
+          showNotice("AI model is downloading. This may take a moment...");
         }
       });
       const profilesPromise = Promise.all([
@@ -157,7 +193,7 @@ export default function ScanResults() {
       if (cancelledRef.current) return;
 
       if (cloudinaryUrl) {
-        ToastAndroid.show("Image uploaded to cloud", ToastAndroid.SHORT);
+        showNotice("Image uploaded to cloud");
       }
 
       await insertResult({
@@ -203,10 +239,7 @@ export default function ScanResults() {
     try {
       router.replace("/(tabs)");
     } catch {
-      ToastAndroid.show(
-        "Something went wrong. Please try again.",
-        ToastAndroid.SHORT,
-      );
+      showNotice("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -216,7 +249,7 @@ export default function ScanResults() {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <View className="flex-1 px-6 items-center justify-center">
-          <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2 w-full">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2 w-full">
             <AlertCircle size={28} color="#B91C1C" />
             <Text className="font-bold text-gray-800">
               {"Couldn't generate results"}
@@ -306,8 +339,52 @@ export default function ScanResults() {
             </View>
           </View>
 
+          {/* Top 3 classifications */}
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-3">
+            <Text className="font-bold text-gray-800 text-lg">
+              Top 3 Predictions
+            </Text>
+            {topPredictions.map((pred, index) => {
+              const pct = Math.max(0, Math.min(100, pred.confidence * 100));
+              const isTop = index === 0;
+              return (
+                <View key={`${pred.label}-${index}`} className="gap-1.5">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2">
+                      <View
+                        className={`h-6 w-6 items-center justify-center rounded-full ${
+                          isTop ? "bg-green-700" : "bg-gray-100"
+                        }`}
+                      >
+                        <Text
+                          className={`text-xs font-bold ${
+                            isTop ? "text-white" : "text-gray-500"
+                          }`}
+                        >
+                          {index + 1}
+                        </Text>
+                      </View>
+                      <Text className="text-sm font-bold text-gray-900 capitalize">
+                        {pred.label}
+                      </Text>
+                    </View>
+                    <Text className="text-sm font-medium text-gray-500">
+                      {pct.toFixed(1)}%
+                    </Text>
+                  </View>
+                  <View className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                    <View
+                      className={isTop ? "h-full rounded-full bg-green-700" : "h-full rounded-full bg-green-300"}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
           {/* Detection explanation */}
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-3">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-3">
             <View className="flex-row items-center gap-3">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
                 <FileText
@@ -327,7 +404,7 @@ export default function ScanResults() {
 
           {/* Generating indicator */}
           {generating && (
-            <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-3">
+            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-3">
               <ActivityIndicator color="#15803D" size="small" />
               <Text className="text-sm text-gray-500">
                 Generating your personalized routine...
@@ -339,7 +416,7 @@ export default function ScanResults() {
           {!generating &&
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
-              <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-4">
+              <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-4">
                 <Text className="font-bold text-gray-800 text-lg">
                   Recommended Products
                 </Text>

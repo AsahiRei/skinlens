@@ -162,7 +162,7 @@ export default function Setup() {
               {item.label}
             </Text>
             {item.type === "options" && (
-              <View className="bg-white rounded-xl border border-gray-100 p-3 flex-col gap-2">
+              <View className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex-col gap-2">
                 {item.options?.map((option: any, index: any) => {
                   const isSelected = answers[item.id] === option.value;
                   return (
@@ -204,7 +204,7 @@ export default function Setup() {
               </View>
             )}
             {item.type === "text" && (
-              <View className="bg-white rounded-xl border border-gray-100 p-4">
+              <View className="bg-white rounded-2xl border border-gray-200 px-4 py-3">
                 <TextInput
                   value={answers[item.id] || ""}
                   onChangeText={(text) => handleSelect(item.id, text)}
@@ -216,7 +216,7 @@ export default function Setup() {
               </View>
             )}
             {item.type === "date" && (
-              <View className="bg-white rounded-xl border border-gray-100 p-4">
+              <View className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
                 <View className="flex-row gap-3">
                   <View className="flex-1 items-center gap-2">
                     <Text className="text-xs font-semibold text-gray-500">Month</Text>

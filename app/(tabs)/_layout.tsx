@@ -57,6 +57,7 @@ export default function Layout() {
           name="scan"
           options={{
             title: "Scan",
+            tabBarAccessibilityLabel: "Scan skin",
             tabBarLabel: () => null,
             tabBarButton: ({ ref, ...props }) => (
               <Pressable
@@ -80,6 +81,11 @@ export default function Layout() {
                       marginBottom: 20,
                       opacity: pressed ? 0.8 : 1,
                       transform: [{ scale: pressed ? 0.95 : 1 }],
+                      shadowColor: "#15803D",
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
                     }}
                   >
                     <Scan size={26} color="#fff" />

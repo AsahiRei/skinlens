@@ -43,14 +43,14 @@ export default function ForgotPassword() {
         <Text className="text-center text-gray-600 mt-2">
           Enter your email account to reset password
         </Text>
-        <View className="flex-row items-center shadow bg-white rounded-full py-1 px-4 gap-2 mt-6">
+        <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2 mt-6">
           <Mail size={22} color="#4B5563" />
           <TextInput
             value={email}
             onChangeText={setEmail}
             placeholder="Enter your email address"
-            className="flex-1 text-gray-600"
-            placeholderTextColor="gray"
+            className="flex-1 text-gray-900"
+            placeholderTextColor="#9CA3AF"
             keyboardType="email-address"
             autoCapitalize="none"
           />

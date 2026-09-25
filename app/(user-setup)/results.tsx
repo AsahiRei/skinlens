@@ -110,7 +110,7 @@ export default function Results() {
             </View>
           </View>
 
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-3">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-3">
             <View className="flex-row items-center gap-3">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
                 <Sparkles size={20} color="#15803D" />
@@ -123,7 +123,7 @@ export default function Results() {
           </View>
 
           {resultLoading ? (
-            <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-3">
+            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-3">
               <ActivityIndicator color="#15803D" size="small" />
               <Text className="text-sm text-gray-500">
                 Loading your recommended products...
@@ -132,7 +132,7 @@ export default function Results() {
           ) : (
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
-              <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-4">
+              <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-4">
                 <Text className="font-bold text-gray-800 text-lg">
                   Recommended Products
                 </Text>
@@ -169,7 +169,7 @@ export default function Results() {
           )}
 
           {Object.keys(parsedAnswers).length > 0 && (
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-3">
+            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-3">
               <Text className="font-bold text-gray-800 text-lg">
                 Your Answers
               </Text>

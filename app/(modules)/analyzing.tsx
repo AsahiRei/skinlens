@@ -158,7 +158,7 @@ export default function Analyzing() {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <View className="flex-1 px-6 items-center justify-center">
-          <View className="bg-white rounded-xl border border-gray-100 py-10 px-6 items-center gap-2 w-full">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2 w-full">
             <AlertCircle size={28} color="#B91C1C" />
             <Text className="font-bold text-gray-800">Analysis failed</Text>
             <Text className="text-sm text-gray-500 text-center">{error}</Text>
@@ -317,7 +317,7 @@ export default function Analyzing() {
             <InlineProgress progress={progressPct} height={8} color="#15803D" />
           </View>
 
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 w-full gap-3">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 w-full gap-3">
             {steps.map((step, i) => {
               const isDone = i < stepIndex;
               const isActive = i === stepIndex;

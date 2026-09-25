@@ -95,7 +95,7 @@ export default function NotificationsScreen() {
         {/* Notifications list */}
         <View className="mt-5 gap-3">
           {notifications.length === 0 ? (
-            <View className="bg-white rounded-xl border border-gray-100 py-12 px-4 items-center">
+            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-12 px-4 items-center">
               <Bell size={32} color="#D1D5DB" />
               <Text className="text-sm text-gray-400 mt-3 text-center">
                 No notifications yet
@@ -109,7 +109,7 @@ export default function NotificationsScreen() {
               <Pressable
                 key={notification.id}
                 onPress={() => markAsRead(notification.id)}
-                className={`bg-white rounded-xl border py-4 px-4 flex-row items-start active:opacity-90 ${
+                className={`bg-white rounded-2xl border shadow-sm py-4 px-4 flex-row items-start active:opacity-90 ${
                   notification.read ? "border-gray-100" : "border-green-200"
                 }`}
               >

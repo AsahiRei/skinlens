@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, TrendingUp, Calendar, FileText } from "lucide-react-native";
+import { ArrowLeft, TrendingUp, Calendar, FileText, ArrowRight, Check } from "lucide-react-native";
 import Svg, { Path, Circle, Line as SvgLine } from "react-native-svg";
 
 import Skeleton from "@/components/Skeleton";
@@ -25,7 +25,7 @@ import { exportSkinReport } from "@/utils/report";
 
 const CONFIDENCE_COLOR = "#15803D";
 const CONFIDENCE_BG = "#DCFCE7";
-const BAR_COLORS = ["#15803D", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6"];
+const BAR_COLORS = ["#15803D", "#4ADE80"];
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -440,7 +440,7 @@ export default function Progress() {
         </View>
 
         {/* Overall Improvement */}
-        <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-row items-center justify-between">
+        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4 flex-row items-center justify-between">
           <View className="flex-col">
             <Text className="text-gray-500 text-sm">Overall Improvement</Text>
             <Text className="font-bold text-green-700 text-3xl mt-1">
@@ -456,9 +456,10 @@ export default function Progress() {
               <TrendingUp size={22} color="#15803D" />
             </View>
             {isImproving && (
-              <View className="bg-green-50 rounded-full px-3 py-1">
+              <View className="bg-green-50 rounded-full px-3 py-1 flex-row items-center gap-1">
+                <TrendingUp size={12} color="#15803D" />
                 <Text className="text-xs font-bold text-green-700">
-                  Improving ↑
+                  Improving
                 </Text>
               </View>
             )}
@@ -466,7 +467,7 @@ export default function Progress() {
         </View>
 
         {/* AI Confidence Trend */}
-        <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
           <Text className="font-bold text-gray-900 text-[15px] mb-3">
             AI Confidence Trend
           </Text>
@@ -474,7 +475,7 @@ export default function Progress() {
         </View>
 
         {/* Symptom Trend */}
-        <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
           <Text className="font-bold text-gray-900 text-[15px]">
             Symptom Trend
           </Text>
@@ -486,7 +487,7 @@ export default function Progress() {
         {/* Weekly Summary */}
         <View className="bg-green-700 rounded-xl py-4 px-4 mt-4">
           <Text className="font-bold text-white text-base">
-            WEEKLY SUMMARY
+            Weekly summary
           </Text>
           <Text className="text-green-100 text-xs mt-1">
             {weekScans} scans · Avg score: {weekAvgScore}%
@@ -496,14 +497,14 @@ export default function Progress() {
           ) : aiSummary ? (
             <TypewriterText
               text={aiSummary}
-              className="text-green-200 text-xs mt-2 leading-5"
+              className="text-green-50 text-xs mt-2 leading-5"
             />
           ) : null}
         </View>
 
         {/* Before vs. Today */}
         {firstResult && latestResult && firstResult.id !== latestResult.id && (
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
             <Text className="font-bold text-gray-900 text-[15px] mb-3">
               Before vs. Today
             </Text>
@@ -529,12 +530,12 @@ export default function Progress() {
               </View>
 
               {/* Arrow + improvement */}
-              <View className="items-center px-3">
+              <View className="items-center px-3 gap-1">
                 <Text className="text-green-700 font-bold text-lg">
                   {improvement > 0 ? "+" : ""}
                   {improvement.toFixed(1)}%
                 </Text>
-                <Text className="text-gray-400 text-lg">→</Text>
+                <ArrowRight size={18} color="#9CA3AF" />
               </View>
 
               {/* Today */}
@@ -552,16 +553,19 @@ export default function Progress() {
                     </View>
                   )}
                 </View>
-                <Text className="text-xs text-green-700 font-bold mt-2">
-                  Today ✓
-                </Text>
+                <View className="flex-row items-center gap-1 mt-2">
+                  <Text className="text-xs text-green-700 font-bold">
+                    Today
+                  </Text>
+                  <Check size={12} color="#15803D" />
+                </View>
               </View>
             </View>
           </View>
         )}
 
         {/* Scan History */}
-        <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
           <Text className="font-bold text-gray-900 text-[15px] mb-3">
             Scan History
           </Text>
@@ -614,7 +618,7 @@ export default function Progress() {
 
         {/* Weekly detail cards */}
         {weekResults.length > 0 && (
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
             <Text className="font-bold text-gray-900 text-[15px] mb-3">
               {"This Week's Scans"}
             </Text>

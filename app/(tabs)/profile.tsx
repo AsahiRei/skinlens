@@ -122,7 +122,7 @@ export default function Profile() {
                   <Text className="text-sm font-bold text-green-700">Edit</Text>
                 </Pressable>
               </View>
-              <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col mt-4">
+              <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-col mt-4">
                 <Text className="text-gray-700 mt-0.5 text-xl font-semibold">
                   {userProfile?.first_name || userProfile?.username}
                 </Text>
@@ -164,7 +164,7 @@ export default function Profile() {
 
           {/* Skin profile */}
           {loadingSkin ? (
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-5">
+            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-col gap-3 mt-5">
               <Skeleton className="h-5 w-28" />
               <View className="flex-row gap-3">
                 <InfoCardSkeleton />
@@ -172,7 +172,7 @@ export default function Profile() {
               </View>
             </View>
           ) : (
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-5">
+            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-col gap-3 mt-5">
               <Text className="text-base font-semibold text-gray-900">
                 Skin Profile
               </Text>
@@ -193,7 +193,7 @@ export default function Profile() {
 
           {/* Lifestyle info */}
           {loadingLifestyle ? (
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">
+            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-col gap-3 mt-4">
               <Skeleton className="h-5 w-28 mb-1" />
               {[0, 1, 2].map((i) => (
                 <View
@@ -211,7 +211,7 @@ export default function Profile() {
               ))}
             </View>
           ) : (
-            <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">
+            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-col gap-3 mt-4">
               <Text className="text-base font-semibold text-gray-900 mb-1">
                 Lifestyle Info
               </Text>
@@ -255,7 +255,7 @@ export default function Profile() {
           <TouchableOpacity
             onPress={() => router.push("/(modules)/sensitivity")}
             activeOpacity={0.7}
-            className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4"
           >
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-3 flex-1 pr-2">
@@ -287,7 +287,7 @@ export default function Profile() {
           </TouchableOpacity>
 
           {/* Notifications */}
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3 mt-4">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-col gap-3 mt-4">
             <Text className="text-base font-semibold text-gray-900 mb-1">
               Notifications
             </Text>
@@ -326,7 +326,9 @@ export default function Profile() {
           </View>
 
           <Pressable
-            className="bg-red-500 active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
+            className="bg-red-600 active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
+            accessibilityRole="button"
+            accessibilityLabel="Logout"
             onPress={() => setLogoutModal(true)}
           >
             <LogOut size={18} color="#FFFFFF" />

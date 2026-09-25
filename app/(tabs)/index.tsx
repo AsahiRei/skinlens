@@ -71,11 +71,11 @@ export default function Home() {
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) {
-      return "Good morning ☀️";
+      return "Good morning";
     } else if (hour < 18) {
-      return "Good afternoon 🌤️";
+      return "Good afternoon";
     } else {
-      return "Good evening 🌙";
+      return "Good evening";
     }
   };
   const fetchUserProfile = async () => {
@@ -219,17 +219,20 @@ export default function Home() {
           <Pressable
             className="h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm active:opacity-80"
             onPress={() => router.push("/(modules)/notifications")}
+            accessibilityRole="button"
+            accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+            hitSlop={8}
           >
             <Bell size={20} color="#15803D" />
             {unreadCount > 0 && (
-              <View className="absolute top-2 right-2.5 h-2.5 w-2.5 rounded-full bg-red-500 border border-white" />
+              <View className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full bg-red-500 border border-white" />
             )}
           </Pressable>
         </View>
 
         {/* Skin health score */}
         {loadingResult ? (
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-row items-center gap-4 mt-5">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-center gap-4 mt-5">
             <Skeleton className="h-[68px] w-[68px] rounded-full" />
             <View className="flex-col flex-1 gap-2">
               <Skeleton className="h-4 w-32" />
@@ -238,7 +241,7 @@ export default function Home() {
             </View>
           </View>
         ) : (
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-row items-center gap-4 mt-5">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-center gap-4 mt-5">
             <CircularProgress
               progress={Number(result?.healthscore ?? 0)}
               size={68}
@@ -271,12 +274,12 @@ export default function Home() {
 
         {/* Routine (paginated: morning / afternoon / evening) */}
         {loadingRoutine ? (
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-col gap-3">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4 flex-col gap-3">
             <Skeleton className="h-5 w-36" />
             <Skeleton className="h-16 w-full rounded-2xl" />
           </View>
         ) : (
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-col gap-3">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4 flex-col gap-3">
             <View className="flex-row items-center justify-between">
               <Pressable
                 onPress={() => goToPeriod(-1)}
@@ -351,17 +354,20 @@ export default function Home() {
                       <Pressable
                         key={item.step}
                         onPress={() => handleToggleStep(activePeriod, item.step)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: isDone }}
+                        accessibilityLabel={`${item.product_type}, ${isDone ? "completed" : "not completed"}`}
                         className="flex-col items-center gap-1.5 flex-1 active:opacity-70"
                       >
                         <View
                           className={`h-10 w-10 rounded-full items-center justify-center ${
-                            isDone ? "bg-green-700" : "bg-green-50"
+                            isDone ? "bg-green-700" : "bg-green-50 border border-green-700/30"
                           }`}
                         >
                           {isDone ? (
                             <Check size={16} color="white" />
                           ) : (
-                            <View className="h-2.5 w-2.5 rounded-full bg-green-700/40" />
+                            <View className="h-2.5 w-2.5 rounded-full bg-green-700" />
                           )}
                         </View>
                         <Text
@@ -380,7 +386,7 @@ export default function Home() {
         )}
 
         {/* Quick AI Scan */}
-        <Pressable className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90" onPress={() => router.push("/scan")}>
+        <Pressable className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90" onPress={() => router.push("/scan")}>
           <View className="flex-row items-center gap-3 flex-1">
             <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
               <Camera size={22} color="#15803D" />
@@ -402,7 +408,7 @@ export default function Home() {
         {/* Chatbot & Progress quick actions */}
         <View className="flex-row gap-3 mt-4">
           <Pressable
-            className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
             onPress={() => router.push("/(modules)/chatbot")}
           >
             <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
@@ -420,7 +426,7 @@ export default function Home() {
           </Pressable>
 
           <Pressable
-              className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
               onPress={() => router.push("/(modules)/progress")}
             >
               <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
@@ -437,7 +443,7 @@ export default function Home() {
 
         {/* Last scan result */}
         {loadingResult ? (
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
             <Skeleton className="h-4 w-32 mb-3" />
             <View className="flex-row items-center gap-3 pt-3 border-t border-gray-100">
               <Skeleton className="h-11 w-11 rounded-2xl" />
@@ -448,7 +454,7 @@ export default function Home() {
             </View>
           </View>
         ) : (
-          <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 mt-4">
+          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
             <View className="flex-row items-center justify-between">
               <Text className="font-bold text-gray-900 text-[15px]">
                 Last Scan Result

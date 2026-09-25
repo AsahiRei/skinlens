@@ -178,7 +178,7 @@ export default function Survey() {
             <Text className="text-2xl font-bold text-green-700">
               {item.label}
             </Text>
-            <View className="bg-white rounded-xl border border-gray-100 p-3 flex-col gap-2">
+            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex-col gap-2">
               {item.options.map((option, optIndex) => {
                 const isSelected = answers[item.id] === option.value;
                 return (
@@ -225,13 +225,15 @@ export default function Survey() {
       <View className="gap-3 px-6 pb-6">
         <Pressable
           disabled={!isAnswered}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !isAnswered }}
           className={`rounded-full p-4 active:opacity-80 ${
-            isAnswered ? "bg-green-700" : "bg-green-700/40"
+            isAnswered ? "bg-green-700" : "bg-gray-200"
           }`}
           onPress={handleNext}
         >
           <View className="flex-row items-center justify-center gap-1">
-            <Text className="font-bold text-white">
+            <Text className={`font-bold ${isAnswered ? "text-white" : "text-gray-500"}`}>
               {isLastPage ? "See Results" : "Next"}
             </Text>
             {!isLastPage && (

@@ -12,6 +12,7 @@ export default function TypewriterText({
 }) {
   const [visibleCount, setVisibleCount] = useState(0);
   const [prevText, setPrevText] = useState(text);
+  const [blinkOn, setBlinkOn] = useState(true);
   // Reset during render (React-endorsed "adjust state during render" pattern)
   // instead of setState-in-effect, so a new text restarts the animation.
   if (prevText !== text) {
@@ -25,15 +26,31 @@ export default function TypewriterText({
     onDoneRef.current = onDone;
   });
 
+  const done = visibleCount >= text.length;
+
   useEffect(() => {
-    if (visibleCount >= text.length) {
+    if (done) {
       onDoneRef.current?.();
       return;
     }
     const timeout = setTimeout(() => {
-      setVisibleCount((prev) => Math.min(prev + 2, text.length));
-    }, 18);
+      setVisibleCount((prev) => Math.min(prev + 3, text.length));
+    }, 16);
     return () => clearTimeout(timeout);
-  }, [visibleCount, text]);
-  return <Text className={className}>{text.slice(0, visibleCount)}</Text>;
+  }, [visibleCount, text, done]);
+
+  useEffect(() => {
+    if (done) return;
+    const blink = setInterval(() => {
+      setBlinkOn((prev) => !prev);
+    }, 400);
+    return () => clearInterval(blink);
+  }, [done]);
+
+  return (
+    <Text className={className}>
+      {text.slice(0, visibleCount)}
+      {!done && <Text className={className}>{blinkOn ? "▍" : " "}</Text>}
+    </Text>
+  );
 }

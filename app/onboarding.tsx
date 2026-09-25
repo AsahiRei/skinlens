@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import PagerView from "react-native-pager-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ArrowRight, Download, AlertCircle } from "lucide-react-native";
+import { ArrowRight, Download, AlertCircle, ScanFace, Camera, Sparkles, TrendingUp } from "lucide-react-native";
 import { useRouter } from "expo-router";
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import onboardingPage from "@/data/onboarding.json";
 import { cancelDownload, getModelPath, getSelectedModel } from "@/utils/llama";
+
+const PAGE_ICONS = [ScanFace, Camera, Sparkles, TrendingUp];
 
 export default function Onboarding() {
   const pagerRef = useRef<PagerView>(null);
@@ -148,16 +150,22 @@ export default function Onboarding() {
               setPage(event.nativeEvent.position);
             }}
           >
-            {onboardingPage.map((item, index) => (
-              <View key={index} className="items-center justify-center px-6">
-                <Text className="text-3xl font-bold text-center text-green-700">
+            {onboardingPage.map((item, index) => {
+              const Icon = PAGE_ICONS[index % PAGE_ICONS.length];
+              return (
+              <View key={index} className="items-center justify-center px-8">
+                <View className="h-20 w-20 rounded-3xl bg-green-50 border border-green-100 items-center justify-center mb-6">
+                  <Icon size={32} color="#15803D" />
+                </View>
+                <Text className="text-3xl font-bold text-center text-green-800 tracking-tight">
                   {item.title}
                 </Text>
-                <Text className="mt-3 text-center text-gray-600">
+                <Text className="mt-3 text-center text-gray-500 leading-6">
                   {item.description}
                 </Text>
               </View>
-            ))}
+              );
+            })}
           </PagerView>
           <View className="mx-6 mb-8">
             <Pressable

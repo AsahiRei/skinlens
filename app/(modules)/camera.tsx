@@ -372,7 +372,7 @@ export default function FaceDetectionScreen() {
   if (!device) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
-        <ActivityIndicator size="large" color="#00FF88" />
+        <ActivityIndicator size="large" color="#FFFFFF" />
         <Text className="mt-3 text-base text-white">Loading camera...</Text>
       </View>
     );
@@ -427,7 +427,7 @@ export default function FaceDetectionScreen() {
           {!isPreview && (
             <Pressable
               onPress={() => setIsMultiAngle((p) => !p)}
-              className={`px-4 py-2 rounded-full ${isMultiAngle ? "bg-green-600" : "bg-white/15"}`}
+              className={`px-4 py-2 rounded-full ${isMultiAngle ? "bg-green-700" : "bg-white/15"}`}
             >
               <Text className={`text-xs font-semibold ${isMultiAngle ? "text-white" : "text-white/80"}`}>
                 {isMultiAngle ? "Multi-Angle" : "Single Shot"}

@@ -151,7 +151,7 @@ export default function Derma() {
         </Text>
 
         {/* Search bar */}
-        <View className="flex-row items-center bg-white rounded-2xl shadow-sm px-4 py-3 mt-5 gap-2">
+        <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 mt-5 gap-2">
           <Search size={18} color="#9CA3AF" />
           <TextInput
             value={query}
@@ -274,14 +274,14 @@ export default function Derma() {
             <Skeleton className="h-32 w-full rounded-xl" />
           </View>
         ) : !hasSearched ? (
-          <View className="items-center py-10 bg-white rounded-xl border border-gray-100 mt-2">
+          <View className="items-center py-10 bg-white rounded-2xl border border-gray-100 shadow-sm mt-2">
             <Navigation size={26} color="#D1D5DB" />
             <Text className="text-xs text-gray-400 mt-2 text-center">
               {'Tap "Find Dermatologist Nearby" to search.'}
             </Text>
           </View>
         ) : filtered.length === 0 ? (
-          <View className="items-center py-10 bg-white rounded-xl border border-gray-100 mt-2">
+          <View className="items-center py-10 bg-white rounded-2xl border border-gray-100 shadow-sm mt-2">
             <Cross size={26} color="#D1D5DB" />
             <Text className="text-xs text-gray-400 mt-2 text-center">
               No dermatologists match your search.
@@ -292,7 +292,7 @@ export default function Derma() {
             {filtered.map((d) => (
               <View
                 key={d.id}
-                className="bg-white rounded-xl border border-gray-100 py-4 px-4 flex-col gap-3"
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-col gap-3"
               >
                 <View className="flex-row items-center gap-3">
                   <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
@@ -351,7 +351,7 @@ export default function Derma() {
                       </View>
                     )}
                     <Text className="text-xs text-gray-400">
-                      {d.distanceKm.toFixed(1)} km away
+                      {d.distanceKm > 0 ? `${d.distanceKm.toFixed(1)} km away` : "Nearby"}
                     </Text>
                   </View>
                   <Pressable

@@ -53,7 +53,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <View className="bg-white rounded-xl border border-gray-100 py-4 px-4 gap-3 mt-4">
+    <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-3 mt-4">
       <Text className="text-base font-semibold text-gray-900">{title}</Text>
       {children}
     </View>
@@ -221,7 +221,7 @@ export default function EditProfile() {
           <Section title="Personal Info">
             <View className="gap-1.5">
               <FieldLabel label="First Name" />
-              <View className="bg-gray-50 rounded-xl border border-gray-200 px-4">
+              <View className="bg-white rounded-2xl border border-gray-200 px-4">
                 <TextInput
                   value={firstName}
                   onChangeText={setFirstName}
