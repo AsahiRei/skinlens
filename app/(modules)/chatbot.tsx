@@ -21,6 +21,8 @@ import {
 
 import TypewriterText from "@/components/TypewriterText";
 import TypingDots from "@/components/TypingDots";
+import ChatImageCarousel from "@/components/ChatImageCarousel";
+import ChatProductCard from "@/components/ChatProductCard";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import type { ChatMessage, ChatTurn } from "@/types/chat";
@@ -30,6 +32,16 @@ import {
   formatClinicsForChat,
   isNearbyClinicIntent,
 } from "@/utils/nearby-derma";
+import {
+  attachProductImages,
+  findIngredientImages,
+  formatImagesForChat,
+  getProductsForConcern,
+  getRecommendedProducts,
+  getRelatedProducts,
+  isIngredientImageIntent,
+  isProductListIntent,
+} from "@/utils/ingredient-images";
 
 const showDownloadNotice = (message: string) => {
   if (Platform.OS === "android") {
@@ -50,12 +62,21 @@ export default function Chatbot() {
   const [thinkingLabel, setThinkingLabel] = useState("Thinking");
   const scrollRef = useRef<ScrollView>(null);
   const downloadToastShown = useRef(false);
+  const msgCountRef = useRef(0);
   const hasStarted = messages.length > 0;
+  // Only auto-scroll when a NEW message arrives. Scrolling on every
+  // isThinking/animate flag change yanks the list back while the user is
+  // trying to scroll (felt like a scroll lock).
   useEffect(() => {
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    });
-  }, [messages, isThinking]);
+    if (messages.length > msgCountRef.current) {
+      msgCountRef.current = messages.length;
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      });
+    } else {
+      msgCountRef.current = messages.length;
+    }
+  }, [messages]);
   const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed || isThinking) return;
@@ -110,6 +131,41 @@ export default function Chatbot() {
         role: m.role,
         content: m.content,
       }));
+      // Live ingredient/product visuals load in parallel with the on-device
+      // LLM so text latency is unchanged. Images are UI attachments — the
+      // text-only model never sees them.
+      const wantsImages = isIngredientImageIntent(trimmed);
+      const wantsProductList = isProductListIntent(trimmed);
+      const showVisuals = wantsImages || wantsProductList;
+      if (showVisuals) setThinkingLabel("Finding images");
+      const imagesPromise = wantsImages
+        ? findIngredientImages(trimmed, 4)
+        : Promise.resolve([]);
+      const productsPromise = showVisuals
+        ? (async () => {
+            const seen = new Set<string>();
+            // "Recommendation / product list" shows ONLY the user's own
+            // recommended products — no hardcoded-catalog filler. A
+            // specific-ingredient question scopes to that ingredient instead.
+            const candidates =
+              wantsProductList && !wantsImages
+                ? userContext
+                  ? getRecommendedProducts(userContext, 3)
+                  : []
+                : [
+                    ...getRelatedProducts(trimmed, 3),
+                    ...getProductsForConcern(trimmed, 3),
+                  ];
+            const base = candidates
+              .filter((p) =>
+                seen.has(p.product_type)
+                  ? false
+                  : (seen.add(p.product_type), true),
+              )
+              .slice(0, 3);
+            return attachProductImages(base);
+          })()
+        : Promise.resolve([]);
       const reply = await generateChatReply(history, userContext ?? undefined, (fraction) => {
         if (fraction < 0.1 && !downloadToastShown.current) {
           downloadToastShown.current = true;
@@ -118,13 +174,22 @@ export default function Chatbot() {
           );
         }
       });
+      const images = await imagesPromise;
+      const relatedProducts = await productsPromise;
+      setThinkingLabel("Thinking");
       setMessages((prev) => [
         ...prev,
         {
           id: `${Date.now()}-assistant`,
           role: "assistant",
-          content: reply,
+          content:
+            images.length > 0
+              ? `${reply}\n\n${formatImagesForChat(images)}`
+              : reply,
           animate: true,
+          images: images.length > 0 ? images : undefined,
+          relatedProducts:
+            relatedProducts.length > 0 ? relatedProducts : undefined,
         },
       ]);
     } catch (error) {
@@ -219,6 +284,16 @@ export default function Chatbot() {
           <Text className="text-[15px] leading-6 text-gray-800">
             {message.content}
           </Text>
+        )}
+        {message.images && message.images.length > 0 && (
+          <ChatImageCarousel images={message.images} />
+        )}
+        {message.relatedProducts && message.relatedProducts.length > 0 && (
+          <View className="flex-col gap-2 mt-1">
+            {message.relatedProducts.map((p) => (
+              <ChatProductCard key={p.product_type} product={p} />
+            ))}
+          </View>
         )}
         {message.clinics && message.clinics.length > 0 && (
           <View className="flex-col gap-2 mt-1">

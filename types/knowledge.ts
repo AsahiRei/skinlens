@@ -11,3 +11,10 @@ export type ProductEntry = {
   recommended_ingredients: string[];
   concerns: SkinCondition[];
 };
+
+/** Product with an optional example photo (Pexels) for chat display. */
+export type ProductWithImage = ProductEntry & {
+  imageUrl?: string;
+  imageSourceUrl?: string;
+  imageSourceName?: string;
+};

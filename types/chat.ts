@@ -1,4 +1,5 @@
 import type { Dermatologist } from "./schema";
+import type { ProductWithImage } from "./knowledge";
 
 export type ChatTurn = {
   role: "user" | "assistant";
@@ -24,10 +25,20 @@ export type ChatUserContext = {
 
 export type ChatRole = "user" | "assistant";
 
+export type ChatImage = {
+  id: string;
+  title: string;
+  imageUrl: string;
+  sourceUrl: string;
+  sourceName: string;
+};
+
 export type ChatMessage = {
   id: string;
   role: ChatRole;
   content: string;
   animate?: boolean;
   clinics?: Dermatologist[];
+  images?: ChatImage[];
+  relatedProducts?: ProductWithImage[];
 };
