@@ -14,6 +14,13 @@ import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import stepsData from "@/data/steps.json";
 import { classifyImage, enhanceImage } from "@/utils/skin-prediction";
+import { getFaceIdentity } from "@/lib/db/profile";
+import {
+  cosineSimilarity,
+  FACE_MATCH_THRESHOLD,
+  getFaceEmbedding,
+  parseEmbedding,
+} from "@/utils/face-embeddings";
 import type { ClassificationResult } from "@/types/skin";
 
 const steps = stepsData.analyzing;
@@ -121,9 +128,41 @@ export default function Analyzing() {
       const finalResult = isMulti ? aggregateResults(results) : results[0];
 
       goToStep(2);
+      // ── Face verification gate ──
+      // The scan must come from the enrolled face, otherwise the user is
+      // sent to the mismatch page and can never reach the survey.
+      // Accounts enrolled before this feature (no stored embedding) are
+      // grandfathered through; model failures fail open with a warning so
+      // a broken model file can't brick scanning.
+      const stored = await getFaceIdentity().catch(() => null);
+      const enrolled = parseEmbedding(stored?.face_embedding ?? null);
+      if (stored && enrolled) {
+        try {
+          const live = await getFaceEmbedding(uris[0]);
+          const similarity = cosineSimilarity(live, enrolled);
+          if (cancelledRef.current) return;
+          if (similarity < FACE_MATCH_THRESHOLD) {
+            router.replace({
+              pathname: "/(modules)/face-mismatch",
+              params: {
+                imageUri: uris[0],
+                sourceType: sourceType ?? "gallery",
+                label: finalResult.label,
+                confidence: String(finalResult.confidence),
+                probabilities: JSON.stringify(finalResult.probabilities),
+                similarity: similarity.toFixed(3),
+              },
+            });
+            return;
+          }
+        } catch (e) {
+          console.warn("[analyzing] face verification skipped:", e);
+        }
+      }
       await new Promise((r) => setTimeout(r, 400));
       if (cancelledRef.current) return;
 
+      goToStep(3);
       router.replace({
         pathname: "/(modules)/survey",
         params: {

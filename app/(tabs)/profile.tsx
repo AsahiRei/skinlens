@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
   Switch,
   Text,
+  ToastAndroid,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import {
+  Camera,
   Moon,
   Droplets,
   Activity,
@@ -25,13 +31,14 @@ import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { useNotifications } from "@/hooks/useNotifications";
-import { getAllProfiles, getSensitivityHistory } from "@/lib/db";
+import { getAllProfiles, getSensitivityHistory, updateUserProfile } from "@/lib/db";
 import type {
   LifestyleProfile,
   SensitivityEntry,
   SkinProfile,
   UserProfile,
 } from "@/types/schema";
+import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { formatter } from "@/utils/formatter";
 
 export default function Profile() {
@@ -47,6 +54,7 @@ export default function Profile() {
   const [loadingLifestyle, setLoadingLifestyle] = useState(true);
   const [logoutModal, setLogoutModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const focusTrigger = useFocusTrigger();
   const fetchProfiles = async () => {
     try {
@@ -81,6 +89,85 @@ export default function Profile() {
 
   const goEdit = () => router.push("/(modules)/edit-profile");
   const latestSensitivity = sensitivity[0];
+  const displayName = userProfile?.first_name || userProfile?.username || "";
+  const avatarInitial = (displayName || userProfile?.email || "?")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+
+  const saveAvatar = async (localUri: string) => {
+    setAvatarUploading(true);
+    try {
+      const cloudUrl = await uploadImageToCloudinary(localUri, 2, "skinlens/avatars");
+      // Offline: keep the local file URI so the picture still shows; the
+      // Cloudinary URL replaces it on next sync-covered save.
+      const avatarUrl = cloudUrl ?? localUri;
+      await updateUserProfile({ face_image_url: avatarUrl });
+      setUserProfile((prev) => (prev ? { ...prev, face_image_url: avatarUrl } : prev));
+      ToastAndroid.show("Profile picture updated", ToastAndroid.SHORT);
+    } catch (err) {
+      console.error("Avatar save failed:", err);
+      ToastAndroid.show("Couldn't update picture. Try again.", ToastAndroid.SHORT);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission needed", "Please allow photo library access to choose a picture.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      await saveAvatar(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission needed", "Please allow camera access to take a picture.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      await saveAvatar(result.assets[0].uri);
+    }
+  };
+
+  const handleAvatarPress = () => {
+    Alert.alert("Profile picture", "Choose a new profile picture", [
+      { text: "Gallery", onPress: () => void pickFromGallery() },
+      { text: "Camera", onPress: () => void takePhoto() },
+      ...(userProfile?.face_image_url
+        ? [
+            {
+              text: "Remove",
+              style: "destructive" as const,
+              onPress: () =>
+                void (async () => {
+                  await updateUserProfile({ face_image_url: null });
+                  setUserProfile((prev) =>
+                    prev ? { ...prev, face_image_url: null } : prev,
+                  );
+                })(),
+            },
+          ]
+        : []),
+      { text: "Cancel", style: "cancel" as const },
+    ]);
+  };
 
   return (
     <>
@@ -123,12 +210,44 @@ export default function Profile() {
                 </Pressable>
               </View>
               <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-col mt-4">
-                <Text className="text-gray-700 mt-0.5 text-xl font-semibold">
-                  {userProfile?.first_name || userProfile?.username}
-                </Text>
-                <Text className="text-gray-500 text-sm mt-0.5">
-                  {userProfile?.email}
-                </Text>
+                <View className="flex-row items-center gap-4">
+                  <Pressable
+                    onPress={handleAvatarPress}
+                    accessibilityRole="button"
+                    accessibilityLabel="Change profile picture"
+                    className="active:opacity-80"
+                  >
+                    <View>
+                      {userProfile?.face_image_url ? (
+                        <Image
+                          source={{ uri: userProfile.face_image_url }}
+                          className="h-20 w-20 rounded-full bg-gray-100"
+                        />
+                      ) : (
+                        <View className="h-20 w-20 rounded-full bg-green-700 items-center justify-center">
+                          <Text className="text-3xl font-bold text-white">
+                            {avatarInitial}
+                          </Text>
+                        </View>
+                      )}
+                      <View className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white border border-gray-100 items-center justify-center">
+                        {avatarUploading ? (
+                          <ActivityIndicator size="small" color="#15803D" />
+                        ) : (
+                          <Camera size={14} color="#15803D" />
+                        )}
+                      </View>
+                    </View>
+                  </Pressable>
+                  <View className="flex-1">
+                    <Text className="text-gray-700 mt-0.5 text-xl font-semibold">
+                      {displayName}
+                    </Text>
+                    <Text className="text-gray-500 text-sm mt-0.5">
+                      {userProfile?.email}
+                    </Text>
+                  </View>
+                </View>
                 <View className="bg-green-50 rounded-full mt-2 self-start px-3 py-1">
                   <Text className="text-xs font-semibold text-green-700">
                     Member since{" "}

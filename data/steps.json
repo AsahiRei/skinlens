@@ -9,6 +9,7 @@
   "analyzing": [
     { "label": "Analyzing skin image" },
     { "label": "Running AI detection" },
+    { "label": "Verifying identity" },
     { "label": "Preparing results" }
   ],
   "angleLabels": ["Front", "Left", "Right"]

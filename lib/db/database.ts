@@ -52,6 +52,8 @@ async function openAndMigrate(useNewConnection: boolean): Promise<SQLite.SQLiteD
         age TEXT,
         gender TEXT,
         user_setup INTEGER,
+        face_image_url TEXT,
+        face_embedding TEXT,
         created_at TEXT,
         synced_at TEXT
       );
@@ -154,6 +156,16 @@ async function openAndMigrate(useNewConnection: boolean): Promise<SQLite.SQLiteD
       await db.runAsync(`ALTER TABLE user_profile ADD COLUMN first_name TEXT`);
     } catch {
       // Column already exists, ignore
+    }
+
+    // Migration: face recognition enrollment columns (offline mirror of the
+    // server-side ALTER TABLE public.user_profile ADD COLUMN ...).
+    for (const col of ["face_image_url TEXT", "face_embedding TEXT"]) {
+      try {
+        await db.runAsync(`ALTER TABLE user_profile ADD COLUMN ${col}`);
+      } catch {
+        // Column already exists, ignore
+      }
     }
 
     // Migration: drop phone_number column from user_profile if it exists

@@ -5,6 +5,8 @@ export type UserProfile = {
   age: string;
   gender?: string;
   user_setup?: boolean;
+  face_image_url?: string | null;
+  face_embedding?: string | null;
   created_at: any;
 };
 

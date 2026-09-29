@@ -14,6 +14,7 @@ import {
   upsertSkinProfile,
   updateUserProfile,
 } from "@/lib/db";
+import { getFaceIdentity } from "@/lib/db/profile";
 import stepsData from "@/data/steps.json";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
@@ -65,6 +66,16 @@ export default function Loading() {
     try {
       setError(null);
       await requireUser();
+      // Face enrollment is mandatory before results — bounce back to the
+      // enroll step if it was skipped (e.g. via deep link).
+      const face = await getFaceIdentity().catch(() => null);
+      if (!face) {
+        router.replace({
+          pathname: "/(user-setup)/face-enroll",
+          params: { healthScore: healthScore ?? "0", answers: answers ?? "{}" },
+        });
+        return;
+      }
       goToStep(0);
       // Kick off model download/load immediately — it runs in parallel
       // with the (fast) DB writes below instead of blocking on them.

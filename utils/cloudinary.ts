@@ -9,7 +9,10 @@ function isNetworkError(err: unknown): boolean {
   return /network request failed|fetch failed|network|timeout|ECONNREFUSED|ENOTFOUND/i.test(msg);
 }
 
-async function uploadOnce(localUri: string): Promise<string | null> {
+async function uploadOnce(
+  localUri: string,
+  folder: string,
+): Promise<string | null> {
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     const msg = "Missing Cloudinary env vars";
     console.warn("[Cloudinary]", msg, { CLOUD_NAME, UPLOAD_PRESET });
@@ -24,7 +27,7 @@ async function uploadOnce(localUri: string): Promise<string | null> {
   const formData = new FormData();
   formData.append("file", `data:image/jpeg;base64,${base64}`);
   formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", "skinlens/scans");
+  formData.append("folder", folder);
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
@@ -57,10 +60,11 @@ async function uploadOnce(localUri: string): Promise<string | null> {
 export async function uploadImageToCloudinary(
   localUri: string,
   retries = 2,
+  folder = "skinlens/scans",
 ): Promise<string | null> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const url = await uploadOnce(localUri);
+      const url = await uploadOnce(localUri, folder);
       if (url) {
         return url;
       }

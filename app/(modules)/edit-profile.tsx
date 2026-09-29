@@ -346,6 +346,18 @@ export default function EditProfile() {
               <Text className="font-bold text-white">Save Changes</Text>
             )}
           </Pressable>
+
+          <Pressable
+            className="rounded-full border border-green-700 active:opacity-80 py-4 mt-3 flex-row items-center justify-center"
+            onPress={() =>
+              router.push({
+                pathname: "/(user-setup)/face-enroll",
+                params: { mode: "reenroll" },
+              })
+            }
+          >
+            <Text className="font-bold text-green-700">Update Face Recognition</Text>
+          </Pressable>
         </ScrollView>
       )}
     </SafeAreaView>

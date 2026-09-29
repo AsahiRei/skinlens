@@ -118,8 +118,10 @@ export default function Setup() {
     if (!isAnswered) return;
     if (isLastPage) {
       const healthScore = calculateHealthScore(answers, questionPage);
+      // Face enrollment is mandatory before results — loading.tsx also
+      // guards this so the step can't be skipped by deep-linking.
       router.replace({
-        pathname: "/(user-setup)/loading",
+        pathname: "/(user-setup)/face-enroll",
         params: {
           healthScore: healthScore.toString(),
           answers: JSON.stringify(answers),

@@ -33,6 +33,8 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     age: string;
     gender: string | null;
     user_setup: number | null;
+    face_image_url: string | null;
+    face_embedding: string | null;
     created_at: string;
   }>(`SELECT * FROM user_profile WHERE id = ?`, [user.id]);
 
@@ -47,8 +49,8 @@ export async function getUserProfile(): Promise<UserProfile | null> {
           .single();
         if (data) {
           await db.runAsync(
-            `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, gender, user_setup, created_at, synced_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, gender, user_setup, face_image_url, face_embedding, created_at, synced_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               data.id,
               data.username,
@@ -57,6 +59,8 @@ export async function getUserProfile(): Promise<UserProfile | null> {
               data.age ?? "",
               data.gender ?? null,
               data.user_setup ? 1 : 0,
+              (data as { face_image_url?: string | null }).face_image_url ?? null,
+              (data as { face_embedding?: string | null }).face_embedding ?? null,
               data.created_at,
               now(),
             ],
@@ -76,6 +80,8 @@ export async function getUserProfile(): Promise<UserProfile | null> {
           : local.user_setup === 0
             ? false
             : undefined,
+      face_image_url: local.face_image_url ?? null,
+      face_embedding: local.face_embedding ?? null,
       created_at: local.created_at,
     };
   }
@@ -90,8 +96,8 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     if (error) throw error;
 
     await db.runAsync(
-      `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, gender, user_setup, created_at, synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, gender, user_setup, face_image_url, face_embedding, created_at, synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.id,
         data.username,
@@ -100,6 +106,8 @@ export async function getUserProfile(): Promise<UserProfile | null> {
         data.age ?? "",
         data.gender ?? null,
         data.user_setup ? 1 : 0,
+        (data as { face_image_url?: string | null }).face_image_url ?? null,
+        (data as { face_embedding?: string | null }).face_embedding ?? null,
         data.created_at,
         now(),
       ],
@@ -111,10 +119,29 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 }
 
 export async function updateUserProfile(
-  updates: Partial<Pick<UserProfile, "gender" | "user_setup" | "first_name" | "age">>,
+  updates: Partial<
+    Pick<
+      UserProfile,
+      | "gender"
+      | "user_setup"
+      | "first_name"
+      | "age"
+      | "face_image_url"
+      | "face_embedding"
+    >
+  >,
 ): Promise<void> {
   const user = await requireUser();
   const db = await getDatabase();
+
+  // Fresh accounts (just registered) only exist server-side — Register.tsx
+  // never writes a local row. Without this, every UPDATE below hits zero
+  // rows and later local reads (e.g. the face-enroll guard in loading.tsx)
+  // see nothing, bouncing the user back in a loop.
+  await db.runAsync(
+    `INSERT OR IGNORE INTO user_profile (id, email, synced_at) VALUES (?, ?, ?)`,
+    [user.id, user.email ?? "", now()],
+  );
 
   // Write locally
   if (updates.gender !== undefined) {
@@ -138,6 +165,18 @@ export async function updateUserProfile(
   if (updates.age !== undefined) {
     await db.runAsync(`UPDATE user_profile SET age = ? WHERE id = ?`, [
       updates.age,
+      user.id,
+    ]);
+  }
+  if (updates.face_image_url !== undefined) {
+    await db.runAsync(`UPDATE user_profile SET face_image_url = ? WHERE id = ?`, [
+      updates.face_image_url,
+      user.id,
+    ]);
+  }
+  if (updates.face_embedding !== undefined) {
+    await db.runAsync(`UPDATE user_profile SET face_embedding = ? WHERE id = ?`, [
+      updates.face_embedding,
       user.id,
     ]);
   }
@@ -350,4 +389,40 @@ export async function getAllProfiles(): Promise<{
   const skinProfile = await getSkinProfile();
   const lifestyleProfile = await getLifestyleProfile();
   return { userProfile, skinProfile, lifestyleProfile };
+}
+
+// ── Face identity (enrollment + verification) ──
+
+export type FaceIdentity = {
+  face_image_url: string | null;
+  face_embedding: string | null;
+};
+
+// Local-first read: verification must work offline, so the SQLite mirror is
+// authoritative here (server refresh happens inside getUserProfile anyway).
+export async function getFaceIdentity(): Promise<FaceIdentity | null> {
+  const user = await requireUser();
+  const db = await getDatabase();
+  const local = await db.getFirstAsync<{
+    face_image_url: string | null;
+    face_embedding: string | null;
+  }>(`SELECT face_image_url, face_embedding FROM user_profile WHERE id = ?`, [
+    user.id,
+  ]);
+  if (!local) return null;
+  if (!local.face_image_url && !local.face_embedding) return null;
+  return {
+    face_image_url: local.face_image_url,
+    face_embedding: local.face_embedding,
+  };
+}
+
+// Saves enrollment locally, queues the sync, and pushes to Supabase when
+// online (same write-through pattern as updateUserProfile). Requires the
+// server-side ALTER TABLE (face_image_url / face_embedding) to be applied.
+export async function saveFaceIdentity(identity: FaceIdentity): Promise<void> {
+  await updateUserProfile({
+    face_image_url: identity.face_image_url,
+    face_embedding: identity.face_embedding,
+  });
 }
