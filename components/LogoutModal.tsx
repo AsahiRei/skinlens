@@ -1,14 +1,9 @@
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  Text,
-  ToastAndroid,
-  View,
-} from "react-native";
+import { ToastAndroid } from "react-native";
 import { useRouter } from "expo-router";
+import { LogOut } from "lucide-react-native";
 
+import { UiModal } from "@/components/ui";
 import { supabase } from "@/utils/supabase";
 import { clearLocalUserData } from "@/lib/db/auth";
 
@@ -23,6 +18,9 @@ export default function LogoutModal({
 }: LogoutModalProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const close = () => {
+    if (!loading) setVisible(false);
+  };
   const logout = async () => {
     setLoading(true);
     try {
@@ -32,12 +30,14 @@ export default function LogoutModal({
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       await clearLocalUserData();
+      setVisible(false);
       router.replace("/welcome");
     } catch (err) {
       console.error("Sign-out failed, falling back to local:", err);
       try {
         await supabase.auth.signOut({ scope: "local" });
         await clearLocalUserData();
+        setVisible(false);
         router.replace("/welcome");
       } catch (fallbackErr) {
         // Keep the modal open and surface the failure — the session persists.
@@ -52,36 +52,23 @@ export default function LogoutModal({
     }
   };
   return (
-    <Modal visible={isVisible} transparent animationType="fade">
-      <View className="flex-1 items-center justify-center bg-[rgba(0,0,0,0.5)] px-6">
-        <View className="p-4 py-6 bg-white rounded-4xl w-full">
-          <Text className="text-center text-xl font-bold text-green-700">
-            Logout Confirmation
-          </Text>
-          <Text className="text-center mt-2 text-gray-600">
-            Are you sure you want to logout?
-          </Text>
-          <Pressable
-            className={`rounded-full ${loading ? "bg-gray-500" : "bg-red-500"} active:opacity-80 py-3 mt-4`}
-            onPress={logout}
-            disabled={loading}
-          >
-            <View className="flex-row items-center justify-center">
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text className="font-bold text-white">Confirm</Text>
-              )}
-            </View>
-          </Pressable>
-          <Pressable
-            className="bg-white border border-green-700 py-3 mt-2 rounded-full active:opacity-80"
-            onPress={() => setVisible(false)}
-          >
-            <Text className="text-center font-bold text-green-700">Cancel</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
+    <UiModal
+      visible={isVisible}
+      onDismiss={close}
+      title="Log out?"
+      message="Are you sure you want to log out of SkinLens?"
+      icon={LogOut}
+      tone="soft"
+      dismissOnBackdrop={!loading}
+      actions={[
+        {
+          label: "Log out",
+          kind: "danger",
+          loading,
+          onPress: () => void logout(),
+        },
+        { label: "Stay logged in", kind: "secondary", onPress: close },
+      ]}
+    />
   );
 }

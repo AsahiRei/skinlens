@@ -7,6 +7,8 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 
+import { theme } from "@/lib/theme";
+
 type InlineProgressBarProps = {
   progress: number;
   width?: number | `${number}%`;
@@ -24,8 +26,8 @@ export default function InlineProgress({
   progress,
   width = "100%",
   height = 10,
-  color = "#22c55e",
-  trackColor = "#e5e7eb",
+  color = theme.colors.primary,
+  trackColor = theme.colors.primarySoft,
   borderRadius,
   animated = true,
   duration = 800,

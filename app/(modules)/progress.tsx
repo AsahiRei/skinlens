@@ -10,11 +10,15 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { ArrowLeft, TrendingUp, Calendar, FileText, ArrowRight, Check } from "lucide-react-native";
 import Svg, { Path, Circle, Line as SvgLine } from "react-native-svg";
 
+import { FadeItem } from "@/components/FadeItem";
 import Skeleton from "@/components/Skeleton";
 import TypewriterText from "@/components/TypewriterText";
+import { ClinicalCard, EmptyState, IconBadge, Pill, ScreenHeader, SectionTitle } from "@/components/ui";
+import { theme, cardShadow } from "@/lib/theme";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { getAllResults, getThisWeekResults } from "@/lib/db";
@@ -22,10 +26,7 @@ import type { Result } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 import { generateWeeklySummary } from "@/utils/weekly-summary";
 import { exportSkinReport } from "@/utils/report";
-
-const CONFIDENCE_COLOR = "#15803D";
-const CONFIDENCE_BG = "#DCFCE7";
-const BAR_COLORS = ["#15803D", "#4ADE80"];
+import { ScreenGradient } from "@/components/ScreenGradient";
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -45,13 +46,29 @@ function getDayLabel(dateStr: string): string {
   return d.toLocaleDateString("en-US", { weekday: "short" });
 }
 
+// Trends update at most once per calendar day: if the user scans multiple
+// times on the same day, keep only the latest scan for that day so the
+// Confidence and Symptom charts don't gain extra points intraday.
+// Input is newest-first (ORDER BY created_at DESC), so the first row seen
+// per day is the latest scan of that day.
+function dedupeDailyResults(results: Result[]): Result[] {
+  const seen = new Map<string, Result>();
+  for (const r of results) {
+    const d = new Date(r.created_at);
+    if (Number.isNaN(d.getTime())) continue;
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (!seen.has(key)) seen.set(key, r);
+  }
+  return [...seen.values()];
+}
+
 // Simple line chart using SVG
 function ConfidenceTrendChart({ results }: { results: Result[] }) {
   const reversed = [...results].reverse();
   if (reversed.length < 2) {
     return (
       <View className="items-center py-6">
-        <Text className="text-xs text-gray-400">
+        <Text className="text-xs text-[#9CA3AF]">
           Need at least 2 scans to show trend
         </Text>
       </View>
@@ -100,7 +117,7 @@ function ConfidenceTrendChart({ results }: { results: Result[] }) {
               y1={y}
               x2={chartWidth - padding}
               y2={y}
-              stroke="#E5E7EB"
+              stroke={theme.colors.cardBorder}
               strokeWidth={0.5}
               strokeDasharray="4,4"
             />
@@ -108,14 +125,14 @@ function ConfidenceTrendChart({ results }: { results: Result[] }) {
         })}
 
         {/* Area fill */}
-        <Path d={areaD} fill={CONFIDENCE_BG} opacity={0.5} />
+        <Path d={areaD} fill={theme.colors.primaryTint} opacity={0.5} />
 
         {/* Line */}
-        <Path d={pathD} stroke={CONFIDENCE_COLOR} strokeWidth={2.5} fill="none" />
+        <Path d={pathD} stroke={theme.colors.primary} strokeWidth={2.5} fill="none" />
 
         {/* Dots */}
         {points.map((p, i) => (
-          <Circle key={i} cx={p.x} cy={p.y} r={4} fill={CONFIDENCE_COLOR} />
+          <Circle key={i} cx={p.x} cy={p.y} r={4} fill={theme.colors.primary} />
         ))}
       </Svg>
 
@@ -125,7 +142,7 @@ function ConfidenceTrendChart({ results }: { results: Result[] }) {
         className="flex-row justify-between mt-1"
       >
         {visibleLabels.map((label, i) => (
-          <Text key={i} className="text-[10px] text-gray-400" style={{ width: 30, textAlign: "center" }}>
+          <Text key={i} className="text-[10px] text-[#9CA3AF]" style={{ width: 30, textAlign: "center" }}>
             {label}
           </Text>
         ))}
@@ -140,7 +157,7 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
   if (reversed.length === 0) {
     return (
       <View className="items-center py-6">
-        <Text className="text-xs text-gray-400">No data yet</Text>
+        <Text className="text-xs text-[#9CA3AF]">No data yet</Text>
       </View>
     );
   }
@@ -234,7 +251,7 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
         {metricLabels.map((label, i) => (
           <View key={label} className="flex-row items-center gap-1.5">
             <View
-              style={{ backgroundColor: BAR_COLORS[i] }}
+              style={{ backgroundColor: i === 0 ? theme.colors.primary : theme.colors.primaryTint }}
               className="h-2.5 w-2.5 rounded-full"
             />
             <Text className="text-xs text-gray-500">{label}</Text>
@@ -255,7 +272,7 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
                     style={{
                       height: barH,
                       width: barWidth,
-                      backgroundColor: BAR_COLORS[symIndex],
+                      backgroundColor: symIndex === 0 ? theme.colors.primary : theme.colors.primaryTint,
                       borderRadius: 3,
                       marginLeft: symIndex > 0 ? 2 : 0,
                     }}
@@ -263,7 +280,7 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
                 );
               })}
             </View>
-            <Text className="text-[10px] text-gray-400 mt-1">
+            <Text className="text-[10px] text-[#9CA3AF] mt-1">
               {labels[dayIndex]}
             </Text>
           </View>
@@ -381,275 +398,287 @@ export default function Progress() {
   const firstResultWithImage = sortedByDate.find((r) => r.image_url) ?? firstResult;
   const latestResult = sortedByDate[sortedByDate.length - 1] ?? null;
 
+  // One point per day for the trend charts (latest scan wins intraday).
+  const trendResults = dedupeDailyResults(allResults);
+
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="px-6 pt-4 gap-4">
-          <Skeleton className="h-7 w-32" />
-          <Skeleton className="h-32 w-full rounded-xl" />
-          <Skeleton className="h-40 w-full rounded-xl" />
-          <Skeleton className="h-40 w-full rounded-xl" />
+      <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+        <ScreenGradient />
+        <View className="px-5 pt-4 gap-4">
+          <Skeleton className="h-7 w-32 rounded-lg" />
+          <Skeleton className="h-32 w-full rounded-[20px]" />
+          <Skeleton className="h-40 w-full rounded-[20px]" />
+          <Skeleton className="h-40 w-full rounded-[20px]" />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+      <ScreenGradient />
       <ScrollView
-        className="flex-1 px-6"
+        className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#15803D"
-            colors={["#15803D"]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
         {/* Header */}
-        <View className="flex-row items-center gap-3 mb-1">
-          <Pressable
-            onPress={() => router.back()}
-            className="h-9 w-9 items-center justify-center rounded-full bg-white active:opacity-70"
-          >
-            <ArrowLeft size={18} color="#15803D" />
-          </Pressable>
-          <Text className="font-bold text-green-700 text-2xl">Progress</Text>
-          <View className="flex-1" />
-          <Pressable
-            onPress={handleExport}
-            disabled={exporting}
-            className={`flex-row items-center gap-1.5 rounded-full border px-3.5 py-2 ${
-              exporting
-                ? "bg-green-50 border-green-100 opacity-70"
-                : "bg-white border-gray-100 active:opacity-70"
-            }`}
-          >
-            {exporting ? (
-              <ActivityIndicator size="small" color="#15803D" />
-            ) : (
-              <FileText size={14} color="#15803D" />
-            )}
-            <Text className="text-sm font-bold text-green-700">
-              {exporting ? "Generating…" : "Export PDF"}
-            </Text>
-          </Pressable>
-        </View>
+        <FadeItem index={0}>
+          <View className="flex-row items-center gap-3 mb-1 mt-2">
+            <Pressable
+              onPress={() => router.back()}
+              className="h-9 w-9 items-center justify-center rounded-full bg-white active:opacity-70"
+              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+            >
+              <ArrowLeft size={18} color={theme.colors.primary} />
+            </Pressable>
+            <Text className="font-bold text-[24px]" style={{ color: theme.colors.ink }}>Progress</Text>
+            <View className="flex-1" />
+            <Pressable
+              onPress={handleExport}
+              disabled={exporting}
+              className="flex-row items-center gap-1.5 rounded-full border px-3.5 py-2 bg-white active:opacity-70"
+              style={{ borderColor: theme.colors.cardBorder, opacity: exporting ? 0.7 : 1 }}
+            >
+              {exporting ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              ) : (
+                <FileText size={14} color={theme.colors.primary} />
+              )}
+              <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>
+                {exporting ? "Generating…" : "Export PDF"}
+              </Text>
+            </Pressable>
+          </View>
+        </FadeItem>
 
         {/* Overall Improvement */}
-        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4 flex-row items-center justify-between">
-          <View className="flex-col">
-            <Text className="text-gray-500 text-sm">Overall Improvement</Text>
-            <Text className="font-bold text-green-700 text-3xl mt-1">
-              {isImproving ? "+" : ""}
-              {improvement.toFixed(1)}%
-            </Text>
-            <Text className="text-xs text-gray-400 mt-1">
-              Since {mondayStr} · {weekScans} scans
-            </Text>
-          </View>
-          <View className="items-end gap-2">
-            <View className="bg-green-50 h-12 w-12 items-center justify-center rounded-2xl">
-              <TrendingUp size={22} color="#15803D" />
-            </View>
-            {isImproving && (
-              <View className="bg-green-50 rounded-full px-3 py-1 flex-row items-center gap-1">
-                <TrendingUp size={12} color="#15803D" />
-                <Text className="text-xs font-bold text-green-700">
-                  Improving
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* AI Confidence Trend */}
-        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
-          <Text className="font-bold text-gray-900 text-[15px] mb-3">
-            AI Confidence Trend
-          </Text>
-          <ConfidenceTrendChart results={allResults} />
-        </View>
-
-        {/* Symptom Trend */}
-        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
-          <Text className="font-bold text-gray-900 text-[15px]">
-            Symptom Trend
-          </Text>
-          <View className="mt-2">
-            <SymptomTrendChart results={allResults} />
-          </View>
-        </View>
-
-        {/* Weekly Summary */}
-        <View className="bg-green-700 rounded-xl py-4 px-4 mt-4">
-          <Text className="font-bold text-white text-base">
-            Weekly summary
-          </Text>
-          <Text className="text-green-100 text-xs mt-1">
-            {weekScans} scans · Avg score: {weekAvgScore}%
-          </Text>
-          {summaryLoading ? (
-            <ActivityIndicator size="small" color="#BBF7D0" style={{ marginTop: 10 }} />
-          ) : aiSummary ? (
-            <TypewriterText
-              text={aiSummary}
-              className="text-green-50 text-xs mt-2 leading-5"
-            />
-          ) : null}
-        </View>
-
-        {/* Before vs. Today */}
-        {firstResult && latestResult && firstResult.id !== latestResult.id && (
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
-            <Text className="font-bold text-gray-900 text-[15px] mb-3">
-              Before vs. Today
-            </Text>
-            <View className="flex-row items-center justify-between">
-              {/* Before */}
-              <View className="items-center flex-1">
-                <View className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-100">
-                  {firstResultWithImage.image_url ? (
-                    <Image
-                      source={{ uri: firstResultWithImage.image_url }}
-                      className="w-full h-full"
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center">
-                      <Text className="text-xs text-gray-400">No image</Text>
-                    </View>
-                  )}
-                </View>
-                <Text className="text-xs text-gray-400 mt-2">
-                  {formatDateFull(firstResult.created_at)}
-                </Text>
-              </View>
-
-              {/* Arrow + improvement */}
-              <View className="items-center px-3 gap-1">
-                <Text className="text-green-700 font-bold text-lg">
-                  {improvement > 0 ? "+" : ""}
-                  {improvement.toFixed(1)}%
-                </Text>
-                <ArrowRight size={18} color="#9CA3AF" />
-              </View>
-
-              {/* Today */}
-              <View className="items-center flex-1">
-                <View className="w-28 h-28 rounded-2xl overflow-hidden bg-green-50 border-2 border-green-200">
-                  {latestResult.image_url ? (
-                    <Image
-                      source={{ uri: latestResult.image_url }}
-                      className="w-full h-full"
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center">
-                      <Text className="text-xs text-gray-400">No image</Text>
-                    </View>
-                  )}
-                </View>
-                <View className="flex-row items-center gap-1 mt-2">
-                  <Text className="text-xs text-green-700 font-bold">
-                    Today
-                  </Text>
-                  <Check size={12} color="#15803D" />
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Scan History */}
-        <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
-          <Text className="font-bold text-gray-900 text-[15px] mb-3">
-            Scan History
-          </Text>
-          {allResults.length === 0 ? (
-            <View className="items-center py-6">
-              <Calendar size={28} color="#D1D5DB" />
-              <Text className="text-xs text-gray-400 mt-2">
-                No scans yet. Start scanning to track your progress.
+        <FadeItem index={1}>
+          <ClinicalCard className="mt-4 flex-row items-center justify-between">
+            <View className="flex-col">
+              <Text className="text-sm" style={{ color: theme.colors.muted }}>Overall Improvement</Text>
+              <Text className="font-bold text-3xl mt-1" style={{ color: theme.colors.ink }}>
+                {isImproving ? "+" : ""}
+                {improvement.toFixed(1)}%
+              </Text>
+              <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
+                Since {mondayStr} · {weekScans} scans
               </Text>
             </View>
-          ) : (
-            <View className="gap-3">
-              {allResults.slice(0, 3).map((result) => {
-                const label = formatter(result.detection_label ?? result.severity);
-                const dayLabel = formatDate(result.created_at);
-                const conf = result.confidence
-                  ? `${(result.confidence * 100).toFixed(0)}%`
-                  : "—";
-                return (
-                  <View
-                    key={result.id}
-                    className="flex-row items-center justify-between py-2 border-b border-gray-50 last:border-b-0"
-                  >
-                    <View className="flex-row items-center gap-3 flex-1">
-                      <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
-                        <Text className="text-green-700 text-xs font-bold">
-                          {result.confidence
-                            ? `${Math.round(result.confidence * 100)}`
-                            : "—"}
-                        </Text>
-                      </View>
-                      <View className="flex-col">
-                        <Text className="font-bold text-gray-900 text-sm">
-                          {label} Detection · {dayLabel}
-                        </Text>
-                        <Text className="text-xs text-gray-400">
-                          Confidence: {conf}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text className="text-sm font-bold text-green-700">
-                      {result.healthscore}%
-                    </Text>
-                  </View>
-                );
-              })}
+            <View className="items-end gap-2">
+              <IconBadge icon={TrendingUp} size="lg" tone="soft" />
+              {isImproving && <Pill label="Improving" />}
             </View>
-          )}
-        </View>
+          </ClinicalCard>
+        </FadeItem>
 
-        {/* Weekly detail cards */}
-        {weekResults.length > 0 && (
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
-            <Text className="font-bold text-gray-900 text-[15px] mb-3">
-              {"This Week's Scans"}
+        {/* Confidence Trend */}
+        <FadeItem index={2}>
+          <ClinicalCard className="mt-4">
+            <SectionTitle title="Confidence Trend" />
+            <ConfidenceTrendChart results={trendResults} />
+          </ClinicalCard>
+        </FadeItem>
+
+        {/* Symptom Trend */}
+        <FadeItem index={3}>
+          <ClinicalCard className="mt-4">
+            <SectionTitle title="Symptom Trend" />
+            <View className="mt-2">
+              <SymptomTrendChart results={trendResults} />
+            </View>
+          </ClinicalCard>
+        </FadeItem>
+
+        {/* Weekly Summary */}
+        <FadeItem index={4}>
+          <LinearGradient
+            colors={[...theme.gradients.dark]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            className="py-4 px-4 mt-4"
+            style={{ borderRadius: theme.radius.card }}
+          >
+            <Text className="font-bold text-white text-base">
+              Weekly summary
             </Text>
-            <View className="gap-2">
-              {weekResults.slice(0, 3).map((result) => (
-                <View
-                  key={result.id}
-                  className="flex-row items-center gap-3 py-2 border-b border-gray-50 last:border-b-0"
-                >
-                  <View className="flex-1">
-                    <Text className="font-bold text-gray-900 text-sm">
-                      {formatter(result.detection_label ?? result.severity)}
-                    </Text>
-                    <Text className="text-xs text-gray-400">
-                      {formatDateFull(result.created_at)} · Score:{" "}
-                      {result.healthscore}%
-                    </Text>
-                  </View>
-                  {result.image_url && (
-                    <View className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100">
+            <Text className="text-xs mt-1" style={{ color: "#A7C4B2" }}>
+              {weekScans} scans · Avg score: {weekAvgScore}%
+            </Text>
+            {summaryLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" style={{ marginTop: 10 }} />
+            ) : aiSummary ? (
+              <TypewriterText
+                text={aiSummary}
+                className="text-white text-xs mt-2 leading-5"
+              />
+            ) : null}
+          </LinearGradient>
+        </FadeItem>
+
+        {/* Before vs. Today */}
+        <FadeItem index={5}>
+          {firstResult && latestResult && firstResult.id !== latestResult.id && (
+            <ClinicalCard className="mt-4">
+              <SectionTitle title="Before vs. Today" />
+              <View className="flex-row items-center justify-between">
+                {/* Before */}
+                <View className="items-center flex-1">
+                  <View className="w-28 h-28 rounded-2xl overflow-hidden" style={{ backgroundColor: theme.colors.background }}>
+                    {firstResultWithImage.image_url ? (
                       <Image
-                        source={{ uri: result.image_url }}
+                        source={{ uri: firstResultWithImage.image_url }}
                         className="w-full h-full"
                         resizeMode="cover"
                       />
-                    </View>
-                  )}
+                    ) : (
+                      <View className="w-full h-full items-center justify-center">
+                        <Text className="text-xs text-[#9CA3AF]">No image</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text className="text-xs text-[#9CA3AF] mt-2">
+                    {formatDateFull(firstResult.created_at)}
+                  </Text>
                 </View>
-              ))}
-            </View>
-          </View>
+
+                {/* Arrow + improvement */}
+                <View className="items-center px-3 gap-1">
+                  <Text
+                    className="font-bold text-lg"
+                    style={{ color: theme.colors.primary }}
+                  >
+                    {improvement > 0 ? "+" : ""}
+                    {improvement.toFixed(1)}%
+                  </Text>
+                  <ArrowRight size={18} color={theme.colors.faint} />
+                </View>
+
+                {/* Today */}
+                <View className="items-center flex-1">
+                  <View className="w-28 h-28 rounded-2xl overflow-hidden" style={{ backgroundColor: theme.colors.primarySoft, borderWidth: 2, borderColor: theme.colors.primary }}>
+                    {latestResult.image_url ? (
+                      <Image
+                        source={{ uri: latestResult.image_url }}
+                        className="w-full h-full"
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View className="w-full h-full items-center justify-center">
+                        <Text className="text-xs text-[#9CA3AF]">No image</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View className="flex-row items-center gap-1 mt-2">
+                    <Text
+                      className="text-xs font-bold"
+                      style={{ color: theme.colors.primary }}
+                    >
+                      Today
+                    </Text>
+                    <Check size={12} color={theme.colors.primary} />
+                  </View>
+                </View>
+              </View>
+            </ClinicalCard>
+          )}
+        </FadeItem>
+
+        {/* Scan History */}
+        <FadeItem index={6}>
+          <ClinicalCard className="mt-4">
+            <SectionTitle title="Scan History" />
+            {allResults.length === 0 ? (
+              <EmptyState
+                icon={Calendar}
+                copy="No scans yet."
+              />
+            ) : (
+              <View className="gap-3">
+                {allResults.slice(0, 3).map((result) => {
+                  const label = formatter(result.detection_label ?? result.severity);
+                  const dayLabel = formatDate(result.created_at);
+                  const conf = result.confidence
+                    ? `${(result.confidence * 100).toFixed(0)}%`
+                    : "—";
+                  return (
+                    <View
+                      key={result.id}
+                      className="flex-row items-center justify-between py-2"
+                      style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
+                    >
+                      <View className="flex-row items-center gap-3 flex-1">
+                        <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: theme.colors.primarySoft }}>
+                          <Text className="text-xs font-bold" style={{ color: theme.colors.primaryDeep }}>
+                            {result.confidence
+                              ? `${Math.round(result.confidence * 100)}`
+                              : "—"}
+                          </Text>
+                        </View>
+                        <View className="flex-col">
+                          <Text className="font-bold text-sm" style={{ color: theme.colors.ink }}>
+                            {label} Detection · {dayLabel}
+                          </Text>
+                          <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                            Confidence: {conf}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text className="text-xs font-bold" style={{ color: theme.colors.primary }}>
+                        {result.healthscore}%
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </ClinicalCard>
+        </FadeItem>
+
+        {/* Weekly detail cards */}
+        {weekResults.length > 0 && (
+          <FadeItem index={7}>
+            <ClinicalCard className="mt-4">
+              <SectionTitle title="This Week's Scans" />
+              <View className="gap-2">
+                {weekResults.slice(0, 3).map((result) => (
+                  <View
+                    key={result.id}
+                    className="flex-row items-center gap-3 py-2"
+                    style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
+                  >
+                    <View className="flex-1">
+                      <Text className="font-bold text-sm" style={{ color: theme.colors.ink }}>
+                        {formatter(result.detection_label ?? result.severity)}
+                      </Text>
+                      <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                        {formatDateFull(result.created_at)} · Score:{" "}
+                        {result.healthscore}%
+                      </Text>
+                    </View>
+                    {result.image_url && (
+                      <View className="w-10 h-10 rounded-lg overflow-hidden" style={{ backgroundColor: theme.colors.background }}>
+                        <Image
+                          source={{ uri: result.image_url }}
+                          className="w-full h-full"
+                          resizeMode="cover"
+                        />
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            </ClinicalCard>
+          </FadeItem>
         )}
 
         <View className="h-4" />

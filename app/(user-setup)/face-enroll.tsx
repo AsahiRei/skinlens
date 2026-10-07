@@ -26,15 +26,18 @@ import Animated, {
 } from "react-native-reanimated";
 import {
   Camera as CameraIcon,
-  Check,
-  ChevronLeft,
+  Glasses,
   RefreshCw,
   Scan,
   ScanFace,
   ShieldCheck,
+  Sun,
 } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { ScreenGradient } from "@/components/ScreenGradient";
+import { ClinicalCard, Pill, PrimaryButton } from "@/components/ui";
+import { cardShadow } from "@/lib/theme";
 import { saveFaceIdentity } from "@/lib/db";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import {
@@ -50,10 +53,11 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function FaceEnroll() {
   const router = useRouter();
-  const { healthScore, answers, mode } = useLocalSearchParams<{
+  const { healthScore, answers, mode, skipIntro } = useLocalSearchParams<{
     healthScore?: string;
     answers?: string;
     mode?: string;
+    skipIntro?: string;
   }>();
   const isReenroll = mode === "reenroll";
 
@@ -72,7 +76,11 @@ export default function FaceEnroll() {
   const [guidance, setGuidance] = useState("");
   const [canCapture, setCanCapture] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [consented, setConsented] = useState(false);
+  // Intro gate: the camera must NOT open before the user is asked for a
+  // profile picture. The ask lives as the last step of setup.tsx (which
+  // passes skipIntro=1), so this intro only shows for direct deep-links
+  // and face re-enrollment from the profile screen.
+  const [started, setStarted] = useState(skipIntro === "1");
 
   const isCapturingRef = useRef(false);
   const previewPathRef = useRef<string | null>(null);
@@ -108,7 +116,22 @@ export default function FaceEnroll() {
   }));
 
   useEffect(() => {
-    if (!hasPermission) requestPermission();
+    if (!started || hasPermission) return;
+    requestPermission().catch(() => {
+      // Denial is handled by the fallback UI — no unhandled rejection.
+    });
+  }, [started, hasPermission, requestPermission]);
+
+  const handleStart = useCallback(async () => {
+    try {
+      if (!hasPermission) {
+        await requestPermission();
+      }
+    } catch {
+      // Fallback UI below covers the denied case.
+    } finally {
+      setStarted(true);
+    }
   }, [hasPermission, requestPermission]);
 
   const handleFacesDetected = useCallback(
@@ -201,13 +224,6 @@ export default function FaceEnroll() {
   const handleConfirm = useCallback(async () => {
     const filePath = previewPathRef.current;
     if (!filePath || saving) return;
-    if (!consented) {
-      ToastAndroid.show(
-        "Please agree to face recognition first.",
-        ToastAndroid.SHORT,
-      );
-      return;
-    }
     setSaving(true);
     try {
       const uri = "file://" + filePath;
@@ -224,7 +240,10 @@ export default function FaceEnroll() {
       previewPathRef.current = null;
       setPreviewUri(null);
       isCapturingRef.current = false;
-      ToastAndroid.show("Face enrolled successfully!", ToastAndroid.SHORT);
+      ToastAndroid.show(
+        "Face updated — profile picture updated too!",
+        ToastAndroid.SHORT,
+      );
       if (isReenroll) {
         router.back();
       } else {
@@ -245,13 +264,149 @@ export default function FaceEnroll() {
     } finally {
       setSaving(false);
     }
-  }, [answers, consented, healthScore, isReenroll, router, saving]);
+  }, [answers, healthScore, isReenroll, router, saving]);
+
+  // Intro step — ask for a profile picture BEFORE opening the camera.
+  if (!started) {
+    const tips = [
+      {
+        icon: Sun,
+        title: "Find good light",
+        copy: "Face a window or lamp — avoid strong backlight.",
+      },
+      {
+        icon: ScanFace,
+        title: "Center your face",
+        copy: "Keep your whole face inside the frame.",
+      },
+      {
+        icon: Glasses,
+        title: "Keep your face clear",
+        copy: "Remove sunglasses, masks or hats.",
+      },
+    ];
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+        <ScreenGradient />
+        <View className="flex-1 px-5 pt-8 pb-6">
+          <View className="items-center">
+            <Pill label={isReenroll ? "Profile photo" : "Last step"} />
+            <View className="mt-4" style={{ position: "relative" }}>
+              <View
+                className="items-center justify-center"
+                style={{
+                  width: 128,
+                  height: 128,
+                  borderRadius: 64,
+                  backgroundColor: "#FFFFFF",
+                  borderWidth: 2,
+                  borderColor: "#E5EDE8",
+                  borderStyle: "dashed",
+                  ...cardShadow,
+                }}
+              >
+                <ScanFace size={48} color="#15803D" strokeWidth={1.5} />
+              </View>
+              <View
+                className="items-center justify-center"
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  bottom: 0,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: "#10241A",
+                  borderWidth: 3,
+                  borderColor: "#F4F7F5",
+                }}
+              >
+                <CameraIcon size={16} color="#FFFFFF" />
+              </View>
+            </View>
+            <Text
+              className="font-bold text-[24px] text-center mt-5"
+              style={{ color: "#10241A" }}
+            >
+              {isReenroll ? "Update your profile picture" : "Take a profile picture"}
+            </Text>
+            <Text
+              className="text-sm text-center mt-2 leading-5 px-2"
+              style={{ color: "#6B7280" }}
+            >
+              {isReenroll
+                ? "Take a clear photo of your face so we can recognize you on future scans."
+                : "You're almost done. Take a clear photo of your face — it becomes your profile picture and helps us verify it's you on future scans."}
+            </Text>
+          </View>
+
+          <ClinicalCard className="mt-6 gap-1">
+            {tips.map((tip, i) => (
+              <View
+                key={tip.title}
+                className="flex-row items-center gap-3 py-2.5"
+                style={
+                  i < tips.length - 1
+                    ? { borderBottomWidth: 1, borderBottomColor: "#EEF2EF" }
+                    : undefined
+                }
+              >
+                <View
+                  className="items-center justify-center"
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: "#EAF6EE",
+                  }}
+                >
+                  <tip.icon size={18} color="#15803D" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-bold text-[14px]" style={{ color: "#10241A" }}>
+                    {tip.title}
+                  </Text>
+                  <Text className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
+                    {tip.copy}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </ClinicalCard>
+
+          <View className="flex-1" />
+
+          <View className="gap-3">
+            <PrimaryButton
+              label="Take Profile Picture"
+              onPress={handleStart}
+              icon={CameraIcon}
+            />
+            <View className="flex-row items-start justify-center gap-1.5 px-4">
+              <ShieldCheck size={14} color="#9CA3AF" style={{ marginTop: 1 }} />
+              <Text className="text-xs text-center leading-4" style={{ color: "#9CA3AF" }}>
+                Used as your profile picture and for scan verification. Stored securely.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!hasPermission) {
     return (
-      <View className="flex-1 items-center justify-center bg-black">
-        <Text className="mt-3 text-base text-white">Camera permission required</Text>
-      </View>
+      <SafeAreaView className="flex-1 items-center justify-center bg-black px-6">
+        <Text className="mt-3 text-base text-white text-center">
+          Camera permission required
+        </Text>
+        <Text className="mt-1 text-sm text-center text-white/70">
+          We need camera access to take your profile picture.
+        </Text>
+        <View className="mt-4 w-full">
+          <PrimaryButton label="Allow Camera" onPress={handleStart} />
+        </View>
+      </SafeAreaView>
     );
   }
   if (!device) {
@@ -299,12 +454,6 @@ export default function FaceEnroll() {
         {/* Header card */}
         <View className="absolute top-0 left-0 right-0" style={{ paddingTop: 56 }}>
           <View className="px-5">
-            {!isReenroll && (
-              <Pressable onPress={() => router.back()} className="flex-row items-center gap-1 mb-2">
-                <ChevronLeft size={20} color="#FFFFFF" />
-                <Text className="text-white font-semibold text-base">Back</Text>
-              </Pressable>
-            )}
             <View className="bg-white rounded-2xl p-4 gap-1.5">
               <View className="flex-row items-center gap-2">
                 <ScanFace size={20} color="#15803D" />
@@ -365,6 +514,8 @@ export default function FaceEnroll() {
             <Pressable
               onPress={handleCapture}
               disabled={!canCapture}
+              accessibilityRole="button"
+              accessibilityLabel="Take profile picture"
               style={{
                 width: 72, height: 72, borderRadius: 36, borderWidth: 3,
                 borderColor: canCapture ? "white" : "rgba(255,255,255,0.3)",
@@ -380,14 +531,6 @@ export default function FaceEnroll() {
               >
                 <CameraIcon size={26} color={canCapture ? "#15803D" : "rgba(255,255,255,0.4)"} />
               </View>
-            </Pressable>
-            <Pressable onPress={() => setConsented((p) => !p)} className="flex-row items-center gap-2 px-4">
-              <View className={`w-5 h-5 rounded border items-center justify-center ${consented ? "bg-green-600 border-green-600" : "bg-transparent border-white"}`}>
-                {consented && <Check size={14} color="white" />}
-              </View>
-              <Text className="text-white/80 text-xs flex-1">
-                I agree to store my face for scan verification
-              </Text>
             </Pressable>
           </View>
         ) : (

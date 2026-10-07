@@ -1,8 +1,6 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   ToastAndroid,
@@ -11,6 +9,9 @@ import {
 import { useRouter } from "expo-router";
 import { Mail, Lock, Eye, EyeOff, Check } from "lucide-react-native";
 
+import { theme } from "@/lib/theme";
+import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
+import { PrimaryButton } from "@/components/ui";
 import { supabase } from "@/utils/supabase";
 
 export default function Register() {
@@ -97,38 +98,33 @@ export default function Register() {
     }
   };
   return (
-    <ScrollView
-      className="flex-1"
-      contentContainerClassName="p-6 pb-10"
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+    <KeyboardAwareScroll contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: 40 }}>
       <View className="flex-col gap-4">
         <View className="flex-col gap-2">
-          <Text className="text-sm font-medium text-gray-900">Email Address</Text>
-          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
-            <Mail size={22} color="#4B5563" />
+          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Email Address</Text>
+          <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+            <Mail size={22} color={theme.colors.muted} />
             <TextInput
               value={email}
               onChangeText={setEmail}
               placeholder="Enter your email address"
-              className="flex-1 text-gray-900"
-              placeholderTextColor="#9CA3AF"
+              className="flex-1 text-[#10241A]"
+              placeholderTextColor={theme.colors.faint}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
         </View>
         <View className="flex-col gap-2">
-          <Text className="text-sm font-medium text-gray-900">Password</Text>
-          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
-            <Lock size={22} color="#4B5563" />
+          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Password</Text>
+          <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+            <Lock size={22} color={theme.colors.muted} />
             <TextInput
               value={password}
               onChangeText={setPassword}
               placeholder="Enter your password"
-              className="flex-1 text-gray-900"
-              placeholderTextColor="#9CA3AF"
+              className="flex-1 text-[#10241A]"
+              placeholderTextColor={theme.colors.faint}
               secureTextEntry={!showPassword}
             />
 
@@ -137,23 +133,23 @@ export default function Register() {
               className="active:opacity-60"
             >
               {showPassword ? (
-                <EyeOff size={22} color="#4B5563" />
+                <EyeOff size={22} color={theme.colors.muted} />
               ) : (
-                <Eye size={22} color="#4B5563" />
+                <Eye size={22} color={theme.colors.muted} />
               )}
             </Pressable>
           </View>
         </View>
         <View className="flex-col gap-2">
-          <Text className="text-sm font-medium text-gray-900">Confirm Password</Text>
-          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
-            <Lock size={22} color="#4B5563" />
+          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Confirm Password</Text>
+          <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+            <Lock size={22} color={theme.colors.muted} />
             <TextInput
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirm your password"
-              className="flex-1 text-gray-900"
-              placeholderTextColor="#9CA3AF"
+              className="flex-1 text-[#10241A]"
+              placeholderTextColor={theme.colors.faint}
               secureTextEntry={!showConfirmPassword}
             />
             <Pressable
@@ -161,9 +157,9 @@ export default function Register() {
               className="active:opacity-60"
             >
               {showConfirmPassword ? (
-                <EyeOff size={22} color="#4B5563" />
+                <EyeOff size={22} color={theme.colors.muted} />
               ) : (
-                <Eye size={22} color="#4B5563" />
+                <Eye size={22} color={theme.colors.muted} />
               )}
             </Pressable>
           </View>
@@ -173,35 +169,24 @@ export default function Register() {
           className="flex-row items-center gap-3 mt-1"
         >
           <View
-            className={`w-5 h-5 rounded border items-center justify-center ${
+            className="w-5 h-5 rounded border items-center justify-center"
+            style={
               agreed
-                ? "bg-green-700 border-green-700"
-                : "bg-white border-gray-400"
-            }`}
+                ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                : { backgroundColor: "#FFFFFF", borderColor: theme.colors.faint }
+            }
           >
             {agreed && <Check size={16} color="white" />}
           </View>
-          <Text className="flex-1 text-gray-500">
+          <Text className="flex-1" style={{ color: theme.colors.muted }}>
             I agree to the{" "}
-            <Text className="text-green-700 font-medium underline">
+            <Text className="font-medium underline" style={{ color: theme.colors.primary }}>
               Terms and Conditions
             </Text>
           </Text>
         </Pressable>
-        <Pressable
-          className={`rounded-full ${loading ? "bg-gray-500" : "bg-green-700"} active:opacity-80 p-4`}
-          onPress={handleRegister}
-          disabled={loading}
-        >
-          <View className="flex-row items-center justify-center">
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text className="font-bold text-white">Create Account</Text>
-            )}
-          </View>
-        </Pressable>
+        <PrimaryButton label="Create Account" onPress={handleRegister} loading={loading} />
       </View>
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }

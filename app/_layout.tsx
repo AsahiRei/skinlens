@@ -2,9 +2,11 @@ import { useEffect, useRef } from "react";
 import { AppState, StatusBar } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
+import { SafeKeyboardProvider as KeyboardProvider } from "@/components/keyboard-safe";
 
 import { NetworkProvider } from "@/hooks/useNetwork";
 import { NotificationProvider } from "@/hooks/useNotifications";
+import { OfflineModal } from "@/components/OfflineModal";
 import { SyncManager } from "@/components/SyncManager";
 import { clearLocalUserData } from "@/lib/db/auth";
 import { createSessionFromUrl, supabase } from "@/utils/supabase";
@@ -78,12 +80,15 @@ export default function RootLayout() {
       <NetworkProvider>
         <NotificationProvider>
           <SyncManager />
+          <OfflineModal />
+          <KeyboardProvider>
           <Stack
             screenOptions={{
               animation: "ios_from_right",
               headerShown: false,
             }}
           />
+          </KeyboardProvider>
         </NotificationProvider>
       </NetworkProvider>
     </>

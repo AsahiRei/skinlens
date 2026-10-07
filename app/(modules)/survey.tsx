@@ -5,49 +5,27 @@ import PagerView from "react-native-pager-view";
 import {
   ArrowRight,
   Check,
-  Clock,
-  Eye,
-  User,
-  Hand,
-  Square,
-  StopCircle,
-  CheckSquare,
-  Zap,
-  Smile,
-  MinusCircle,
-  Frown,
   CheckCircle,
   Droplets,
   AlertCircle,
   FlaskConical,
   Bandage,
-  Cross,
 } from "lucide-react-native";
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { PrimaryButton, SecondaryButton } from "@/components/ui";
+import { cardShadow, theme } from "@/lib/theme";
 import detectionMetaJson from "@/data/detection-meta.json";
 import detectionQuestionsJson from "@/data/survey-questions.json";
+import { ScreenGradient } from "@/components/ScreenGradient";
 
-const ICON_MAP: Record<string, typeof Clock> = {
-  "time-outline": Clock,
-  "eye-outline": Eye,
-  "person-outline": User,
-  "hand-left-outline": Hand,
-  "square-outline": Square,
-  "stop-outline": StopCircle,
-  "checkbox-outline": CheckSquare,
-  "flash-outline": Zap,
-  "happy-outline": Smile,
-  "remove-circle-outline": MinusCircle,
-  "sad-outline": Frown,
+const ICON_MAP: Record<string, typeof CheckCircle> = {
   "checkmark-circle-outline": CheckCircle,
   "checkmark-circle": CheckCircle,
   "water-outline": Droplets,
-  "alert-circle-outline": AlertCircle,
   "flask-outline": FlaskConical,
   "bandage-outline": Bandage,
-  "medkit-outline": Cross,
 };
 
 const detectionQuestions: Record<
@@ -131,15 +109,16 @@ export default function Survey() {
   };
 
   return (
-    <SafeAreaView className="bg-gray-50 flex-1">
-      <View className="px-6 pt-4 gap-2">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
+      <View className="px-5 pt-4 gap-2">
         <View className="flex-row items-center justify-between">
-          <Text className="font-semibold text-gray-500 text-xs tracking-wide">
+          <Text className="font-bold text-[11px]" style={{ color: "#15803D", letterSpacing: 1 }}>
             STEP {page + 1} OF {questions.length}
           </Text>
-          <Text className="text-xs text-gray-500">{progressPct}%</Text>
+          <Text className="text-xs" style={{ color: "#6B7280" }}>{progressPct}%</Text>
         </View>
-        <InlineProgress progress={progressPct} height={8} color="#15803D" />
+        <InlineProgress progress={progressPct} height={8} color="#15803D" trackColor="#EAF6EE" />
       </View>
 
       {/* Detection badge */}
@@ -174,37 +153,40 @@ export default function Survey() {
         onPageSelected={(e) => setPage(e.nativeEvent.position)}
       >
         {questions.map((item, index) => (
-          <View key={index} className="px-6 gap-4">
-            <Text className="text-2xl font-bold text-green-700">
+          <View key={index} className="px-5 gap-4">
+            <Text className="text-[22px] font-bold" style={{ color: "#10241A" }}>
               {item.label}
             </Text>
-            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex-col gap-2">
+            <View className="bg-white rounded-[20px] p-3 flex-col gap-2" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
               {item.options.map((option, optIndex) => {
                 const isSelected = answers[item.id] === option.value;
                 return (
                   <Pressable
                     key={optIndex}
                     onPress={() => handleSelect(item.id, option.value)}
-                    className={`flex-row items-center gap-3 rounded-2xl py-4 px-4 border active:opacity-90 ${
+                    className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border active:opacity-90"
+                    style={
                       isSelected
-                        ? "bg-green-700 border-green-700"
-                        : "bg-gray-50 border-gray-200"
-                    }`}
+                        ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                        : { backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }
+                    }
                   >
                     <View
-                      className={`h-9 w-9 items-center justify-center rounded-full ${
-                        isSelected ? "bg-white/20" : "bg-white"
-                      }`}
+                      className="h-9 w-9 items-center justify-center rounded-full"
+                      style={{
+                        backgroundColor: isSelected ? "rgba(255,255,255,0.2)" : "#EAF6EE",
+                      }}
                     >
-                      {(() => {
-                        const IconComp = ICON_MAP[option.icon] || AlertCircle;
-                        return <IconComp size={18} color={isSelected ? "white" : "#15803D"} />;
-                      })()}
+                      <Text
+                        className="font-bold text-[15px]"
+                        style={{ color: isSelected ? "#FFFFFF" : "#15803D" }}
+                      >
+                        {optIndex + 1}
+                      </Text>
                     </View>
                     <Text
-                      className={`flex-1 font-semibold ${
-                        isSelected ? "text-white" : "text-gray-900"
-                      }`}
+                      className="flex-1 font-semibold"
+                      style={{ color: isSelected ? "#FFFFFF" : "#10241A" }}
                     >
                       {option.label}
                     </Text>
@@ -222,32 +204,15 @@ export default function Survey() {
         ))}
       </PagerView>
 
-      <View className="gap-3 px-6 pb-6">
-        <Pressable
-          disabled={!isAnswered}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !isAnswered }}
-          className={`rounded-full p-4 active:opacity-80 ${
-            isAnswered ? "bg-green-700" : "bg-gray-200"
-          }`}
+      <View className="gap-3 px-5 pb-6">
+        <PrimaryButton
+          label={isLastPage ? "See Results" : "Next"}
           onPress={handleNext}
-        >
-          <View className="flex-row items-center justify-center gap-1">
-            <Text className={`font-bold ${isAnswered ? "text-white" : "text-gray-500"}`}>
-              {isLastPage ? "See Results" : "Next"}
-            </Text>
-            {!isLastPage && (
-              <ArrowRight size={16} color="white" />
-            )}
-          </View>
-        </Pressable>
+          disabled={!isAnswered}
+          icon={isLastPage ? undefined : ArrowRight}
+        />
         {page !== 0 && (
-          <Pressable
-            className="rounded-full border border-green-700 p-4 active:opacity-80"
-            onPress={handleBack}
-          >
-            <Text className="text-center font-bold text-green-700">Back</Text>
-          </Pressable>
+          <SecondaryButton label="Back" onPress={handleBack} />
         )}
       </View>
     </SafeAreaView>

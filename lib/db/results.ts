@@ -444,7 +444,9 @@ export async function insertResult(result: {
     user = { id: "anonymous" };
   }
 
-  console.log("[insertResult] image_url:", result.image_url, "user:", user.id);
+  if (__DEV__) {
+    console.log("[insertResult] image_url:", result.image_url, "user:", user.id);
+  }
 
   let serverResult: Result;
   try {
@@ -464,7 +466,9 @@ export async function insertResult(result: {
       .select()
       .single();
     if (error) throw error;
-    console.log("[insertResult] Supabase insert success, id:", data.id);
+    if (__DEV__) {
+      console.log("[insertResult] Supabase insert success, id:", data.id);
+    }
     serverResult = {
       ...(data as Result),
       confidence: result.confidence ?? null,

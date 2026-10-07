@@ -1,9 +1,7 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   ToastAndroid,
@@ -12,6 +10,9 @@ import {
 import { useRouter } from "expo-router";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 
+import { theme } from "@/lib/theme";
+import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
+import { PrimaryButton } from "@/components/ui";
 import { signInWithGoogle, supabase } from "@/utils/supabase";
 
 export default function Login() {
@@ -61,12 +62,10 @@ export default function Login() {
     }
   };
   return (
-    <ScrollView
-      contentContainerClassName="p-6"
-      keyboardShouldPersistTaps="handled"
-    >
+    <KeyboardAwareScroll contentContainerStyle={{ flexGrow: 1, padding: 20 }}>
       <Pressable
-        className="bg-white p-4 rounded-full shadow active:opacity-80"
+        className="bg-white p-4 rounded-full active:opacity-80"
+        style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
         onPress={handleGoogleLogin}
       >
         <View className="flex-row justify-center items-center gap-2">
@@ -77,42 +76,42 @@ export default function Login() {
               height: 20,
             }}
           />
-          <Text className="font-bold text-gray-600">Login with Google</Text>
+          <Text className="font-bold" style={{ color: theme.colors.body }}>Login with Google</Text>
         </View>
       </Pressable>
       <View className="flex-row items-center my-6">
-        <View className="flex-1 h-px bg-gray-300" />
-        <Text className="mx-4 text-gray-500 font-medium">
+        <View className="flex-1 h-px" style={{ backgroundColor: theme.colors.cardBorder }} />
+        <Text className="mx-4 font-medium" style={{ color: theme.colors.muted }}>
           or continue with email
         </Text>
-        <View className="flex-1 h-px bg-gray-300" />
+        <View className="flex-1 h-px" style={{ backgroundColor: theme.colors.cardBorder }} />
       </View>
       <View className="flex-col gap-4">
         <View className="flex-col gap-2">
-          <Text className="text-sm font-medium text-gray-900">Email Address</Text>
-          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
-            <Mail size={22} color="#4B5563" />
+          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Email Address</Text>
+          <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+            <Mail size={22} color={theme.colors.muted} />
             <TextInput
               value={email}
               onChangeText={setEmail}
               placeholder="Enter your email address"
-              className="flex-1 text-gray-900"
-              placeholderTextColor="#9CA3AF"
+              className="flex-1 text-[#10241A]"
+              placeholderTextColor={theme.colors.faint}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
         </View>
         <View className="flex-col gap-2">
-          <Text className="text-sm font-medium text-gray-900">Password</Text>
-          <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 px-4 py-3 gap-2">
-            <Lock size={22} color="#4B5563" />
+          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Password</Text>
+          <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+            <Lock size={22} color={theme.colors.muted} />
             <TextInput
               value={password}
               onChangeText={setPassword}
               placeholder="Enter your password"
-              className="flex-1 text-gray-900"
-              placeholderTextColor="#9CA3AF"
+              className="flex-1 text-[#10241A]"
+              placeholderTextColor={theme.colors.faint}
               secureTextEntry={!showPassword}
             />
             <Pressable
@@ -120,9 +119,9 @@ export default function Login() {
               className="active:opacity-60"
             >
               {showPassword ? (
-                <EyeOff size={22} color="#4B5563" />
+                <EyeOff size={22} color={theme.colors.muted} />
               ) : (
-                <Eye size={22} color="#4B5563" />
+                <Eye size={22} color={theme.colors.muted} />
               )}
             </Pressable>
           </View>
@@ -131,33 +130,21 @@ export default function Login() {
           className="active:opacity-80"
           onPress={() => router.push("/forgot-password")}
         >
-          <Text className="underline text-green-700">Forgot password?</Text>
+          <Text className="underline" style={{ color: theme.colors.primary }}>Forgot password?</Text>
         </Pressable>
-        <Pressable
-          className={`rounded-full ${loading ? "bg-gray-500" : "bg-green-700"} active:opacity-80 p-4`}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          <View className="flex-row items-center justify-center">
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text className="font-bold text-white">Login</Text>
-            )}
-          </View>
-        </Pressable>
-        <Text className="text-center text-gray-500 px-4 mt-2">
+        <PrimaryButton label="Login" onPress={handleLogin} loading={loading} />
+        <Text className="text-center px-4 mt-2" style={{ color: theme.colors.muted }}>
           By continuing, you agree to our{" "}
-          <Text className="text-green-700 font-medium underline">
+          <Text className="font-medium underline" style={{ color: theme.colors.primary }}>
             Terms and Conditions
           </Text>{" "}
           and{" "}
-          <Text className="text-green-700 font-medium underline">
+          <Text className="font-medium underline" style={{ color: theme.colors.primary }}>
             Privacy Policy
           </Text>
           .
         </Text>
       </View>
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }

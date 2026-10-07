@@ -8,14 +8,17 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Sparkles } from "lucide-react-native";
+import { Check } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { PrimaryButton } from "@/components/ui";
+import { cardShadow, theme } from "@/lib/theme";
 import { getLatestResultDetail, updateUserProfile } from "@/lib/db";
 import type { ResultData } from "@/types/schema";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { formatter } from "@/utils/formatter";
+import { ScreenGradient } from "@/components/ScreenGradient";
 
 export default function Results() {
   const [resultData, setResultData] = useState<ResultData | null>(null);
@@ -74,18 +77,19 @@ export default function Results() {
     fetchResult();
   }, []);
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-1 px-6 gap-5">
+        <View className="flex-1 px-5 gap-5">
           <View className="pt-4 items-center">
-            <Text className="font-bold text-green-700 text-2xl">
+            <Text className="font-bold text-[24px]" style={{ color: "#10241A" }}>
               Skin Results
             </Text>
-            <Text className="text-gray-500">
-              Your personalized skin analysis
+            <Text style={{ color: "#6B7280" }}>
+              Your skin analysis
             </Text>
           </View>
 
@@ -110,56 +114,58 @@ export default function Results() {
             </View>
           </View>
 
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-3">
+          <View className="bg-white rounded-[20px] py-4 px-4 gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
             <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
-                <Sparkles size={20} color="#15803D" />
+              <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: "#EAF6EE" }}>
+                <Check size={20} color="#15803D" />
               </View>
-              <Text className="flex-1 text-base font-bold text-gray-900">
+              <Text className="flex-1 text-base font-bold" style={{ color: "#10241A" }}>
                 Your routine is ready
               </Text>
             </View>
-            <Text className="text-sm leading-5 text-gray-500">{message}</Text>
+            <Text className="text-sm leading-5" style={{ color: "#3F4A44" }}>{message}</Text>
           </View>
 
           {resultLoading ? (
-            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-3">
+            <View className="bg-white rounded-[20px] py-10 px-6 items-center gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
               <ActivityIndicator color="#15803D" size="small" />
-              <Text className="text-sm text-gray-500">
+              <Text className="text-sm" style={{ color: "#6B7280" }}>
                 Loading your recommended products...
               </Text>
             </View>
           ) : (
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
-              <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-4">
-                <Text className="font-bold text-gray-800 text-lg">
+              <View className="bg-white rounded-[20px] py-4 px-4 gap-4" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+                <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
                   Recommended Products
                 </Text>
-                <Text className="text-sm text-gray-500 border-b border-gray-100 pb-3">
+                <Text className="text-sm pb-3" style={{ color: "#6B7280", borderBottomWidth: 1, borderBottomColor: "#EEF2EF" }}>
                   {resultData.description}
                 </Text>
                 {resultData.recommendations.map((product) => (
                   <View
                     key={product.product_type}
-                    className="gap-1.5 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0"
+                    className="gap-1.5 pb-3"
+                    style={{ borderBottomWidth: 1, borderBottomColor: "#EEF2EF" }}
                   >
-                    <Text className="font-bold text-gray-900">
+                    <Text className="font-bold" style={{ color: "#10241A" }}>
                       {product.product_type}
                     </Text>
                     <View className="flex-row flex-wrap gap-1.5">
                       {product.recommended_ingredients.map((ingredient, i) => (
                         <View
                           key={i}
-                          className="bg-green-50 rounded-full px-3 py-1"
+                          className="rounded-full px-3 py-1"
+                          style={{ backgroundColor: "#EAF6EE" }}
                         >
-                          <Text className="text-xs text-green-700 font-medium">
+                          <Text className="text-xs font-semibold" style={{ color: "#14532D" }}>
                             {ingredient}
                           </Text>
                         </View>
                       ))}
                     </View>
-                    <Text className="text-xs text-gray-400 mt-1">
+                    <Text className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
                       {product.reason}
                     </Text>
                   </View>
@@ -169,19 +175,20 @@ export default function Results() {
           )}
 
           {Object.keys(parsedAnswers).length > 0 && (
-            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-3">
-              <Text className="font-bold text-gray-800 text-lg">
+            <View className="bg-white rounded-[20px] py-4 px-4 gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+              <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
                 Your Answers
               </Text>
               {Object.entries(parsedAnswers).map(([question, answer]) => (
                 <View
                   key={question}
-                  className="flex-row justify-between gap-3 border-b border-gray-100 pb-2 last:border-b-0 last:pb-0"
+                  className="flex-row justify-between gap-3 pb-2"
+                  style={{ borderBottomWidth: 1, borderBottomColor: "#EEF2EF" }}
                 >
-                  <Text className="flex-1 text-sm text-gray-500">
+                  <Text className="flex-1 text-sm" style={{ color: "#6B7280" }}>
                     {formatter(question)}
                   </Text>
-                  <Text className="text-sm font-bold text-gray-900">
+                  <Text className="text-sm font-bold" style={{ color: "#10241A" }}>
                     {formatter(answer)}
                   </Text>
                 </View>
@@ -192,26 +199,19 @@ export default function Results() {
           <View className="h-4" />
         </View>
       </ScrollView>
-      <View className="py-6 w-full gap-2 px-6">
-        <Pressable
-          className={`rounded-full ${loading ? "bg-gray-400" : "bg-green-700"} active:opacity-80 p-4`}
+      <View className="py-6 w-full gap-2 px-5">
+        <PrimaryButton
+          label="Confirm Result"
           onPress={getStarted}
-          disabled={loading}
-        >
-          <View className="flex-row items-center justify-center">
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text className="font-bold text-white">Confirm Result</Text>
-            )}
-          </View>
-        </Pressable>
+          loading={loading}
+        />
         <Pressable
-          className="rounded-full border border-green-700 active:opacity-80 p-4"
+          className="rounded-full bg-white active:opacity-80 p-4"
+          style={{ borderWidth: 1.5, borderColor: theme.colors.primary }}
           onPress={() => router.back()}
         >
           <View className="flex-row items-center justify-center gap-1">
-            <Text className="text-center font-bold text-green-700">
+            <Text className="text-center font-bold" style={{ color: theme.colors.primary }}>
               Retry Again
             </Text>
           </View>

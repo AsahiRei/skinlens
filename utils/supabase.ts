@@ -19,10 +19,17 @@ async function fetchWithTimeout(
   }
 }
 
-export const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_KEY!,
-  {
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  throw new Error(
+    "[supabase] Missing EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_KEY. " +
+      "Check your .env (see .env.example) and rebuild the dev client.",
+  );
+}
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
       storage: AsyncStorage,
       autoRefreshToken: true,
@@ -32,8 +39,7 @@ export const supabase = createClient(
     global: {
       fetch: fetchWithTimeout,
     },
-  },
-);
+  });
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -197,10 +203,27 @@ export async function validateSession(): Promise<Session | null> {
   } = await supabase.auth.getSession();
   if (!session) return null;
 
+  // Outer watchdog: getUser() goes through the global fetchWithTimeout
+  // (10s), but supabase-js can still hang beyond that on a cold start
+  // (phone just restarted, radio connecting — internal auth lock / DNS
+  // hang that never settles). Never block boot on it: fail open to the
+  // cached session so offline mode keeps working instead of sticking on
+  // the splash loader forever.
+  const VALIDATE_OUTER_TIMEOUT_MS = 12_000;
   let user;
   let error;
   try {
-    ({ data: { user }, error } = await supabase.auth.getUser());
+    const getUserPromise = supabase.auth.getUser();
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("validateSession timeout")),
+        VALIDATE_OUTER_TIMEOUT_MS,
+      ),
+    );
+    ({ data: { user }, error } = await Promise.race([
+      getUserPromise,
+      timeoutPromise,
+    ]));
   } catch (err) {
     // Thrown (rather than returned) errors are transport-level → offline.
     // Keep the cached session so offline mode keeps working.

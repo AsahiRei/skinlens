@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AlertCircle, Check } from "lucide-react-native";
 
 import InlineProgress from "@/components/InlineProgress";
 import PulsatingIcon from "@/components/PulsatingIcon";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { PrimaryButton } from "@/components/ui";
+import { cardShadow, theme } from "@/lib/theme";
 import {
   insertResult,
   insertRoutine,
@@ -17,11 +19,10 @@ import {
 import { getFaceIdentity } from "@/lib/db/profile";
 import stepsData from "@/data/steps.json";
 import { getHealthScoreResponse } from "@/utils/healthscore";
-import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
+import { generateRoutine } from "@/utils/routine-generator";
+import { ScreenGradient } from "@/components/ScreenGradient";
 
 const steps = stepsData.userSetup;
-
-const MODEL_STEP_INDEX = 2;
 
 export default function Loading() {
   const router = useRouter();
@@ -53,14 +54,6 @@ export default function Loading() {
     setStepIndex(i);
     setProgressPct(Math.round(((i + 1) / steps.length) * 100));
   };
-  // Called repeatedly while the model downloads (first run only) to move the
-  // bar smoothly within the "Preparing AI model" step instead of jumping.
-  const updateModelDownloadProgress = (fraction: number) => {
-    setStepIndex(MODEL_STEP_INDEX);
-    setProgressPct(
-      Math.round(((MODEL_STEP_INDEX + fraction) / steps.length) * 100),
-    );
-  };
 
   const run = async () => {
     try {
@@ -77,9 +70,6 @@ export default function Loading() {
         return;
       }
       goToStep(0);
-      // Kick off model download/load immediately — it runs in parallel
-      // with the (fast) DB writes below instead of blocking on them.
-      const preloadPromise = preloadLlama(updateModelDownloadProgress);
       await Promise.all([
         updateUserProfile({
           first_name: parsedAnswers.first_name,
@@ -97,12 +87,8 @@ export default function Loading() {
         }),
       ]);
       goToStep(1);
-      goToStep(MODEL_STEP_INDEX);
-      // On first run this downloads + loads the on-device model (can take a
-      // while); on later runs the model is already cached and this resolves fast.
-      await preloadPromise;
+      goToStep(2);
       if (cancelledRef.current) return;
-      goToStep(3);
       const routineJson = await generateRoutine({
         skin_type: parsedAnswers.skin_type,
         main_concern: parsedAnswers.main_concern,
@@ -121,7 +107,7 @@ export default function Loading() {
       });
       await insertRoutine(routineJson);
       if (cancelledRef.current) return;
-      goToStep(4);
+      goToStep(3);
       // brief pause so the last step is visibly checked off before navigating
       await new Promise((r) => setTimeout(r, 400));
       if (cancelledRef.current) return;
@@ -151,23 +137,24 @@ export default function Loading() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="flex-1 px-6 items-center justify-center">
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2 w-full">
-            <AlertCircle size={28} color="#B91C1C" />
-            <Text className="font-bold text-gray-800">
+      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+        <ScreenGradient />
+        <View className="flex-1 px-5 items-center justify-center">
+          <View className="bg-white rounded-[20px] py-10 px-6 items-center gap-2 w-full" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+            <AlertCircle size={28} color="#DC2626" />
+            <Text className="font-bold" style={{ color: "#10241A" }}>
               {"Couldn't generate your routine"}
             </Text>
-            <Text className="text-sm text-gray-500 text-center">{error}</Text>
-            <Pressable
-              className="rounded-full bg-green-700 active:opacity-80 px-6 py-3 mt-2"
-              onPress={() => {
-                ranRef.current = false;
-                run();
-              }}
-            >
-              <Text className="font-bold text-white">Try Again</Text>
-            </Pressable>
+            <Text className="text-sm text-center" style={{ color: "#6B7280" }}>{error}</Text>
+            <View className="w-full mt-2">
+              <PrimaryButton
+                label="Try Again"
+                onPress={() => {
+                  ranRef.current = false;
+                  run();
+                }}
+              />
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -175,60 +162,60 @@ export default function Loading() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <View className="flex-1 px-6">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
+      <View className="flex-1 px-5">
         <View className="flex-1 items-center justify-center gap-8">
           <PulsatingIcon />
           <View className="pt-4">
-            <Text className="font-bold text-green-700 text-2xl text-center">
+            <Text className="font-bold text-[24px] text-center" style={{ color: "#10241A" }}>
               Creating Your Routine
             </Text>
-            <Text className="text-gray-500 text-center">
-              AI Personalized Skin Routine Generator
+            <Text className="text-center" style={{ color: "#6B7280" }}>
+              Building your routine from your answers
             </Text>
           </View>
           <View className="w-full gap-3">
-            <Text className="text-center text-base font-medium text-gray-700">
+            <Text className="text-center text-base font-medium" style={{ color: "#3F4A44" }}>
               {steps[stepIndex].label}...
             </Text>
-            <InlineProgress progress={progressPct} height={8} color="#15803D" />
+            <InlineProgress progress={progressPct} height={8} color="#15803D" trackColor="#EAF6EE" />
           </View>
 
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 w-full gap-3">
+          <View className="bg-white rounded-[20px] py-4 px-4 w-full gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
             {steps.map((step, i) => {
               const isDone = i < stepIndex;
               const isActive = i === stepIndex;
               return (
                 <View key={step.label} className="flex-row items-center gap-3">
                   <View
-                    className={`h-7 w-7 rounded-full items-center justify-center ${
-                      isDone
-                        ? "bg-green-700"
+                    className="h-7 w-7 rounded-full items-center justify-center"
+                    style={{
+                      backgroundColor: isDone
+                        ? theme.colors.primary
                         : isActive
-                          ? "bg-green-100"
-                          : "bg-gray-100"
-                    }`}
+                          ? "#EAF6EE"
+                          : "#F4F7F5",
+                    }}
                   >
                     {isDone ? (
                       <Check size={14} color="#FFFFFF" />
                     ) : (
                       <Text
-                        className={`text-xs font-bold ${
-                          isActive ? "text-green-700" : "text-gray-400"
-                        }`}
+                        className="text-xs font-bold"
+                        style={{ color: isActive ? "#15803D" : "#9CA3AF" }}
                       >
                         {i + 1}
                       </Text>
                     )}
                   </View>
                   <Text
-                    className={`text-sm ${
-                      isDone
-                        ? "text-gray-800 line-through"
-                        : isActive
-                          ? "font-bold text-gray-900"
-                          : "text-gray-400"
-                    }`}
+                    className="text-sm"
+                    style={{
+                      color: isDone || isActive ? "#10241A" : "#9CA3AF",
+                      fontWeight: isActive ? "700" : "400",
+                      textDecorationLine: isDone ? "line-through" : "none",
+                    }}
                   >
                     {step.label}
                   </Text>

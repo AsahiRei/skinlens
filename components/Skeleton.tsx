@@ -7,6 +7,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { theme } from "@/lib/theme";
+
 export default function Skeleton({ className }: { className: string }) {
   const opacity = useSharedValue(0);
 
@@ -26,8 +28,8 @@ export default function Skeleton({ className }: { className: string }) {
 
   return (
     <Animated.View
-      className={`bg-gray-300 rounded-md ${className}`}
-      style={animatedStyle}
+      className={`rounded-lg ${className}`}
+      style={[{ backgroundColor: theme.colors.skeleton }, animatedStyle]}
     />
   );
 }

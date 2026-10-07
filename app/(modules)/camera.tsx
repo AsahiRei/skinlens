@@ -73,7 +73,7 @@ const LightingBadge = React.memo(function LightingBadge({
     <View pointerEvents="none" className="absolute" style={{ top: 90, left: 20 }}>
       <View
         className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full"
-        style={{ backgroundColor: good ? "rgba(22,163,74,0.85)" : "rgba(217,119,6,0.85)" }}
+        style={{ backgroundColor: good ? "#15803D" : "#B45309" }}
       >
         <Icon size={12} color="white" />
         <Text className="text-xs font-medium text-white">
@@ -88,7 +88,7 @@ const AlignmentStatus = React.memo(function AlignmentStatus({
   score, message, hasFace, isMulti,
 }: { score: number; message: string; hasFace: boolean; isMulti: boolean }) {
   const color =
-    score > 80 ? "#22C55E" : score > 50 ? "#FBBF24" : "#EF4444";
+    score > 80 ? "#4ADE80" : score > 50 ? "#F59E0B" : "#DC2626";
   const label = !hasFace
     ? "Looking for face"
     : score > 80
@@ -359,7 +359,11 @@ export default function FaceDetectionScreen() {
   }, [router]);
 
   useEffect(() => {
-    if (!hasPermission) requestPermission();
+    if (!hasPermission) {
+      requestPermission().catch(() => {
+        // Denial is handled by the fallback UI below — no unhandled rejection.
+      });
+    }
   }, [hasPermission, requestPermission]);
 
   if (!hasPermission) {
@@ -384,7 +388,7 @@ export default function FaceDetectionScreen() {
   // because it never triggers a re-render.
   const hasFace = qs.alignmentScore > 0;
   const scoreColor =
-    qs.alignmentScore > 80 ? "#22C55E" : qs.alignmentScore > 50 ? "#FBBF24" : "#EF4444";
+    qs.alignmentScore > 80 ? "#4ADE80" : qs.alignmentScore > 50 ? "#F59E0B" : "#DC2626";
 
   return (
     <View className="flex-1 bg-black">
@@ -427,9 +431,10 @@ export default function FaceDetectionScreen() {
           {!isPreview && (
             <Pressable
               onPress={() => setIsMultiAngle((p) => !p)}
-              className={`px-4 py-2 rounded-full ${isMultiAngle ? "bg-green-700" : "bg-white/15"}`}
+              className="px-4 py-2 rounded-full"
+              style={{ backgroundColor: isMultiAngle ? "#15803D" : "rgba(255,255,255,0.15)" }}
             >
-              <Text className={`text-xs font-semibold ${isMultiAngle ? "text-white" : "text-white/80"}`}>
+              <Text className="text-xs font-semibold text-white">
                 {isMultiAngle ? "Multi-Angle" : "Single Shot"}
               </Text>
             </Pressable>
@@ -506,7 +511,7 @@ export default function FaceDetectionScreen() {
       {/* Multi-angle instruction */}
       {!isPreview && isMultiAngle && qs.alignmentScore > 0 && (
         <View pointerEvents="none" className="absolute self-center" style={{ bottom: 155 }}>
-          <View className="px-4 py-2 rounded-full" style={{ backgroundColor: "rgba(22,163,74,0.85)" }}>
+          <View className="px-4 py-2 rounded-full" style={{ backgroundColor: "#15803D" }}>
             <Text className="text-xs font-semibold text-white text-center">
               {ANGLE_GUIDE[currentAngle].instruction}
             </Text>

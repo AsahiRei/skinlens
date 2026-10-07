@@ -1,52 +1,42 @@
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { useState } from "react";
+import { ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import {
   Camera,
   Images,
-  ChevronRight,
-  Sparkles,
-  FileText,
+  ArrowRight,
   AlertTriangle,
-  Sun,
-  Move,
-  Focus,
+  ImagePlus,
 } from "lucide-react-native";
 
+import { FadeItem } from "@/components/FadeItem";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import {
+  ClinicalCard,
+  GradientHeroCta,
+  Notice,
+  ScreenHeader,
+  SectionTitle,
+  UiModal,
+} from "@/components/ui";
 import scanContent from "@/data/scan-content.json";
-
-const SCAN_ICON_MAP: Record<string, typeof Camera> = {
-  camera: Camera,
-  sparkles: Sparkles,
-  "file-text": FileText,
-  sun: Sun,
-  move: Move,
-  focus: Focus,
-};
-
-const HOW_IT_WORKS = scanContent.howItWorks.map((item) => ({
-  ...item,
-  icon: SCAN_ICON_MAP[item.icon] ?? Camera,
-}));
-
-const CAPTURE_TIPS = scanContent.captureTips.map((item) => ({
-  ...item,
-  icon: SCAN_ICON_MAP[item.icon] ?? Sun,
-}));
+import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
+import { ScreenGradient } from "@/components/ScreenGradient";
 
 const DISCLAIMER = scanContent.disclaimer;
 
 export default function Scan() {
   const router = useRouter();
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
   const handleUploadPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(
-        "Permission needed",
-        "Please allow photo library access to upload an image.",
-      );
+      setNotice({
+        title: "Permission needed",
+        message: "Please allow photo library access to upload an image.",
+      });
       return;
     }
     try {
@@ -63,112 +53,127 @@ export default function Scan() {
         });
       }
     } catch {
-      Alert.alert(
-        "Couldn't open gallery",
-        "Please try again or use the camera instead.",
-      );
+      setNotice({
+        title: "Couldn't open gallery",
+        message: "Please try again or use the camera instead.",
+      });
     }
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
+      <UiModal
+        visible={notice !== null}
+        onDismiss={() => setNotice(null)}
+        title={notice?.title ?? ""}
+        message={notice?.message}
+        icon={notice?.title === "Permission needed" ? AlertTriangle : ImagePlus}
+        tone="warning"
+        actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
+      />
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: TAB_BAR_CLEARANCE }}
       >
-        <Text className="font-bold text-green-700 text-2xl">Skin Scan</Text>
-        <Text className="text-gray-500 mt-1">Analyze your skin with a photo</Text>
+        <FadeItem index={0}>
+          <ScreenHeader
+            title="Skin Scan"
+            subtitle="Take or upload a photo"
+          />
+        </FadeItem>
 
         {/* Action buttons */}
-        <View className="flex-col gap-3 mt-6">
-          <Pressable
-            onPress={() => router.push("/(modules)/camera")}
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-center gap-3 active:opacity-80"
-          >
-            <View className="h-12 w-12 rounded-2xl items-center justify-center bg-green-100">
-              <Camera size={22} color="#15803D" />
-            </View>
-            <View className="flex-col flex-1 gap-0.5">
-              <Text className="font-bold text-gray-900 text-[15px]">Use Camera</Text>
-              <Text className="text-xs text-gray-500">
-                Take a new photo with guided alignment
-              </Text>
-            </View>
-            <ChevronRight size={18} color="#9CA3AF" />
-          </Pressable>
+        <FadeItem index={1}>
+          <View className="flex-col gap-3 mt-5">
+            <GradientHeroCta
+              className="mt-0"
+              icon={Camera}
+              title="Use Camera"
+              subtitle="Guided capture with face alignment"
+              onPress={() => router.push("/(modules)/camera")}
+              accessibilityLabel="Use camera"
+              accessory={
+                <View
+                  className="h-9 w-9 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+                >
+                  <ArrowRight size={16} color="white" />
+                </View>
+              }
+            />
 
-          <Pressable
-            onPress={handleUploadPhoto}
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-center gap-3 active:opacity-80"
-          >
-            <View className="h-12 w-12 rounded-2xl items-center justify-center bg-green-100">
-              <Images size={22} color="#15803D" />
-            </View>
-            <View className="flex-col flex-1 gap-0.5">
-              <Text className="font-bold text-gray-900 text-[15px]">Upload Photo</Text>
-              <Text className="text-xs text-gray-500">
-                Choose an existing photo from your gallery
-              </Text>
-            </View>
-            <ChevronRight size={18} color="#9CA3AF" />
-          </Pressable>
-        </View>
+            <GradientHeroCta
+              className="mt-0"
+              icon={Images}
+              title="Upload Photo"
+              subtitle="Choose from your gallery"
+              onPress={handleUploadPhoto}
+              accessibilityLabel="Upload photo"
+              accessory={
+                <View
+                  className="h-9 w-9 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+                >
+                  <ArrowRight size={16} color="white" />
+                </View>
+              }
+            />
+          </View>
+        </FadeItem>
 
         {/* How it works */}
-        <View className="mt-8">
-          <Text className="font-bold text-gray-900 text-lg">How It Works</Text>
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm mt-3 overflow-hidden">
-            {HOW_IT_WORKS.map((item, index) => (
-              <View
-                key={item.title}
-                className="py-4 px-4 flex-row items-start gap-3"
-                style={index < HOW_IT_WORKS.length - 1 ? { borderBottomWidth: 1, borderBottomColor: "#F3F4F6" } : {}}
-              >
-                <View className="h-7 w-7 rounded-full items-center justify-center mt-0.5 bg-green-100">
-                  <Text className="text-green-700 font-bold text-xs">{index + 1}</Text>
-                </View>
-                <View className="flex-col flex-1 gap-0.5">
-                  <View className="flex-row items-center gap-1.5">
-                    <item.icon size={13} color="#15803D" />
-                    <Text className="font-bold text-gray-900 text-sm">{item.title}</Text>
+        <FadeItem index={2}>
+          <View className="mt-7">
+            <SectionTitle title="How it works" meta={`${scanContent.howItWorks.length} steps`} />
+            <ClinicalCard className="mt-3 !p-0 overflow-hidden">
+              {scanContent.howItWorks.map((item, index) => (
+                <View
+                  key={item.title}
+                  className="py-4 px-4 flex-row items-start gap-3"
+                  style={index < scanContent.howItWorks.length - 1 ? { borderBottomWidth: 1, borderBottomColor: "#EEF2EF" } : {}}
+                >
+                  <View className="h-7 w-7 rounded-full items-center justify-center mt-0.5" style={{ backgroundColor: "#15803D" }}>
+                    <Text className="text-white font-bold text-xs">{index + 1}</Text>
                   </View>
-                  <Text className="text-xs text-gray-500">{item.description}</Text>
+                  <View className="flex-col flex-1 gap-0.5">
+                    <Text className="font-bold text-[14px]" style={{ color: "#10241A" }}>{item.title}</Text>
+                    <Text className="text-xs" style={{ color: "#6B7280" }}>{item.description}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))}
+            </ClinicalCard>
           </View>
-        </View>
+        </FadeItem>
 
         {/* Capture tips */}
-        <View className="mt-6">
-          <Text className="font-bold text-gray-900 text-lg">Tips for Best Results</Text>
-          <View className="bg-green-50 border border-green-100 rounded-2xl mt-3 overflow-hidden">
-            {CAPTURE_TIPS.map((item, index) => (
-              <View
-                key={item.title}
-                className="py-3 px-4 flex-row items-start gap-3"
-                style={index < CAPTURE_TIPS.length - 1 ? { borderBottomWidth: 1, borderBottomColor: "rgba(22,163,74,0.1)" } : {}}
-              >
-                <View className="h-7 w-7 rounded-full items-center justify-center mt-0.5 bg-green-100">
-                  <item.icon size={14} color="#15803D" />
+        <FadeItem index={3}>
+          <View className="mt-6">
+            <SectionTitle title="Tips for best results" />
+            <ClinicalCard className="mt-3 !p-0 overflow-hidden" >
+              <View style={{ backgroundColor: "#EAF6EE", borderRadius: 20 }}>
+              {scanContent.captureTips.map((item, index) => (
+                <View
+                  key={item.title}
+                  className="py-3 px-4 flex-col gap-0.5"
+                  style={index < scanContent.captureTips.length - 1 ? { borderBottomWidth: 1, borderBottomColor: "#D8EADD" } : {}}
+                >
+                  <Text className="font-bold text-[14px]" style={{ color: "#10241A" }}>{item.title}</Text>
+                  <Text className="text-xs" style={{ color: "#3F4A44" }}>{item.description}</Text>
                 </View>
-                <View className="flex-col flex-1 gap-0.5">
-                  <Text className="font-bold text-gray-900 text-sm">{item.title}</Text>
-                  <Text className="text-xs text-gray-600">{item.description}</Text>
-                </View>
+              ))}
               </View>
-            ))}
+            </ClinicalCard>
           </View>
-        </View>
+        </FadeItem>
 
         {/* Disclaimer */}
-        <View className="bg-amber-50 border border-amber-200 rounded-2xl py-4 px-4 flex-row items-start gap-3 mt-6">
-          <AlertTriangle size={18} color="#B45309" style={{ marginTop: 1 }} />
-          <Text className="text-xs text-amber-800 flex-1 leading-5">
-            {DISCLAIMER}
-          </Text>
-        </View>
+        <FadeItem index={4}>
+          <View className="mt-5">
+            <Notice icon={AlertTriangle} copy={DISCLAIMER} tone="warning" />
+          </View>
+        </FadeItem>
       </ScrollView>
     </SafeAreaView>
   );

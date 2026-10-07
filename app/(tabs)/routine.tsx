@@ -7,11 +7,20 @@ import {
   Text,
   View,
 } from "react-native";
-import { Sun, CloudSun, Moon, Check, Sparkles, AlertCircle } from "lucide-react-native";
+import { Sun, CloudSun, Moon, Check, List, AlertCircle } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
+import { FadeItem } from "@/components/FadeItem";
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { theme, cardShadow } from "@/lib/theme";
+import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
+import {
+  ClinicalCard,
+  EmptyState,
+  ScreenHeader,
+} from "@/components/ui";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import {
   getLatestRoutine,
@@ -19,6 +28,7 @@ import {
   toggleStep as toggleStepDb,
 } from "@/lib/db";
 import type { Period, Routine, RoutineStep } from "@/types/schema";
+import { ScreenGradient } from "@/components/ScreenGradient";
 
 type IconComponent = typeof Sun;
 
@@ -133,11 +143,12 @@ export default function Routines() {
     }
   };
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
       <ScrollView
-        className="flex-1 px-6"
+        className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -150,180 +161,204 @@ export default function Routines() {
         {/* Title + Period tabs - skeleton first */}
         {loadingRoutine ? (
           <View>
-            <Skeleton className="h-7 w-32" />
-            <Skeleton className="h-4 w-48 mt-1" />
+            <Skeleton className="h-7 w-32 rounded-lg" />
+            <Skeleton className="h-4 w-48 mt-1 rounded-md" />
             <View className="flex-row gap-2 mt-5">
               {[0, 1, 2].map((i) => (
                 <Skeleton key={i} className="h-12 flex-1 rounded-full" />
               ))}
             </View>
             <View className="flex-col gap-3 mt-5">
-              <Skeleton className="h-24 w-full rounded-xl" />
-              <Skeleton className="h-24 w-full rounded-xl" />
-              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-2xl" />
+              <Skeleton className="h-24 w-full rounded-2xl" />
+              <Skeleton className="h-24 w-full rounded-2xl" />
             </View>
           </View>
         ) : (
           <>
-            <Text className="font-bold text-green-700 text-2xl">My Routine</Text>
-            <Text className="text-gray-500">AI Personalized Routine Generator</Text>
+            <FadeItem index={0}>
+              <View className="mt-2">
+                <ScreenHeader
+                  title="My Routine"
+                  subtitle="Today's steps"
+                />
+              </View>
+            </FadeItem>
 
-            <View className="flex-row items-center gap-2 mt-5">
-              {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
-                const { label, icon: Icon } = PERIOD_CONFIG[period];
-                const isActive = activePeriod === period;
-                return (
-                  <Pressable
-                    key={period}
-                    onPress={() => setActivePeriod(period)}
-                    className={`flex-1 rounded-full py-3 flex-row justify-center items-center gap-1.5 border ${
-                      isActive
-                        ? "bg-green-700 border-green-700"
-                        : "border-green-700"
-                    }`}
-                  >
-                    <Icon
-                      size={14}
-                      color={isActive ? "#FFFFFF" : "#15803D"}
-                    />
-                    <Text
-                      className={`text-center font-bold text-sm ${
-                        isActive ? "text-white" : "text-green-700"
-                      }`}
+            <FadeItem index={1}>
+              <View className="flex-row items-center gap-2 mt-5 p-1 rounded-full bg-white" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+                {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
+                  const { label, icon: Icon } = PERIOD_CONFIG[period];
+                  const isActive = activePeriod === period;
+                  return (
+                    <Pressable
+                      key={period}
+                      onPress={() => setActivePeriod(period)}
+                      className="flex-1 rounded-full active:opacity-80"
+                      style={{ borderRadius: 999, overflow: "hidden" }}
                     >
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                      {isActive ? (
+                        <LinearGradient
+                          colors={[...theme.gradients.dark]}
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
+                          className="py-2.5 flex-row justify-center items-center gap-1.5"
+                        >
+                          <Icon size={14} color="#FFFFFF" />
+                          <Text className="text-center font-bold text-[13px] text-white">
+                            {label}
+                          </Text>
+                        </LinearGradient>
+                      ) : (
+                        <View className="py-2.5 flex-row justify-center items-center gap-1.5">
+                          <Icon size={14} color={theme.colors.muted} />
+                          <Text
+                            className="text-center font-bold text-[13px]"
+                            style={{ color: theme.colors.muted }}
+                          >
+                            {label}
+                          </Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </FadeItem>
 
             {/* Progress */}
-            {routine && totalSteps > 0 && (
-              <View className="mt-5 gap-2">
-                <View className="flex-row justify-between items-center">
-                  <Text className="font-bold text-gray-800">
-                    {doneCount}/{totalSteps} completed
-                  </Text>
-                  <Text className="text-xs text-gray-500">{progressPct}%</Text>
-                </View>
-                <InlineProgress progress={progressPct} height={8} color="#15803D" />
-              </View>
-            )}
+            <FadeItem index={2}>
+              {routine && totalSteps > 0 && (
+                <ClinicalCard className="mt-4">
+                  <View className="flex-row justify-between items-center">
+                    <Text className="font-bold" style={{ color: "#10241A" }}>
+                      {doneCount}/{totalSteps} completed
+                    </Text>
+                    <Text className="text-xs" style={{ color: "#6B7280" }}>{progressPct}%</Text>
+                  </View>
+                  <View className="mt-2">
+                    <InlineProgress progress={progressPct} height={8} color="#15803D" trackColor="#EAF6EE" />
+                  </View>
+                </ClinicalCard>
+              )}
+            </FadeItem>
 
             {/* Steps */}
-            <View className="flex-col gap-3 mt-5">
+            <View className="flex-col gap-3 mt-4">
               {loadError ? (
-                <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2">
-                  <AlertCircle size={28} color="#B91C1C" />
-                  <Text className="font-bold text-gray-800">
-                    {"Couldn't load your routine"}
-                  </Text>
-                  <Text className="text-sm text-gray-500 text-center">
-                    Check your connection and try again.
-                  </Text>
-                </View>
+                <ClinicalCard>
+                  <EmptyState icon={AlertCircle} title="Couldn't load routine" copy="Check your connection and try again." />
+                </ClinicalCard>
               ) : !routine ? (
-                <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2">
-                  <Sparkles size={28} color="#15803D" />
-                  <Text className="font-bold text-gray-800">No routine yet</Text>
-                  <Text className="text-sm text-gray-500 text-center">
-                    Generate a personalized routine to see your steps here.
-                  </Text>
-                </View>
+                <ClinicalCard>
+                  <EmptyState icon={List} title="No routine yet" copy="No routine saved yet." />
+                </ClinicalCard>
               ) : activeSteps.length === 0 ? (
-                <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2">
+                <ClinicalCard>
                   {(() => {
                     const Icon = PERIOD_CONFIG[activePeriod].icon;
-                    return <Icon size={28} color="#15803D" />;
+                    return <EmptyState icon={Icon} copy={`No ${PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps in this routine.`} />;
                   })()}
-                  <Text className="text-sm text-gray-500 text-center">
-                    No {PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps in
-                    this routine.
-                  </Text>
-                </View>
+                </ClinicalCard>
               ) : (
-                activeSteps.map((item) => {
+                activeSteps.map((item, stepIdx) => {
                   const key = `${activePeriod}-${item.step}`;
                   const isDone = completedSteps.has(key);
                   const isPending = pendingSteps.has(key);
                   return (
-                    <Pressable
-                      key={key}
-                      onPress={() => handleToggleStep(activePeriod, item.step)}
-                      disabled={isPending}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: isDone }}
-                      accessibilityLabel={`${item.product_type}, ${isDone ? "completed" : "not completed"}`}
-                      className={`bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-start gap-3 ${
-                        isDone ? "opacity-60" : ""
-                      } ${isPending ? "opacity-40" : ""}`}
-                    >
-                      <View
-                        className={`h-8 w-8 rounded-full items-center justify-center mt-0.5 ${
-                          isDone ? "bg-green-700" : "bg-green-50 border border-green-700/30"
-                        }`}
+                    <FadeItem key={key} index={Math.min(3 + stepIdx, 7)}>
+                      <Pressable
+                        key={key}
+                        onPress={() => handleToggleStep(activePeriod, item.step)}
+                        disabled={isPending}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: isDone }}
+                        accessibilityLabel={`${item.product_type}, ${isDone ? "completed" : "not completed"}`}
+                        className="active:opacity-80"
                       >
-                        {isDone ? (
-                          <Check size={16} color="#FFFFFF" />
-                        ) : (
-                          <Text className="text-green-700 font-bold">
-                            {item.step}
-                          </Text>
-                        )}
-                      </View>
-                      <View className="flex-col flex-1 gap-1">
-                        <Text
-                          className={`font-bold text-gray-900 ${
-                            isDone ? "line-through" : ""
-                          }`}
+                        <ClinicalCard
+                          className={`flex-row items-start gap-3 ${
+                            isDone ? "opacity-60" : ""
+                          } ${isPending ? "opacity-40" : ""}`}
                         >
-                          {item.product_type}
-                        </Text>
-                        <Text className="text-xs text-gray-500">
-                          {item.instruction}
-                        </Text>
-                        <Text className="text-xs text-gray-400">{item.reason}</Text>
-                      </View>
-                    </Pressable>
+                          <View
+                            className="h-9 w-9 rounded-full items-center justify-center mt-0.5 bg-white"
+                            style={
+                              isDone
+                                ? { backgroundColor: theme.colors.primary }
+                                : { borderWidth: 1.5, borderColor: theme.colors.primary }
+                            }
+                          >
+                            {isDone ? (
+                              <Check size={16} color="#FFFFFF" />
+                            ) : (
+                              <Text
+                                className="font-bold text-[13px]"
+                                style={{ color: theme.colors.primary }}
+                              >
+                                {item.step}
+                              </Text>
+                            )}
+                          </View>
+                          <View className="flex-col flex-1 gap-1">
+                            <Text
+                              className={`font-bold text-[15px] ${
+                                isDone ? "line-through" : ""
+                              }`}
+                              style={{ color: "#10241A" }}
+                            >
+                              {item.product_type}
+                            </Text>
+                            <Text className="text-xs" style={{ color: "#3F4A44" }}>
+                              {item.instruction}
+                            </Text>
+                            <Text className="text-xs" style={{ color: "#9CA3AF" }}>
+                              {item.reason}
+                            </Text>
+                          </View>
+                        </ClinicalCard>
+                      </Pressable>
+                    </FadeItem>
                   );
                 })
               )}
             </View>
 
             {/* Recommended products */}
-            {routine && routine.recommended_products?.length > 0 && (
-              <View className="mt-8 gap-3">
-                <Text className="font-bold text-gray-800 text-lg">
-                  Recommended Products
-                </Text>
-                {routine.recommended_products.map((product, index) => (
-                  <View
-                    key={index}
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-1.5"
-                  >
-                    <Text className="font-bold text-gray-900">
-                      {product.product_type}
-                    </Text>
-                    <View className="flex-row flex-wrap gap-1.5 mt-1">
-                      {product.recommended_ingredients.map((ingredient, i) => (
-                        <View
-                          key={i}
-                          className="bg-green-50 rounded-full px-3 py-1"
-                        >
-                          <Text className="text-xs text-green-700 font-medium">
-                            {ingredient}
-                          </Text>
+            <FadeItem index={8}>
+              {routine && routine.recommended_products?.length > 0 && (
+                <View className="mt-7 gap-3">
+                  <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
+                    Recommended products
+                  </Text>
+                  {routine.recommended_products.map((product, index) => (
+                    <FadeItem key={index} index={Math.min(9 + index, 11)}>
+                      <ClinicalCard key={index} className="gap-1.5">
+                        <Text className="font-bold text-[15px]" style={{ color: "#10241A" }}>
+                          {product.product_type}
+                        </Text>
+                        <View className="flex-row flex-wrap gap-1.5 mt-1">
+                          {product.recommended_ingredients.map((ingredient, i) => (
+                            <View
+                              key={i}
+                              className="rounded-full px-3 py-1"
+                              style={{ backgroundColor: "#EAF6EE" }}
+                            >
+                              <Text className="text-xs font-semibold" style={{ color: "#14532D" }}>
+                                {ingredient}
+                              </Text>
+                            </View>
+                          ))}
                         </View>
-                      ))}
-                    </View>
-                    <Text className="text-xs text-gray-400 mt-1">
-                      {product.reason}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
+                        <Text className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
+                          {product.reason}
+                        </Text>
+                      </ClinicalCard>
+                    </FadeItem>
+                  ))}
+                </View>
+              )}
+            </FadeItem>
           </>
         )}
       </ScrollView>

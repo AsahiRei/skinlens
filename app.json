@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/skinlens-icon.png",
     "scheme": "skinlens",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
@@ -34,8 +34,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/skinlens-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/splash-icon-rounded.png",
+          "imageWidth": 128,
           "resizeMode": "contain",
           "backgroundColor": "#15803d"
         }
@@ -52,7 +52,8 @@
         }
       ],
       "./plugins/withOpenCL",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

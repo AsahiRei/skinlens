@@ -400,6 +400,10 @@ export type FaceIdentity = {
 
 // Local-first read: verification must work offline, so the SQLite mirror is
 // authoritative here (server refresh happens inside getUserProfile anyway).
+// An identity only counts when an embedding exists — a profile picture alone
+// (e.g. freshly changed via gallery, or enrollment that never completed) must
+// not pass the face-enroll guard in loading.tsx nor silently skip the gate in
+// analyzing.tsx with a stale/missing embedding.
 export async function getFaceIdentity(): Promise<FaceIdentity | null> {
   const user = await requireUser();
   const db = await getDatabase();
@@ -410,7 +414,7 @@ export async function getFaceIdentity(): Promise<FaceIdentity | null> {
     user.id,
   ]);
   if (!local) return null;
-  if (!local.face_image_url && !local.face_embedding) return null;
+  if (!local.face_embedding) return null;
   return {
     face_image_url: local.face_image_url,
     face_embedding: local.face_embedding,

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -11,22 +10,28 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
   Send,
   MessageSquare,
   MapPin,
   Navigation,
+  Download,
 } from "lucide-react-native";
 
 import TypewriterText from "@/components/TypewriterText";
 import TypingDots from "@/components/TypingDots";
+import { KeyboardAvoidingWrapper } from "@/components/KeyboardAwareView";
 import ChatImageCarousel from "@/components/ChatImageCarousel";
 import ChatProductCard from "@/components/ChatProductCard";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { IconBadge, UiModal } from "@/components/ui";
+import { theme } from "@/lib/theme";
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import type { ChatMessage, ChatTurn } from "@/types/chat";
 import { generateChatReply } from "@/utils/chat-assistant";
+import { ScreenGradient } from "@/components/ScreenGradient";
 import {
   findNearbyDermatologists,
   formatClinicsForChat,
@@ -43,14 +48,6 @@ import {
   isProductListIntent,
 } from "@/utils/ingredient-images";
 
-const showDownloadNotice = (message: string) => {
-  if (Platform.OS === "android") {
-    ToastAndroid.show(message, ToastAndroid.LONG);
-  } else {
-    Alert.alert("Downloading model", message);
-  }
-};
-
 const INITIAL_MESSAGES: ChatMessage[] = [];
 
 export default function Chatbot() {
@@ -60,8 +57,17 @@ export default function Chatbot() {
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState("Thinking");
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const downloadToastShown = useRef(false);
+
+  const showDownloadNotice = (message: string) => {
+    if (Platform.OS === "android") {
+      ToastAndroid.show(message, ToastAndroid.LONG);
+    } else {
+      setDownloadNotice(message);
+    }
+  };
   const msgCountRef = useRef(0);
   const hasStarted = messages.length > 0;
   // Only auto-scroll when a NEW message arrives. Scrolling on every
@@ -77,6 +83,16 @@ export default function Chatbot() {
       msgCountRef.current = messages.length;
     }
   }, [messages]);
+  // Keep the latest messages (and the input bar) visible when the
+  // keyboard opens — otherwise it covers the input on both platforms.
+  useEffect(() => {
+    const sub = Keyboard.addListener("keyboardDidShow", () => {
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      });
+    });
+    return () => sub.remove();
+  }, []);
   const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed || isThinking) return;
@@ -217,20 +233,25 @@ export default function Chatbot() {
     <Pressable
       onPress={() => router.back()}
       hitSlop={8}
-      className="h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm"
+      className="h-9 w-9 items-center justify-center rounded-full bg-white"
+      style={{ borderWidth: 1, borderColor: "#E5EDE8" }}
     >
       <ArrowLeft size={18} color="#15803D" />
     </Pressable>
   );
 
   const InputBar = (
-    <View className="flex-row items-end gap-2 bg-white rounded-2xl border border-gray-200 shadow-sm px-2 py-2">
+    <View
+      className="flex-row items-end gap-2 bg-white px-2 py-2"
+      style={{ borderRadius: theme.radius.card, borderWidth: 1, borderColor: theme.colors.cardBorder }}
+    >
       <TextInput
         value={input}
         onChangeText={setInput}
         placeholder="Ask about your skin..."
-        placeholderTextColor="#9CA3AF"
-        className="flex-1 px-3 py-2 text-[15px] leading-6 text-gray-900"
+        placeholderTextColor={theme.colors.faint}
+        className="flex-1 px-3 py-2 text-[15px] leading-6"
+        style={{ color: theme.colors.ink }}
         multiline
         editable={!isThinking}
         onSubmitEditing={sendMessage}
@@ -238,14 +259,23 @@ export default function Chatbot() {
       <Pressable
         onPress={sendMessage}
         disabled={!input.trim() || isThinking}
-        className={`h-10 w-10 rounded-full items-center justify-center ${
-          !input.trim() || isThinking ? "bg-green-100" : "bg-green-700"
-        }`}
+        className="h-10 w-10 rounded-full items-center justify-center overflow-hidden active:opacity-80"
       >
-        <Send
-          size={16}
-          color={!input.trim() || isThinking ? "#15803D" : "#FFFFFF"}
-        />
+        <LinearGradient
+          colors={
+            !input.trim() || isThinking
+              ? [theme.colors.primarySoft, theme.colors.primarySoft]
+              : [...theme.gradients.icon]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          className="h-10 w-10 items-center justify-center"
+        >
+          <Send
+            size={16}
+            color={!input.trim() || isThinking ? theme.colors.primary : "#FFFFFF"}
+          />
+        </LinearGradient>
       </Pressable>
     </View>
   );
@@ -253,17 +283,21 @@ export default function Chatbot() {
     const isUser = message.role === "user";
     if (isUser) {
       return (
-        <View
+        <LinearGradient
           key={message.id}
+          colors={[...theme.gradients.dark]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
           accessible
           accessibilityRole="text"
           accessibilityLabel={`You: ${message.content}`}
-          className="max-w-[80%] rounded-2xl px-4 py-3 self-end bg-green-700 rounded-br-md"
+          className="max-w-[80%] rounded-2xl rounded-br-[6px] px-4 py-3 self-end"
+          style={{ borderRadius: theme.radius.card }}
         >
           <Text className="text-[15px] leading-6 text-white">
             {message.content}
           </Text>
-        </View>
+        </LinearGradient>
       );
     }
     return (
@@ -272,16 +306,18 @@ export default function Chatbot() {
         accessible
         accessibilityRole="text"
         accessibilityLabel={`Assistant: ${message.content}`}
-        className="max-w-[85%] rounded-2xl px-4 py-3 self-start bg-white border border-gray-100 shadow-sm rounded-bl-md flex-col gap-2"
+        className="max-w-[85%] rounded-2xl rounded-bl-[6px] px-4 py-3 self-start bg-white flex-col gap-2"
+        style={{ borderWidth: 1, borderColor: "#E5EDE8" }}
       >
         {message.animate ? (
           <TypewriterText
             text={message.content}
-            className="text-[15px] leading-6 text-gray-800"
+            className="text-[15px] leading-6"
+            style={{ color: theme.colors.body }}
             onDone={() => markAnimationDone(message.id)}
           />
         ) : (
-          <Text className="text-[15px] leading-6 text-gray-800">
+          <Text className="text-[15px] leading-6" style={{ color: theme.colors.body }}>
             {message.content}
           </Text>
         )}
@@ -300,19 +336,27 @@ export default function Chatbot() {
             {message.clinics.map((c) => (
               <View
                 key={c.id}
-                className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-2.5 flex-col gap-1"
+                className="px-3 py-2.5 flex-col gap-1"
+                style={{
+                  backgroundColor: theme.colors.background,
+                  borderRadius: theme.radius.card,
+                  borderWidth: 1,
+                  borderColor: theme.colors.cardBorder,
+                }}
               >
                 <View className="flex-row items-center gap-1.5">
-                  <MapPin size={13} color="#15803D" />
+                  <MapPin size={13} color={theme.colors.primary} />
                   <Text
-                    className="font-bold text-gray-900 text-[13px] flex-1"
+                    className="font-bold text-[13px] flex-1"
+                    style={{ color: theme.colors.ink }}
                     numberOfLines={1}
                   >
                     {c.name}
                   </Text>
                 </View>
                 <Text
-                  className="text-[11px] text-gray-500"
+                  className="text-[11px]"
+                  style={{ color: theme.colors.muted }}
                   numberOfLines={2}
                 >
                   {c.specialty} •{" "}
@@ -321,7 +365,8 @@ export default function Chatbot() {
                     : "Nearby"}
                 </Text>
                 <Text
-                  className="text-[11px] text-gray-500"
+                  className="text-[11px]"
+                  style={{ color: theme.colors.muted }}
                   numberOfLines={1}
                 >
                   {c.address}
@@ -342,20 +387,29 @@ export default function Chatbot() {
                       },
                     })
                   }
-                  className="bg-green-700 rounded-full px-3 py-1.5 mt-1 self-start active:opacity-80"
+                  className="rounded-full mt-1 self-start active:opacity-80"
+                  style={{ borderRadius: 999, overflow: "hidden" }}
                 >
-                  <Text className="text-[11px] text-white font-bold">
-                    View more
-                  </Text>
+                  <LinearGradient
+                    colors={[...theme.gradients.dark]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    className="px-3 py-1.5"
+                  >
+                    <Text className="text-[11px] text-white font-bold">
+                      View more
+                    </Text>
+                  </LinearGradient>
                 </Pressable>
               </View>
             ))}
             <Pressable
               onPress={() => router.push("/(tabs)/derma")}
-              className="flex-row items-center justify-center gap-1.5 rounded-full border border-green-700 px-3 py-2 mt-1 active:opacity-80"
+              className="flex-row items-center justify-center gap-1.5 rounded-full bg-white px-3 py-2 mt-1 active:opacity-80"
+              style={{ borderWidth: 1.5, borderColor: theme.colors.primary }}
             >
-              <Navigation size={13} color="#15803D" />
-              <Text className="text-[12px] font-bold text-green-700">
+              <Navigation size={13} color={theme.colors.primary} />
+              <Text className="text-[12px] font-bold" style={{ color: theme.colors.primary }}>
                 Open full map
               </Text>
             </Pressable>
@@ -367,68 +421,84 @@ export default function Chatbot() {
 
   if (!hasStarted) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="px-6 pt-2">{BackButton}</View>
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
-        >
-          <View className="flex-1 items-center justify-center px-6 gap-6">
+      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+        <ScreenGradient />
+        <UiModal
+          visible={downloadNotice !== null}
+          onDismiss={() => setDownloadNotice(null)}
+          title="Downloading model"
+          message={downloadNotice ?? undefined}
+          icon={Download}
+          tone="soft"
+          actions={[{ label: "Got it", onPress: () => setDownloadNotice(null) }]}
+        />
+        <View className="px-5 pt-2">{BackButton}</View>
+        <KeyboardAvoidingWrapper>
+          <View className="flex-1 items-center justify-center px-5 gap-6">
             <View className="items-center gap-2">
-              <MessageSquare size={32} color="#15803D" />
-              <Text className="font-bold text-green-700 text-2xl">
-                Nerma AI Assistant
+              <IconBadge icon={MessageSquare} size="lg" tone="soft" />
+              <Text className="font-bold text-[24px]" style={{ color: "#10241A" }}>
+                Chat
               </Text>
-              <Text className="text-gray-500 text-center">
-                Ask me anything about your skincare routine
+              <Text className="text-center" style={{ color: "#6B7280" }}>
+                Ask about your skin and routine
               </Text>
             </View>
             <View className="w-full">{InputBar}</View>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingWrapper>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
-      >
-        <View className="px-6 pt-2">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
+      <UiModal
+        visible={downloadNotice !== null}
+        onDismiss={() => setDownloadNotice(null)}
+        title="Downloading model"
+        message={downloadNotice ?? undefined}
+        icon={Download}
+        tone="soft"
+        actions={[{ label: "Got it", onPress: () => setDownloadNotice(null) }]}
+      />
+      <KeyboardAvoidingWrapper>
+        <View className="px-5 pt-2">
           <View className="flex-row items-center gap-3">
             {BackButton}
             <View className="flex-col flex-1">
-              <Text className="font-bold text-green-700 text-2xl">
-                Nerma AI
+              <Text className="font-bold text-[20px]" style={{ color: "#10241A" }}>
+                Chat
               </Text>
-              <Text className="text-gray-500">
-                Ask me anything about your skincare routine
+              <Text className="text-[13px]" style={{ color: "#6B7280" }}>
+                Ask about your skin and routine
               </Text>
             </View>
           </View>
         </View>
         <ScrollView
           ref={scrollRef}
-          className="flex-1 px-6"
+          className="flex-1 px-5"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: 16, paddingBottom: 16 }}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingTop: 16, paddingBottom: 16, flexGrow: 1 }}
         >
           <View className="flex-col gap-3">
             {messages.map(renderMessage)}
 
             {isThinking && (
-              <View className="self-start bg-white border border-gray-100 shadow-sm rounded-2xl rounded-bl-md px-2 py-1">
+              <View
+                className="self-start rounded-2xl rounded-bl-[6px] px-2 py-1 bg-white"
+                style={{ borderWidth: 1, borderColor: "#E5EDE8" }}
+              >
                 <TypingDots label={thinkingLabel} />
               </View>
             )}
           </View>
         </ScrollView>
-        <View className="px-6 pb-4 pt-2">{InputBar}</View>
-      </KeyboardAvoidingView>
+        <View className="px-5 pb-4 pt-2">{InputBar}</View>
+      </KeyboardAvoidingWrapper>
     </SafeAreaView>
   );
 }

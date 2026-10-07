@@ -93,7 +93,9 @@ export async function getModelPath(
       }
       if (result?.uri) {
         const bytes = await getModelBytes();
-        console.log(`[llama] model download finished: ${bytes} bytes`);
+        if (__DEV__) {
+          console.log(`[llama] model download finished: ${bytes} bytes`);
+        }
         if (bytes >= 0 && bytes < MIN_MODEL_BYTES) {
           try {
             await FileSystem.deleteAsync(localPath, { idempotent: true });
@@ -135,9 +137,11 @@ export async function getLlamaContext(
         const tier = getDeviceTier();
         const perf = getLlamaPerfConfig(tier);
         const modelPath = await getModelPath(onModelDownloadProgress);
-        console.log(
-          `[llama] init tier=${tier} n_ctx=${perf.n_ctx} threads=${perf.n_threads} batch=${perf.n_batch}/${perf.n_ubatch} mlock=${perf.use_mlock} model=${modelPath}`,
-        );
+        if (__DEV__) {
+          console.log(
+            `[llama] init tier=${tier} n_ctx=${perf.n_ctx} threads=${perf.n_threads} batch=${perf.n_batch}/${perf.n_ubatch} mlock=${perf.use_mlock} model=${modelPath}`,
+          );
+        }
         const ctx = await initLlama({
           model: modelPath,
           n_ctx: perf.n_ctx,

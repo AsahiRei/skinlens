@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Platform,
   Pressable,
@@ -11,10 +10,12 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { AlertCircle, FileText, RefreshCw } from "lucide-react-native";
+import { AlertCircle, FileText, Info, RefreshCw } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { ClinicalCard, PrimaryButton, SecondaryButton, SectionTitle, ScreenHeader, UiModal } from "@/components/ui";
+import { theme, cardShadow } from "@/lib/theme";
 import {
   getLatestResultDetail,
   getLifestyleProfile,
@@ -25,15 +26,8 @@ import {
 import type { ResultData } from "@/types/schema";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { getHealthScoreResponse } from "@/utils/healthscore";
-import { generateRoutine, preloadLlama } from "@/utils/routine-generator";
-
-const showNotice = (message: string) => {
-  if (Platform.OS === "android") {
-    ToastAndroid.show(message, ToastAndroid.SHORT);
-  } else {
-    Alert.alert("SkinLens", message);
-  }
-};
+import { generateRoutine } from "@/utils/routine-generator";
+import { ScreenGradient } from "@/components/ScreenGradient";
 
 const detectionDescriptions: Record<string, string> = {
   acne: "Our AI detected signs of acne on your skin. Acne is a common skin condition caused by clogged pores, excess oil, and bacteria. With the right routine, it can be managed effectively.",
@@ -126,9 +120,17 @@ export default function ScanResults() {
   const [generating, setGenerating] = useState(true);
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
   const ranRef = useRef(false);
   const cancelledRef = useRef(false);
-  const downloadToastShown = useRef(false);
+
+  const showNotice = (message: string, title = "SkinLens") => {
+    if (Platform.OS === "android") {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      setNotice({ title, message });
+    }
+  };
 
   const {
     label: severityLabel,
@@ -151,21 +153,12 @@ export default function ScanResults() {
           })()
         : null;
 
-      // Load the model and fetch profiles in parallel — the model load
-      // dominates, so the DB reads effectively cost nothing.
-      const preloadPromise = preloadLlama((fraction) => {
-        if (fraction < 0.1 && !downloadToastShown.current) {
-          downloadToastShown.current = true;
-          showNotice("AI model is downloading. This may take a moment...");
-        }
-      });
-      const profilesPromise = Promise.all([
+      // Rule-based routine: no model download — just read profiles, then
+      // build the routine deterministically from the knowledge base.
+      const [skinProfile, lifestyleProfile] = await Promise.all([
         getSkinProfile(),
         getLifestyleProfile(),
       ]);
-      await preloadPromise;
-      if (cancelledRef.current) return;
-      const [skinProfile, lifestyleProfile] = await profilesPromise;
       if (cancelledRef.current) return;
       const resolvedSkinType = skinProfile?.skin_type || "normal";
       setSkinType(resolvedSkinType);
@@ -247,47 +240,64 @@ export default function ScanResults() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="flex-1 px-6 items-center justify-center">
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2 w-full">
-            <AlertCircle size={28} color="#B91C1C" />
-            <Text className="font-bold text-gray-800">
+      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+        <ScreenGradient />
+        <UiModal
+          visible={notice !== null}
+          onDismiss={() => setNotice(null)}
+          title={notice?.title ?? ""}
+          message={notice?.message}
+          icon={Info}
+          tone="soft"
+          actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
+        />
+        <View className="flex-1 px-5 items-center justify-center">
+          <ClinicalCard className="py-10 px-6 items-center gap-2 w-full">
+            <AlertCircle size={28} color={theme.colors.danger} />
+            <Text className="font-bold" style={{ color: theme.colors.ink }}>
               {"Couldn't generate results"}
             </Text>
-            <Text className="text-sm text-gray-500 text-center">{error}</Text>
-            <Pressable
-              className="rounded-full bg-green-700 active:opacity-80 px-6 py-3 mt-2"
-              onPress={() => {
-                ranRef.current = false;
-                generateAndSave();
-              }}
-            >
-              <Text className="font-bold text-white">Try Again</Text>
-            </Pressable>
-            <Pressable
-              className="rounded-full border border-green-700 active:opacity-80 px-6 py-3 mt-1"
-              onPress={() => router.back()}
-            >
-              <Text className="font-bold text-green-700">Go Back</Text>
-            </Pressable>
-          </View>
+            <Text className="text-sm text-center" style={{ color: theme.colors.muted }}>{error}</Text>
+            <View className="w-full mt-2">
+              <PrimaryButton
+                label="Try Again"
+                onPress={() => {
+                  ranRef.current = false;
+                  generateAndSave();
+                }}
+              />
+            </View>
+            <View className="w-full mt-1">
+              <SecondaryButton label="Go Back" onPress={() => router.back()} />
+            </View>
+          </ClinicalCard>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
+      <UiModal
+        visible={notice !== null}
+        onDismiss={() => setNotice(null)}
+        title={notice?.title ?? ""}
+        message={notice?.message}
+        icon={Info}
+        tone="soft"
+        actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
+      />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-1 px-6 gap-5">
+        <View className="flex-1 px-5 gap-5">
           <View className="pt-4 items-center">
-            <Text className="font-bold text-green-700 text-2xl">
+            <Text className="font-bold text-[24px] mt-1" style={{ color: "#10241A" }}>
               Scan Results
             </Text>
-            <Text className="text-gray-500">Your AI-powered skin analysis</Text>
+            <Text className="text-gray-500">Your skin analysis</Text>
           </View>
 
           {/* Scanned image */}
@@ -340,8 +350,8 @@ export default function ScanResults() {
           </View>
 
           {/* Top 3 classifications */}
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-3">
-            <Text className="font-bold text-gray-800 text-lg">
+          <View className="bg-white rounded-[20px] py-4 px-4 gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+            <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
               Top 3 Predictions
             </Text>
             {topPredictions.map((pred, index) => {
@@ -352,30 +362,28 @@ export default function ScanResults() {
                   <View className="flex-row items-center justify-between">
                     <View className="flex-row items-center gap-2">
                       <View
-                        className={`h-6 w-6 items-center justify-center rounded-full ${
-                          isTop ? "bg-green-700" : "bg-gray-100"
-                        }`}
+                        className="h-6 w-6 items-center justify-center rounded-full"
+                        style={{ backgroundColor: isTop ? "#10241A" : "#F4F7F5" }}
                       >
                         <Text
-                          className={`text-xs font-bold ${
-                            isTop ? "text-white" : "text-gray-500"
-                          }`}
+                          className="text-xs font-bold"
+                          style={{ color: isTop ? "#FFFFFF" : "#6B7280" }}
                         >
                           {index + 1}
                         </Text>
                       </View>
-                      <Text className="text-sm font-bold text-gray-900 capitalize">
+                      <Text className="text-sm font-bold capitalize" style={{ color: "#10241A" }}>
                         {pred.label}
                       </Text>
                     </View>
-                    <Text className="text-sm font-medium text-gray-500">
+                    <Text className="text-sm font-medium" style={{ color: "#6B7280" }}>
                       {pct.toFixed(1)}%
                     </Text>
                   </View>
-                  <View className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                  <View className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: "#F4F7F5" }}>
                     <View
-                      className={isTop ? "h-full rounded-full bg-green-700" : "h-full rounded-full bg-green-300"}
-                      style={{ width: `${pct}%` }}
+                      className="h-full rounded-full"
+                      style={{ width: `${pct}%`, backgroundColor: isTop ? "#15803D" : "#DCFCE7" }}
                     />
                   </View>
                 </View>
@@ -384,30 +392,30 @@ export default function ScanResults() {
           </View>
 
           {/* Detection explanation */}
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-3">
+          <View className="bg-white rounded-[20px] py-4 px-4 gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
             <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-green-50">
+              <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: "#EAF6EE" }}>
                 <FileText
                   size={20}
                   color="#15803D"
                 />
               </View>
-              <Text className="flex-1 text-base font-bold text-gray-900">
+              <Text className="flex-1 text-base font-bold" style={{ color: "#10241A" }}>
                 Detection Explanation
               </Text>
             </View>
-            <Text className="text-sm leading-5 text-gray-500">
+            <Text className="text-sm leading-5" style={{ color: "#3F4A44" }}>
               {detectionDescriptions[detectionLabel]}
             </Text>
-            <Text className="text-sm leading-5 text-gray-500">{message}</Text>
+            <Text className="text-sm leading-5" style={{ color: "#3F4A44" }}>{message}</Text>
           </View>
 
           {/* Generating indicator */}
           {generating && (
-            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-3">
+            <View className="bg-white rounded-[20px] py-10 px-6 items-center gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
               <ActivityIndicator color="#15803D" size="small" />
-              <Text className="text-sm text-gray-500">
-                Generating your personalized routine...
+              <Text className="text-sm" style={{ color: "#6B7280" }}>
+                Generating your routine...
               </Text>
             </View>
           )}
@@ -416,31 +424,33 @@ export default function ScanResults() {
           {!generating &&
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
-              <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 gap-4">
-                <Text className="font-bold text-gray-800 text-lg">
+              <View className="bg-white rounded-[20px] py-4 px-4 gap-4" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+                <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
                   Recommended Products
                 </Text>
                 {resultData.recommendations.map((product) => (
                   <View
                     key={product.product_type}
-                    className="gap-1.5 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0"
+                    className="gap-1.5 pb-3"
+                    style={{ borderBottomWidth: 1, borderBottomColor: "#EEF2EF" }}
                   >
-                    <Text className="font-bold text-gray-900">
+                    <Text className="font-bold" style={{ color: "#10241A" }}>
                       {product.product_type}
                     </Text>
                     <View className="flex-row flex-wrap gap-1.5">
                       {product.recommended_ingredients.map((ingredient, i) => (
                         <View
                           key={i}
-                          className="bg-green-50 rounded-full px-3 py-1"
+                          className="rounded-full px-3 py-1"
+                          style={{ backgroundColor: "#EAF6EE" }}
                         >
-                          <Text className="text-xs text-green-700 font-medium">
+                          <Text className="text-xs font-semibold" style={{ color: "#14532D" }}>
                             {ingredient}
                           </Text>
                         </View>
                       ))}
                     </View>
-                    <Text className="text-xs text-gray-400 mt-1">
+                    <Text className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
                       {product.reason}
                     </Text>
                   </View>
@@ -452,32 +462,17 @@ export default function ScanResults() {
         </View>
       </ScrollView>
 
-      <View className="py-6 w-full gap-2 px-6">
-        <Pressable
-          className={`rounded-full ${loading || generating ? "bg-gray-400" : "bg-green-700"} active:opacity-80 p-4`}
+      <View className="py-6 w-full gap-2 px-5">
+        <PrimaryButton
+          label={loading ? "Please wait…" : "Confirm Result"}
           onPress={handleConfirm}
           disabled={loading || generating}
-        >
-          <View className="flex-row items-center justify-center">
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text className="font-bold text-white">Confirm Result</Text>
-            )}
-          </View>
-        </Pressable>
-        <Pressable
-          className="rounded-full border border-green-700 active:opacity-80 p-4"
+        />
+        <SecondaryButton
+          label="Scan Again"
           onPress={() => router.replace("/(tabs)/scan")}
-          disabled={generating}
-        >
-          <View className="flex-row items-center justify-center gap-1">
-            <RefreshCw size={16} color="#15803D" />
-            <Text className="text-center font-bold text-green-700">
-              Scan Again
-            </Text>
-          </View>
-        </Pressable>
+          icon={RefreshCw}
+        />
       </View>
     </SafeAreaView>
   );

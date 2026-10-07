@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import PagerView from "react-native-pager-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ArrowRight, Download, AlertCircle, ScanFace, Camera, Sparkles, TrendingUp } from "lucide-react-native";
+import { ArrowRight, Download, AlertCircle } from "lucide-react-native";
 import { useRouter } from "expo-router";
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { ScreenGradient } from "@/components/ScreenGradient";
+import { PrimaryButton } from "@/components/ui";
+import { theme } from "@/lib/theme";
 import onboardingPage from "@/data/onboarding.json";
 import { cancelDownload, getModelPath, getSelectedModel } from "@/utils/llama";
-
-const PAGE_ICONS = [ScanFace, Camera, Sparkles, TrendingUp];
 
 export default function Onboarding() {
   const pagerRef = useRef<PagerView>(null);
@@ -86,14 +87,15 @@ export default function Onboarding() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+      <ScreenGradient />
       {!downloading && (
-        <View className="mb-6 flex-row items-center justify-center gap-2 px-6">
+        <View className="mb-6 flex-row items-center justify-center gap-1.5 px-6 mt-2">
           {onboardingPage.map((_, index) => (
             <View
               key={index}
-              className={`h-2 flex-1 rounded-full ${
-                page === index ? "bg-green-700" : "bg-gray-300"
+              className={`h-1.5 rounded-full ${
+                page === index ? "w-6 bg-green-700" : "w-1.5 bg-gray-200"
               }`}
             />
           ))}
@@ -102,16 +104,16 @@ export default function Onboarding() {
 
       {downloading ? (
         <View className="flex-1 items-center justify-center px-6 gap-4">
-          <View className="h-14 w-14 rounded-full bg-green-100 items-center justify-center">
+          <View className="h-14 w-14 rounded-full items-center justify-center" style={{ backgroundColor: "#EAF6EE" }}>
             <Download size={28} color="#15803D" />
           </View>
-          <Text className="text-center text-xl font-bold text-green-700">
-            Downloading AI Model
+          <Text className="text-center text-xl font-bold" style={{ color: "#10241A" }}>
+            Downloading Model
           </Text>
-          <Text className="text-center text-gray-500 text-sm">
+          <Text className="text-center text-sm" style={{ color: "#6B7280" }}>
             {modelLabel
-              ? `${modelLabel} is required for skin analysis. This may take a few minutes on first download.`
-              : "The AI model is required for skin analysis. This may take a few minutes on first download."}
+              ? `${modelLabel} is needed for skin analysis. This may take a few minutes on first download.`
+              : "The model is needed for skin analysis. This may take a few minutes on first download."}
           </Text>
 
           {status === "downloading" ? (
@@ -120,23 +122,21 @@ export default function Onboarding() {
                 progress={progress}
                 height={8}
                 color="#15803D"
+                trackColor="#EAF6EE"
               />
-              <Text className="text-center text-sm font-medium text-gray-600">
+              <Text className="text-center text-sm font-medium" style={{ color: "#3F4A44" }}>
                 {progress}%
               </Text>
             </View>
           ) : (
             <View className="w-full items-center gap-2">
               <View className="flex-row items-center gap-2">
-                <AlertCircle size={18} color="#B91C1C" />
-                <Text className="text-sm text-red-600">{errorMessage}</Text>
+                <AlertCircle size={18} color="#DC2626" />
+                <Text className="text-sm" style={{ color: "#DC2626" }}>{errorMessage}</Text>
               </View>
-              <Pressable
-                className="rounded-full bg-green-700 active:opacity-80 py-3 w-full mt-2"
-                onPress={handleRetry}
-              >
-                <Text className="font-bold text-white text-center">Retry</Text>
-              </Pressable>
+              <View className="w-full mt-2">
+                <PrimaryButton label="Retry" onPress={handleRetry} />
+              </View>
             </View>
           )}
         </View>
@@ -151,16 +151,12 @@ export default function Onboarding() {
             }}
           >
             {onboardingPage.map((item, index) => {
-              const Icon = PAGE_ICONS[index % PAGE_ICONS.length];
               return (
               <View key={index} className="items-center justify-center px-8">
-                <View className="h-20 w-20 rounded-3xl bg-green-50 border border-green-100 items-center justify-center mb-6">
-                  <Icon size={32} color="#15803D" />
-                </View>
-                <Text className="text-3xl font-bold text-center text-green-800 tracking-tight">
+                <Text className="text-[28px] font-bold text-center mt-2" style={{ color: "#10241A" }}>
                   {item.title}
                 </Text>
-                <Text className="mt-3 text-center text-gray-500 leading-6">
+                <Text className="mt-3 text-center text-[15px] leading-6" style={{ color: "#6B7280" }}>
                   {item.description}
                 </Text>
               </View>
@@ -168,21 +164,13 @@ export default function Onboarding() {
             })}
           </PagerView>
           <View className="mx-6 mb-8">
-            <Pressable
-              className="rounded-full bg-green-700 active:opacity-80 p-4"
+            <PrimaryButton
+              label={
+                page === onboardingPage.length - 1 ? "Get Started" : "Next"
+              }
               onPress={handleNext}
-            >
-              <View className="flex-row items-center justify-center gap-1">
-                <Text className="font-bold text-white">
-                  {page === onboardingPage.length - 1
-                    ? "Get Started"
-                    : "Next"}
-                </Text>
-                {page !== onboardingPage.length - 1 && (
-                  <ArrowRight size={16} color="white" />
-                )}
-              </View>
-            </Pressable>
+              icon={page !== onboardingPage.length - 1 ? ArrowRight : undefined}
+            />
           </View>
         </>
       )}

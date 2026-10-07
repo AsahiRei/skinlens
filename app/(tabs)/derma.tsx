@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import { Camera, Map, Marker } from "@maplibre/maplibre-react-native";
@@ -17,15 +18,86 @@ import {
   Cross,
 } from "lucide-react-native";
 
+import { FadeItem } from "@/components/FadeItem";
 import Skeleton from "@/components/Skeleton";
+import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import {
+  ClinicalCard,
+  EmptyState,
+  GradientHeroCta,
+  IconBadge,
+  Pill,
+  ScreenHeader,
+  SectionTitle,
+} from "@/components/ui";
 import type { Dermatologist } from "@/types/schema";
+import { theme } from "@/lib/theme";
+import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
+import { ScreenGradient } from "@/components/ScreenGradient";
+import customLocationsData from "@/data/derma-locations.json";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
 
 const MAP_STYLE_URL = `https://maps.geoapify.com/v1/styles/osm-bright/style.json?apiKey=${GEOAPIFY_API_KEY}`;
 
 type Coords = { latitude: number; longitude: number };
+
+type CustomLocationEntry = {
+  id: string;
+  name: string;
+  specialty?: string;
+  clinic?: string;
+  address?: string;
+  latitude: number;
+  longitude: number;
+  rating?: number;
+  availableToday?: boolean;
+  phone?: string;
+  website?: string;
+  hours?: string;
+  description?: string;
+};
+
+// Custom locations are defined ONLY in `data/derma-locations.json`.
+// Add / edit / remove entries there — no other code changes needed.
+const CUSTOM_LOCATIONS: CustomLocationEntry[] = (
+  (customLocationsData as { locations?: CustomLocationEntry[] }).locations ?? []
+).filter((c) => c && typeof c.latitude === "number" && typeof c.longitude === "number");
+
+const customInfoById: Record<string, CustomLocationEntry> = Object.fromEntries(
+  CUSTOM_LOCATIONS.map((c) => [c.id, c]),
+);
+
+const customCoords: Record<string, Coords> = Object.fromEntries(
+  CUSTOM_LOCATIONS.map((c) => [
+    c.id,
+    { latitude: c.latitude, longitude: c.longitude },
+  ]),
+);
+
+const customResults: Dermatologist[] = CUSTOM_LOCATIONS.map((c) => ({
+  id: c.id,
+  name: c.name,
+  specialty: c.specialty ?? "Dermatology",
+  clinic: c.clinic ?? c.name,
+  address: c.address ?? "Address unavailable",
+  distanceKm: 0,
+  rating: c.rating ?? 0,
+  availableToday: c.availableToday ?? false,
+}));
+
+function haversineKm(a: Coords, b: Coords): number {
+  const R = 6371;
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const lat1 = (a.latitude * Math.PI) / 180;
+  const lat2 = (b.latitude * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
 
 export default function Derma() {
   const [query, setQuery] = useState("");
@@ -44,6 +116,39 @@ export default function Derma() {
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
+
+  // Custom locations from JSON — shown instead of the empty state.
+  // If we already know the user location, compute a real distance for sorting.
+  const filteredCustom: Dermatologist[] = customResults
+    .filter((d) =>
+      `${d.name} ${d.specialty} ${d.clinic}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+    )
+    .map((d) => {
+      const coord = customCoords[d.id];
+      if (userLocation && coord) {
+        return { ...d, distanceKm: haversineKm(userLocation, coord) };
+      }
+      return d;
+    })
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+
+  // Map pins: custom (pinned/validated) entries are ALWAYS shown.
+  // Live results are added on top after a search — custom entries are never removed.
+  const visiblePins = hasSearched
+    ? [...filteredCustom, ...filtered]
+    : filteredCustom;
+  const visibleCoords: Record<string, Coords> = {
+    ...customCoords,
+    ...clinicCoords,
+  };
+  const mapCenter: Coords | null =
+    userLocation ??
+    (visiblePins.length > 0 ? visibleCoords[visiblePins[0].id] : undefined) ??
+    null;
+  const showMap =
+    locating || hasSearched || filteredCustom.length > 0;
 
   const handleFindNearby = async () => {
     setErrorMsg(null);
@@ -136,98 +241,201 @@ export default function Derma() {
     }
   };
 
-  return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50">
-      <ScrollView
-        className="flex-1 px-6"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
-      >
-        <Text className="font-bold text-green-700 text-2xl">
-          Find Dermatologist
-        </Text>
-        <Text className="text-gray-500">
-          Find trusted skin specialists near you
-        </Text>
-
-        {/* Search bar */}
-        <View className="flex-row items-center bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 mt-5 gap-2">
-          <Search size={18} color="#9CA3AF" />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search by name, clinic, or specialty"
-            placeholderTextColor="#9CA3AF"
-            className="flex-1 text-sm text-gray-800"
-          />
-          {query.length > 0 && (
-            <Pressable onPress={() => setQuery("")} hitSlop={8}>
-              <XCircle size={18} color="#D1D5DB" />
-            </Pressable>
-          )}
-        </View>
-
-        {/* Find nearby CTA */}
-        <Pressable
-          onPress={handleFindNearby}
-          disabled={locating}
-          className="bg-green-700 rounded-xl py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90"
-        >
-          <View className="flex-row items-center gap-3 flex-1">
-            <View className="bg-white/20 h-12 w-12 items-center justify-center rounded-2xl">
-              {locating ? (
-                <Locate size={22} color="white" />
-              ) : (
-                <Navigation size={22} color="white" />
+  // Pinned/validated custom card (from data/derma-locations.json).
+  // Shared by the pre-search list and the pinned section after a live search.
+  const renderCustomCard = (d: Dermatologist, idx: number) => {
+    const extra = customInfoById[d.id];
+    return (
+      <FadeItem key={d.id} index={Math.min(4 + idx, 8)}>
+        <ClinicalCard key={d.id} className="flex-col gap-3">
+          <View className="flex-row items-center gap-3">
+            <IconBadge icon={Stethoscope} size="lg" tone="soft" />
+            <View className="flex-col flex-1">
+              <Text className="font-bold text-[15px]" style={{ color: "#10241A" }}>
+                {d.name}
+              </Text>
+              <Text className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
+                {d.specialty}
+              </Text>
+            </View>
+            <View className="flex-col items-end gap-1">
+              <Pill label="Verified" tone="warning" />
+              {d.availableToday && (
+                <Pill label="Available today" />
               )}
             </View>
-            <View className="flex-col flex-1">
-              <Text className="font-bold text-white text-[15px]">
-                {locating ? "Locating..." : "Find Dermatologist Nearby"}
-              </Text>
-              <Text className="text-xs text-green-100 mt-0.5">
-                Uses your current location
+          </View>
+
+          <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: "#EEF2EF" }}>
+            <View className="flex-row items-center gap-2">
+              <Building
+                size={14}
+                color="#9CA3AF"
+              />
+              <Text className="text-xs" style={{ color: "#3F4A44" }}>{d.clinic}</Text>
+            </View>
+            <View className="flex-row items-center gap-2">
+              <MapPin
+                size={14}
+                color="#9CA3AF"
+              />
+              <Text
+                className="text-xs flex-1"
+                style={{ color: "#3F4A44" }}
+                numberOfLines={1}
+              >
+                {d.address}
               </Text>
             </View>
+            {extra?.description ? (
+              <Text className="text-xs mt-1" style={{ color: "#6B7280" }} numberOfLines={2}>
+                {extra.description}
+              </Text>
+            ) : null}
           </View>
-          <View className="bg-white/20 h-9 w-9 items-center justify-center rounded-full">
-            <ArrowRight size={16} color="white" />
+
+          <View className="flex-row items-center justify-between pt-1">
+            <View className="flex-row items-center gap-3">
+              {d.rating > 0 && (
+                <View className="flex-row items-center gap-1">
+                  <Star size={14} color="#F59E0B" />
+                  <Text className="text-xs font-semibold" style={{ color: "#10241A" }}>
+                    {d.rating.toFixed(1)}
+                  </Text>
+                </View>
+              )}
+              <Text className="text-xs" style={{ color: "#9CA3AF" }}>
+                {d.distanceKm > 0 ? `${d.distanceKm.toFixed(1)} km away` : "Nearby"}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/derma-info/[id]",
+                  params: {
+                    id: d.id,
+                    name: d.name,
+                    specialty: d.specialty,
+                    clinic: d.clinic,
+                    address: d.address,
+                    distanceKm: String(d.distanceKm),
+                    rating: String(d.rating),
+                    availableToday: String(d.availableToday),
+                    // Extra info comes from data/derma-locations.json
+                    phone: extra?.phone ?? "",
+                    website: extra?.website ?? "",
+                    hours: extra?.hours ?? "",
+                    description: extra?.description ?? "",
+                    isCustom: "1",
+                  },
+                })
+              }
+              className="rounded-full active:opacity-80"
+              style={{ borderRadius: 999, overflow: "hidden" }}
+            >
+              <LinearGradient
+                colors={[...theme.gradients.dark]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                className="px-4 py-1.5"
+              >
+                <Text className="text-xs text-white font-bold">
+                  View more
+                </Text>
+              </LinearGradient>
+            </Pressable>
           </View>
-        </Pressable>
+        </ClinicalCard>
+      </FadeItem>
+    );
+  };
+
+  return (
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
+      <KeyboardAwareScroll contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: TAB_BAR_CLEARANCE }}>
+        <FadeItem index={0}>
+          <View className="mt-2">
+            <ScreenHeader
+              title="Find Dermatologist"
+              subtitle="Skin specialists near you"
+            />
+          </View>
+        </FadeItem>
+
+        {/* Search bar */}
+        <FadeItem index={1}>
+          <View className="flex-row items-center bg-white px-4 py-3 mt-5 gap-2" style={{ borderRadius: theme.radius.input, borderWidth: 1, borderColor: theme.colors.cardBorder }}>
+            <Search size={18} color="#9CA3AF" />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search by name, clinic, or specialty"
+              placeholderTextColor="#9CA3AF"
+              className="flex-1 text-sm"
+              style={{ color: "#10241A" }}
+            />
+            {query.length > 0 && (
+              <Pressable onPress={() => setQuery("")} hitSlop={8}>
+                <XCircle size={18} color="#D1D5DB" />
+              </Pressable>
+            )}
+          </View>
+        </FadeItem>
+
+        {/* Find nearby CTA — dark gradient hero */}
+        <FadeItem index={2}>
+          <GradientHeroCta
+            icon={locating ? Locate : Navigation}
+            title={locating ? "Locating..." : "Find Nearby"}
+            subtitle="Uses your current location · 5 km radius"
+            onPress={handleFindNearby}
+            disabled={locating}
+            accessibilityLabel="Find nearby dermatologists"
+            accessory={
+              <View className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }}>
+                <ArrowRight size={16} color="white" />
+              </View>
+            }
+          />
+        </FadeItem>
 
         {errorMsg && (
-          <Text className="text-xs text-red-500 mt-2 text-center">
+          <Text className="text-xs mt-2 text-center" style={{ color: theme.colors.danger }}>
             {errorMsg}
           </Text>
         )}
 
-        {/* Map: user location + clinic pins */}
-        {(locating || hasSearched) && (
-          <View className="rounded-xl overflow-hidden border border-gray-100 mt-4 h-56 bg-gray-200">
-            {locating || !userLocation ? (
+        {/* Map: user location + clinic pins (custom pins before search) */}
+        {showMap && (
+          <View className="overflow-hidden mt-4 h-56" style={{ borderRadius: 20, borderWidth: 1, borderColor: "#E5EDE8", backgroundColor: "#EAF6EE" }}>
+            {locating || !mapCenter ? (
               <Skeleton className="h-full w-full" />
             ) : (
               <Map ref={mapRef} mapStyle={MAP_STYLE_URL} logo={false}>
                 <Camera
                   ref={cameraRef}
                   initialViewState={{
-                    center: [userLocation.longitude, userLocation.latitude],
+                    center: [mapCenter.longitude, mapCenter.latitude],
                     zoom: 13,
                   }}
                 />
 
                 {/* You are here */}
-                <Marker
-                  id="user-location"
-                  lngLat={[userLocation.longitude, userLocation.latitude]}
-                >
-                  <View className="h-4 w-4 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
-                </Marker>
+                {userLocation && (
+                  <Marker
+                    id="user-location"
+                    lngLat={[userLocation.longitude, userLocation.latitude]}
+                  >
+                    <View className="h-4 w-4 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: "#15803D" }} />
+                  </Marker>
+                )}
 
-                {/* Clinic pins */}
-                {filtered.map((d) => {
-                  const coord = clinicCoords[d.id];
+                {/* Clinic pins — custom entries get an amber pin (pinned/validated), live results green */}
+                {visiblePins.map((d) => {
+                  const coord = visibleCoords[d.id];
                   if (!coord) return null;
+                  const isCustomPin = customInfoById[d.id] != null;
                   return (
                     <Marker
                       key={d.id}
@@ -241,8 +449,12 @@ export default function Derma() {
                         })
                       }
                     >
-                      <View className="h-7 w-7 items-center justify-center rounded-full bg-green-700 border-2 border-white shadow-sm">
-                        <Cross size={13} color="white" />
+                      <View className="h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: isCustomPin ? "#B45309" : "#15803D" }}>
+                        {isCustomPin ? (
+                          <MapPin size={13} color="white" />
+                        ) : (
+                          <Cross size={13} color="white" />
+                        )}
                       </View>
                     </Marker>
                   );
@@ -253,135 +465,183 @@ export default function Derma() {
         )}
 
         {/* Results header */}
-        {(locating || hasSearched) && (
-          <View className="flex-row items-center justify-between mt-6 mb-1">
-            <Text className="font-bold text-gray-900 text-[15px]">
-              Nearby Dermatologists
-            </Text>
-            {!locating && (
-              <Text className="text-xs text-gray-400">
-                {filtered.length} found
-              </Text>
-            )}
-          </View>
-        )}
+        <FadeItem index={3}>
+          {locating || hasSearched ? (
+            filteredCustom.length === 0 && (
+              <View className="mt-6 mb-2">
+                <SectionTitle
+                  title="Nearby clinics"
+                  meta={!locating ? `${filtered.length} found` : undefined}
+                />
+              </View>
+            )
+          ) : (
+            filteredCustom.length > 0 && (
+              <View className="mt-6 mb-2">
+                <SectionTitle
+                  title="Recommended clinics"
+                  meta={`${filteredCustom.length} saved`}
+                />
+              </View>
+            )
+          )}
+        </FadeItem>
 
         {/* Results list */}
         {locating ? (
           <View className="flex-col gap-3 mt-2">
-            <Skeleton className="h-32 w-full rounded-xl" />
-            <Skeleton className="h-32 w-full rounded-xl" />
-            <Skeleton className="h-32 w-full rounded-xl" />
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <Skeleton className="h-32 w-full rounded-2xl" />
           </View>
         ) : !hasSearched ? (
-          <View className="items-center py-10 bg-white rounded-2xl border border-gray-100 shadow-sm mt-2">
-            <Navigation size={26} color="#D1D5DB" />
-            <Text className="text-xs text-gray-400 mt-2 text-center">
-              {'Tap "Find Dermatologist Nearby" to search.'}
-            </Text>
-          </View>
-        ) : filtered.length === 0 ? (
-          <View className="items-center py-10 bg-white rounded-2xl border border-gray-100 shadow-sm mt-2">
-            <Cross size={26} color="#D1D5DB" />
-            <Text className="text-xs text-gray-400 mt-2 text-center">
-              No dermatologists match your search.
-            </Text>
-          </View>
+          filteredCustom.length === 0 ? (
+            <FadeItem index={4}>
+              <ClinicalCard className="mt-2">
+                {customResults.length === 0 ? (
+                  <EmptyState
+                    icon={Navigation}
+                    title="Search nearby"
+                    copy="Tap Find Nearby to search clinics around you."
+                  />
+                ) : (
+                  <EmptyState
+                    icon={Cross}
+                    title="No matches"
+                    copy="No recommended clinics match your search."
+                  />
+                )}
+              </ClinicalCard>
+            </FadeItem>
+          ) : (
+            <View className="flex-col gap-3 mt-2">
+              {filteredCustom.map(renderCustomCard)}
+            </View>
+          )
+        ) : filteredCustom.length === 0 && filtered.length === 0 ? (
+          <FadeItem index={4}>
+            <ClinicalCard className="mt-2">
+              <EmptyState
+                icon={Cross}
+                title="No matches"
+                copy="No dermatologists match your search."
+              />
+            </ClinicalCard>
+          </FadeItem>
         ) : (
           <View className="flex-col gap-3 mt-2">
-            {filtered.map((d) => (
-              <View
-                key={d.id}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-col gap-3"
-              >
-                <View className="flex-row items-center gap-3">
-                  <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
-                    <Stethoscope
-                      size={22}
-                      color="#15803D"
-                    />
-                  </View>
-                  <View className="flex-col flex-1">
-                    <Text className="font-bold text-gray-900 text-[15px]">
-                      {d.name}
-                    </Text>
-                    <Text className="text-xs text-gray-500 mt-0.5">
-                      {d.specialty}
-                    </Text>
-                  </View>
-                  {d.availableToday && (
-                    <View className="bg-green-50 rounded-full px-2.5 py-1">
-                      <Text className="text-[10px] font-bold text-green-700">
-                        Available today
+            {/* Pinned / validated locations stay after Find Nearby */}
+            {filteredCustom.length > 0 && (
+              <View className="flex-col gap-3">
+                <View className="mt-2">
+                  <SectionTitle
+                    title="Pinned locations"
+                    meta={`${filteredCustom.length} verified`}
+                  />
+                </View>
+                {filteredCustom.map(renderCustomCard)}
+              </View>
+            )}
+            {filtered.length > 0 && filteredCustom.length > 0 && (
+              <View className="mt-4 mb-[-4]">
+                <SectionTitle
+                  title="Nearby clinics"
+                  meta={`${filtered.length} found`}
+                />
+              </View>
+            )}
+            {filtered.map((d, idx) => (
+              <FadeItem key={d.id} index={Math.min(4 + idx, 8)}>
+                <ClinicalCard key={d.id} className="flex-col gap-3">
+                  <View className="flex-row items-center gap-3">
+                    <IconBadge icon={Stethoscope} size="lg" tone="soft" />
+                    <View className="flex-col flex-1">
+                      <Text className="font-bold text-[15px]" style={{ color: "#10241A" }}>
+                        {d.name}
+                      </Text>
+                      <Text className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
+                        {d.specialty}
                       </Text>
                     </View>
-                  )}
-                </View>
-
-                <View className="flex-col gap-1 pt-3 border-t border-gray-100">
-                  <View className="flex-row items-center gap-2">
-                    <Building
-                      size={14}
-                      color="#9CA3AF"
-                    />
-                    <Text className="text-xs text-gray-600">{d.clinic}</Text>
-                  </View>
-                  <View className="flex-row items-center gap-2">
-                    <MapPin
-                      size={14}
-                      color="#9CA3AF"
-                    />
-                    <Text
-                      className="text-xs text-gray-600 flex-1"
-                      numberOfLines={1}
-                    >
-                      {d.address}
-                    </Text>
-                  </View>
-                </View>
-
-                <View className="flex-row items-center justify-between pt-1">
-                  <View className="flex-row items-center gap-3">
-                    {d.rating > 0 && (
-                      <View className="flex-row items-center gap-1">
-                        <Star size={14} color="#F59E0B" />
-                        <Text className="text-xs font-semibold text-gray-700">
-                          {d.rating.toFixed(1)}
-                        </Text>
-                      </View>
+                    {d.availableToday && (
+                      <Pill label="Available today" />
                     )}
-                    <Text className="text-xs text-gray-400">
-                      {d.distanceKm > 0 ? `${d.distanceKm.toFixed(1)} km away` : "Nearby"}
-                    </Text>
                   </View>
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: "/derma-info/[id]",
-                        params: {
-                          id: d.id, // this IS the Geoapify place_id already
-                          name: d.name,
-                          specialty: d.specialty,
-                          clinic: d.clinic,
-                          address: d.address,
-                          distanceKm: String(d.distanceKm),
-                          rating: String(d.rating),
-                          availableToday: String(d.availableToday),
-                        },
-                      })
-                    }
-                    className="bg-green-700 rounded-full px-4 py-1.5 active:opacity-80"
-                  >
-                    <Text className="text-xs text-white font-bold">
-                      View more
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
+
+                  <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: "#EEF2EF" }}>
+                    <View className="flex-row items-center gap-2">
+                      <Building
+                        size={14}
+                        color="#9CA3AF"
+                      />
+                      <Text className="text-xs" style={{ color: "#3F4A44" }}>{d.clinic}</Text>
+                    </View>
+                    <View className="flex-row items-center gap-2">
+                      <MapPin
+                        size={14}
+                        color="#9CA3AF"
+                      />
+                      <Text
+                        className="text-xs flex-1"
+                        style={{ color: "#3F4A44" }}
+                        numberOfLines={1}
+                      >
+                        {d.address}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className="flex-row items-center justify-between pt-1">
+                    <View className="flex-row items-center gap-3">
+                      {d.rating > 0 && (
+                        <View className="flex-row items-center gap-1">
+                          <Star size={14} color="#F59E0B" />
+                          <Text className="text-xs font-semibold" style={{ color: "#10241A" }}>
+                            {d.rating.toFixed(1)}
+                          </Text>
+                        </View>
+                      )}
+                      <Text className="text-xs" style={{ color: "#9CA3AF" }}>
+                        {d.distanceKm > 0 ? `${d.distanceKm.toFixed(1)} km away` : "Nearby"}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() =>
+                        router.push({
+                          pathname: "/derma-info/[id]",
+                          params: {
+                            id: d.id, // this IS the Geoapify place_id already
+                            name: d.name,
+                            specialty: d.specialty,
+                            clinic: d.clinic,
+                            address: d.address,
+                            distanceKm: String(d.distanceKm),
+                            rating: String(d.rating),
+                            availableToday: String(d.availableToday),
+                          },
+                        })
+                      }
+                      className="rounded-full active:opacity-80"
+                      style={{ borderRadius: 999, overflow: "hidden" }}
+                    >
+                      <LinearGradient
+                        colors={[...theme.gradients.dark]}
+                        start={{ x: 0, y: 0.5 }}
+                        end={{ x: 1, y: 0.5 }}
+                        className="px-4 py-1.5"
+                      >
+                        <Text className="text-xs text-white font-bold">
+                          View more
+                        </Text>
+                      </LinearGradient>
+                    </Pressable>
+                  </View>
+                </ClinicalCard>
+              </FadeItem>
             ))}
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }

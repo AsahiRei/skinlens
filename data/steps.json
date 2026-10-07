@@ -2,7 +2,6 @@
   "userSetup": [
     { "label": "Analyzing your skin profile" },
     { "label": "Reviewing lifestyle factors" },
-    { "label": "Preparing AI model" },
     { "label": "Generating your routine" },
     { "label": "Finalizing your results" }
   ],

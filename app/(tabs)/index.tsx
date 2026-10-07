@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  Sparkles,
   Camera,
   ArrowRight,
   MessageSquare,
@@ -18,11 +17,22 @@ import {
   Scan,
 } from "lucide-react-native";
 
+import { LinearGradient } from "expo-linear-gradient";
 import CircularProgress from "@/components/CircularProgress";
+import { FadeItem } from "@/components/FadeItem";
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import {
+  ClinicalCard,
+  EmptyState,
+  GradientHeroCta,
+  IconBadge,
+  Pill,
+  SectionTitle,
+} from "@/components/ui";
 import { useFocusTrigger } from "@/hooks";
+import { cardShadow, theme } from "@/lib/theme";
 import { useNotifications } from "@/hooks/useNotifications";
 import {
   getLatestResult,
@@ -33,6 +43,9 @@ import {
 } from "@/lib/db";
 import type { Period, Routine, RoutineStep, Result, UserProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
+import { getHealthScoreResponse } from "@/utils/healthscore";
+import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
+import { ScreenGradient } from "@/components/ScreenGradient";
 
 const PERIOD_ORDER: Period[] = ["morning", "afternoon", "evening"];
 
@@ -180,6 +193,11 @@ export default function Home() {
     ? Math.round((completedCount / totalCount) * 100)
     : 0;
 
+  const scoreExplanation = result
+    ? result.description?.trim() ||
+      getHealthScoreResponse(Number(result.healthscore) || 0).message
+    : "";
+
   const goToPeriod = (direction: -1 | 1) => {
     const currentIndex = PERIOD_ORDER.indexOf(activePeriod);
     const nextIndex =
@@ -188,333 +206,388 @@ export default function Home() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+      <ScreenGradient />
       <ScrollView
-        className="flex-1 px-6"
+        className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#15803D"
-            colors={["#15803D"]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
         {/* Header */}
-        <View className="flex-row items-center justify-between">
-          <View className="flex-col">
-            <Text className="font-semibold text-gray-500 text-base tracking-wide">
-              {getGreeting()}
-            </Text>
-            {loadingUser ? (
-              <Skeleton className="h-7 w-40 mt-1" />
-            ) : (
-              <Text className="font-bold text-green-700 text-2xl mt-0.5">
-                {userProfile?.first_name || userProfile?.username}
+        <FadeItem index={0}>
+          <View className="flex-row items-center justify-between mt-2">
+            <View className="flex-col">
+              <Text className="font-semibold text-[13px]" style={{ color: theme.colors.muted }}>
+                {getGreeting()}
               </Text>
-            )}
+              {loadingUser ? (
+                <Skeleton className="h-7 w-40 mt-1 rounded-lg" />
+              ) : (
+                <Text className="font-bold text-[24px] mt-0.5" style={{ color: theme.colors.ink }}>
+                  {userProfile?.first_name || userProfile?.username || "Welcome"}
+                </Text>
+              )}
+            </View>
+            <Pressable
+              className="h-11 w-11 items-center justify-center rounded-full bg-white active:opacity-80"
+              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+              onPress={() => router.push("/(modules)/notifications")}
+              accessibilityRole="button"
+              accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+              hitSlop={8}
+            >
+              <Bell size={20} color="#15803D" />
+              {unreadCount > 0 && (
+                <View className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full border border-white" style={{ backgroundColor: theme.colors.danger }} />
+              )}
+            </Pressable>
           </View>
-          <Pressable
-            className="h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm active:opacity-80"
-            onPress={() => router.push("/(modules)/notifications")}
-            accessibilityRole="button"
-            accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-            hitSlop={8}
-          >
-            <Bell size={20} color="#15803D" />
-            {unreadCount > 0 && (
-              <View className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full bg-red-500 border border-white" />
-            )}
-          </Pressable>
-        </View>
+        </FadeItem>
 
         {/* Skin health score */}
-        {loadingResult ? (
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-center gap-4 mt-5">
-            <Skeleton className="h-[68px] w-[68px] rounded-full" />
-            <View className="flex-col flex-1 gap-2">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-8 w-24 rounded-full" />
-            </View>
+        <FadeItem index={1}>
+          <View className="mt-5">
+            <SectionTitle title="Skin Health" />
           </View>
-        ) : (
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-row items-center gap-4 mt-5">
-            <CircularProgress
-              progress={Number(result?.healthscore ?? 0)}
-              size={68}
-              strokeWidth={6}
-              color="#15803D"
-              trackColor="#DCFCE7"
+        </FadeItem>
+        <FadeItem index={2}>
+          {loadingResult ? (
+            <LinearGradient
+              colors={[...theme.gradients.dark]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              className="flex-row items-center gap-4 mt-2.5 px-4 py-4"
+              style={{ borderRadius: theme.radius.card, ...cardShadow }}
             >
-              <Text className="text-lg font-bold text-green-700">
-                {result?.healthscore ?? 0}%
-              </Text>
-            </CircularProgress>
-            <View className="flex-col flex-1">
-              <Text className="font-bold text-gray-900 text-[15px]">
-                Skin Health Score
-              </Text>
-              <Text className="text-xs text-gray-500 mt-0.5">
-                {formatter(result?.severity ?? "—")} Progress
-              </Text>
-              <Pressable
-                className="bg-green-700 rounded-full self-start px-4 py-1.5 mt-2.5 active:opacity-80"
-                onPress={() => router.push("/(modules)/progress")}
-              >
-                <Text className="text-xs text-white font-bold">
-                  View Progress
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* Routine (paginated: morning / afternoon / evening) */}
-        {loadingRoutine ? (
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4 flex-col gap-3">
-            <Skeleton className="h-5 w-36" />
-            <Skeleton className="h-16 w-full rounded-2xl" />
-          </View>
-        ) : (
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4 flex-col gap-3">
-            <View className="flex-row items-center justify-between">
-              <Pressable
-                onPress={() => goToPeriod(-1)}
-                hitSlop={8}
-                className="h-8 w-8 items-center justify-center rounded-full bg-gray-50 active:opacity-70"
-              >
-                <ChevronLeft size={16} color="#15803D" />
-              </Pressable>
-
-              <View className="flex-row items-center gap-2">
-                {(() => {
-                  const Icon = PERIOD_CONFIG[activePeriod].icon;
-                  return <Icon size={18} color="#15803D" />;
-                })()}
-                <Text className="font-bold text-gray-900 text-[15px]">
-                  {PERIOD_CONFIG[activePeriod].label}
-                </Text>
+              <Skeleton className="h-[68px] w-[68px] rounded-full" />
+              <View className="flex-col flex-1 gap-2">
+                <Skeleton className="h-4 w-32 rounded-md" />
+                <Skeleton className="h-3 w-28 rounded-md" />
+                <Skeleton className="h-3 w-44 rounded-md" />
+                <Skeleton className="h-3 w-32 rounded-md" />
+                <Skeleton className="h-8 w-24 rounded-full" />
               </View>
-
-              <Pressable
-                onPress={() => goToPeriod(1)}
-                hitSlop={8}
-                className="h-8 w-8 items-center justify-center rounded-full bg-gray-50 active:opacity-70"
-              >
-                <ChevronRight size={16} color="#15803D" />
-              </Pressable>
-            </View>
-
-            <View className="flex-row items-center justify-center gap-1.5">
-              {PERIOD_ORDER.map((period) => (
-                <View
-                  key={period}
-                  className={`h-1.5 rounded-full ${
-                    period === activePeriod
-                      ? "w-4 bg-green-700"
-                      : "w-1.5 bg-green-100"
-                  }`}
-                />
-              ))}
-            </View>
-
-            {totalCount > 0 && (
-              <View className="self-center py-1 px-3 bg-green-50 rounded-full">
-                <Text className="text-xs font-bold text-green-700">
-                  {completedCount} / {totalCount} done
-                </Text>
-              </View>
-            )}
-
-            {totalCount === 0 ? (
-              <View className="items-center py-4">
-                <Sparkles size={22} color="#D1D5DB" />
-                <Text className="text-xs text-gray-400 mt-2 text-center">
-                  No {PERIOD_CONFIG[activePeriod].label.toLowerCase()} yet.
-                  Generate a routine to see it here.
-                </Text>
-              </View>
-            ) : (
-              <>
-                <InlineProgress
-                  progress={routineProgress}
-                  height={8}
-                  color="#15803D"
-                />
-
-                <View className="flex-row items-start justify-between gap-2 mt-1">
-                  {activeSteps.map((item) => {
-                    const isDone = completedSteps.has(
-                      `${activePeriod}-${item.step}`,
-                    );
-                    return (
-                      <Pressable
-                        key={item.step}
-                        onPress={() => handleToggleStep(activePeriod, item.step)}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: isDone }}
-                        accessibilityLabel={`${item.product_type}, ${isDone ? "completed" : "not completed"}`}
-                        className="flex-col items-center gap-1.5 flex-1 active:opacity-70"
-                      >
-                        <View
-                          className={`h-10 w-10 rounded-full items-center justify-center ${
-                            isDone ? "bg-green-700" : "bg-green-50 border border-green-700/30"
-                          }`}
-                        >
-                          {isDone ? (
-                            <Check size={16} color="white" />
-                          ) : (
-                            <View className="h-2.5 w-2.5 rounded-full bg-green-700" />
-                          )}
-                        </View>
-                        <Text
-                          className="text-[11px] text-gray-500 text-center"
-                          numberOfLines={1}
-                        >
-                          {item.product_type}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            )}
-          </View>
-        )}
-
-        {/* Quick AI Scan */}
-        <Pressable className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4 flex-row items-center justify-between active:opacity-90" onPress={() => router.push("/scan")}>
-          <View className="flex-row items-center gap-3 flex-1">
-            <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
-              <Camera size={22} color="#15803D" />
-            </View>
-            <View className="flex-col flex-1">
-              <Text className="font-bold text-gray-900 text-[15px]">
-                Quick AI Scan
-              </Text>
-              <Text className="text-xs text-gray-500 mt-0.5">
-                Analyze your skin within 30 seconds
-              </Text>
-            </View>
-          </View>
-          <View className="bg-green-100 h-9 w-9 items-center justify-center rounded-full">
-            <ArrowRight size={16} color="#15803D" />
-          </View>
-        </Pressable>
-
-        {/* Chatbot & Progress quick actions */}
-        <View className="flex-row gap-3 mt-4">
-          <Pressable
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
-            onPress={() => router.push("/(modules)/chatbot")}
-          >
-            <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
-              <MessageSquare
-                size={22}
-                color="#15803D"
-              />
-            </View>
-            <Text className="font-bold text-gray-900 text-[13px] text-center">
-              AI Chatbot
-            </Text>
-            <Text className="text-[11px] text-gray-500 text-center">
-              Ask skin questions
-            </Text>
-          </Pressable>
-
-          <Pressable
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 flex-1 items-center gap-2 active:opacity-90"
-              onPress={() => router.push("/(modules)/progress")}
+            </LinearGradient>
+          ) : (
+            <LinearGradient
+              colors={[...theme.gradients.dark]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              className="flex-row items-center gap-4 mt-2.5 px-4 py-4"
+              style={{ borderRadius: theme.radius.card, ...cardShadow }}
             >
-              <View className="bg-green-100 h-12 w-12 items-center justify-center rounded-2xl">
-                <TrendingUp size={22} color="#15803D" />
-              </View>
-              <Text className="font-bold text-gray-900 text-[13px] text-center">
-                Progress
-              </Text>
-              <Text className="text-[11px] text-gray-500 text-center">
-                Track your skin
-              </Text>
-            </Pressable>
-        </View>
-
-        {/* Last scan result */}
-        {loadingResult ? (
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
-            <Skeleton className="h-4 w-32 mb-3" />
-            <View className="flex-row items-center gap-3 pt-3 border-t border-gray-100">
-              <Skeleton className="h-11 w-11 rounded-2xl" />
-              <View className="flex-col flex-1 gap-1">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-24" />
-              </View>
-            </View>
-          </View>
-        ) : (
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 mt-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="font-bold text-gray-900 text-[15px]">
-                Last Scan Result
-              </Text>
-              <Text className="text-xs text-gray-400">
-                {result?.created_at
-                  ? new Date(result.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })
-                  : "No scans yet"}
-              </Text>
-            </View>
-
-            {result ? (
-              <View className="flex-row items-center gap-3 mt-3 pt-3 border-t border-gray-100">
-                {result.image_url ? (
-                  <View className="h-11 w-11 rounded-2xl overflow-hidden bg-gray-100">
-                    <Image
-                      source={{ uri: result.image_url }}
-                      className="w-full h-full"
-                      resizeMode="cover"
-                    />
-                  </View>
-                ) : (
-                  <View className="bg-green-50 h-11 w-11 items-center justify-center rounded-2xl">
-                    <Sparkles size={20} color="#15803D" />
-                  </View>
-                )}
-                <View className="flex-col flex-1">
-                  <Text className="text-sm font-semibold text-gray-800">
-                    {formatter(result.detection_label ?? result.severity)} — Score: {result.healthscore}%
-                  </Text>
+              <CircularProgress
+                progress={Number(result?.healthscore ?? 0)}
+                size={76}
+                strokeWidth={8}
+                color="#FFFFFF"
+                trackColor="rgba(255,255,255,0.25)"
+              >
+                <Text className="text-lg font-bold" style={{ color: "#FFFFFF" }}>
+                  {result?.healthscore ?? 0}%
+                </Text>
+              </CircularProgress>
+              <View className="flex-col flex-1">
+                <Text className="text-[11px] font-bold uppercase" style={{ color: "#BBF7D0", letterSpacing: 1 }}>
+                  Health Score
+                </Text>
+                <Text className="font-bold text-[16px] mt-0.5" style={{ color: "#FFFFFF" }}>
+                  {formatter(result?.severity ?? "—")} Progress
+                </Text>
+                {scoreExplanation ? (
                   <Text
-                    className="text-xs text-gray-500 mt-0.5"
-                    numberOfLines={1}
+                    className="text-[11px] mt-1 leading-4"
+                    style={{ color: "rgba(255,255,255,0.85)" }}
                   >
-                    {result.confidence
-                      ? `Confidence: ${Math.round(result.confidence * 100)}%`
-                      : formatter(result.severity)}
+                    {scoreExplanation}
                   </Text>
-                </View>
+                ) : null}
                 <Pressable
-                  className="active:opacity-70"
+                  className="rounded-full self-start mt-2.5 active:opacity-80 bg-white px-4 py-1.5"
+                  style={{ borderRadius: 999 }}
                   onPress={() => router.push("/(modules)/progress")}
                 >
-                  <ChevronRight size={18} color="#9CA3AF" />
+                  <Text className="text-xs font-bold" style={{ color: theme.colors.primaryDeep }}>
+                    View Progress
+                  </Text>
                 </Pressable>
               </View>
-            ) : (
-              <View className="items-center py-6">
-                <Scan size={28} color="#D1D5DB" />
-                <Text className="text-xs text-gray-400 mt-2">
-                  Run your first scan to see results here
-                </Text>
-              </View>
-            )}
+            </LinearGradient>
+          )}
+        </FadeItem>
+
+        {/* Routine (paginated: morning / afternoon / evening) */}
+        <FadeItem index={3}>
+          <View className="mt-5">
+            <SectionTitle title="Today's Routine" />
           </View>
-        )}
+        </FadeItem>
+        <FadeItem index={4}>
+          {loadingRoutine ? (
+            <ClinicalCard className="mt-2.5 flex-col gap-3">
+              <Skeleton className="h-5 w-36 rounded-md" />
+              <Skeleton className="h-16 w-full rounded-2xl" />
+            </ClinicalCard>
+          ) : (
+            <ClinicalCard className="mt-2.5 flex-col gap-3">
+              <View className="flex-row items-center justify-between">
+                <Pressable
+                  onPress={() => goToPeriod(-1)}
+                  hitSlop={8}
+                  className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                  style={{ backgroundColor: theme.colors.primarySoft }}
+                >
+                  <ChevronLeft size={16} color="#15803D" />
+                </Pressable>
+
+                <View className="flex-row items-center gap-2">
+                  {(() => {
+                    const Icon = PERIOD_CONFIG[activePeriod].icon;
+                    return <Icon size={18} color="#15803D" />;
+                  })()}
+                  <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
+                    {PERIOD_CONFIG[activePeriod].label}
+                  </Text>
+                </View>
+
+                <Pressable
+                  onPress={() => goToPeriod(1)}
+                  hitSlop={8}
+                  className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                  style={{ backgroundColor: theme.colors.primarySoft }}
+                >
+                  <ChevronRight size={16} color="#15803D" />
+                </Pressable>
+              </View>
+
+              <View className="flex-row items-center justify-center gap-1.5">
+                {PERIOD_ORDER.map((period) => (
+                  <View
+                    key={period}
+                    className={`h-1.5 rounded-full ${
+                      period === activePeriod ? "w-6" : "w-1.5"
+                    }`}
+                    style={{
+                      backgroundColor:
+                        period === activePeriod
+                          ? theme.colors.primary
+                          : theme.colors.cardBorder,
+                    }}
+                  />
+                ))}
+              </View>
+
+              {totalCount > 0 && (
+                <View className="self-center">
+                  <Pill label={`${completedCount} / ${totalCount} done`} />
+                </View>
+              )}
+
+              {totalCount === 0 ? (
+                <EmptyState
+                  icon={Scan}
+                  copy={`No ${PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps.`}
+                />
+              ) : (
+                <>
+                  <InlineProgress
+                    progress={routineProgress}
+                    height={8}
+                    color="#15803D"
+                    trackColor="#EAF6EE"
+                  />
+
+                  <View className="flex-row items-start justify-between gap-2 mt-1">
+                    {activeSteps.map((item) => {
+                      const isDone = completedSteps.has(
+                        `${activePeriod}-${item.step}`,
+                      );
+                      return (
+                        <Pressable
+                          key={item.step}
+                          onPress={() => handleToggleStep(activePeriod, item.step)}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: isDone }}
+                          accessibilityLabel={`${item.product_type}, ${isDone ? "completed" : "not completed"}`}
+                          className="flex-col items-center gap-1.5 flex-1 active:opacity-70"
+                        >
+                          <View
+                            className="h-11 w-11 rounded-full items-center justify-center bg-white"
+                            style={
+                              isDone
+                                ? { backgroundColor: theme.colors.primary }
+                                : { borderWidth: 1.5, borderColor: "#15803D" }
+                            }
+                          >
+                            {isDone ? (
+                              <Check size={16} color="white" />
+                            ) : (
+                              <View
+                                className="h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: theme.colors.primary }}
+                              />
+                            )}
+                          </View>
+                          <Text
+                            className="text-[11px] text-center"
+                            style={{ color: theme.colors.muted }}
+                            numberOfLines={1}
+                          >
+                            {item.product_type}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+            </ClinicalCard>
+          )}
+        </FadeItem>
+
+        {/* Quick AI Scan — dark gradient hero */}
+        <FadeItem index={5}>
+          <View className="mt-5">
+            <SectionTitle title="Quick Actions" />
+          </View>
+        </FadeItem>
+        <FadeItem index={6}>
+          <GradientHeroCta
+            icon={Camera}
+            title="Scan Your Skin"
+            subtitle="Take or upload a photo"
+            onPress={() => router.push("/(tabs)/scan")}
+            accessibilityLabel="Scan your skin"
+            className="mt-2.5"
+            accessory={
+              <View
+                className="h-9 w-9 items-center justify-center rounded-full"
+                style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+              >
+                <ArrowRight size={16} color="white" />
+              </View>
+            }
+          />
+        </FadeItem>
+
+        {/* Chatbot & Progress quick actions */}
+        <FadeItem index={7}>
+          <View className="flex-row gap-3 mt-3">
+            <Pressable
+              className="flex-1 active:opacity-90"
+              onPress={() => router.push("/(modules)/chatbot")}
+            >
+              <ClinicalCard className="items-center gap-2">
+                <IconBadge icon={MessageSquare} size="lg" tone="soft" />
+                <Text className="font-bold text-[13px] text-center" style={{ color: "#10241A" }}>
+                  Chat
+                </Text>
+                <Text className="text-[11px] text-center" style={{ color: "#6B7280" }}>
+                  Ask skin questions
+                </Text>
+              </ClinicalCard>
+            </Pressable>
+
+            <Pressable
+                className="flex-1 active:opacity-90"
+                onPress={() => router.push("/(modules)/progress")}
+              >
+                <ClinicalCard className="items-center gap-2">
+                  <IconBadge icon={TrendingUp} size="lg" tone="soft" />
+                  <Text className="font-bold text-[13px] text-center" style={{ color: "#10241A" }}>
+                    Progress
+                  </Text>
+                  <Text className="text-[11px] text-center" style={{ color: "#6B7280" }}>
+                    Track your skin
+                  </Text>
+                </ClinicalCard>
+              </Pressable>
+          </View>
+        </FadeItem>
+
+        {/* Last scan result */}
+        <FadeItem index={8}>
+          <View className="mt-5">
+            <SectionTitle
+              title="Last Scan"
+              meta={
+                loadingResult
+                  ? undefined
+                  : result?.created_at
+                    ? new Date(result.created_at).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : "No scans yet"
+              }
+            />
+          </View>
+        </FadeItem>
+        <FadeItem index={9}>
+          {loadingResult ? (
+            <ClinicalCard className="mt-2.5">
+              <View className="flex-row items-center gap-3">
+                <Skeleton className="h-11 w-11 rounded-2xl" />
+                <View className="flex-col flex-1 gap-1">
+                  <Skeleton className="h-4 w-40 rounded-md" />
+                  <Skeleton className="h-3 w-24 rounded-md" />
+                </View>
+              </View>
+            </ClinicalCard>
+          ) : (
+            <ClinicalCard className="mt-2.5">
+              {result ? (
+                <View className="flex-row items-center gap-3">
+                  {result.image_url ? (
+                    <View className="h-12 w-12 rounded-2xl overflow-hidden" style={{ backgroundColor: "#EAF6EE" }}>
+                      <Image
+                        source={{ uri: result.image_url }}
+                        className="w-full h-full"
+                        resizeMode="cover"
+                      />
+                    </View>
+                  ) : (
+                    <IconBadge icon={Scan} size="md" tone="soft" />
+                  )}
+                  <View className="flex-col flex-1">
+                    <Text className="text-sm font-semibold" style={{ color: theme.colors.ink }}>
+                      {formatter(result.detection_label ?? result.severity)} — Score: {result.healthscore}%
+                    </Text>
+                    <Text
+                            className="text-xs mt-0.5"
+                            style={{ color: theme.colors.muted }}
+                      numberOfLines={1}
+                    >
+                      {result.confidence
+                        ? `Confidence: ${Math.round(result.confidence * 100)}%`
+                        : formatter(result.severity)}
+                    </Text>
+                  </View>
+                  <Pressable
+                    className="active:opacity-70"
+                    onPress={() => router.push("/(modules)/progress")}
+                  >
+                    <ChevronRight size={18} color="#9CA3AF" />
+                  </Pressable>
+                </View>
+              ) : (
+                <EmptyState
+                  icon={Scan}
+                  copy="No scans yet."
+                />
+              )}
+            </ClinicalCard>
+          )}
+        </FadeItem>
       </ScrollView>
     </SafeAreaView>
   );

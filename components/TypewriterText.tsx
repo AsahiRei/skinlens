@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Text } from "react-native";
+import { Text, type TextStyle, type StyleProp } from "react-native";
 
 export default function TypewriterText({
   text,
   onDone,
   className,
+  style,
 }: {
   text: string;
   onDone?: () => void;
   className?: string;
+  style?: StyleProp<TextStyle>;
 }) {
   const [visibleCount, setVisibleCount] = useState(0);
   const [prevText, setPrevText] = useState(text);
@@ -48,9 +50,13 @@ export default function TypewriterText({
   }, [done]);
 
   return (
-    <Text className={className}>
+    <Text className={className} style={style}>
       {text.slice(0, visibleCount)}
-      {!done && <Text className={className}>{blinkOn ? "▍" : " "}</Text>}
+      {!done && (
+        <Text className={className} style={style}>
+          {blinkOn ? "▍" : " "}
+        </Text>
+      )}
     </Text>
   );
 }

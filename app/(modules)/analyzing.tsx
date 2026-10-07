@@ -12,6 +12,8 @@ import Animated, {
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { theme, cardShadow } from "@/lib/theme";
 import stepsData from "@/data/steps.json";
 import { classifyImage, enhanceImage } from "@/utils/skin-prediction";
 import { getFaceIdentity } from "@/lib/db/profile";
@@ -22,6 +24,7 @@ import {
   parseEmbedding,
 } from "@/utils/face-embeddings";
 import type { ClassificationResult } from "@/types/skin";
+import { ScreenGradient } from "@/components/ScreenGradient";
 
 const steps = stepsData.analyzing;
 
@@ -195,35 +198,34 @@ export default function Analyzing() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="flex-1 px-6 items-center justify-center">
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 px-6 items-center gap-2 w-full">
-            <AlertCircle size={28} color="#B91C1C" />
-            <Text className="font-bold text-gray-800">Analysis failed</Text>
-            <Text className="text-sm text-gray-500 text-center">{error}</Text>
-            <Pressable
-              className="rounded-full bg-green-700 active:opacity-80 px-6 py-3 mt-2"
-              onPress={() => {
-                ranRef.current = false;
-                run();
-              }}
-            >
-              <Text className="font-bold text-white">Try Again</Text>
-            </Pressable>
-            <Pressable
-              className="rounded-full border border-green-700 active:opacity-80 px-6 py-3 mt-1"
-              onPress={() => router.back()}
-            >
-              <Text className="font-bold text-green-700">Go Back</Text>
-            </Pressable>
-          </View>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+        <ScreenGradient />
+        <View className="flex-1 px-5 items-center justify-center">
+          <ClinicalCard className="py-10 px-6 items-center gap-2 w-full">
+            <AlertCircle size={28} color={theme.colors.danger} />
+            <Text className="font-bold" style={{ color: theme.colors.ink }}>Analysis failed</Text>
+            <Text className="text-sm text-center" style={{ color: theme.colors.muted }}>{error}</Text>
+            <View className="w-full mt-2">
+              <PrimaryButton
+                label="Try Again"
+                onPress={() => {
+                  ranRef.current = false;
+                  run();
+                }}
+              />
+            </View>
+            <View className="w-full mt-1">
+              <SecondaryButton label="Go Back" onPress={() => router.back()} />
+            </View>
+          </ClinicalCard>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
       <View className="flex-1 px-6">
         <View className="flex-1 items-center justify-center gap-8">
           {/* Image(s) with scanning line */}
@@ -232,7 +234,7 @@ export default function Analyzing() {
               {multiAngles.map((uri, i) => (
                 <View key={i} className="relative items-center">
                   <View
-                    className="w-[100px] h-[130px] rounded-2xl overflow-hidden bg-gray-200"
+                    className="w-[100px] h-[130px] rounded-2xl overflow-hidden bg-[#EAF6EE]"
                     style={{ elevation: 6 }}
                   >
                     {(displayUris[i] ?? uri) && (
@@ -283,7 +285,7 @@ export default function Analyzing() {
           ) : (
             <View className="relative items-center justify-center">
               <View
-                className="w-64 h-64 rounded-3xl overflow-hidden bg-gray-200"
+                className="w-64 h-64 rounded-3xl overflow-hidden bg-[#EAF6EE]"
                 style={{ elevation: 8 }}
               >
                 {(displayUris[0] ?? imageUri) && (
@@ -339,58 +341,57 @@ export default function Analyzing() {
           )}
 
           <View className="pt-2">
-            <Text className="font-bold text-green-700 text-2xl text-center">
+            <Text className="font-bold text-[24px] text-center" style={{ color: "#10241A" }}>
               Scanning Your Skin
             </Text>
-            <Text className="text-gray-500 text-center">
+            <Text className="text-center" style={{ color: "#6B7280" }}>
               {isMulti
-                ? `Analyzing ${multiAngles.length} angles for better accuracy`
-                : "AI-powered skin analysis in progress"}
+                ? `Analyzing ${multiAngles.length} angles`
+                : "Analysis in progress"}
             </Text>
           </View>
 
           <View className="w-full gap-3">
-            <Text className="text-center text-base font-medium text-gray-700">
+            <Text className="text-center text-base font-medium" style={{ color: "#3F4A44" }}>
               {steps[stepIndex].label}...
             </Text>
-            <InlineProgress progress={progressPct} height={8} color="#15803D" />
+            <InlineProgress progress={progressPct} height={8} color="#15803D" trackColor="#EAF6EE" />
           </View>
 
-          <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-4 px-4 w-full gap-3">
+          <View className="bg-white rounded-[20px] py-4 px-4 w-full gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
             {steps.map((step, i) => {
               const isDone = i < stepIndex;
               const isActive = i === stepIndex;
               return (
                 <View key={step.label} className="flex-row items-center gap-3">
                   <View
-                    className={`h-7 w-7 rounded-full items-center justify-center ${
-                      isDone
-                        ? "bg-green-700"
+                    className="h-7 w-7 rounded-full items-center justify-center"
+                    style={{
+                      backgroundColor: isDone
+                        ? "#10241A"
                         : isActive
-                          ? "bg-green-100"
-                          : "bg-gray-100"
-                    }`}
+                          ? "#EAF6EE"
+                          : "#F4F7F5",
+                    }}
                   >
                     {isDone ? (
                       <Check size={14} color="#FFFFFF" />
                     ) : (
                       <Text
-                        className={`text-xs font-bold ${
-                          isActive ? "text-green-700" : "text-gray-400"
-                        }`}
+                        className="text-xs font-bold"
+                        style={{ color: isActive ? "#15803D" : "#9CA3AF" }}
                       >
                         {i + 1}
                       </Text>
                     )}
                   </View>
                   <Text
-                    className={`text-sm ${
-                      isDone
-                        ? "text-gray-800 line-through"
-                        : isActive
-                          ? "font-bold text-gray-900"
-                          : "text-gray-400"
-                    }`}
+                    className="text-sm"
+                    style={{
+                      color: isDone || isActive ? "#10241A" : "#9CA3AF",
+                      fontWeight: isActive ? "700" : "400",
+                      textDecorationLine: isDone ? "line-through" : "none",
+                    }}
                   >
                     {step.label}
                   </Text>

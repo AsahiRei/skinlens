@@ -403,7 +403,7 @@ for first time)
               |  useNetwork() (NetInfo)                  |
               |  - Tracks isConnected + isInternet-      |
               |    Reachable                             |
-              |  - OfflineBanner shown when offline      |
+               |  - OfflineModal shown when offline      |
               |  - Triggers sync on reconnection         |
               +------------------------------------------+
 ```

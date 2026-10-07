@@ -3,8 +3,12 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native"
 import { useRouter } from "expo-router";
 import { ArrowLeft, Bell, Trash2, CheckCheck } from "lucide-react-native";
 
+import { FadeItem } from "@/components/FadeItem";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { ClinicalCard, EmptyState, ScreenHeader } from "@/components/ui";
+import { theme } from "@/lib/theme";
 import { useNotifications } from "@/hooks/useNotifications";
+import { ScreenGradient } from "@/components/ScreenGradient";
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
   const now = new Date();
@@ -38,9 +42,10 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <ScreenGradient />
       <ScrollView
-        className="flex-1 px-6"
+        className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
@@ -53,96 +58,113 @@ export default function NotificationsScreen() {
         }
       >
         {/* Header */}
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-3">
-            <Pressable
-              onPress={() => router.back()}
-              className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm active:opacity-80"
-            >
-              <ArrowLeft size={20} color="#15803D" />
-            </Pressable>
-            <View>
-              <Text className="font-bold text-green-700 text-2xl">
-                Notifications
-              </Text>
-              {unreadCount > 0 && (
-                <Text className="text-xs text-gray-500">
-                  {unreadCount} unread
-                </Text>
-              )}
-            </View>
-          </View>
-          {notifications.length > 0 && (
-            <View className="flex-row gap-2">
-              {unreadCount > 0 && (
-                <Pressable
-                  onPress={markAllAsRead}
-                  className="h-9 px-3 items-center justify-center rounded-full bg-green-50 active:opacity-80"
-                >
-                  <CheckCheck size={16} color="#15803D" />
-                </Pressable>
-              )}
+        <FadeItem index={0}>
+          <View className="flex-row items-center justify-between mt-2">
+            <View className="flex-row items-center gap-3">
               <Pressable
-                onPress={clearAll}
-                className="h-9 px-3 items-center justify-center rounded-full bg-red-50 active:opacity-80"
+                onPress={() => router.back()}
+                className="h-10 w-10 items-center justify-center rounded-full bg-white active:opacity-80"
+                style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
               >
-                <Trash2 size={16} color="#EF4444" />
+                <ArrowLeft size={20} color={theme.colors.primary} />
               </Pressable>
+              <ScreenHeader
+                title="Notifications"
+                subtitle={unreadCount > 0 ? `${unreadCount} unread` : undefined}
+              />
             </View>
-          )}
-        </View>
+            {notifications.length > 0 && (
+              <View className="flex-row gap-2">
+                {unreadCount > 0 && (
+                  <Pressable
+                    onPress={markAllAsRead}
+                    accessibilityRole="button"
+                    accessibilityLabel="Mark all as read"
+                    className="h-9 px-3 items-center justify-center rounded-full active:opacity-80"
+                    style={{ backgroundColor: theme.colors.primarySoft }}
+                  >
+                    <CheckCheck size={16} color={theme.colors.primary} />
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={clearAll}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear all notifications"
+                  className="h-9 px-3 items-center justify-center rounded-full active:opacity-80"
+                  style={{ backgroundColor: "#FEF2F2" }}
+                >
+                  <Trash2 size={16} color={theme.colors.danger} />
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </FadeItem>
 
         {/* Notifications list */}
         <View className="mt-5 gap-3">
           {notifications.length === 0 ? (
-            <View className="bg-white rounded-2xl border border-gray-100 shadow-sm py-12 px-4 items-center">
-              <Bell size={32} color="#D1D5DB" />
-              <Text className="text-sm text-gray-400 mt-3 text-center">
-                No notifications yet
-              </Text>
-              <Text className="text-xs text-gray-300 mt-1 text-center">
-                Enable scan reminders or daily tips in your profile settings
-              </Text>
-            </View>
+            <FadeItem index={1}>
+              <ClinicalCard>
+                <EmptyState
+                  icon={Bell}
+                  title="No notifications"
+                  copy="Enable scan reminders or daily tips in profile settings."
+                />
+              </ClinicalCard>
+            </FadeItem>
           ) : (
-            notifications.map((notification) => (
-              <Pressable
-                key={notification.id}
-                onPress={() => markAsRead(notification.id)}
-                className={`bg-white rounded-2xl border shadow-sm py-4 px-4 flex-row items-start active:opacity-90 ${
-                  notification.read ? "border-gray-100" : "border-green-200"
-                }`}
-              >
-                <View className="flex-1">
-                  <View className="flex-row items-center justify-between">
-                    <Text
-                      className={`text-[15px] flex-1 ${
-                        notification.read
-                          ? "font-medium text-gray-700"
-                          : "font-bold text-gray-900"
-                      }`}
-                      numberOfLines={1}
-                    >
-                      {notification.title}
-                    </Text>
-                    {!notification.read && (
-                      <View className="h-2 w-2 rounded-full bg-green-700 ml-2" />
-                    )}
-                  </View>
-                  <Text className="text-sm text-gray-500 mt-1">
-                    {notification.message}
-                  </Text>
-                  <Text className="text-xs text-gray-400 mt-2">
-                    {formatTime(notification.created_at)}
-                  </Text>
-                </View>
+            notifications.map((notification, idx) => (
+              <FadeItem key={notification.id} index={Math.min(1 + idx, 6)}>
                 <Pressable
-                  onPress={() => deleteNotification(notification.id)}
-                  className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                  key={notification.id}
+                  onPress={() => markAsRead(notification.id)}
+                  className="flex-row items-start active:opacity-90"
                 >
-                  <Trash2 size={14} color="#9CA3AF" />
+                  <ClinicalCard
+                    className="flex-row items-start flex-1"
+                    style={
+                      notification.read
+                        ? undefined
+                        : { borderColor: theme.colors.primary }
+                    }
+                  >
+                  <View className="flex-1">
+                    <View className="flex-row items-center justify-between">
+                      <Text
+                        className="text-[15px] flex-1"
+                        style={{
+                          color: notification.read
+                            ? theme.colors.body
+                            : theme.colors.ink,
+                          fontWeight: notification.read ? "500" : "700",
+                        }}
+                        numberOfLines={1}
+                      >
+                        {notification.title}
+                      </Text>
+                      {!notification.read && (
+                        <View
+                          className="h-2 w-2 rounded-full ml-2"
+                          style={{ backgroundColor: theme.colors.primary }}
+                        />
+                      )}
+                    </View>
+                    <Text className="text-sm mt-1" style={{ color: theme.colors.muted }}>
+                      {notification.message}
+                    </Text>
+                    <Text className="text-xs mt-2" style={{ color: theme.colors.faint }}>
+                      {formatTime(notification.created_at)}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => deleteNotification(notification.id)}
+                    className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                  >
+                    <Trash2 size={14} color={theme.colors.faint} />
+                  </Pressable>
+                  </ClinicalCard>
                 </Pressable>
-              </Pressable>
+              </FadeItem>
             ))
           )}
         </View>

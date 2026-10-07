@@ -63,7 +63,7 @@ export async function getLatestRoutine(): Promise<{
         if (data?.routine_json) {
           await db.runAsync(
             `INSERT OR REPLACE INTO routines (id, user_id, source_type, routine_json, created_at, synced_at)
-             VALUES (?, ?, 'ai_generated', ?, ?, ?)`,
+             VALUES (?, ?, 'rule_based', ?, ?, ?)`,
             [data.id, user.id, data.routine_json, now(), now()],
           );
         }
@@ -85,7 +85,7 @@ export async function getLatestRoutine(): Promise<{
 
     await db.runAsync(
       `INSERT OR REPLACE INTO routines (id, user_id, source_type, routine_json, created_at, synced_at)
-       VALUES (?, ?, 'ai_generated', ?, ?, ?)`,
+       VALUES (?, ?, 'rule_based', ?, ?, ?)`,
       [data.id, user.id, data.routine_json, now(), now()],
     );
     return { id: data.id, routine: JSON.parse(data.routine_json) };
@@ -105,7 +105,7 @@ export async function insertRoutine(routineJson: string): Promise<void> {
       .from("routines")
       .insert({
         user_id: user.id,
-        source_type: "ai_generated",
+        source_type: "rule_based",
         routine_json: routineJson,
       })
       .select("id")
@@ -117,14 +117,14 @@ export async function insertRoutine(routineJson: string): Promise<void> {
     serverId = await getNextTempId(user.id);
     await enqueueSync("routines", "insert", String(serverId), {
       user_id: user.id,
-      source_type: "ai_generated",
+      source_type: "rule_based",
       routine_json: routineJson,
     });
   }
 
   await db.runAsync(
     `INSERT OR REPLACE INTO routines (id, user_id, source_type, routine_json, created_at, synced_at)
-     VALUES (?, ?, 'ai_generated', ?, ?, ?)`,
+     VALUES (?, ?, 'rule_based', ?, ?, ?)`,
     [serverId!, user.id, routineJson, now(), now()],
   );
 }
