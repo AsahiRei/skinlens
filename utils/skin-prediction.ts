@@ -4,6 +4,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import jpeg from "jpeg-js";
 import { Buffer } from "buffer";
+import { Image } from "react-native";
 import type { ClassificationResult } from "@/types/skin";
 
 if (typeof (globalThis as Record<string, unknown>).Buffer === "undefined") {
@@ -32,21 +33,65 @@ async function getModel() {
 
 const CLASS_LABELS = ["acne", "dry", "eczema", "normal", "oily"] as const;
 
-async function decodeImageToPixels(
+function getImageSize(imageUri: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    Image.getSize(
+      imageUri,
+      (width, height) => resolve({ width, height }),
+      (err) => reject(err),
+    );
+  });
+}
+
+// Center-crop to square before resizing so wide (e.g. 1280x720 landscape)
+// captures don't get stretched into squares — the old plain
+// resize:{width,height} distorted faces and made post-scan previews look wide.
+async function squareCropAndResize(
   imageUri: string,
-  width: number,
-  height: number,
-): Promise<jpeg.JpegBuffer> {
-  const resizedImage = await ImageManipulator.manipulateAsync(
+  size: number,
+): Promise<string> {
+  try {
+    const { width, height } = await getImageSize(imageUri);
+    if (width > 0 && height > 0 && width !== height) {
+      const side = Math.min(width, height);
+      const originX = Math.round((width - side) / 2);
+      const originY = Math.round((height - side) / 2);
+      const cropped = await ImageManipulator.manipulateAsync(
+        imageUri,
+        [
+          { crop: { originX, originY, width: side, height: side } },
+          { resize: { width: size, height: size } },
+        ],
+        {
+          compress: 1,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: false,
+        },
+      );
+      return cropped.uri;
+    }
+  } catch {
+    // Fall through to plain resize when dimensions are unavailable.
+  }
+  const resized = await ImageManipulator.manipulateAsync(
     imageUri,
-    [{ resize: { width, height } }],
+    [{ resize: { width: size, height: size } }],
     {
       compress: 1,
       format: ImageManipulator.SaveFormat.JPEG,
       base64: false,
     },
   );
-  const base64 = await FileSystem.readAsStringAsync(resizedImage.uri, {
+  return resized.uri;
+}
+
+async function decodeImageToPixels(
+  imageUri: string,
+  width: number,
+  height: number,
+): Promise<jpeg.JpegBuffer> {
+  const squareUri = await squareCropAndResize(imageUri, width);
+  const base64 = await FileSystem.readAsStringAsync(squareUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
   const binaryString = atob(base64);
@@ -126,23 +171,8 @@ export async function classifyImage(
   imageUri: string,
 ): Promise<ClassificationResult> {
   const tfliteModel = await getModel();
-  const resizedImage = await ImageManipulator.manipulateAsync(
-    imageUri,
-    [
-      {
-        resize: {
-          width: 224,
-          height: 224,
-        },
-      },
-    ],
-    {
-      compress: 1,
-      format: ImageManipulator.SaveFormat.JPEG,
-      base64: false,
-    },
-  );
-  const base64 = await FileSystem.readAsStringAsync(resizedImage.uri, {
+  const squareUri = await squareCropAndResize(imageUri, 224);
+  const base64 = await FileSystem.readAsStringAsync(squareUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
   const binaryString = atob(base64);

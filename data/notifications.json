@@ -1,54 +1,54 @@
 {
   "scanReminders": [
     {
-      "title": "Time for your weekly skin scan",
-      "message": "Keep track of your skin health by running a quick scan today."
+      "title": "Weekly scan due",
+      "message": "It has been 7 days since your last scan. Take a photo to compare."
     },
     {
-      "title": "Don't forget your skin check",
-      "message": "Regular scans help detect changes early. Take 30 seconds to scan now."
+      "title": "Skin check due",
+      "message": "No scan recorded this week. Take a photo under the same light."
     },
     {
-      "title": "Your skin health update is due",
-      "message": "Run a scan to see how your skin is responding to your routine."
+      "title": "Compare this week",
+      "message": "Take a scan today so changes are easier to track next visit."
     },
     {
-      "title": "Weekly scan reminder",
-      "message": "Stay on top of your skincare journey with a quick scan."
+      "title": "Routine check",
+      "message": "Log a scan to keep your progress record up to date."
     }
   ],
   "dailyTips": [
     {
-      "title": "Morning hydration tip",
-      "message": "Drink a glass of water before applying skincare to boost absorption."
+      "title": "Water first",
+      "message": "Drink water in the morning. Apply products to clean, dry skin."
     },
     {
-      "title": "SPF is essential",
-      "message": "Apply sunscreen even on cloudy days. UV rays penetrate through clouds."
+      "title": "Sunscreen daily",
+      "message": "Apply SPF 30 or higher each morning, even when it is cloudy."
     },
     {
-      "title": "Cleanse gently",
-      "message": "Use lukewarm water and pat your face dry instead of rubbing."
+      "title": "Wash gently",
+      "message": "Use lukewarm water. Pat dry with a clean towel."
     },
     {
-      "title": "Nighttime routine matters",
-      "message": "Your skin repairs itself at night. Apply a richer moisturizer before bed."
+      "title": "Night moisturizer",
+      "message": "Apply moisturizer at night after cleansing."
     },
     {
-      "title": "Don't skip moisturizer",
-      "message": "Even oily skin needs hydration. Use a lightweight, non-comedogenic formula."
+      "title": "Moisturizer for oily skin",
+      "message": "Oily skin still needs moisturizer. Use a light gel labeled non-comedogenic."
     },
     {
-      "title": "Check your ingredients",
-      "message": "Avoid mixing retinol with vitamin C. Use them at different times of day."
+      "title": "Separate retinol and vitamin C",
+      "message": "Use vitamin C in the morning and retinol at night."
     },
     {
-      "title": "Hands off your face",
-      "message": "Touching your face can transfer bacteria and cause breakouts."
+      "title": "Avoid touching your face",
+      "message": "Hands carry oil and dirt. Wash hands before applying products."
     },
     {
-      "title": "Exfoliate wisely",
-      "message": "Over-exfoliating damages your skin barrier. Limit to 2-3 times per week."
+      "title": "Exfoliation limit",
+      "message": "Exfoliate 2 to 3 times per week at most. Stop if skin stings."
     }
   ]
 }

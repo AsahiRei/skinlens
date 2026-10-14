@@ -62,7 +62,7 @@ export default function PulsatingIcon() {
         <Animated.View
           key={i}
           style={[style, RING_STYLE]}
-          className="bg-green-700"
+          className="bg-[#14532D]"
         />
       ))}
       <View
@@ -71,7 +71,7 @@ export default function PulsatingIcon() {
           height: CORE_SIZE,
           borderRadius: CORE_SIZE / 2,
         }}
-        className="bg-green-700 items-center justify-center"
+        className="bg-[#14532D] items-center justify-center"
       >
         <Scan size={28} color="white" />
       </View>

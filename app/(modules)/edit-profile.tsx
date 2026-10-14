@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   Text,
   TextInput,
@@ -8,9 +9,9 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { ArrowLeft, Calendar } from "lucide-react-native";
 
-import ScrollPicker from "@/components/ScrollPicker";
 import { FadeItem } from "@/components/FadeItem";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -27,9 +28,30 @@ import { formatter } from "@/utils/formatter";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
 const MONTHS: string[] = profileOptions.months;
-const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
-const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: CURRENT_YEAR - 1949 }, (_, i) => String(CURRENT_YEAR - i));
+const MIN_DOB = new Date(1950, 0, 1);
+const DOB_FALLBACK = new Date(2000, 0, 1);
+
+function formatDob(date: Date): string {
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function parseDob(age?: string): Date | null {
+  if (!age) return null;
+  const m = age.trim().match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
+  if (!m) return null;
+  const month = MONTHS.indexOf(m[1]);
+  const day = Number(m[2]);
+  const year = Number(m[3]);
+  if (month < 0 || Number.isNaN(day) || Number.isNaN(year)) return null;
+  const date = new Date(year, month, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month ||
+    date.getDate() !== day
+  )
+    return null;
+  return date;
+}
 
 const GENDER_OPTIONS: string[] = profileOptions.genders;
 const SKIN_TYPE_OPTIONS: string[] = profileOptions.skinTypes;
@@ -37,17 +59,6 @@ const CONCERN_OPTIONS: string[] = profileOptions.concerns;
 const SLEEP_OPTIONS: string[] = profileOptions.sleepOptions;
 const STRESS_OPTIONS: string[] = profileOptions.stressOptions;
 const WATER_OPTIONS: string[] = profileOptions.waterOptions;
-
-function parseAge(age?: string): { month: number; day: number; year: number } | null {
-  if (!age) return null;
-  const m = age.trim().match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
-  if (!m) return null;
-  const month = MONTHS.indexOf(m[1]);
-  const day = DAYS.indexOf(String(Number(m[2])));
-  const year = YEARS.indexOf(m[3]);
-  if (month < 0 || day < 0 || year < 0) return null;
-  return { month, day, year };
-}
 
 function Section({
   title,
@@ -119,14 +130,14 @@ export default function EditProfile() {
   const [stressLevel, setStressLevel] = useState("");
   const [waterIntake, setWaterIntake] = useState("");
 
-  const [dateValues, setDateValues] = useState({ month: 0, day: 0, year: 0 });
-  // Whether the user touched the DOB wheels. Untouched wheels visually show
-  // January 1 of the current year but must not overwrite the saved DOB.
+  const [dob, setDob] = useState<Date | null>(null);
+  const [showPicker, setShowPicker] = useState(Platform.OS === "ios");
+  // Whether the user picked a new DOB. An untouched picker must not
+  // overwrite the saved DOB.
   const [dateTouched, setDateTouched] = useState(false);
   const [originalAge, setOriginalAge] = useState("");
-  const ageString = dateTouched
-    ? `${MONTHS[dateValues.month]} ${DAYS[dateValues.day]}, ${YEARS[dateValues.year]}`
-    : originalAge;
+  const ageString =
+    dateTouched && dob ? formatDob(dob) : originalAge;
 
   useEffect(() => {
     (async () => {
@@ -136,8 +147,8 @@ export default function EditProfile() {
         setFirstName(userProfile?.first_name ?? userProfile?.username ?? "");
         setGender(userProfile?.gender ?? "");
         setOriginalAge(userProfile?.age ?? "");
-        const parsed = parseAge(userProfile?.age);
-        if (parsed) setDateValues(parsed);
+        const parsed = parseDob(userProfile?.age);
+        if (parsed) setDob(parsed);
         setSkinType(skinProfile?.skin_type ?? "");
         setMainConcern(skinProfile?.main_concerns ?? "");
         setSleepQuality(lifestyleProfile?.sleep_quality ?? "");
@@ -241,47 +252,62 @@ export default function EditProfile() {
 
               <View className="gap-1.5">
                 <FieldLabel label="Date of Birth" />
-                <View className="rounded-xl p-3 flex-row gap-2" style={{ backgroundColor: "#F4F7F5", borderWidth: 1, borderColor: "#E5EDE8" }}>
-                  <View className="flex-1 items-center gap-1">
-                    <Text className="text-xs font-semibold" style={{ color: "#6B7280" }}>
-                      Month
-                    </Text>
-                    <ScrollPicker
-                      items={MONTHS}
-                      selectedIndex={dateValues.month}
-                      onValueChange={(idx) => {
-                        setDateValues((prev) => ({ ...prev, month: idx }));
-                        setDateTouched(true);
-                      }}
-                    />
-                  </View>
-                  <View className="flex-1 items-center gap-1">
-                    <Text className="text-xs font-semibold" style={{ color: "#6B7280" }}>
-                      Day
-                    </Text>
-                    <ScrollPicker
-                      items={DAYS}
-                      selectedIndex={dateValues.day}
-                      onValueChange={(idx) => {
-                        setDateValues((prev) => ({ ...prev, day: idx }));
-                        setDateTouched(true);
-                      }}
-                    />
-                  </View>
-                  <View className="flex-1 items-center gap-1">
-                    <Text className="text-xs font-semibold" style={{ color: "#6B7280" }}>
-                      Year
-                    </Text>
-                    <ScrollPicker
-                      items={YEARS}
-                      selectedIndex={dateValues.year}
-                      onValueChange={(idx) => {
-                        setDateValues((prev) => ({ ...prev, year: idx }));
-                        setDateTouched(true);
-                      }}
-                    />
-                  </View>
-                </View>
+                {Platform.OS === "ios" ? (
+                  <DateTimePicker
+                    value={dob ?? DOB_FALLBACK}
+                    mode="date"
+                    display="spinner"
+                    minimumDate={MIN_DOB}
+                    maximumDate={new Date()}
+                    onChange={(_event, selected) => {
+                      if (!selected) return;
+                      setDob(selected);
+                      setDateTouched(true);
+                    }}
+                  />
+                ) : (
+                  <>
+                    <Pressable
+                      onPress={() => setShowPicker(true)}
+                      className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border active:opacity-90"
+                      style={{ backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }}
+                    >
+                      <View
+                        className="h-9 w-9 items-center justify-center rounded-full"
+                        style={{ backgroundColor: "#EAF6EE" }}
+                      >
+                        <Calendar size={18} color="#15803D" />
+                      </View>
+                      <Text
+                        className="flex-1 font-semibold"
+                        style={{ color: dob ? "#10241A" : "#9CA3AF" }}
+                      >
+                        {dob ? formatDob(dob) : originalAge || "Select your date of birth"}
+                      </Text>
+                    </Pressable>
+                    {showPicker && (
+                      <DateTimePicker
+                        value={dob ?? DOB_FALLBACK}
+                        mode="date"
+                        display="default"
+                        minimumDate={MIN_DOB}
+                        maximumDate={new Date()}
+                        onChange={(event, selected) => {
+                          // Android dialog: dismiss leaves the answer untouched.
+                          if (event?.type === "dismissed") {
+                            setShowPicker(false);
+                            return;
+                          }
+                          if (selected) {
+                            setDob(selected);
+                            setDateTouched(true);
+                          }
+                          setShowPicker(false);
+                        }}
+                      />
+                    )}
+                  </>
+                )}
               </View>
 
               <View className="gap-1.5">

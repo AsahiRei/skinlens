@@ -4,6 +4,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import jpeg from "jpeg-js";
 import { Buffer } from "buffer";
+import { Image } from "react-native";
 
 if (typeof (globalThis as Record<string, unknown>).Buffer === "undefined") {
   (globalThis as Record<string, unknown>).Buffer = Buffer;
@@ -15,8 +16,9 @@ const FACE_SIZE = 112;
 const EMBEDDING_DIM = 192;
 
 // Cosine similarity threshold for "same person".
-// 0.60 is a balanced default (FAR/FRR trade-off); tune after field testing.
-export const FACE_MATCH_THRESHOLD = 0.6;
+// 0.55 is a relaxed default to reduce false rejections (FRR) in varied
+// lighting/angles; raise to 0.60-0.70 for stricter FAR if needed.
+export const FACE_MATCH_THRESHOLD = 0.55;
 
 let faceModel: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 
@@ -34,16 +36,61 @@ async function getFaceModel() {
 }
 
 async function decodeToPixels(imageUri: string): Promise<jpeg.JpegBuffer> {
-  const resized = await ImageManipulator.manipulateAsync(
-    imageUri,
-    [{ resize: { width: FACE_SIZE, height: FACE_SIZE } }],
-    {
-      compress: 1,
-      format: ImageManipulator.SaveFormat.JPEG,
-      base64: false,
-    },
-  );
-  const base64 = await FileSystem.readAsStringAsync(resized.uri, {
+  // Center-crop to square first so wide captures don't stretch.
+  let squareUri = imageUri;
+  try {
+    const size = await new Promise<{ width: number; height: number }>(
+      (resolve, reject) => {
+        Image.getSize(imageUri, (width, height) => resolve({ width, height }), reject);
+      },
+    );
+    if (size.width > 0 && size.height > 0 && size.width !== size.height) {
+      const side = Math.min(size.width, size.height);
+      const cropped = await ImageManipulator.manipulateAsync(
+        imageUri,
+        [
+          {
+            crop: {
+              originX: Math.round((size.width - side) / 2),
+              originY: Math.round((size.height - side) / 2),
+              width: side,
+              height: side,
+            },
+          },
+          { resize: { width: FACE_SIZE, height: FACE_SIZE } },
+        ],
+        {
+          compress: 1,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: false,
+        },
+      );
+      squareUri = cropped.uri;
+    } else {
+      const resized = await ImageManipulator.manipulateAsync(
+        imageUri,
+        [{ resize: { width: FACE_SIZE, height: FACE_SIZE } }],
+        {
+          compress: 1,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: false,
+        },
+      );
+      squareUri = resized.uri;
+    }
+  } catch {
+    const resized = await ImageManipulator.manipulateAsync(
+      imageUri,
+      [{ resize: { width: FACE_SIZE, height: FACE_SIZE } }],
+      {
+        compress: 1,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: false,
+      },
+    );
+    squareUri = resized.uri;
+  }
+  const base64 = await FileSystem.readAsStringAsync(squareUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
   const binary = atob(base64);

@@ -11,20 +11,45 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import { PrimaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import onboardingPage from "@/data/onboarding.json";
-import { cancelDownload, getModelPath, getSelectedModel } from "@/utils/llama";
+import { cancelDownload, getModelDownloadState, getModelPath, getSelectedModel } from "@/utils/llama";
 
 export default function Onboarding() {
   const pagerRef = useRef<PagerView>(null);
   const [page, setPage] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [downloadedMB, setDownloadedMB] = useState(0);
+  const [totalMB, setTotalMB] = useState(0);
   const [status, setStatus] = useState<"downloading" | "error">("downloading");
   const [errorMessage, setErrorMessage] = useState("");
   const [modelLabel, setModelLabel] = useState("");
   const router = useRouter();
   const downloadingRef = useRef(false);
 
-  // Abort the model download if the screen unmounts mid-download.
+  const reportProgress = (fraction: number, bytesWritten?: number, totalBytes?: number) => {
+    setProgress(Math.round(fraction * 100));
+    if (typeof bytesWritten === "number" && bytesWritten >= 0) {
+      setDownloadedMB(bytesWritten / (1024 * 1024));
+    }
+    if (typeof totalBytes === "number" && totalBytes > 0) {
+      setTotalMB(totalBytes / (1024 * 1024));
+    }
+  };
+
+  // Seed the progress bar from the persisted download cache so reopening
+  // the app mid-download shows e.g. 35% instead of resetting to 0%.
+  useEffect(() => {
+    getModelDownloadState()
+      .then((s) => {
+        setProgress(Math.round(s.fraction * 100));
+        setDownloadedMB(s.bytesWritten / (1024 * 1024));
+        if (s.totalBytes > 0) setTotalMB(s.totalBytes / (1024 * 1024));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Persist the native pause state if the screen unmounts mid-download so
+  // the next launch resumes instead of restarting from zero.
   useEffect(() => {
     return () => {
       if (downloadingRef.current) {
@@ -44,9 +69,7 @@ export default function Onboarding() {
       try {
         const model = await getSelectedModel();
         setModelLabel(model.label);
-        await getModelPath((fraction) => {
-          setProgress(Math.round(fraction * 100));
-        });
+        await getModelPath(reportProgress);
         await AsyncStorage.setItem("is_onboarded", "true");
         router.replace("/welcome");
       } catch (err) {
@@ -66,12 +89,18 @@ export default function Onboarding() {
     if (downloadingRef.current) return;
     downloadingRef.current = true;
     setStatus("downloading");
-    setProgress(0);
+    // Resume from the cached byte offset instead of restarting at 0%.
+    try {
+      const cached = await getModelDownloadState();
+      setProgress(Math.round(cached.fraction * 100));
+      setDownloadedMB(cached.bytesWritten / (1024 * 1024));
+      if (cached.totalBytes > 0) setTotalMB(cached.totalBytes / (1024 * 1024));
+    } catch {
+      setProgress(0);
+    }
     setErrorMessage("");
     try {
-      await getModelPath((fraction) => {
-        setProgress(Math.round(fraction * 100));
-      });
+      await getModelPath(reportProgress);
       await AsyncStorage.setItem("is_onboarded", "true");
       router.replace("/welcome");
     } catch (err) {
@@ -95,7 +124,7 @@ export default function Onboarding() {
             <View
               key={index}
               className={`h-1.5 rounded-full ${
-                page === index ? "w-6 bg-green-700" : "w-1.5 bg-gray-200"
+                page === index ? "w-6 bg-[#14532D]" : "w-1.5 bg-gray-200"
               }`}
             />
           ))}
@@ -125,7 +154,9 @@ export default function Onboarding() {
                 trackColor="#EAF6EE"
               />
               <Text className="text-center text-sm font-medium" style={{ color: "#3F4A44" }}>
-                {progress}%
+                {totalMB > 0
+                  ? `${progress}% (${downloadedMB.toFixed(0)} / ${totalMB.toFixed(0)} MB)`
+                  : `${progress}%`}
               </Text>
             </View>
           ) : (

@@ -102,9 +102,7 @@ export default function Profile() {
 
   const handleRemoveAvatar = async () => {
     setPickerVisible(false);
-    // The avatar and the enrolled face share one record — removing the
-    // picture must also clear the embedding, otherwise scan verification
-    // keeps comparing against a face the user just deleted.
+    // Avatar and face record are one row — clear both together.
     await updateUserProfile({ face_image_url: null, face_embedding: null });
     setUserProfile((prev) =>
       prev ? { ...prev, face_image_url: null, face_embedding: null } : prev,
@@ -118,11 +116,10 @@ export default function Profile() {
         visible={pickerVisible}
         onDismiss={() => setPickerVisible(false)}
         title="Profile picture"
-        message="Update your picture with a quick face scan"
         icon={ScanFace}
         actions={[
           {
-            label: "Face Scan",
+            label: "Take new picture",
             onPress: () => {
               setPickerVisible(false);
               router.push({

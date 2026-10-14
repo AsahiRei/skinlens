@@ -303,7 +303,10 @@ export default function ScanResults() {
           {/* Scanned image */}
           {imageUri && (
             <View className="items-center">
-              <View className="w-40 h-40 rounded-3xl overflow-hidden bg-gray-200 shadow-sm">
+              <View
+                className="w-40 h-40 rounded-3xl overflow-hidden bg-gray-200 shadow-sm"
+                style={{ aspectRatio: 1 }}
+              >
                 <Image
                   source={{ uri: imageUri }}
                   className="w-full h-full"

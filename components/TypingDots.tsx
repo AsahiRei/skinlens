@@ -58,7 +58,7 @@ export default function TypingDots({ label = "Thinking" }: { label?: string }) {
 
   return (
     <View className="flex-row items-center gap-2 px-2 py-1.5">
-      <Animated.Text style={pulseStyle} className="text-[13px] font-semibold text-green-700">
+      <Animated.Text style={pulseStyle} className="text-[13px] font-semibold text-[#14532D]">
         {label}
       </Animated.Text>
       <View className="flex-row items-center gap-1">
@@ -66,7 +66,7 @@ export default function TypingDots({ label = "Thinking" }: { label?: string }) {
           <Animated.View
             key={i}
             style={style}
-            className="w-1.5 h-1.5 rounded-full bg-green-700"
+            className="w-1.5 h-1.5 rounded-full bg-[#14532D]"
           />
         ))}
       </View>

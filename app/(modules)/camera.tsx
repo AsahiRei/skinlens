@@ -148,7 +148,7 @@ export default function FaceDetectionScreen() {
   const [cameraPosition, setCameraPosition] = useState<"front" | "back">("front");
   const device = useCameraDevice(cameraPosition);
   const photoOutput = usePhotoOutput({
-    targetResolution: { width: 1280, height: 720 },
+    targetResolution: { width: 720, height: 1280 },
     containerFormat: "jpeg",
     quality: 0.85,
     qualityPrioritization: "balanced",

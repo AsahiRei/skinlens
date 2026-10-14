@@ -36,6 +36,10 @@ const defaultSettings: NotificationSettings = {
   dailyTips: false,
 };
 
+function dedupeById(list: Notification[]): Notification[] {
+  return Array.from(new Map(list.map((n) => [n.id, n])).values());
+}
+
 const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined,
 );
@@ -43,31 +47,35 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<NotificationSettings>(defaultSettings);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    loadAll();
-  }, []);
+  // Guards concurrent generateNotifications() calls (home focus + pull to
+  // refresh can overlap). Without this, two calls with the same stale
+  // `notifications` closure both think the id is new and both prepend it,
+  // producing duplicate keys like `scan-2026-10-13`.
+  const generatingRef = React.useRef(false);
 
   const loadAll = async () => {
     try {
       const settingsStr = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
       if (settingsStr) {
-        const loaded = JSON.parse(settingsStr);
-        setSettings(loaded);
+        const saved = JSON.parse(settingsStr);
+        setSettings(saved);
         // Schedule push notifications based on saved settings
-        if (loaded.scanReminders) await scheduleWeeklyScanReminder();
-        if (loaded.dailyTips) await scheduleDailySkincareTip();
+        if (saved.scanReminders) await scheduleWeeklyScanReminder();
+        if (saved.dailyTips) await scheduleDailySkincareTip();
       }
 
       const remoteNotifications = await getNotifications();
-      setNotifications(remoteNotifications);
+      setNotifications(dedupeById(remoteNotifications));
     } catch (err) {
       console.error("Error loading notifications:", err);
-    } finally {
-      setLoaded(true);
     }
   };
+
+  useEffect(() => {
+    // Fetch-on-mount: setState happens in async continuations after awaits.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAll();
+  }, []);
 
   const updateSettings = useCallback(
     async (partial: Partial<NotificationSettings>) => {
@@ -117,25 +125,40 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const generateNotifications = useCallback(async () => {
-    const newNotifications: Notification[] = [];
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    try {
+      const newNotifications: Notification[] = [];
 
-    if (settings.scanReminders) {
-      const reminder = generateScanReminder();
-      if (reminder) newNotifications.push(reminder);
-    }
+      if (settings.scanReminders) {
+        const reminder = generateScanReminder();
+        if (reminder) newNotifications.push(reminder);
+      }
 
-    if (settings.dailyTips) {
-      const tip = generateDailyTip();
-      if (tip) newNotifications.push(tip);
-    }
+      if (settings.dailyTips) {
+        const tip = generateDailyTip();
+        if (tip) newNotifications.push(tip);
+      }
 
-    if (newNotifications.length > 0) {
+      if (newNotifications.length === 0) return;
+
+      // De-dupe against the ids already in state (stale-closure safe: the
+      // final prepend below filters against `prev` again).
       const existingIds = new Set(notifications.map((n) => n.id));
-      const deduped = newNotifications.filter((n) => !existingIds.has(n.id));
-      for (const n of deduped) {
+      const candidates = newNotifications.filter((n) => !existingIds.has(n.id));
+      if (candidates.length === 0) return;
+
+      for (const n of candidates) {
         await insertNotification(n);
       }
-      setNotifications((prev) => [...deduped, ...prev].slice(0, 50));
+      setNotifications((prev) => {
+        const prevIds = new Set(prev.map((n) => n.id));
+        const fresh = candidates.filter((n) => !prevIds.has(n.id));
+        if (fresh.length === 0) return prev;
+        return [...fresh, ...prev].slice(0, 50);
+      });
+    } finally {
+      generatingRef.current = false;
     }
   }, [settings, notifications]);
 
@@ -143,7 +166,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const refresh = useCallback(async () => {
     try {
-      setNotifications(await getNotifications());
+      setNotifications(dedupeById(await getNotifications()));
     } catch (err) {
       console.error("Error refreshing notifications:", err);
     }

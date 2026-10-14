@@ -29,7 +29,7 @@ export default function ChatImageCarousel({
         {!failed[img.id] ? (
           <Image
             source={{ uri: img.imageUrl }}
-            style={{ width: "100%", height: 190, backgroundColor: "#F3F4F6" }}
+            style={{ width: "100%", aspectRatio: 4 / 3, backgroundColor: "#F3F4F6" }}
             resizeMode="cover"
             accessibilityLabel={img.title}
             onError={() => setFailed((p) => ({ ...p, [img.id]: true }))}
@@ -73,7 +73,7 @@ export default function ChatImageCarousel({
               {!failed[img.id] ? (
                 <Image
                   source={{ uri: img.imageUrl }}
-                  style={{ width: "100%", height: 190, backgroundColor: "#F3F4F6" }}
+                  style={{ width: "100%", aspectRatio: 4 / 3, backgroundColor: "#F3F4F6" }}
                   resizeMode="cover"
                   accessibilityLabel={img.title}
                   onError={() => setFailed((p) => ({ ...p, [img.id]: true }))}
@@ -101,7 +101,7 @@ export default function ChatImageCarousel({
                     {img.sourceName} • tap for source
                   </Text>
                 </View>
-                <Text className="text-[10px] font-bold text-green-700">
+                <Text className="text-[10px] font-bold text-[#14532D]">
                   {images.indexOf(img) + 1}/{images.length}
                 </Text>
               </View>
@@ -119,7 +119,7 @@ export default function ChatImageCarousel({
               width: i === page ? 18 : 6,
               height: 6,
               borderRadius: 3,
-              backgroundColor: i === page ? "#15803D" : "#D1D5DB",
+              backgroundColor: i === page ? "#14532D" : "#D1D5DB",
             }}
           />
         ))}

@@ -28,7 +28,7 @@
   "triggers": ["product", "sun", "weather", "food", "stress", "medication", "other"],
   "severities": ["mild", "moderate", "severe"],
   "severityStyles": {
-    "mild": { "bg": "bg-green-50", "text": "text-green-700" },
+    "mild": { "bg": "bg-green-50", "text": "text-[#14532D]" },
     "moderate": { "bg": "bg-amber-50", "text": "text-amber-700" },
     "severe": { "bg": "bg-red-50", "text": "text-red-700" }
   }

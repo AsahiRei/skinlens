@@ -1,5 +1,4 @@
 import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -34,8 +33,8 @@ export async function scheduleWeeklyScanReminder() {
   // Schedule every 7 days at 10:00 AM
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: "Time for your weekly skin scan",
-      body: "Keep track of your skin health by running a quick scan today.",
+      title: "Weekly scan due",
+      body: "No scan recorded this week. Take a photo to compare.",
       data: { type: "scan_reminder" },
     },
     trigger: {
@@ -60,8 +59,8 @@ export async function scheduleDailySkincareTip() {
   // Schedule every day at 8:00 AM
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: "Daily skincare tip",
-      body: "Drink a glass of water before applying skincare to boost absorption.",
+      title: "Skin tip for today",
+      body: "Apply SPF 30 or higher each morning, even when it is cloudy.",
       data: { type: "daily_tip" },
     },
     trigger: {

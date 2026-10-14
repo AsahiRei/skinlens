@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { AlertCircle, Check } from "lucide-react-native";
+import { AlertCircle, ArrowRight, Check, RefreshCw } from "lucide-react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -15,6 +15,7 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { theme, cardShadow } from "@/lib/theme";
 import stepsData from "@/data/steps.json";
+import detectionMetaJson from "@/data/detection-meta.json";
 import { classifyImage, enhanceImage } from "@/utils/skin-prediction";
 import { getFaceIdentity } from "@/lib/db/profile";
 import {
@@ -30,6 +31,11 @@ const steps = stepsData.analyzing;
 
 const ANGLE_LABELS = stepsData.angleLabels;
 
+const detectionMeta: Record<
+  string,
+  { icon: string; color: string; bg: string; description: string }
+> = detectionMetaJson;
+
 export default function Analyzing() {
   const router = useRouter();
   const { imageUri, sourceType, imageUris } = useLocalSearchParams<{
@@ -41,6 +47,8 @@ export default function Analyzing() {
   const [progressPct, setProgressPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [displayUris, setDisplayUris] = useState<(string | null)[]>([null, null, null]);
+  const [detectedResult, setDetectedResult] = useState<ClassificationResult | null>(null);
+  const [finalUris, setFinalUris] = useState<string[]>([]);
   const ranRef = useRef(false);
   const cancelledRef = useRef(false);
 
@@ -100,6 +108,7 @@ export default function Analyzing() {
   const run = async () => {
     try {
       setError(null);
+      setDetectedResult(null);
       const uris = isMulti ? multiAngles : [imageUri];
       if (!uris[0]) {
         setError("No image provided. Please go back and try again.");
@@ -166,16 +175,12 @@ export default function Analyzing() {
       if (cancelledRef.current) return;
 
       goToStep(3);
-      router.replace({
-        pathname: "/(modules)/survey",
-        params: {
-          imageUri: uris[0],
-          sourceType: sourceType ?? "gallery",
-          label: finalResult.label,
-          confidence: String(finalResult.confidence),
-          probabilities: JSON.stringify(finalResult.probabilities),
-        },
-      });
+      // ── Detection confirmation gate ──
+      // Pause here so the user sees what was detected and explicitly
+      // agrees to take the short survey to finalize the result,
+      // instead of auto-jumping straight into the survey.
+      setFinalUris(uris as string[]);
+      setDetectedResult(finalResult);
     } catch (e) {
       if (cancelledRef.current) return;
       setError(
@@ -195,6 +200,93 @@ export default function Analyzing() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleProceedToSurvey = () => {
+    if (!detectedResult || !finalUris[0]) return;
+    router.replace({
+      pathname: "/(modules)/survey",
+      params: {
+        imageUri: finalUris[0],
+        sourceType: sourceType ?? "gallery",
+        label: detectedResult.label,
+        confidence: String(detectedResult.confidence),
+        probabilities: JSON.stringify(detectedResult.probabilities),
+      },
+    });
+  };
+
+  const handleRescan = () => {
+    router.replace("/(tabs)/scan");
+  };
+
+  if (detectedResult) {
+    const meta = detectionMeta[detectedResult.label] ?? detectionMeta.normal;
+    const prettyLabel =
+      detectedResult.label.charAt(0).toUpperCase() + detectedResult.label.slice(1);
+    const confidencePct = Math.round(detectedResult.confidence * 100);
+    const previewUri = displayUris[0] ?? finalUris[0] ?? (imageUri as string | undefined);
+    const isNormal = detectedResult.label === "normal";
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+        <ScreenGradient />
+        <ScrollView
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, flexGrow: 1, justifyContent: "center" }}
+        >
+          <View className="items-center">
+            <View
+              className="h-12 w-12 rounded-full items-center justify-center"
+              style={{ backgroundColor: "#15803D" }}
+            >
+              <Check size={22} color="#FFFFFF" />
+            </View>
+            <Text className="font-bold text-[24px] mt-3 text-center" style={{ color: "#10241A" }}>
+              Scan Complete
+            </Text>
+            <Text className="text-sm mt-1 text-center" style={{ color: "#6B7280" }}>
+              {isNormal
+                ? "We didn't find any major skin issues."
+                : `We detected ${prettyLabel}.`}
+            </Text>
+          </View>
+
+          <ClinicalCard className="mt-5 items-center gap-3 py-6 px-5">
+            {previewUri ? (
+              <View className="w-28 h-28 rounded-3xl overflow-hidden bg-[#EAF6EE]" style={{ aspectRatio: 1 }}>
+                <Image source={{ uri: previewUri }} className="w-full h-full" resizeMode="cover" />
+              </View>
+            ) : null}
+            <View
+              className="rounded-full px-4 py-1.5 mt-1"
+              style={{ backgroundColor: meta.bg }}
+            >
+              <Text className="text-sm font-bold capitalize" style={{ color: meta.color }}>
+                {prettyLabel} {confidencePct > 0 ? `· ${confidencePct}%` : ""}
+              </Text>
+            </View>
+            <Text className="text-[15px] text-center leading-6" style={{ color: "#10241A" }}>
+              {isNormal
+                ? "Your skin looks healthy. Proceed to a short survey to finalize your result?"
+                : `We detected ${prettyLabel}. Proceed to a short survey to finalize your result?`}
+            </Text>
+            <Text className="text-xs text-center leading-5" style={{ color: "#6B7280" }}>
+              A few quick questions help confirm the AI result and personalize your routine.
+            </Text>
+          </ClinicalCard>
+
+          <View className="w-full mt-5 gap-2">
+            <PrimaryButton
+              label="Continue to Short Survey"
+              onPress={handleProceedToSurvey}
+              icon={ArrowRight}
+            />
+            <SecondaryButton label="Scan Again" onPress={handleRescan} icon={RefreshCw} />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   if (error) {
     return (
@@ -234,8 +326,8 @@ export default function Analyzing() {
               {multiAngles.map((uri, i) => (
                 <View key={i} className="relative items-center">
                   <View
-                    className="w-[100px] h-[130px] rounded-2xl overflow-hidden bg-[#EAF6EE]"
-                    style={{ elevation: 6 }}
+                    className="w-24 h-24 rounded-2xl overflow-hidden bg-[#EAF6EE]"
+                    style={{ elevation: 6, aspectRatio: 1 }}
                   >
                     {(displayUris[i] ?? uri) && (
                       <Image
@@ -276,7 +368,7 @@ export default function Analyzing() {
                       <View style={{ width: 14, height: 14, borderBottomWidth: 2, borderRightWidth: 2, borderColor: "#15803D" }} />
                     </View>
                   </View>
-                  <Text className="text-xs font-semibold text-green-700 mt-2">
+                  <Text className="text-xs font-semibold text-[#14532D] mt-2">
                     {ANGLE_LABELS[i]}
                   </Text>
                 </View>
@@ -286,7 +378,7 @@ export default function Analyzing() {
             <View className="relative items-center justify-center">
               <View
                 className="w-64 h-64 rounded-3xl overflow-hidden bg-[#EAF6EE]"
-                style={{ elevation: 8 }}
+                style={{ elevation: 8, aspectRatio: 1 }}
               >
                 {(displayUris[0] ?? imageUri) && (
                   <Image
@@ -368,7 +460,7 @@ export default function Analyzing() {
                     className="h-7 w-7 rounded-full items-center justify-center"
                     style={{
                       backgroundColor: isDone
-                        ? "#10241A"
+                        ? "#15803D"
                         : isActive
                           ? "#EAF6EE"
                           : "#F4F7F5",
