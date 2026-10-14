@@ -80,7 +80,7 @@ export default function Scan() {
         <FadeItem index={0}>
           <ScreenHeader
             title="Skin Scan"
-            subtitle="Take or upload a photo"
+            subtitle="Take a face photo or upload one"
           />
         </FadeItem>
 
@@ -91,7 +91,7 @@ export default function Scan() {
               className="mt-0"
               icon={Camera}
               title="Use Camera"
-              subtitle="Guided capture with face alignment"
+              subtitle="Guided face photo to check your skin"
               onPress={() => router.push("/(modules)/camera")}
               accessibilityLabel="Use camera"
               accessory={

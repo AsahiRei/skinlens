@@ -58,56 +58,61 @@ type QualityStatus = {
   canCapture: boolean;
 };
 
-const ANGLE_GUIDE: Record<ScanAngle, { label: string; instruction: string }> = {
-  front: { label: "Front", instruction: "Face the camera straight on" },
-  left: { label: "Left", instruction: "Turn head slightly to your right" },
-  right: { label: "Right", instruction: "Turn head slightly to your left" },
+const ANGLE_GUIDE: Record<ScanAngle, { label: string; shortLabel: string; instruction: string }> = {
+  front: { label: "Front", shortLabel: "Front", instruction: "Look straight at the camera" },
+  left: { label: "Left cheek", shortLabel: "Left", instruction: "Turn your head to your right" },
+  right: { label: "Right cheek", shortLabel: "Right", instruction: "Turn your head to your left" },
 };
 
-const LightingBadge = React.memo(function LightingBadge({
-  quality, message,
-}: { quality: LightingQuality; message: string }) {
-  const good = quality === "good";
-  const Icon = good ? Sun : quality === "dim" ? Moon : Contrast;
-  return (
-    <View pointerEvents="none" className="absolute" style={{ top: 90, left: 20 }}>
-      <View
-        className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full"
-        style={{ backgroundColor: good ? "#15803D" : "#B45309" }}
-      >
-        <Icon size={12} color="white" />
-        <Text className="text-xs font-medium text-white">
-          {good ? "Good lighting" : message}
-        </Text>
-      </View>
-    </View>
-  );
-});
-
-const AlignmentStatus = React.memo(function AlignmentStatus({
-  score, message, hasFace, isMulti,
-}: { score: number; message: string; hasFace: boolean; isMulti: boolean }) {
+const GuidanceCard = React.memo(function GuidanceCard({
+  score, message, hasFace, lighting, lightingMessage, isMulti, currentAngle,
+}: {
+  score: number; message: string; hasFace: boolean;
+  lighting: LightingQuality; lightingMessage: string;
+  isMulti: boolean; currentAngle: ScanAngle;
+}) {
   const color =
     score > 80 ? "#4ADE80" : score > 50 ? "#F59E0B" : "#DC2626";
-  const label = !hasFace
-    ? "Looking for face"
+  const statusLabel = !hasFace
+    ? "Position your face in the frame"
     : score > 80
-      ? "Ready to capture"
+      ? "Hold still — ready"
       : message;
+  const lightingGood = lighting === "good";
+  const LightingIcon = lightingGood ? Sun : lighting === "dim" ? Moon : Contrast;
+  const lightingColor = lightingGood ? "#4ADE80" : "#F59E0B";
   return (
     <View
       pointerEvents="none"
-      className="absolute self-center"
-      style={{ bottom: isMulti ? 125 : 130 }}
+      className="absolute self-center items-center"
+      style={{ bottom: 128, left: 24, right: 24 }}
     >
-      <View className="px-4 py-2 rounded-full" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
-        <View className="flex-row items-center gap-1.5">
-          <Scan size={14} color={hasFace ? color : "rgba(255,255,255,0.6)"} />
+      <View
+        className="px-4 pt-2.5 pb-3 rounded-2xl items-center"
+        style={{ backgroundColor: "rgba(0,0,0,0.55)", maxWidth: 340 }}
+      >
+        {isMulti && (
+          <Text className="text-[11px] font-bold tracking-widest" style={{ color: "#4ADE80" }}>
+            {ANGLE_GUIDE[currentAngle].label.toUpperCase()}
+          </Text>
+        )}
+        {isMulti && (
+          <Text className="text-[13px] font-semibold text-white text-center" style={{ marginTop: 1 }}>
+            {ANGLE_GUIDE[currentAngle].instruction}
+          </Text>
+        )}
+        <View className="flex-row items-center justify-center" style={{ marginTop: isMulti ? 6 : 0, flexWrap: "wrap" }}>
+          <LightingIcon size={12} color={lightingColor} />
+          <Text className="text-[11px] font-medium" style={{ color: lightingColor, marginLeft: 4 }}>
+            {lightingGood ? "Good light" : lightingMessage}
+          </Text>
+          <Text className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)", marginHorizontal: 6 }}>•</Text>
+          <Scan size={12} color={hasFace ? color : "rgba(255,255,255,0.6)"} />
           <Text
-            className="text-sm font-semibold"
-            style={{ color: hasFace ? color : "rgba(255,255,255,0.6)" }}
+            className="text-[11px] font-semibold"
+            style={{ color: hasFace ? color : "rgba(255,255,255,0.6)", marginLeft: 4 }}
           >
-            {label}
+            {statusLabel}
           </Text>
         </View>
       </View>
@@ -142,6 +147,86 @@ const CaptureButton = React.memo(function CaptureButton({
   );
 });
 
+const ANGLES: ScanAngle[] = ["front", "left", "right"];
+
+const MultiAngleStepper = React.memo(function MultiAngleStepper({
+  currentAngle, capturedAngles,
+}: {
+  currentAngle: ScanAngle;
+  capturedAngles: Record<ScanAngle, string | null>;
+}) {
+  const currentIdx = ANGLES.indexOf(currentAngle);
+  return (
+    <View
+      pointerEvents="none"
+      className="absolute self-center"
+      style={{ top: 102 }}
+    >
+      <View
+        className="flex-row items-center px-3.5 py-2 rounded-full"
+        style={{
+          backgroundColor: "rgba(0,0,0,0.55)",
+          borderWidth: 1,
+          borderColor: "rgba(255,255,255,0.12)",
+        }}
+      >
+        {ANGLES.map((angle, i) => {
+          const captured = capturedAngles[angle] !== null;
+          const current = currentAngle === angle;
+          const filled = captured || i < currentIdx;
+          return (
+            <React.Fragment key={angle}>
+              <View className="flex-row items-center">
+                <View
+                  className="items-center justify-center"
+                  style={{
+                    width: 22, height: 22, borderRadius: 11,
+                    backgroundColor: captured
+                      ? "#15803D"
+                      : current
+                        ? "white"
+                        : "rgba(255,255,255,0.15)",
+                  }}
+                >
+                  {captured ? (
+                    <Check size={12} color="white" strokeWidth={3.5} />
+                  ) : (
+                    <Text
+                      style={{
+                        fontSize: 11, fontWeight: "800",
+                        color: current ? "#15803D" : "rgba(255,255,255,0.5)",
+                      }}
+                    >
+                      {i + 1}
+                    </Text>
+                  )}
+                </View>
+                <Text
+                  style={{
+                    marginLeft: 5, fontSize: 11,
+                    fontWeight: current ? "700" : "500",
+                    color: current || captured ? "white" : "rgba(255,255,255,0.45)",
+                  }}
+                >
+                  {ANGLE_GUIDE[angle].shortLabel}
+                </Text>
+              </View>
+              {i < ANGLES.length - 1 && (
+                <View
+                  style={{
+                    width: 14, height: 2, borderRadius: 1, marginHorizontal: 8,
+                    backgroundColor: filled ? "#15803D" : "rgba(255,255,255,0.18)",
+                  }}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </View>
+    </View>
+  );
+});
+
 export default function FaceDetectionScreen() {
   const router = useRouter();
   const { hasPermission, requestPermission } = useCameraPermission();
@@ -170,6 +255,7 @@ export default function FaceDetectionScreen() {
   const currentAngleRef = useRef<ScanAngle>("front");
   const isMultiAngleRef = useRef(false);
   const capturedAnglesRef = useRef<Record<ScanAngle, string | null>>({ front: null, left: null, right: null });
+  const cameraPositionRef = useRef<"front" | "back">("front");
   const qsRef = useRef<QualityStatus>(INITIAL_QS);
   const lastFrameRef = useRef(0);
 
@@ -183,6 +269,7 @@ export default function FaceDetectionScreen() {
   useEffect(() => { currentAngleRef.current = currentAngle; }, [currentAngle]);
   useEffect(() => { isMultiAngleRef.current = isMultiAngle; }, [isMultiAngle]);
   useEffect(() => { capturedAnglesRef.current = capturedAngles; }, [capturedAngles]);
+  useEffect(() => { cameraPositionRef.current = cameraPosition; }, [cameraPosition]);
 
   useEffect(() => {
     guidePulse.value = withRepeat(
@@ -244,7 +331,13 @@ export default function FaceDetectionScreen() {
       const bounds: FaceBounds = {
         x: f.bounds.x, y: f.bounds.y,
         width: f.bounds.width, height: f.bounds.height,
-        pitchAngle: f.pitchAngle, rollAngle: f.rollAngle, yawAngle: f.yawAngle,
+        pitchAngle: f.pitchAngle, rollAngle: f.rollAngle,
+        // ML Kit reports yaw in sensor coordinates (unmirrored) while the
+        // front-camera preview — and the face-box bounds, which the native
+        // plugin mirrors for FRONT — are mirrored. Without this negation the
+        // left/right steps feel swapped: doing the on-screen "left" action
+        // yields a positive raw yaw, which is the "right" target.
+        yawAngle: cameraPositionRef.current === "front" ? -(f.yawAngle ?? 0) : (f.yawAngle ?? 0),
         leftEyeOpenProbability: f.leftEyeOpenProbability,
         rightEyeOpenProbability: f.rightEyeOpenProbability,
         smilingProbability: f.smilingProbability,
@@ -261,7 +354,10 @@ export default function FaceDetectionScreen() {
         lighting,
         alignmentScore: alignment.score,
         alignmentMessage: msg,
-        canCapture: alignment.score >= 50,
+        // Belt-and-suspenders: score is already hard-gated to <=45 when the
+        // yaw is outside the target window, but also require the yaw flag
+        // directly so a front face can never unlock a side-angle capture.
+        canCapture: alignment.score >= 50 && alignment.isFacingFront,
       };
       const prev = qsRef.current;
       if (
@@ -398,6 +494,7 @@ export default function FaceDetectionScreen() {
         isActive={!isPreview}
         performanceMode="fast"
         autoMode
+        cameraFacing={cameraPosition}
         windowWidth={SCREEN_WIDTH}
         windowHeight={SCREEN_HEIGHT}
         onFacesDetected={handleFacesDetected}
@@ -442,9 +539,9 @@ export default function FaceDetectionScreen() {
         </View>
       </View>
 
-      {/* Lighting badge */}
-      {!isPreview && qs.alignmentScore > 0 && (
-        <LightingBadge quality={qs.lighting.quality} message={qs.lighting.message} />
+      {/* Slim multi-angle stepper — sits inside the top gradient, never covers the face */}
+      {!isPreview && isMultiAngle && (
+        <MultiAngleStepper currentAngle={currentAngle} capturedAngles={capturedAngles} />
       )}
 
       {/* Face box — animated on UI thread, no React re-render */}
@@ -468,7 +565,7 @@ export default function FaceDetectionScreen() {
               <View style={{ position: "absolute", bottom: 30, left: 20, width: 24, height: 24, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: "rgba(255,255,255,0.7)" }} />
               <View style={{ position: "absolute", bottom: 30, right: 20, width: 24, height: 24, borderBottomWidth: 3, borderRightWidth: 3, borderColor: "rgba(255,255,255,0.7)" }} />
               <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: "500", textAlign: "center" }}>
-                Position your face here
+                Center your face here{"\n"}Move closer so it fills the frame
               </Text>
             </View>
           </Animated.View>
@@ -478,54 +575,16 @@ export default function FaceDetectionScreen() {
       {/* Bottom gradient */}
       <View pointerEvents="none" style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 200, backgroundColor: "rgba(0,0,0,0.6)" }} />
 
-      {/* Multi-angle dots */}
-      {!isPreview && isMultiAngle && (
-        <View pointerEvents="none" className="absolute flex-row items-center justify-center gap-4" style={{ bottom: 180, left: 0, right: 0 }}>
-          {(["front", "left", "right"] as ScanAngle[]).map((angle) => {
-            const captured = capturedAngles[angle] !== null;
-            const current = currentAngle === angle;
-            return (
-              <View key={angle} className="items-center gap-1.5">
-                <View
-                  className="w-9 h-9 rounded-full items-center justify-center"
-                  style={{
-                    backgroundColor: captured ? "#15803D" : current ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)",
-                    borderWidth: current ? 1.5 : 0, borderColor: "rgba(255,255,255,0.5)",
-                  }}
-                >
-                  {captured ? <Check size={14} color="white" /> : (
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: current ? "white" : "rgba(255,255,255,0.4)" }}>
-                      {angle === "front" ? "F" : angle === "left" ? "L" : "R"}
-                    </Text>
-                  )}
-                </View>
-                <Text style={{ fontSize: 10, fontWeight: current ? "600" : "400", color: current ? "white" : "rgba(255,255,255,0.4)" }}>
-                  {ANGLE_GUIDE[angle].label}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
-
-      {/* Multi-angle instruction */}
-      {!isPreview && isMultiAngle && qs.alignmentScore > 0 && (
-        <View pointerEvents="none" className="absolute self-center" style={{ bottom: 155 }}>
-          <View className="px-4 py-2 rounded-full" style={{ backgroundColor: "#15803D" }}>
-            <Text className="text-xs font-semibold text-white text-center">
-              {ANGLE_GUIDE[currentAngle].instruction}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Alignment status */}
+      {/* Bottom guidance — one compact card: angle instruction + lighting + alignment */}
       {!isPreview && (
-        <AlignmentStatus
+        <GuidanceCard
           score={qs.alignmentScore}
           message={qs.alignmentMessage}
           hasFace={qs.alignmentScore > 0}
+          lighting={qs.lighting.quality}
+          lightingMessage={qs.lighting.message}
           isMulti={isMultiAngle}
+          currentAngle={currentAngle}
         />
       )}
 

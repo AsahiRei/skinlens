@@ -5,11 +5,19 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 const ANGLE_YAW_TARGET: Record<ScanAngle, number> = {
   front: 0,
-  left: 30,
-  right: -30,
+  // Yaw here is screen/mirror-corrected (callers negate ML Kit's raw yaw
+  // for the front camera): positive = face turned toward the right side of
+  // the on-screen preview.
+  // - showing your LEFT cheek = nose points to screen-left = negative yaw
+  // - showing your RIGHT cheek = nose points to screen-right = positive yaw
+  // Targets are pushed to ±35 so the accept ranges don't overlap the
+  // front range (|yaw| < 15). Otherwise a straight-on face scores ~60 and
+  // passes the side-angle gate (the reported bug).
+  left: -35,
+  right: 35,
 };
 
-const ANGLE_YAW_TOLERANCE = 18;
+const ANGLE_YAW_TOLERANCE = 15;
 
 export function evaluateLighting(
   brightness: number,
@@ -60,7 +68,14 @@ export function evaluateAlignment(
     const targetYaw = ANGLE_YAW_TARGET[targetAngle];
     const yawDiff = Math.abs(yawAngle - targetYaw);
     const isFacingCorrect = yawDiff < ANGLE_YAW_TOLERANCE;
-    score -= Math.min(40, yawDiff * 2.0);
+    score -= Math.min(60, yawDiff * 2.5);
+    // Hard gate: outside the yaw window the pose must NOT be capturable,
+    // no matter how well centered/level the face is. Without this, a
+    // front face (yaw ~0, diff ~35) only loses ~40pts -> score ~60 and
+    // wrongly passes the `score >= 50` capture check.
+    if (!isFacingCorrect) {
+      score = Math.min(score, 45);
+    }
     return {
       isCentered,
       isLevel,
@@ -90,47 +105,53 @@ export function getAlignmentGuidance(
   const tips: string[] = [];
 
   if (faceCenterX < 0.35) {
-    tips.push("Move right");
+    tips.push("Move your face right to center it");
   } else if (faceCenterX > 0.65) {
-    tips.push("Move left");
+    tips.push("Move your face left to center it");
   }
 
   if (faceCenterY < 0.3) {
-    tips.push("Move down");
+    tips.push("Lower your face to center it");
   } else if (faceCenterY > 0.6) {
-    tips.push("Move up");
+    tips.push("Raise your face to center it");
   }
 
   if (targetAngle) {
     const targetYaw = ANGLE_YAW_TARGET[targetAngle];
     const yawDiff = yawAngle - targetYaw;
-    if (targetAngle === "left" && yawDiff < -10) {
-      tips.push("Turn head more to your right");
-    } else if (targetAngle === "left" && yawDiff > 10) {
-      tips.push("Turn head less to your right");
-    } else if (targetAngle === "right" && yawDiff > 10) {
-      tips.push("Turn head more to your left");
-    } else if (targetAngle === "right" && yawDiff < -10) {
-      tips.push("Turn head less to your left");
+    if (targetAngle === "left") {
+      if (yawAngle > 10) {
+        // Turned the wrong way (toward the right cheek side).
+        tips.push("Wrong way — turn your head the other way to show your left cheek");
+      } else if (yawDiff > 10) {
+        tips.push("Turn more to show your left cheek");
+      } else if (yawDiff < -10) {
+        tips.push("Turn back toward the front");
+      }
+    } else if (targetAngle === "right") {
+      if (yawAngle < -10) {
+        // Turned the wrong way (toward the left cheek side).
+        tips.push("Wrong way — turn your head the other way to show your right cheek");
+      } else if (yawDiff < -10) {
+        tips.push("Turn more to show your right cheek");
+      } else if (yawDiff > 10) {
+        tips.push("Turn back toward the front");
+      }
     } else if (targetAngle === "front" && Math.abs(yawAngle) > 10) {
-      tips.push(yawAngle > 0 ? "Turn head slightly left" : "Turn head slightly right");
+      tips.push("Turn to face the camera");
     }
   } else {
-    if (yawAngle < -25) {
-      tips.push("Turn slightly right");
-    } else if (yawAngle > 25) {
-      tips.push("Turn slightly left");
+    if (Math.abs(yawAngle) > 25) {
+      tips.push("Face the camera straight on");
     }
   }
 
-  if (rollAngle < -15) {
-    tips.push("Tilt head right");
-  } else if (rollAngle > 15) {
-    tips.push("Tilt head left");
+  if (Math.abs(rollAngle) > 15) {
+    tips.push("Straighten your head");
   }
 
   if (tips.length === 0) {
-    return "Adjust position slightly";
+    return "Center your face and hold still";
   }
   return tips.slice(0, 2).join(", ");
 }

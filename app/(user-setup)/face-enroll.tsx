@@ -173,7 +173,7 @@ export default function FaceEnroll() {
           },
           "front",
         );
-        const ready = alignment.score >= 50;
+        const ready = alignment.score >= 50 && alignment.isFacingFront;
         scoreRef.current = alignment.score;
         canCaptureRef.current = ready;
         setScore(alignment.score);
@@ -351,7 +351,7 @@ export default function FaceEnroll() {
               <Text className="text-sm text-gray-500">
                 {isPreview
                   ? "Use this photo?"
-                  : "Look straight at the camera."}
+                  : "Look straight at the camera and fill the frame."}
               </Text>
             </View>
           </View>
@@ -372,7 +372,7 @@ export default function FaceEnroll() {
               <View style={{ width: 200, height: 260, alignItems: "center", justifyContent: "center" }}>
                 <View style={{ position: "absolute", width: 200, height: 260, borderRadius: 100, borderWidth: 2, borderColor: "rgba(255,255,255,0.35)", borderStyle: "dashed" }} />
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: "500", textAlign: "center" }}>
-                  Position your face here
+                  Center your face here{"\n"}Move closer so it fills the frame
                 </Text>
               </View>
             </Animated.View>

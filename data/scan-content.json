@@ -3,7 +3,7 @@
     {
       "icon": "camera",
       "title": "Capture or upload",
-      "description": "Take a clear photo or choose one from your gallery."
+      "description": "Take a guided face photo or choose one from your gallery."
     },
     {
       "icon": "file-text",
@@ -20,17 +20,17 @@
     {
       "icon": "sun",
       "title": "Good lighting",
-      "description": "Face a window or bright light source. Avoid harsh shadows."
+      "description": "Face a window or bright light source. Avoid harsh shadows on your face."
     },
     {
       "icon": "move",
-      "title": "Center your face",
-      "description": "Keep your face centered in the frame with even spacing."
+      "title": "Fill the frame with your face",
+      "description": "Center your whole face in the oval and move closer so it fills the frame."
     },
     {
       "icon": "focus",
-      "title": "Stay focused",
-      "description": "Hold steady and ensure your face is in focus before capturing."
+      "title": "Face camera, hold still",
+      "description": "Look straight at the camera, pull hair back, remove glasses, then hold steady to capture."
     }
   ],
   "disclaimer": "This app does not replace a dermatologist and is not a medical diagnosis. If you notice unusual, painful, or rapidly changing skin conditions, please consult a doctor or visit a hospital."
