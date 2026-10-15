@@ -388,18 +388,24 @@ export default function FaceDetectionScreen() {
   }, [faceVisible]);
 
   const handleCapture = useCallback(async () => {
-    if (isCapturingRef.current || !qsRef.current.canCapture) return;
+    if (isCapturingRef.current || !qsRef.current.canCapture) {
+      console.log(`[SkinLens][Camera] ${new Date().toISOString()} capture blocked capturing=`, isCapturingRef.current, `canCapture=`, qsRef.current.canCapture);
+      return;
+    }
+    console.log(`[SkinLens][Camera] ${new Date().toISOString()} capture start angle=`, currentAngleRef.current);
     isCapturingRef.current = true;
     try {
       const photo = await photoOutput.capturePhoto({}, {});
       const filePath = await photo.saveToTemporaryFileAsync();
       photoRef.current = photo;
       previewPathRef.current = filePath;
+      console.log(`[SkinLens][Camera] ${new Date().toISOString()} capture success path=`, filePath.slice(-60));
       setPreviewUri("file://" + filePath);
       if (isMultiAngleRef.current) {
         setCapturedAngles((prev) => ({ ...prev, [currentAngleRef.current]: filePath }));
       }
     } catch (error) {
+      console.log(`[SkinLens][Camera] ${new Date().toISOString()} capture failed:`, error);
       console.error("Failed to capture photo:", error);
       isCapturingRef.current = false;
     }
@@ -417,6 +423,7 @@ export default function FaceDetectionScreen() {
 
   const handleConfirm = useCallback(() => {
     const filePath = previewPathRef.current;
+    console.log(`[SkinLens][Camera] ${new Date().toISOString()} confirm angle=`, currentAngleRef.current, `multi=`, isMultiAngleRef.current, `hasFile=`, !!filePath);
     if (!filePath) return;
     if (photoRef.current) { photoRef.current.dispose(); photoRef.current = null; }
     previewPathRef.current = null;
@@ -455,10 +462,14 @@ export default function FaceDetectionScreen() {
   }, [router]);
 
   useEffect(() => {
+    console.log(`[SkinLens][Camera] ${new Date().toISOString()} permission check hasPermission=`, hasPermission);
     if (!hasPermission) {
-      requestPermission().catch(() => {
-        // Denial is handled by the fallback UI below — no unhandled rejection.
-      });
+      requestPermission()
+        .then((granted) => console.log(`[SkinLens][Camera] ${new Date().toISOString()} permission result=`, granted))
+        .catch((err) => {
+          console.log(`[SkinLens][Camera] ${new Date().toISOString()} permission request failed:`, err);
+          // Denial is handled by the fallback UI below — no unhandled rejection.
+        });
     }
   }, [hasPermission, requestPermission]);
 

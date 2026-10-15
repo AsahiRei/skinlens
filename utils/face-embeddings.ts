@@ -24,13 +24,16 @@ let faceModel: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 
 async function getFaceModel() {
   if (!faceModel) {
+    console.log(`[SkinLens][FaceID] ${new Date().toISOString()} loading mobilefacenet.tflite`);
     const asset = Asset.fromModule(
       require("@/assets/models/mobilefacenet.tflite"),
     );
     await asset.downloadAsync();
     const uri = asset.localUri ?? asset.uri;
     if (!uri) throw new Error("Failed to resolve mobilefacenet.tflite asset");
+    const t0 = Date.now();
     faceModel = await loadTensorflowModel({ url: uri }, []);
+    console.log(`[SkinLens][FaceID] ${new Date().toISOString()} face model loaded in ${Date.now() - t0}ms`);
   }
   return faceModel;
 }
@@ -101,6 +104,8 @@ async function decodeToPixels(imageUri: string): Promise<jpeg.JpegBuffer> {
 
 // Runs the face through MobileFaceNet and returns an L2-normalized embedding.
 export async function getFaceEmbedding(imageUri: string): Promise<number[]> {
+  console.log(`[SkinLens][FaceID] ${new Date().toISOString()} getFaceEmbedding start`);
+  const t0 = Date.now();
   const model = await getFaceModel();
   const decoded = await decodeToPixels(imageUri);
   if (decoded.width !== FACE_SIZE || decoded.height !== FACE_SIZE) {
@@ -137,6 +142,7 @@ export async function getFaceEmbedding(imageUri: string): Promise<number[]> {
   for (let i = 0; i < raw.length; i++) norm += raw[i] * raw[i];
   norm = Math.sqrt(norm);
   if (norm === 0) throw new Error("Face model returned a zero embedding");
+  console.log(`[SkinLens][FaceID] ${new Date().toISOString()} getFaceEmbedding done in ${Date.now() - t0}ms`);
   return Array.from(raw, (v) => v / norm);
 }
 
@@ -162,7 +168,10 @@ export function embeddingToJson(embedding: number[]): string {
 }
 
 export function parseEmbedding(json: string | null): number[] | null {
-  if (!json) return null;
+  if (!json) {
+    console.log(`[SkinLens][FaceID] ${new Date().toISOString()} parseEmbedding no stored embedding (grandfathered)`);
+    return null;
+  }
   try {
     const parsed: unknown = JSON.parse(json);
     if (
@@ -172,8 +181,10 @@ export function parseEmbedding(json: string | null): number[] | null {
     ) {
       return parsed as number[];
     }
+    console.log(`[SkinLens][FaceID] ${new Date().toISOString()} parseEmbedding invalid shape len=`, Array.isArray(parsed) ? (parsed as unknown[]).length : -1);
     return null;
-  } catch {
+  } catch (err) {
+    console.log(`[SkinLens][FaceID] ${new Date().toISOString()} parseEmbedding JSON error:`, err);
     return null;
   }
 }

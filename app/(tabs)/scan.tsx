@@ -31,8 +31,10 @@ export default function Scan() {
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
   const handleUploadPhoto = async () => {
+    console.log(`[SkinLens][Scan] ${new Date().toISOString()} upload start`);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
+      console.log(`[SkinLens][Scan] ${new Date().toISOString()} gallery permission denied`);
       setNotice({
         title: "Permission needed",
         message: "Please allow photo library access to upload an image.",
@@ -46,13 +48,16 @@ export default function Scan() {
         allowsEditing: true,
         aspect: [1, 1],
       });
+      console.log(`[SkinLens][Scan] ${new Date().toISOString()} picker canceled=`, result.canceled, `assets=`, result.canceled ? 0 : (result.assets?.length ?? 0));
       if (!result.canceled && result.assets?.[0]?.uri) {
+        console.log(`[SkinLens][Scan] ${new Date().toISOString()} navigating to analyzing`);
         router.push({
           pathname: "/(modules)/analyzing",
           params: { imageUri: result.assets[0].uri, sourceType: "gallery" },
         });
       }
-    } catch {
+    } catch (err) {
+      console.log(`[SkinLens][Scan] ${new Date().toISOString()} gallery open failed:`, err);
       setNotice({
         title: "Couldn't open gallery",
         message: "Please try again or use the camera instead.",

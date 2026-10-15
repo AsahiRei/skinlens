@@ -13,11 +13,16 @@ import { supabase, validateSession } from "@/utils/supabase";
 async function validateBeforeSync(
   replace: ReturnType<typeof useRouter>["replace"],
 ): Promise<boolean> {
+  console.log(`[SkinLens][Sync] ${new Date().toISOString()} validateBeforeSync start`);
   const {
     data: { session: cached },
   } = await supabase.auth.getSession();
-  if (!cached) return false;
+  if (!cached) {
+    console.log(`[SkinLens][Sync] ${new Date().toISOString()} no cached session, skip sync`);
+    return false;
+  }
   const valid = await validateSession();
+  console.log(`[SkinLens][Sync] ${new Date().toISOString()} session valid=`, !!valid);
   if (!valid) {
     // validateSession() already purged the AsyncStorage session (which
     // emits SIGNED_OUT → _layout clears + redirects), so only the SQLite
@@ -39,27 +44,35 @@ export function SyncManager() {
   const router = useRouter();
 
   useEffect(() => {
+    console.log(`[SkinLens][Sync] ${new Date().toISOString()} SyncManager mount, initial sync`);
     validateBeforeSync(router.replace)
       .then((ok) => {
+        console.log(`[SkinLens][Sync] ${new Date().toISOString()} initial sync ok=`, ok);
         if (ok) return processSyncQueue();
       })
-      .catch((err) =>
-        console.error("Initial sync queue processing failed:", err),
-      );
+      .catch((err) => {
+        console.log(`[SkinLens][Sync] ${new Date().toISOString()} initial sync failed:`, err);
+        console.error("Initial sync queue processing failed:", err);
+      });
   }, [router]);
 
   useEffect(() => {
     const online = isConnected && isInternetReachable !== false;
 
     if (online && wasOffline.current) {
+      console.log(`[SkinLens][Sync] ${new Date().toISOString()} back online, re-validating`);
       // Offline → online transition: the account may have been deleted
       // while we were away. Validate first so a stale AsyncStorage session
       // can't keep syncing or keep the user inside (tabs).
       validateBeforeSync(router.replace)
         .then((ok) => {
+          console.log(`[SkinLens][Sync] ${new Date().toISOString()} reconnect sync ok=`, ok);
           if (ok) return processSyncQueue();
         })
-        .catch((err) => console.error("Sync queue processing failed:", err));
+        .catch((err) => {
+          console.log(`[SkinLens][Sync] ${new Date().toISOString()} reconnect sync failed:`, err);
+          console.error("Sync queue processing failed:", err);
+        });
     }
 
     wasOffline.current = !online;

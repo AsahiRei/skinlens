@@ -106,17 +106,20 @@ export default function Analyzing() {
   };
 
   const run = async () => {
+    console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} run start isMulti=`, isMulti, `count=`, isMulti ? multiAngles.length : 1, `source=`, sourceType);
     try {
       setError(null);
       setDetectedResult(null);
       const uris = isMulti ? multiAngles : [imageUri];
       if (!uris[0]) {
+        console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} run aborted: no image`);
         setError("No image provided. Please go back and try again.");
         return;
       }
 
       goToStep(0);
 
+      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} enhance start count=`, uris.length);
       if (isMulti) {
         const enhanced = await Promise.all(
           uris.map((uri) => enhanceImage(uri)),
@@ -128,16 +131,19 @@ export default function Analyzing() {
         if (cancelledRef.current) return;
         setDisplayUris([enhanced]);
       }
+      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} enhance done`);
       await new Promise((r) => setTimeout(r, 600));
       if (cancelledRef.current) return;
 
       goToStep(1);
+      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} classify start count=`, uris.length);
       const results = await Promise.all(
         uris.map((uri) => classifyImage(uri)),
       );
       if (cancelledRef.current) return;
 
       const finalResult = isMulti ? aggregateResults(results) : results[0];
+      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} classify done label=`, finalResult.label, `conf=`, finalResult.confidence.toFixed(3));
 
       goToStep(2);
       // ── Face verification gate ──
@@ -146,14 +152,21 @@ export default function Analyzing() {
       // Accounts enrolled before this feature (no stored embedding) are
       // grandfathered through; model failures fail open with a warning so
       // a broken model file can't brick scanning.
-      const stored = await getFaceIdentity().catch(() => null);
+      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face-verify check start`);
+      const stored = await getFaceIdentity().catch((err) => {
+        console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} getFaceIdentity failed:`, err);
+        return null;
+      });
       const enrolled = parseEmbedding(stored?.face_embedding ?? null);
+      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face-verify stored=`, !!stored, `enrolled=`, !!enrolled);
       if (stored && enrolled) {
         try {
           const live = await getFaceEmbedding(uris[0]);
           const similarity = cosineSimilarity(live, enrolled);
+          console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face similarity=`, similarity.toFixed(3), `threshold=`, FACE_MATCH_THRESHOLD);
           if (cancelledRef.current) return;
           if (similarity < FACE_MATCH_THRESHOLD) {
+            console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face MISMATCH, redirecting`);
             router.replace({
               pathname: "/(modules)/face-mismatch",
               params: {
@@ -167,7 +180,9 @@ export default function Analyzing() {
             });
             return;
           }
+          console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face verified`);
         } catch (e) {
+          console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face verification skipped (fail-open):`, e);
           console.warn("[analyzing] face verification skipped:", e);
         }
       }
@@ -179,9 +194,11 @@ export default function Analyzing() {
       // Pause here so the user sees what was detected and explicitly
       // agrees to take the short survey to finalize the result,
       // instead of auto-jumping straight into the survey.
+      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} analysis complete, showing confirmation`);
       setFinalUris(uris as string[]);
       setDetectedResult(finalResult);
     } catch (e) {
+      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} run failed:`, e);
       if (cancelledRef.current) return;
       setError(
         e instanceof Error
@@ -202,6 +219,7 @@ export default function Analyzing() {
   }, []);
 
   const handleProceedToSurvey = () => {
+    console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} proceed to survey label=`, detectedResult?.label);
     if (!detectedResult || !finalUris[0]) return;
     router.replace({
       pathname: "/(modules)/survey",

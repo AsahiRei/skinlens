@@ -25,6 +25,7 @@ export default function Register() {
   const router = useRouter();
   //register
   const handleRegister = async () => {
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleRegister start email=`, email);
     // Validate before loading
     if (!agreed) {
       ToastAndroid.show(
@@ -54,17 +55,21 @@ export default function Register() {
     setLoading(true);
     try {
       // 1. Create Supabase authentication account
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} signUp start`);
       const { data: authData, error: registerError } =
         await supabase.auth.signUp({
           email: email.trim(),
           password,
         });
       if (registerError) {
+        console.log(`[SkinLens][Auth] ${new Date().toISOString()} signUp failed:`, registerError.message);
         ToastAndroid.show(registerError.message, ToastAndroid.LONG);
         return;
       }
       const user = authData.user;
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} signUp success user=`, user?.id ?? null, `session=`, !!authData.session);
       if (!user) {
+        console.log(`[SkinLens][Auth] ${new Date().toISOString()} signUp no user returned (email confirmation?)`);
         ToastAndroid.show(
           "Registration failed. Please try again.",
           ToastAndroid.SHORT,
@@ -72,6 +77,7 @@ export default function Register() {
         return;
       }
       // 2. Create user profile
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} profile insert start user=`, user.id);
       const { error: insertError } = await supabase
         .from("user_profile")
         .insert({
@@ -80,13 +86,16 @@ export default function Register() {
         });
 
       if (insertError) {
+        console.log(`[SkinLens][Auth] ${new Date().toISOString()} profile insert failed:`, insertError.message);
         ToastAndroid.show(insertError.message, ToastAndroid.LONG);
         return;
       }
       // 3. Registration successful
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleRegister success user=`, user.id);
       ToastAndroid.show("Account created successfully!", ToastAndroid.SHORT);
       router.replace("/");
     } catch (error) {
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleRegister exception:`, error);
       console.error("Registration error:", error);
       ToastAndroid.show(
         "Something went wrong. Please try again.",

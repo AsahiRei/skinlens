@@ -38,7 +38,6 @@ export type ChatMessage = {
   role: ChatRole;
   content: string;
   animate?: boolean;
-  clinics?: Dermatologist[];
   images?: ChatImage[];
   relatedProducts?: ProductWithImage[];
 };

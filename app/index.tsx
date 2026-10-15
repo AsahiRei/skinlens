@@ -47,6 +47,7 @@ export default function Index() {
   const safeReplace = useCallback(
     (path: "/onboarding" | "/welcome" | "/(tabs)" | "/(user-setup)") => {
       if (routedRef.current) return;
+      console.log(`[SkinLens][Boot] ${new Date().toISOString()} route ->`, path);
       routedRef.current = true;
       try {
         router.replace(path);
@@ -73,6 +74,7 @@ export default function Index() {
     }, STUCK_AFTER_MS);
 
     const initialize = async () => {
+      console.log(`[SkinLens][Boot] ${new Date().toISOString()} initialize start attempt=`, attempt);
       try {
         // 1. Onboarding flag — device-only, fail open to onboarding check.
         let isOnboarded: string | null = null;
@@ -85,6 +87,7 @@ export default function Index() {
         } catch (err) {
           console.warn("[index] onboarding check inconclusive, continuing:", err);
         }
+        console.log(`[SkinLens][Boot] ${new Date().toISOString()} onboarding flag=`, isOnboarded);
         if (!mounted || routedRef.current) return;
         if (isOnboarded !== "true") {
           safeReplace("/onboarding");
@@ -112,6 +115,7 @@ export default function Index() {
         } catch (err) {
           console.warn("[index] cached session read failed:", err);
         }
+        console.log(`[SkinLens][Boot] ${new Date().toISOString()} cached session user=`, cachedSession?.user?.id ?? null);
         if (!mounted || routedRef.current) return;
         if (!cachedSession?.user) {
           safeReplace("/welcome");
@@ -132,6 +136,7 @@ export default function Index() {
             8000,
             "local profile read",
           );
+          console.log(`[SkinLens][Boot] ${new Date().toISOString()} local user_setup=`, localProfile?.user_setup ?? null);
           if (!mounted || routedRef.current) return;
           if (localProfile?.user_setup === 1) {
             // Cached profile says setup is done — go to tabs immediately.
@@ -157,6 +162,7 @@ export default function Index() {
           safeReplace("/(tabs)");
           return;
         }
+        console.log(`[SkinLens][Boot] ${new Date().toISOString()} validated session user=`, session?.user?.id ?? null);
         if (!mounted || routedRef.current) return;
         if (!session?.user) {
           try {

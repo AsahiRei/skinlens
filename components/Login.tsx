@@ -23,7 +23,9 @@ export default function Login() {
   const router = useRouter();
   //login
   const handleLogin = async () => {
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleLogin start email=`, email);
     if (!email || !password) {
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleLogin blocked: missing fields`);
       ToastAndroid.show(
         "Please fill in all required fields",
         ToastAndroid.SHORT,
@@ -32,16 +34,19 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) {
+        console.log(`[SkinLens][Auth] ${new Date().toISOString()} signInWithPassword failed:`, error.message);
         ToastAndroid.show(error.message, ToastAndroid.LONG);
         return;
       }
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} signInWithPassword success user=`, data.user?.id);
       router.replace("/");
-    } catch {
+    } catch (err) {
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleLogin exception:`, err);
       ToastAndroid.show(
         "Something went wrong. Please try again.",
         ToastAndroid.SHORT,
@@ -51,10 +56,13 @@ export default function Login() {
     }
   };
   const handleGoogleLogin = async () => {
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleGoogleLogin start`);
     try {
-      await signInWithGoogle();
+      const user = await signInWithGoogle();
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleGoogleLogin success user=`, user?.id);
       router.replace("/");
     } catch (e) {
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleGoogleLogin failed:`, e instanceof Error ? e.message : e);
       ToastAndroid.show(
         e instanceof Error ? e.message : "Something went wrong. Please try again.",
         ToastAndroid.LONG,

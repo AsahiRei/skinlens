@@ -9,7 +9,10 @@ export async function requireUser(): Promise<User> {
     data: { session },
   } = await supabase.auth.getSession();
   const user = session?.user;
-  if (!user) throw new Error("You need to be signed in to continue.");
+  if (!user) {
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} requireUser no session`);
+    throw new Error("You need to be signed in to continue.");
+  }
   return user;
 }
 
@@ -28,16 +31,19 @@ const USER_TABLES = [
 ] as const;
 
 export async function clearLocalUserData(): Promise<void> {
+  console.log(`[SkinLens][Auth] ${new Date().toISOString()} clearLocalUserData start`);
   try {
     const db = await getDatabase();
     for (const table of USER_TABLES) {
       try {
         await db.runAsync(`DELETE FROM ${table}`);
+        console.log(`[SkinLens][Auth] ${new Date().toISOString()} cleared table=`, table);
       } catch (err) {
         console.warn(`[auth] failed to clear ${table}:`, err);
       }
     }
     await db.runAsync(`DELETE FROM sync_queue`);
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} clearLocalUserData done`);
   } catch (err) {
     console.warn("[auth] clearLocalUserData failed:", err);
   }
@@ -46,6 +52,8 @@ export async function clearLocalUserData(): Promise<void> {
 // Purge everything for an account that no longer exists server-side:
 // AsyncStorage session (local scope — works offline/deleted) + SQLite rows.
 export async function handleInvalidSession(): Promise<void> {
+  console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleInvalidSession start`);
   await signOutLocal();
   await clearLocalUserData();
+  console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleInvalidSession done`);
 }

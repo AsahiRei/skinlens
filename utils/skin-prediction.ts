@@ -15,6 +15,7 @@ let model: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 
 async function getModel() {
   if (!model) {
+    console.log(`[SkinLens][Prediction] ${new Date().toISOString()} loading detection_model.tflite`);
     // Resolve bundled asset to a file:// URI that works in both dev (http) and
     // release (embedded) builds. Directly passing require() id causes
     // HybridAssetLoader to try `new URL("assets_models_detection_model")` ->
@@ -26,7 +27,9 @@ async function getModel() {
     // localUri is file:// on device after download; fall back to uri (http in dev).
     const uri = asset.localUri ?? asset.uri;
     if (!uri) throw new Error("Failed to resolve detection_model.tflite asset");
+    const t0 = Date.now();
     model = await loadTensorflowModel({ url: uri }, []);
+    console.log(`[SkinLens][Prediction] ${new Date().toISOString()} model loaded in ${Date.now() - t0}ms uri=`, uri.slice(0, 80));
   }
   return model;
 }
@@ -131,6 +134,8 @@ function computeLightingGains(
 }
 
 export async function enhanceImage(imageUri: string): Promise<string> {
+  console.log(`[SkinLens][Prediction] ${new Date().toISOString()} enhanceImage start`);
+  const t0 = Date.now();
   const decoded = await decodeImageToPixels(imageUri, 512, 512);
   const { rGain, gGain, bGain, exposureGain } = computeLightingGains(
     decoded, 512, 512,
@@ -164,12 +169,15 @@ export async function enhanceImage(imageUri: string): Promise<string> {
     Buffer.from(encoded.data).toString("base64"),
     { encoding: FileSystem.EncodingType.Base64 },
   );
+  console.log(`[SkinLens][Prediction] ${new Date().toISOString()} enhanceImage done in ${Date.now() - t0}ms out=`, outPath.slice(-60));
   return outPath;
 }
 
 export async function classifyImage(
   imageUri: string,
 ): Promise<ClassificationResult> {
+  console.log(`[SkinLens][Prediction] ${new Date().toISOString()} classifyImage start uri=`, imageUri?.slice(0, 100));
+  const t0 = Date.now();
   const tfliteModel = await getModel();
   const squareUri = await squareCropAndResize(imageUri, 224);
   const base64 = await FileSystem.readAsStringAsync(squareUri, {
@@ -260,6 +268,7 @@ export async function classifyImage(
     probabilityMap[className] = probabilities[idx];
   });
 
+  console.log(`[SkinLens][Prediction] ${new Date().toISOString()} classifyImage done in ${Date.now() - t0}ms label=`, label, `conf=`, confidence.toFixed(3));
   return {
     label,
     confidence,

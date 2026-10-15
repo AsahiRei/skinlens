@@ -21,15 +21,20 @@ export default function RootLayout() {
   // redirect so navigation never loops.
   const lastSignOutRedirect = useRef(0);
   useEffect(() => {
+    console.log(`[SkinLens][Boot] ${new Date().toISOString()} RootLayout mount`);
     const sub = Linking.addEventListener("url", ({ url }) => {
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} deep link url=`, url?.slice(0, 120));
       createSessionFromUrl(url).catch((err) => {
+        console.log(`[SkinLens][Auth] ${new Date().toISOString()} deep link session failed:`, err);
         console.warn("Failed to create session from URL:", err);
       });
     });
     Linking.getInitialURL()
       .then((url) => {
         if (url) {
+          console.log(`[SkinLens][Auth] ${new Date().toISOString()} initial URL=`, url.slice(0, 120));
           createSessionFromUrl(url).catch((err) => {
+            console.log(`[SkinLens][Auth] ${new Date().toISOString()} initial URL session failed:`, err);
             console.warn("Failed to create session from URL:", err);
           });
         }
@@ -38,6 +43,7 @@ export default function RootLayout() {
         // No initial URL (cold start without a deep link) — nothing to do.
       });
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} onAuthStateChange event=`, event);
       if (event === "PASSWORD_RECOVERY") {
         router.push("/create-new-password");
       }
@@ -64,6 +70,7 @@ export default function RootLayout() {
     // Free the on-device LLM from memory when the app goes to background.
     // The singleton re-initializes on next use via getLlamaContext.
     const appStateSub = AppState.addEventListener("change", (state) => {
+      console.log(`[SkinLens][Boot] ${new Date().toISOString()} AppState=`, state);
       if (state === "background") {
         releaseLlama().catch(() => {});
       }

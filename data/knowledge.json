@@ -2,117 +2,152 @@
   "ingredients": [
     {
       "name": "Salicylic Acid",
-      "description": "Beta-hydroxy acid that penetrates pores to unclog them and reduce blackheads/whiteheads",
-      "concerns": ["acne"]
+      "description": "Beta-hydroxy acid (0.5-2% OTC) that penetrates pores to dissolve comedones and excess oil. Conditionally recommended by AAD 2024 acne guidelines for mild acne and oil control.",
+      "concerns": ["acne", "oily"]
     },
     {
       "name": "Benzoyl Peroxide",
-      "description": "Kills acne-causing bacteria and helps clear breakouts",
-      "concerns": ["acne"]
-    },
-    {
-      "name": "Niacinamide",
-      "description": "Reduces inflammation, controls oil production, and fades acne marks",
-      "concerns": ["acne", "normal"]
+      "description": "Antimicrobial that kills C. acnes bacteria, mildly comedolytic and reduces inflammatory and non-inflammatory lesions. Strongly recommended by AAD 2024; start with low-strength (2.5%) wash-off formulas to limit irritation.",
+      "concerns": ["acne", "oily"]
     },
     {
       "name": "Retinol",
-      "description": "Promotes cell turnover to prevent clogged pores and reduce scarring",
-      "concerns": ["acne"]
+      "description": "Topical retinoid class (retinol/adapalene) that normalizes cell turnover, prevents clogged pores and smooths texture and scarring. Cornerstone of acne care per AAD/EuroGuiDerm; use at night with sunscreen and moisturizer due to dryness risk.",
+      "concerns": ["acne", "oily"]
     },
     {
-      "name": "Tea Tree Oil",
-      "description": "Natural antibacterial agent that helps reduce mild acne",
-      "concerns": ["acne"]
-    },
-    {
-      "name": "Ceramides",
-      "description": "Lipids that restore and protect the skin barrier, essential for eczema-prone skin",
-      "concerns": ["eczema"]
-    },
-    {
-      "name": "Hyaluronic Acid",
-      "description": "Deeply hydrates and helps repair damaged skin barrier",
-      "concerns": ["eczema", "normal"]
-    },
-    {
-      "name": "Colloidal Oatmeal",
-      "description": "Soothes itching and irritation, provides a protective barrier",
-      "concerns": ["eczema"]
-    },
-    {
-      "name": "Squalane",
-      "description": "Lightweight moisturizer that mimics skin's natural oils, non-irritating",
-      "concerns": ["eczema", "normal"]
-    },
-    {
-      "name": "Shea Butter",
-      "description": "Rich emollient that deeply moisturizes and reduces inflammation",
-      "concerns": ["eczema"]
-    },
-    {
-      "name": "Hyaluronic Acid",
-      "description": "Attracts and retains moisture to keep skin hydrated",
-      "concerns": ["dry"]
-    },
-    {
-      "name": "Ceramides",
-      "description": "Lipids that restore and protect the skin's moisture barrier",
-      "concerns": ["dry"]
-    },
-    {
-      "name": "Squalane",
-      "description": "Lightweight oil that deeply hydrates without clogging pores",
-      "concerns": ["dry"]
-    },
-    {
-      "name": "Glycerin",
-      "description": "Humectant that draws moisture into the skin for lasting hydration",
-      "concerns": ["dry"]
-    },
-    {
-      "name": "Shea Butter",
-      "description": "Rich emollient that deeply moisturizes and softens rough, dry skin",
-      "concerns": ["dry"]
+      "name": "Azelaic Acid",
+      "description": "Comedolytic, antibacterial and anti-inflammatory dicarboxylic acid (10% OTC) that also fades post-acne dark marks. Conditionally recommended by AAD 2024; well suited to sensitive and darker skin tones.",
+      "concerns": ["acne", "oily"]
     },
     {
       "name": "Niacinamide",
-      "description": "Regulates sebum production and minimizes the appearance of pores",
-      "concerns": ["oily"]
-    },
-    {
-      "name": "Salicylic Acid",
-      "description": "Penetrates pores to dissolve excess oil and prevent breakouts",
-      "concerns": ["oily"]
-    },
-    {
-      "name": "Zinc Oxide",
-      "description": "Helps control oil production and provides UV protection",
-      "concerns": ["oily"]
-    },
-    {
-      "name": "Green Tea Extract",
-      "description": "Antioxidant that reduces sebum production and soothes inflammation",
-      "concerns": ["oily"]
-    },
-    {
-      "name": "Clay (Kaolin/Bentonite)",
-      "description": "Absorbs excess oil and draws out impurities from pores",
-      "concerns": ["oily"]
-    },
-    {
-      "name": "Vitamin C",
-      "description": "Antioxidant that brightens skin and protects against environmental damage",
-      "concerns": ["normal"]
+      "description": "Vitamin B3 that regulates sebum, calms inflammation, supports the barrier and fades marks. Listed by the National Eczema Association as soothing; consensus ingredient for acne, oiliness, redness and dark spots.",
+      "concerns": ["acne", "oily", "eczema", "normal"]
     },
     {
       "name": "Glycolic Acid",
-      "description": "Alpha-hydroxy acid that gently exfoliates and improves skin texture",
-      "concerns": ["normal"]
+      "description": "Alpha-hydroxy acid that gently exfoliates, refines texture and pores, and helps dark spots. Dermatologist-consensus ingredient for acne, dark spots and maintenance exfoliation in tolerant skin.",
+      "concerns": ["acne", "oily", "normal"]
+    },
+    {
+      "name": "Zinc PCA",
+      "description": "Zinc salt of pyrrolidone carboxylic acid that controls sebum, limits shine and provides mild antimicrobial support for oily and blemish-prone skin.",
+      "concerns": ["acne", "oily"]
+    },
+    {
+      "name": "Tea Tree Oil",
+      "description": "Plant-derived antibacterial agent with clinical trial support for mild acne; use in low concentrations in cleansers or spot care due to irritation risk.",
+      "concerns": ["acne", "oily"]
+    },
+    {
+      "name": "Green Tea Extract",
+      "description": "Antioxidant rich in EGCG that reduces sebum, calms inflammation and defends against environmental damage. Supported as adjunctive care in acne dermocosmetic reviews.",
+      "concerns": ["acne", "oily", "normal"]
+    },
+    {
+      "name": "Sulfur",
+      "description": "Keratolytic and mildly antibacterial mineral traditionally used in cleansers and masks to dry excess oil and unclog pores in mild acne and oily skin.",
+      "concerns": ["acne", "oily"]
+    },
+    {
+      "name": "Hyaluronic Acid",
+      "description": "Humectant that attracts and holds water for deep, oil-free hydration. Recommended by AAD for dry skin and suitable as lightweight hydration for barrier-impaired and oily skin.",
+      "concerns": ["dry", "eczema", "normal", "oily"]
+    },
+    {
+      "name": "Ceramides",
+      "description": "Skin-identical lipids that rebuild the moisture barrier, lock in water and keep irritants out. Core ingredient for dry and eczema-prone skin and maintenance barrier creams.",
+      "concerns": ["dry", "eczema", "normal"]
+    },
+    {
+      "name": "Glycerin",
+      "description": "Humectant that draws moisture into the skin and supports barrier recovery. Listed by both AAD (dry skin) and the National Eczema Association as a soothing eczema-friendly ingredient.",
+      "concerns": ["dry", "eczema", "normal"]
+    },
+    {
+      "name": "Squalane",
+      "description": "Lightweight emollient that mimics skin's natural oils to soften without clogging pores. Non-irritating hydration for dry, eczema-prone and maintenance routines.",
+      "concerns": ["dry", "eczema", "normal"]
+    },
+    {
+      "name": "Shea Butter",
+      "description": "Rich emollient high in fatty acids that deeply moisturizes, softens rough skin and reduces dryness. Listed by the National Eczema Association among soothing butters for eczema-prone skin.",
+      "concerns": ["dry", "eczema"]
+    },
+    {
+      "name": "Petrolatum",
+      "description": "Occlusive gold standard that seals in moisture and protects a damaged barrier. Recommended by AAD for dry skin and by the National Eczema Association as highly effective for eczema (ointments > creams > lotions).",
+      "concerns": ["dry", "eczema"]
+    },
+    {
+      "name": "Urea",
+      "description": "Humectant and mild keratolytic (typically 5-10% in moisturizers) that softens rough, scaly dry skin and improves water binding.",
+      "concerns": ["dry"]
+    },
+    {
+      "name": "Lactic Acid",
+      "description": "Gentle alpha-hydroxy acid and humectant that smooths flaky dry skin while drawing in moisture. Listed by AAD among effective dry-skin moisturizer ingredients.",
+      "concerns": ["dry", "normal"]
+    },
+    {
+      "name": "Colloidal Oatmeal",
+      "description": "FDA-recognized skin protectant that soothes itching and irritation and forms a protective barrier. A mainstay for eczema and dry, itchy skin.",
+      "concerns": ["dry", "eczema"]
+    },
+    {
+      "name": "Panthenol",
+      "description": "Pro-vitamin B5 humectant that hydrates, soothes and supports barrier repair in dry, sensitive and eczema-prone skin.",
+      "concerns": ["dry", "eczema", "normal"]
+    },
+    {
+      "name": "Jojoba Oil",
+      "description": "Emollient wax ester that mimics sebum to soften dry skin without heavy grease. Listed by AAD among effective dry-skin moisturizer ingredients.",
+      "concerns": ["dry", "normal"]
+    },
+    {
+      "name": "Dimethicone",
+      "description": "Barrier-forming silicone that locks in moisture and shields sensitive, dry skin from irritants. Listed by AAD for dry skin relief.",
+      "concerns": ["dry", "eczema"]
+    },
+    {
+      "name": "Allantoin",
+      "description": "Soothing agent that softens rough skin, calms irritation and supports healing in dry and eczema-prone skin.",
+      "concerns": ["dry", "eczema"]
+    },
+    {
+      "name": "Aloe Vera",
+      "description": "Soothing plant gel that cools irritation and provides light hydration. Listed by the National Eczema Association among calming ingredients for eczema-prone skin.",
+      "concerns": ["dry", "eczema"]
+    },
+    {
+      "name": "Centella Asiatica",
+      "description": "Cica extract that calms redness and irritation and supports barrier recovery in sensitive and eczema-prone skin.",
+      "concerns": ["eczema"]
+    },
+    {
+      "name": "Vitamin E",
+      "description": "Emollient antioxidant (tocopherol) that softens dry skin and helps defend against environmental damage. Listed by the National Eczema Association among eczema-friendly moisturizer ingredients.",
+      "concerns": ["dry", "eczema", "normal"]
+    },
+    {
+      "name": "Clay (Kaolin/Bentonite)",
+      "description": "Absorbent minerals that draw out excess oil and impurities from pores to reduce shine in oily skin; use 1-2x weekly to avoid over-drying.",
+      "concerns": ["oily", "acne"]
     },
     {
       "name": "Zinc Oxide",
-      "description": "Mineral sunscreen ingredient that provides broad-spectrum UV protection",
+      "description": "Mineral sunscreen filter providing broad-spectrum UV protection with mild oil-absorbing effect. Daily SPF 30+ is recommended by AAD for all skin types including acne-prone and oily skin.",
+      "concerns": ["oily", "normal"]
+    },
+    {
+      "name": "Vitamin C",
+      "description": "Antioxidant (ascorbic acid derivatives) that brightens tone, supports collagen and boosts photoprotection alongside sunscreen. Dermatologist-consensus ingredient for maintenance glow and dark spots.",
+      "concerns": ["normal"]
+    },
+    {
+      "name": "Peptides",
+      "description": "Signal peptides that support firmness and elasticity as part of a healthy-skin maintenance routine.",
       "concerns": ["normal"]
     }
   ],
@@ -123,18 +158,18 @@
       "concerns": ["acne"]
     },
     {
-      "product_type": "Acne Treatment Serum",
-      "recommended_ingredients": ["Benzoyl Peroxide", "Niacinamide"],
+      "product_type": "Acne Treatment Gel",
+      "recommended_ingredients": ["Benzoyl Peroxide", "Niacinamide", "Azelaic Acid"],
       "concerns": ["acne"]
     },
     {
       "product_type": "Oil-Free Moisturizer",
-      "recommended_ingredients": ["Niacinamide", "Hyaluronic Acid"],
+      "recommended_ingredients": ["Niacinamide", "Hyaluronic Acid", "Ceramides"],
       "concerns": ["acne"]
     },
     {
       "product_type": "Cream Cleanser",
-      "recommended_ingredients": ["Ceramides", "Colloidal Oatmeal"],
+      "recommended_ingredients": ["Ceramides", "Colloidal Oatmeal", "Glycerin"],
       "concerns": ["eczema"]
     },
     {
@@ -143,23 +178,23 @@
       "concerns": ["eczema"]
     },
     {
-      "product_type": "Hydrating Serum",
-      "recommended_ingredients": ["Hyaluronic Acid", "Squalane"],
+      "product_type": "Soothing Ointment",
+      "recommended_ingredients": ["Petrolatum", "Colloidal Oatmeal", "Panthenol"],
       "concerns": ["eczema"]
     },
     {
       "product_type": "Hydrating Cleanser",
-      "recommended_ingredients": ["Ceramides", "Glycerin"],
+      "recommended_ingredients": ["Ceramides", "Glycerin", "Allantoin"],
       "concerns": ["dry"]
     },
     {
       "product_type": "Moisture Repair Cream",
-      "recommended_ingredients": ["Ceramides", "Shea Butter", "Squalane"],
+      "recommended_ingredients": ["Ceramides", "Shea Butter", "Squalane", "Petrolatum"],
       "concerns": ["dry"]
     },
     {
       "product_type": "Hydrating Serum",
-      "recommended_ingredients": ["Hyaluronic Acid", "Glycerin"],
+      "recommended_ingredients": ["Hyaluronic Acid", "Glycerin", "Panthenol"],
       "concerns": ["dry"]
     },
     {
@@ -169,7 +204,7 @@
     },
     {
       "product_type": "Oil-Control Serum",
-      "recommended_ingredients": ["Niacinamide", "Zinc Oxide"],
+      "recommended_ingredients": ["Niacinamide", "Zinc PCA", "Green Tea Extract"],
       "concerns": ["oily"]
     },
     {
@@ -179,12 +214,12 @@
     },
     {
       "product_type": "Daily Gentle Cleanser",
-      "recommended_ingredients": ["Glycolic Acid", "Hyaluronic Acid"],
+      "recommended_ingredients": ["Glycerin", "Panthenol"],
       "concerns": ["normal"]
     },
     {
       "product_type": "Antioxidant Serum",
-      "recommended_ingredients": ["Vitamin C", "Niacinamide"],
+      "recommended_ingredients": ["Vitamin C", "Vitamin E", "Green Tea Extract"],
       "concerns": ["normal"]
     },
     {

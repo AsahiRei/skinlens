@@ -15,14 +15,17 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const handleResetEmail = async () => {
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} forgot-password submit email=`, email);
     setLoading(true);
     try {
       await sendResetEmail(email);
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} forgot-password email sent`);
       ToastAndroid.show(
         "Email has been sent. Please check in your mailbox.",
         ToastAndroid.SHORT,
       );
-    } catch {
+    } catch (err) {
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} forgot-password failed:`, err);
       ToastAndroid.show(
         "Something went wrong. Please try again.",
         ToastAndroid.SHORT,

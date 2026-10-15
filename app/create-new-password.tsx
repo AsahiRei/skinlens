@@ -39,13 +39,16 @@ export default function CreateNewPassword() {
       ToastAndroid.show("Passwords do not match.", ToastAndroid.SHORT);
       return;
     }
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} create-new-password submit`);
     setLoading(true);
     try {
       await updatePassword(password);
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} password updated, signing out`);
       await supabase.auth.signOut();
       ToastAndroid.show("Change password successfully!", ToastAndroid.SHORT);
       router.replace("/welcome");
-    } catch {
+    } catch (err) {
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} create-new-password failed:`, err);
       ToastAndroid.show(
         "Something went wrong. Please try again.",
         ToastAndroid.SHORT,
