@@ -1,5 +1,11 @@
-import { useRef, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Pressable,
+  RefreshControl,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
@@ -35,57 +41,13 @@ import type { Dermatologist } from "@/types/schema";
 import { theme } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import { ScreenGradient } from "@/components/ScreenGradient";
-import customLocationsData from "@/data/derma-locations.json";
+import { getVerifiedClinics, type VerifiedClinic } from "@/lib/db/clinics";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
 
 const MAP_STYLE_URL = `https://maps.geoapify.com/v1/styles/osm-bright/style.json?apiKey=${GEOAPIFY_API_KEY}`;
 
 type Coords = { latitude: number; longitude: number };
-
-type CustomLocationEntry = {
-  id: string;
-  name: string;
-  specialty?: string;
-  clinic?: string;
-  address?: string;
-  latitude: number;
-  longitude: number;
-  rating?: number;
-  availableToday?: boolean;
-  phone?: string;
-  website?: string;
-  hours?: string;
-  description?: string;
-};
-
-// Custom locations are defined ONLY in `data/derma-locations.json`.
-// Add / edit / remove entries there — no other code changes needed.
-const CUSTOM_LOCATIONS: CustomLocationEntry[] = (
-  (customLocationsData as { locations?: CustomLocationEntry[] }).locations ?? []
-).filter((c) => c && typeof c.latitude === "number" && typeof c.longitude === "number");
-
-const customInfoById: Record<string, CustomLocationEntry> = Object.fromEntries(
-  CUSTOM_LOCATIONS.map((c) => [c.id, c]),
-);
-
-const customCoords: Record<string, Coords> = Object.fromEntries(
-  CUSTOM_LOCATIONS.map((c) => [
-    c.id,
-    { latitude: c.latitude, longitude: c.longitude },
-  ]),
-);
-
-const customResults: Dermatologist[] = CUSTOM_LOCATIONS.map((c) => ({
-  id: c.id,
-  name: c.name,
-  specialty: c.specialty ?? "Dermatology",
-  clinic: c.clinic ?? c.name,
-  address: c.address ?? "Address unavailable",
-  distanceKm: 0,
-  rating: c.rating ?? 0,
-  availableToday: c.availableToday ?? false,
-}));
 
 function haversineKm(a: Coords, b: Coords): number {
   const R = 6371;
@@ -107,9 +69,55 @@ export default function Derma() {
   const [hasSearched, setHasSearched] = useState(false);
   const [userLocation, setUserLocation] = useState<Coords | null>(null);
   const [clinicCoords, setClinicCoords] = useState<Record<string, Coords>>({});
+  const [verified, setVerified] = useState<VerifiedClinic[]>([]);
+  const [verifiedLoading, setVerifiedLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const mapRef = useRef<MapRef>(null);
   const cameraRef = useRef<CameraRef>(null);
   const router = useRouter();
+
+  const loadVerified = useCallback(async () => {
+    try {
+      const rows = await getVerifiedClinics();
+      setVerified(rows);
+    } catch (err) {
+      console.error("[derma] verified clinics failed:", err);
+    }
+  }, []);
+
+  // Verified locations come from the Supabase `clinics` table (managed from
+  // the website admin page), cached on-device for offline use.
+  useEffect(() => {
+    let active = true;
+    loadVerified().finally(() => {
+      if (active) setVerifiedLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [loadVerified]);
+
+  const customResults: Dermatologist[] = verified.map((c) => ({
+    id: c.id,
+    name: c.name,
+    specialty: c.specialty,
+    clinic: c.clinic,
+    address: c.address,
+    distanceKm: 0,
+    rating: c.rating,
+    availableToday: c.availableToday,
+  }));
+
+  const customInfoById: Record<string, VerifiedClinic> = Object.fromEntries(
+    verified.map((c) => [c.id, c]),
+  );
+
+  const customCoords: Record<string, Coords> = Object.fromEntries(
+    verified.map((c) => [
+      c.id,
+      { latitude: c.latitude, longitude: c.longitude },
+    ]),
+  );
 
   const filtered = results.filter((d) =>
     `${d.name} ${d.specialty} ${d.clinic}`
@@ -117,7 +125,7 @@ export default function Derma() {
       .includes(query.toLowerCase()),
   );
 
-  // Custom locations from JSON — shown instead of the empty state.
+  // Verified locations from Supabase — shown instead of the empty state.
   // If we already know the user location, compute a real distance for sorting.
   const filteredCustom: Dermatologist[] = customResults
     .filter((d) =>
@@ -134,7 +142,7 @@ export default function Derma() {
     })
     .sort((a, b) => a.distanceKm - b.distanceKm);
 
-  // Map pins: custom (pinned/validated) entries are ALWAYS shown.
+  // Map pins: verified (pinned/validated) entries are ALWAYS shown.
   // Live results are added on top after a search — custom entries are never removed.
   const visiblePins = hasSearched
     ? [...filteredCustom, ...filtered]
@@ -149,6 +157,66 @@ export default function Derma() {
     null;
   const showMap =
     locating || hasSearched || filteredCustom.length > 0;
+
+  const fetchNearbyAt = useCallback(async (latitude: number, longitude: number) => {
+    const url =
+      `https://api.geoapify.com/v2/places` +
+      `?categories=healthcare.clinic_or_praxis,healthcare.hospital` +
+      `&filter=circle:${longitude},${latitude},5000` +
+      `&bias=proximity:${longitude},${latitude}` +
+      `&limit=20&apiKey=${GEOAPIFY_API_KEY}`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Geoapify request failed: ${res.status}`);
+    const data = await res.json();
+
+    type GeoapifyFeature = {
+      properties: {
+        place_id?: string;
+        name?: string;
+        formatted?: string;
+        distance?: number;
+      };
+      geometry?: { coordinates?: [number, number] };
+    };
+    const features: GeoapifyFeature[] = data.features ?? [];
+
+    const mapped: Dermatologist[] = features.map((f, idx: number) => {
+      const name = f.properties.name ?? "Unnamed Clinic";
+      const isDerma = /derma|skin/i.test(name);
+      return {
+        id: f.properties.place_id ?? String(idx),
+        name,
+        specialty: isDerma ? "Dermatology" : "General Clinic",
+        clinic: name,
+        address: f.properties.formatted ?? "Address unavailable",
+        distanceKm: f.properties.distance ? f.properties.distance / 1000 : 0,
+        rating: 0,
+        availableToday: false,
+      };
+    });
+
+    // Keep a lookup of coordinates per result id so the map can pin them.
+    const coordLookup: Record<string, Coords> = {};
+    features.forEach((f, idx: number) => {
+      const id = f.properties.place_id ?? String(idx);
+      const [lon, lat] = f.geometry?.coordinates ?? [null, null];
+      if (lat != null && lon != null) {
+        coordLookup[id] = { latitude: lat, longitude: lon };
+      }
+    });
+    setClinicCoords(coordLookup);
+
+    // Dermatologists first, then nearest first.
+    mapped.sort((a, b) => {
+      const aDerm = a.specialty === "Dermatology" ? 0 : 1;
+      const bDerm = b.specialty === "Dermatology" ? 0 : 1;
+      if (aDerm !== bDerm) return aDerm - bDerm;
+      return a.distanceKm - b.distanceKm;
+    });
+
+    setResults(mapped);
+  }, []);
 
   const handleFindNearby = async () => {
     setErrorMsg(null);
@@ -169,67 +237,7 @@ export default function Derma() {
       const { latitude, longitude } = position.coords;
       setUserLocation({ latitude, longitude });
 
-      const url =
-        `https://api.geoapify.com/v2/places` +
-        `?categories=healthcare.clinic_or_praxis,healthcare.hospital` +
-        `&filter=circle:${longitude},${latitude},5000` +
-        `&bias=proximity:${longitude},${latitude}` +
-        `&limit=20&apiKey=${GEOAPIFY_API_KEY}`;
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Geoapify request failed: ${res.status}`);
-      const data = await res.json();
-
-      type GeoapifyFeature = {
-        properties: {
-          place_id?: string;
-          name?: string;
-          formatted?: string;
-          distance?: number;
-        };
-        geometry?: { coordinates?: [number, number] };
-      };
-      const features: GeoapifyFeature[] = data.features ?? [];
-
-      const mapped: Dermatologist[] = features.map(
-        (f, idx: number) => {
-          const name = f.properties.name ?? "Unnamed Clinic";
-          const isDerma = /derma|skin/i.test(name);
-          return {
-            id: f.properties.place_id ?? String(idx),
-            name,
-            specialty: isDerma ? "Dermatology" : "General Clinic",
-            clinic: name,
-            address: f.properties.formatted ?? "Address unavailable",
-            distanceKm: f.properties.distance
-              ? f.properties.distance / 1000
-              : 0,
-            rating: 0,
-            availableToday: false,
-          };
-        },
-      );
-
-      // Keep a lookup of coordinates per result id so the map can pin them.
-      const coordLookup: Record<string, Coords> = {};
-      features.forEach((f, idx: number) => {
-        const id = f.properties.place_id ?? String(idx);
-        const [lon, lat] = f.geometry?.coordinates ?? [null, null];
-        if (lat != null && lon != null) {
-          coordLookup[id] = { latitude: lat, longitude: lon };
-        }
-      });
-      setClinicCoords(coordLookup);
-
-      // Dermatologists first, then nearest first.
-      mapped.sort((a, b) => {
-        const aDerm = a.specialty === "Dermatology" ? 0 : 1;
-        const bDerm = b.specialty === "Dermatology" ? 0 : 1;
-        if (aDerm !== bDerm) return aDerm - bDerm;
-        return a.distanceKm - b.distanceKm;
-      });
-
-      setResults(mapped);
+      await fetchNearbyAt(latitude, longitude);
       // No flyTo needed here: the map mounts below with initialViewState
       // centered on the user location (calling flyTo on the not-yet-mounted
       // camera would silently do nothing).
@@ -241,7 +249,35 @@ export default function Derma() {
     }
   };
 
-  // Pinned/validated custom card (from data/derma-locations.json).
+  const handleRefresh = useCallback(async () => {
+    if (refreshing || locating) return;
+    setRefreshing(true);
+    setErrorMsg(null);
+    try {
+      await loadVerified();
+      // If the user already ran Find Nearby, refresh that list too using the
+      // last known location (avoids re-prompting for permission on pull).
+      if (hasSearched && userLocation) {
+        try {
+          await fetchNearbyAt(userLocation.latitude, userLocation.longitude);
+        } catch (err) {
+          console.error(err);
+          setErrorMsg("Couldn't fetch nearby clinics. Try again.");
+        }
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [
+    fetchNearbyAt,
+    hasSearched,
+    loadVerified,
+    locating,
+    refreshing,
+    userLocation,
+  ]);
+
+  // Pinned/validated verified card (from the Supabase `clinics` table).
   // Shared by the pre-search list and the pinned section after a live search.
   const renderCustomCard = (d: Dermatologist, idx: number) => {
     const extra = customInfoById[d.id];
@@ -321,7 +357,7 @@ export default function Derma() {
                     distanceKm: String(d.distanceKm),
                     rating: String(d.rating),
                     availableToday: String(d.availableToday),
-                    // Extra info comes from data/derma-locations.json
+                    // Extra info comes from the Supabase `clinics` table.
                     phone: extra?.phone ?? "",
                     website: extra?.website ?? "",
                     hours: extra?.hours ?? "",
@@ -353,7 +389,17 @@ export default function Derma() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
       <ScreenGradient />
-      <KeyboardAwareScroll contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: TAB_BAR_CLEARANCE }}>
+      <KeyboardAwareScroll
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: TAB_BAR_CLEARANCE }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#15803D"
+            colors={["#15803D"]}
+          />
+        }
+      >
         <FadeItem index={0}>
           <View className="mt-2">
             <ScreenHeader
@@ -431,7 +477,7 @@ export default function Derma() {
                   </Marker>
                 )}
 
-                {/* Clinic pins — custom entries get an amber pin (pinned/validated), live results green */}
+                {/* Clinic pins — verified entries get an amber pin (pinned/validated), live results green */}
                 {visiblePins.map((d) => {
                   const coord = visibleCoords[d.id];
                   if (!coord) return null;
@@ -488,7 +534,7 @@ export default function Derma() {
         </FadeItem>
 
         {/* Results list */}
-        {locating ? (
+        {locating || verifiedLoading ? (
           <View className="flex-col gap-3 mt-2">
             <Skeleton className="h-32 w-full rounded-2xl" />
             <Skeleton className="h-32 w-full rounded-2xl" />

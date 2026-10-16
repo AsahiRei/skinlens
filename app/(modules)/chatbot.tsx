@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
   Platform,
@@ -9,7 +9,7 @@ import {
   ToastAndroid,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowLeft, Send, MessageSquare, Download } from "lucide-react-native";
 
@@ -21,14 +21,14 @@ import { IconBadge, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import type { ChatMessage, ChatTurn } from "@/types/chat";
-import { generateChatReply } from "@/utils/chat-assistant";
+import { CHAT_ERROR_REPLY, generateChatReply } from "@/utils/chat-assistant";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
 const INITIAL_MESSAGES: ChatMessage[] = [];
 
 export default function Chatbot() {
   const router = useRouter();
-  const { userContext } = useChatUserContext();
+  const { userContext, refresh } = useChatUserContext();
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -36,6 +36,15 @@ export default function Chatbot() {
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const downloadToastShown = useRef(false);
+  const msgCountRef = useRef(0);
+
+  // Re-read profile/scan data whenever the screen regains focus so a scan
+  // taken after opening chat is reflected in the next answer.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   const showDownloadNotice = (message: string) => {
     if (Platform.OS === "android") {
@@ -44,7 +53,6 @@ export default function Chatbot() {
       setDownloadNotice(message);
     }
   };
-  const msgCountRef = useRef(0);
   const hasStarted = messages.length > 0;
   // Only auto-scroll when a NEW message arrives. Scrolling on every
   // isThinking/animate flag change yanks the list back while the user is
@@ -111,8 +119,7 @@ export default function Chatbot() {
         {
           id: `${Date.now()}-error`,
           role: "assistant",
-          content:
-            "Sorry, I ran into a problem answering that. Please try again.",
+          content: CHAT_ERROR_REPLY,
           animate: true,
         },
       ]);

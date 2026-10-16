@@ -24,6 +24,7 @@ import {
 } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
+import { DateTimeField } from "@/components/DateTimeField";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import {
@@ -32,13 +33,22 @@ import {
   Notice,
   Pill,
   PrimaryButton,
+  SecondaryButton,
   SectionTitle,
   UiModal,
 } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { ScreenGradient } from "@/components/ScreenGradient";
-import { exportSkinReport } from "@/utils/report";
-import customLocationsData from "@/data/derma-locations.json";
+import { exportSkinReport, uploadSkinReportForAppointment } from "@/utils/report";
+import {
+  attachReportToAppointment,
+  formatPatientDisplayName,
+  getDoctorsForClinic,
+  isRemoteImageUrl,
+  requestAppointment,
+  type DoctorRow,
+} from "@/lib/db/appointments";
+import { getUserProfile } from "@/lib/db";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
 
@@ -47,6 +57,11 @@ type PlaceDetails = {
   website?: string;
   openingHours?: string;
 };
+
+// Module scope (not render): preferred-slot fallback ≈24h from app load.
+// Constructed here so render never calls Date.now() (purity rules) — the
+// real value always comes from the native picker (event handler).
+const PREFERRED_FALLBACK = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
 export default function DermatologistDetails() {
   const router = useRouter();
@@ -70,24 +85,12 @@ export default function DermatologistDetails() {
   const distanceKm = Number(params.distanceKm ?? 0);
   const availableToday = params.availableToday === "true";
 
-  // Custom entries defined in `data/derma-locations.json` carry their own
-  // info — use it directly instead of calling Geoapify place-details.
-  const customEntry = (
-    (customLocationsData as { locations?: Record<string, unknown>[] })
-      .locations ?? []
-  ).find((c) => (c as { id?: string }).id === params.id) as
-    | {
-        phone?: string;
-        website?: string;
-        hours?: string;
-        description?: string;
-      }
-    | undefined;
-  const isCustomEntry = params.isCustom === "1" || !!customEntry;
+  // Verified entries (from the Supabase `clinics` table) arrive with their
+  // contact info as nav params — use them directly instead of calling
+  // Geoapify place-details.
+  const isCustomEntry = params.isCustom === "1";
   const customDescription =
-    (typeof params.description === "string" && params.description) ||
-    customEntry?.description ||
-    "";
+    (typeof params.description === "string" && params.description) || "";
 
   const [details, setDetails] = useState<PlaceDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
@@ -95,6 +98,11 @@ export default function DermatologistDetails() {
   const [booking, setBooking] = useState(false);
   const [showBooked, setShowBooked] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Real booking (verified clinics only — needs a Supabase clinic UUID).
+  const [doctors, setDoctors] = useState<DoctorRow[]>([]);
+  const [doctorId, setDoctorId] = useState<string | null>(null);
+  const [preferredDate, setPreferredDate] = useState<Date | null>(null);
+  const [bookedDoctorName, setBookedDoctorName] = useState<string | null>(null);
 
   // Booking is only possible when the clinic exposed contact info.
   // Geoapify nearby results often have neither — don't let the user
@@ -115,18 +123,87 @@ export default function DermatologistDetails() {
       notify("No contact info for this clinic yet. Try another one.");
       return;
     }
+    // Non-verified (Geoapify) pins have no clinic UUID — keep the old
+    // PDF-share flow so booking never fires without a real clinic row.
+    if (!isCustomEntry || !params.id) {
+      setBooking(true);
+      try {
+        await exportSkinReport();
+        notify("Report ready — send the PDF, then call to confirm.");
+        setShowBooked(true);
+      } catch (err) {
+        console.error("[book-appointment]", err);
+        notify("Couldn't generate the PDF. Please try again.");
+      } finally {
+        setBooking(false);
+      }
+      return;
+    }
     setBooking(true);
     try {
-      // expo-print printToFileAsync -> expo-sharing shareAsync (SDK 57).
-      // Opens the share sheet so the user sends the Skin Report PDF
-      // to the clinic (Gmail / Messenger / Drive), then calls them.
-      await exportSkinReport();
-      setShowBooked(false);
-      notify("Report ready — send the PDF, then call to confirm.");
+      // 1. Real booking request → appointments (status 'requested').
+      // Requires network (RLS: patient insert own). Offline → error toast.
+      // Snapshot the patient's display name onto the row so the doctor
+      // queue shows it even when user_profile rows aren't doctor-readable.
+      let patientName: string | null = null;
+      let patientAvatarUrl: string | null = null;
+      try {
+        const prof = await getUserProfile();
+        if (prof) {
+          patientName = formatPatientDisplayName({
+            username: prof.username,
+            first_name: prof.first_name ?? null,
+          });
+          if (patientName === "Patient") patientName = null;
+          // Only remote (Cloudinary) photos can be shown on the doctor's
+          // device — local file:// enrolls stay on this phone.
+          if (isRemoteImageUrl(prof.face_image_url)) {
+            patientAvatarUrl = (prof.face_image_url as string).trim();
+          }
+        }
+      } catch {
+        /* snapshots are best-effort — booking proceeds without them */
+      }
+      const row = await requestAppointment({
+        clinicId: params.id,
+        doctorId,
+        preferredTime: preferredDate ? preferredDate.toISOString() : null,
+        patientName,
+        patientAvatarUrl,
+      });
+      const picked = doctors.find((d) => d.user_id === (doctorId ?? row.doctor_id));
+      setBookedDoctorName(picked?.display_name ?? null);
+      // 2. Generate the Skin Report PDF, upload it to the private `reports`
+      // bucket (reports/<uid>/<appointment_id>.pdf) and link it to the
+      // appointment row so the doctor can open it from their queue.
+      // 3. expo-print printToFileAsync -> expo-sharing shareAsync (SDK 57).
+      // Opens the share sheet so the user can also send the PDF manually.
+      try {
+        const storagePath = await uploadSkinReportForAppointment(row.id);
+        try {
+          await attachReportToAppointment(row.id, storagePath);
+        } catch (linkErr) {
+          console.warn("[book-appointment] report link failed:", linkErr);
+        }
+      } catch (pdfErr) {
+        // Booking already saved — PDF upload is best-effort from here.
+        console.warn("[book-appointment] pdf upload failed:", pdfErr);
+      }
+      try {
+        await exportSkinReport();
+      } catch (pdfErr) {
+        console.warn("[book-appointment] pdf share failed:", pdfErr);
+      }
+      notify("Request sent — the doctor will confirm your exact time.");
       setShowBooked(true);
     } catch (err) {
       console.error("[book-appointment]", err);
-      notify("Couldn't generate the PDF. Please try again.");
+      const msg = err instanceof Error ? err.message : "";
+      notify(
+        /network|fetch|failed/i.test(msg)
+          ? "You're offline — connect to book this clinic."
+          : msg || "Couldn't send the request. Please try again.",
+      );
     } finally {
       setBooking(false);
     }
@@ -134,21 +211,16 @@ export default function DermatologistDetails() {
 
   useEffect(() => {
     const fetchDetails = async () => {
-      // Custom JSON entries already carry phone/website/hours — no fetch needed.
+      // Verified entries already carry phone/website/hours — no fetch needed.
       if (isCustomEntry) {
         setDetails({
           phone:
-            (typeof params.phone === "string" && params.phone) ||
-            customEntry?.phone ||
-            undefined,
+            (typeof params.phone === "string" && params.phone) || undefined,
           website:
             (typeof params.website === "string" && params.website) ||
-            customEntry?.website ||
             undefined,
           openingHours:
-            (typeof params.hours === "string" && params.hours) ||
-            customEntry?.hours ||
-            undefined,
+            (typeof params.hours === "string" && params.hours) || undefined,
         });
         setLoadingDetails(false);
         return;
@@ -192,6 +264,27 @@ export default function DermatologistDetails() {
     fetchDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id, params.phone, params.website, params.hours]);
+
+  // Verified clinic → load its active doctors for the booking picker.
+  // doctors starts as [] so there is nothing to reset when the entry
+  // isn't verifiable (no synchronous setState in the effect body).
+  useEffect(() => {
+    if (!isCustomEntry || !params.id) {
+      return;
+    }
+    let active = true;
+    getDoctorsForClinic(params.id)
+      .then((rows) => {
+        if (active) setDoctors(rows);
+      })
+      .catch((err) => {
+        console.warn("[book-appointment] doctors fetch failed:", err);
+        if (active) setDoctors([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isCustomEntry, params.id]);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
@@ -331,7 +424,8 @@ export default function DermatologistDetails() {
           </ClinicalCard>
         </FadeItem>
 
-        {/* Book button — gated on contact info, sends PDF */}
+        {/* Book button — verified clinics create a real request row first,
+            then share the PDF. Gated on contact info. */}
         <FadeItem index={customDescription ? 4 : 3}>
           <View className="mt-5 gap-3">
             {!loadingDetails && !hasContact && !detailsError ? (
@@ -344,10 +438,76 @@ export default function DermatologistDetails() {
             {notice && Platform.OS !== "android" ? (
               <Notice icon={Info} tone="info" copy={notice} />
             ) : null}
+            {isCustomEntry && hasContact ? (
+              <ClinicalCard className="flex-col gap-3">
+                <SectionTitle title="Your visit" />
+                <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                  Doctor (optional)
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  <Pressable
+                    onPress={() => setDoctorId(null)}
+                    className="rounded-full px-4 py-2.5 border active:opacity-80"
+                    style={
+                      doctorId === null
+                        ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                        : { backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }
+                    }
+                  >
+                    <Text
+                      className="text-sm font-semibold"
+                      style={{ color: doctorId === null ? "#FFFFFF" : "#3F4A44" }}
+                    >
+                      First available
+                    </Text>
+                  </Pressable>
+                  {doctors.map((d) => {
+                    const selected = doctorId === d.user_id;
+                    return (
+                      <Pressable
+                        key={d.user_id}
+                        onPress={() => setDoctorId(selected ? null : d.user_id)}
+                        className="rounded-full px-4 py-2.5 border active:opacity-80"
+                        style={
+                          selected
+                            ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                            : { backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }
+                        }
+                      >
+                        <Text
+                          className="text-sm font-semibold"
+                          style={{ color: selected ? "#FFFFFF" : "#3F4A44" }}
+                        >
+                          {d.display_name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {doctors.length === 0 ? (
+                  <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                    No doctors listed yet — your request still goes to the clinic.
+                  </Text>
+                ) : null}
+                <Text className="text-xs mt-1" style={{ color: theme.colors.muted }}>
+                  Preferred date &amp; time (optional)
+                </Text>
+                <DateTimeField
+                  value={preferredDate}
+                  onChange={setPreferredDate}
+                  placeholder="Pick a preferred slot"
+                  minimumDate={new Date()}
+                  fallbackDate={PREFERRED_FALLBACK}
+                  onClear={() => setPreferredDate(null)}
+                />
+              </ClinicalCard>
+            ) : null}
             <PrimaryButton
               label={
                 booking
-                  ? "Preparing PDF…"
+                  ? isCustomEntry
+                    ? "Sending request…"
+                    : "Preparing PDF…"
                   : loadingDetails
                     ? "Loading clinic info…"
                     : hasContact
@@ -358,13 +518,18 @@ export default function DermatologistDetails() {
               loading={booking}
               disabled={loadingDetails || (!hasContact && !loadingDetails)}
             />
+            <SecondaryButton
+              label="My Appointments"
+              onPress={() => router.push("/(modules)/appointments")}
+            />
             {hasContact ? (
               <Text
                 className="text-xs text-center leading-5"
                 style={{ color: theme.colors.muted }}
               >
-                Generates your Skin Report PDF to send to {params.name}, then
-                call to confirm your slot.
+                {isCustomEntry
+                  ? `Sends a booking request to ${params.name} and shares your Skin Report PDF — the doctor confirms your exact time.`
+                  : `Generates your Skin Report PDF to send to ${params.name}, then call to confirm your slot.`}
               </Text>
             ) : null}
           </View>
@@ -374,11 +539,22 @@ export default function DermatologistDetails() {
       <UiModal
         visible={showBooked}
         onDismiss={() => setShowBooked(false)}
-        title="PDF sent — confirm by call"
-        message={`Send the Skin Report PDF to ${params.name}, then confirm your slot directly with them.`}
+        title={isCustomEntry ? "Request sent" : "PDF sent — confirm by call"}
+        message={
+          isCustomEntry
+            ? `Your visit request is with ${params.name}${bookedDoctorName ? ` (${bookedDoctorName})` : ""}. Track it under My Appointments — the doctor confirms your exact time.`
+            : `Send the Skin Report PDF to ${params.name}, then confirm your slot directly with them.`
+        }
         icon={CalendarCheck}
         tone="soft"
         actions={[
+          {
+            label: "View My Appointments",
+            onPress: () => {
+              setShowBooked(false);
+              router.push("/(modules)/appointments");
+            },
+          } as const,
           ...(details?.phone
             ? [
                 {

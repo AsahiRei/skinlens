@@ -13,9 +13,13 @@ Guidelines:
 - If a concern sounds serious or persistent, advise the user to consult a dermatologist.
 - Be warm and encouraging, not clinical.
 - Respond in plain text only — no Markdown, no code fences.
+- The conversation history is part of this message. If the user sends a short follow-up (e.g. "what about the evening?", "and my score?"), answer it using the earlier messages.
 - PERSONAL QUESTIONS: when the user asks about themselves (their name, age, skin type, concerns, health score, last scan, lifestyle, routine, recommendations), answer directly using the facts in USER PROFILE below. State the value plainly, e.g. "Your skin type is oily." Never say you don't have access to their information when it is listed below.
 - PERSONALIZATION: when answering general skincare questions, weave in their profile (skin type, concerns, lifestyle) where relevant.
 - If a requested fact is missing from USER PROFILE, say you don't have it yet and suggest completing their profile or taking a skin scan. Do not invent values.`;
+
+export const CHAT_ERROR_REPLY =
+  "Sorry, I ran into a problem answering that. Please try again.";
 
 function hasAnyProfileData(ctx: ChatUserContext): boolean {
   return (
@@ -32,7 +36,8 @@ function hasAnyProfileData(ctx: ChatUserContext): boolean {
     ctx.water_intake != null ||
     ctx.stress_level != null ||
     ctx.routine_summary != null ||
-    ctx.recommendations_summary != null
+    ctx.recommendations_summary != null ||
+    ctx.sensitivity_triggers != null
   );
 }
 
@@ -56,6 +61,8 @@ function buildContextBlock(ctx?: ChatUserContext): string {
     lines.push(`Current routine: ${ctx.routine_summary}`);
   if (ctx.recommendations_summary)
     lines.push(`Recommended products: ${ctx.recommendations_summary}`);
+  if (ctx.sensitivity_triggers)
+    lines.push(`Known sensitivity triggers (from logged flare-ups): ${ctx.sensitivity_triggers}`);
   if (lines.length === 0) return "";
   return `\n\nUSER PROFILE — facts about this user. Use them to answer questions about the user, and to personalize skincare advice:\n${lines.join("\n")}`;
 }
@@ -149,6 +156,8 @@ export function answerProfileQuestion(
       parts.push(`Your lifestyle — ${life}`);
     }
     if (ctx.routine_summary) parts.push(`Your routine: ${ctx.routine_summary}`);
+    if (ctx.sensitivity_triggers)
+      parts.push(`Your logged sensitivity triggers: ${ctx.sensitivity_triggers}`);
     if (parts.length === 0) return missing("profile information");
     return parts.join(". ") + ".";
   }
@@ -227,6 +236,14 @@ export function answerProfileQuestion(
       ? `Your stress level is recorded as ${ctx.stress_level}.`
       : missing("stress level");
   }
+  if (
+    !adviceIntent &&
+    has("trigger", "flare", "reaktion", "causes my", "what sets off")
+  ) {
+    return ctx.sensitivity_triggers
+      ? `Your logged sensitivity triggers: ${ctx.sensitivity_triggers}.`
+      : missing("sensitivity trigger log");
+  }
   if (has("lifestyle", "habit", "sleep", "water", "stress") && has("lifestyle", "habit", "all", "every")) {
     const bits = [
       ctx.sleep_quality ? `sleep: ${ctx.sleep_quality}` : null,
@@ -258,6 +275,30 @@ export function answerProfileQuestion(
   return null;
 }
 
+/**
+ * Keep the most recent turns that fit a character budget.
+ *
+ * The model's whole context is 2048 tokens shared with the system prompt
+ * (profile + knowledge ≈ 600-900 tokens) and the reply. A fixed turn count
+ * can overflow it on chatty users; a budget keeps prefill in bounds while
+ * always retaining the latest exchange so the reply has the question.
+ */
+const MAX_HISTORY_CHARS = 2400;
+
+function trimHistoryForPrompt(history: ChatTurn[]): ChatTurn[] {
+  const clean = history.filter((t) => t.content !== CHAT_ERROR_REPLY);
+  const turns: ChatTurn[] = [];
+  let used = 0;
+  for (let i = clean.length - 1; i >= 0; i--) {
+    const turn = clean[i];
+    const cost = turn.content.length + 16;
+    if (turns.length >= 2 && used + cost > MAX_HISTORY_CHARS) break;
+    turns.push(turn);
+    used += cost;
+  }
+  return turns.reverse();
+}
+
 export async function generateChatReply(
   history: ChatTurn[],
   userContext?: ChatUserContext,
@@ -278,6 +319,7 @@ export async function generateChatReply(
   const knowledgeBlock = formatKnowledgeForPrompt(
     userContext?.skin_type ?? userContext?.main_concerns ?? "normal",
     userContext?.main_concerns ?? undefined,
+    lastUserMessage?.content,
   );
   const systemPrompt =
     BASE_SYSTEM_PROMPT +
@@ -285,11 +327,7 @@ export async function generateChatReply(
     (knowledgeBlock
       ? `\n\nDERMATOLOGIST KNOWLEDGE (use when relevant to the user's question):\n${knowledgeBlock}`
       : "");
-  const maxHistoryTurns = 10;
-  const trimmedHistory =
-    history.length > maxHistoryTurns
-      ? history.slice(history.length - maxHistoryTurns)
-      : history;
+  const trimmedHistory = trimHistoryForPrompt(history);
   const { text } = await runExclusive(() =>
     context.completion({
       messages: [

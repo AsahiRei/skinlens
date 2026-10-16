@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { getDatabase } from "@/lib/db/database";
 import { requireUser } from "@/lib/db/auth";
@@ -52,79 +52,101 @@ function summarizeRecommendations(raw: string | null): string | null {
   }
 }
 
+/** "stress (moderate); spicy food (mild)" — most recent flare-ups first. */
+function summarizeSensitivityTriggers(
+  rows: { trigger_cause: string; severity: string }[],
+): string | null {
+  if (rows.length === 0) return null;
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const row of rows) {
+    const cause = row.trigger_cause?.trim();
+    if (!cause) continue;
+    const key = cause.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push(row.severity ? `${cause} (${row.severity})` : cause);
+    if (parts.length >= 4) break;
+  }
+  return parts.length > 0 ? parts.join("; ") : null;
+}
+
 export function useChatUserContext() {
   const [userContext, setUserContext] = useState<ChatUserContext | null>(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      try {
-        const user = await requireUser();
-        const db = await getDatabase();
 
-        const [userRow, skinRow, lifestyleRow, routineRow, resultRow] =
-          await Promise.all([
-            db.getFirstAsync<{ first_name: string; age: string; gender: string }>(
-              `SELECT first_name, age, gender FROM user_profile WHERE id = ?`,
-              [user.id],
-            ),
-            db.getFirstAsync<{ skin_type: string; main_concerns: string }>(
-              `SELECT skin_type, main_concerns FROM skin_profile WHERE id = ?`,
-              [user.id],
-            ),
-            db.getFirstAsync<{
-              sleep_quality: string;
-              water_intake: string;
-              stress_level: string;
-            }>(
-              `SELECT sleep_quality, water_intake, stress_level FROM lifestyle_profile WHERE id = ?`,
-              [user.id],
-            ),
-            db.getFirstAsync<{ routine_json: string }>(
-              `SELECT routine_json FROM routines WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-              [user.id],
-            ),
-            db.getFirstAsync<{
-              healthscore: number;
-              severity: string;
-              description: string;
-              detection_label: string;
-              recommendations: string;
-            }>(
-              `SELECT healthscore, severity, description, detection_label, recommendations FROM results WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-              [user.id],
-            ),
-          ]);
+  const refresh = useCallback(async () => {
+    try {
+      const user = await requireUser();
+      const db = await getDatabase();
 
-        if (!isMounted) return;
-        setUserContext({
-          first_name: userRow?.first_name,
-          age: userRow?.age,
-          gender: userRow?.gender,
-          skin_type: skinRow?.skin_type,
-          main_concerns: skinRow?.main_concerns,
-          healthscore: resultRow?.healthscore,
-          last_diagnosis: resultRow?.description,
-          detection_label: resultRow?.detection_label,
-          severity: resultRow?.severity,
-          sleep_quality: lifestyleRow?.sleep_quality,
-          water_intake: lifestyleRow?.water_intake,
-          stress_level: lifestyleRow?.stress_level,
-          routine_summary: summarizeRoutine(routineRow?.routine_json ?? null),
-          recommendations_summary: summarizeRecommendations(
-            resultRow?.recommendations ?? null,
+      const [userRow, skinRow, lifestyleRow, routineRow, resultRow, sensitivityRows] =
+        await Promise.all([
+          db.getFirstAsync<{ first_name: string; age: string; gender: string }>(
+            `SELECT first_name, age, gender FROM user_profile WHERE id = ?`,
+            [user.id],
           ),
-        });
-      } catch (err) {
-        console.error("Error building chat user context:", err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    load();
-    return () => {
-      isMounted = false;
-    };
+          db.getFirstAsync<{ skin_type: string; main_concerns: string }>(
+            `SELECT skin_type, main_concerns FROM skin_profile WHERE id = ?`,
+            [user.id],
+          ),
+          db.getFirstAsync<{
+            sleep_quality: string;
+            water_intake: string;
+            stress_level: string;
+          }>(
+            `SELECT sleep_quality, water_intake, stress_level FROM lifestyle_profile WHERE id = ?`,
+            [user.id],
+          ),
+          db.getFirstAsync<{ routine_json: string }>(
+            `SELECT routine_json FROM routines WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
+            [user.id],
+          ),
+          db.getFirstAsync<{
+            healthscore: number;
+            severity: string;
+            description: string;
+            detection_label: string;
+            recommendations: string;
+          }>(
+            `SELECT healthscore, severity, description, detection_label, recommendations FROM results WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
+            [user.id],
+          ),
+          db.getAllAsync<{ trigger_cause: string; severity: string }>(
+            `SELECT trigger_cause, severity FROM sensitivity_history WHERE user_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 6`,
+            [user.id],
+          ),
+        ]);
+
+      setUserContext({
+        first_name: userRow?.first_name,
+        age: userRow?.age,
+        gender: userRow?.gender,
+        skin_type: skinRow?.skin_type,
+        main_concerns: skinRow?.main_concerns,
+        healthscore: resultRow?.healthscore,
+        last_diagnosis: resultRow?.description,
+        detection_label: resultRow?.detection_label,
+        severity: resultRow?.severity,
+        sleep_quality: lifestyleRow?.sleep_quality,
+        water_intake: lifestyleRow?.water_intake,
+        stress_level: lifestyleRow?.stress_level,
+        routine_summary: summarizeRoutine(routineRow?.routine_json ?? null),
+        recommendations_summary: summarizeRecommendations(
+          resultRow?.recommendations ?? null,
+        ),
+        sensitivity_triggers: summarizeSensitivityTriggers(sensitivityRows ?? []),
+      });
+    } catch (err) {
+      console.error("Error building chat user context:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
-  return { userContext, loading };
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { userContext, loading, refresh };
 }

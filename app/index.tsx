@@ -45,12 +45,20 @@ export default function Index() {
   const routedRef = useRef(false);
 
   const safeReplace = useCallback(
-    (path: "/onboarding" | "/welcome" | "/(tabs)" | "/(user-setup)") => {
+    (
+      path:
+        | "/onboarding"
+        | "/welcome"
+        | "/(tabs)"
+        | "/(user-setup)"
+        | "/doctor"
+        | "/(modules)/appointments",
+    ) => {
       if (routedRef.current) return;
       console.log(`[SkinLens][Boot] ${new Date().toISOString()} route ->`, path);
       routedRef.current = true;
       try {
-        router.replace(path);
+        router.replace(path as never);
       } catch {
         // Navigation not ready yet (cold start race) — retry once shortly.
         routedRef.current = false;
@@ -58,7 +66,7 @@ export default function Index() {
           if (routedRef.current) return;
           routedRef.current = true;
           try {
-            router.replace(path);
+            router.replace(path as never);
           } catch {}
         }, 500);
       }
@@ -174,20 +182,30 @@ export default function Index() {
 
         // 6. No local cache — check server for user_setup. Offline (error)
         // still goes to tabs per the original fail-open behavior.
+        // Doctors skip user-setup entirely: role is server-side only
+        // (no offline cache — booking/doctor flows are online-only), so a
+        // doctor with no local profile lands on the scheduling dashboard.
         try {
           const setupRes = (await withTimeout(
             supabase
               .from("user_profile")
-              .select("user_setup")
+              .select("user_setup, role")
               .eq("id", session.user.id)
               .maybeSingle(),
             10000,
             "server setup check",
-          )) as { data: { user_setup?: boolean | null } | null; error: unknown };
+          )) as {
+            data: { user_setup?: boolean | null; role?: string | null } | null;
+            error: unknown;
+          };
           const { data: userSetup, error: setupError } = setupRes;
           if (!mounted || routedRef.current) return;
           if (setupError) {
             safeReplace("/(tabs)");
+            return;
+          }
+          if (userSetup?.role === "doctor") {
+            safeReplace("/doctor");
             return;
           }
           if (userSetup?.user_setup !== true) {

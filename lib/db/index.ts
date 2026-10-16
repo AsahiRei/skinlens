@@ -1,4 +1,6 @@
 export * from "./auth";
+export * from "./appointments";
+export * from "./clinics";
 export * from "./notifications";
 export * from "./profile";
 export * from "./results";

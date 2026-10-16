@@ -14,6 +14,7 @@ import {
   Moon,
   Droplets,
   Activity,
+  CalendarCheck,
   ChevronRight,
   LogOut,
   Pencil,
@@ -25,7 +26,11 @@ import { FadeItem } from "@/components/FadeItem";
 import { LinearGradient } from "expo-linear-gradient";
 import { InfoCard, InfoCardSkeleton } from "@/components/Info";
 import LogoutModal from "@/components/LogoutModal";
-import Skeleton from "@/components/Skeleton";
+import {
+  CardTitleSkeleton,
+  HeroTextSkeleton,
+  IconRowsSkeleton,
+} from "@/components/ProfileSkeletons";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ScreenHeader, UiModal, ClinicalCard, IconBadge, Pill, SectionTitle } from "@/components/ui";
 import { theme, cardShadow } from "@/lib/theme";
@@ -158,10 +163,7 @@ export default function Profile() {
           {/* Header */}
           <FadeItem index={0}>
             {loadingUser ? (
-              <View className="gap-2 mt-2">
-                <Skeleton className="h-7 w-40 rounded-lg" />
-                <Skeleton className="h-4 w-44 mt-1 rounded-md" />
-              </View>
+              <HeroTextSkeleton />
             ) : (
               <View className="mt-2">
                 <View className="flex-row items-start justify-between">
@@ -286,7 +288,7 @@ export default function Profile() {
           <FadeItem index={1}>
             {loadingSkin ? (
               <ClinicalCard className="flex-col gap-3 mt-5">
-                <Skeleton className="h-5 w-28" />
+                <CardTitleSkeleton />
                 <View className="flex-row gap-3">
                   <InfoCardSkeleton />
                   <InfoCardSkeleton />
@@ -315,20 +317,8 @@ export default function Profile() {
           <FadeItem index={2}>
             {loadingLifestyle ? (
               <ClinicalCard className="flex-col gap-3 mt-4">
-                <Skeleton className="h-5 w-28 mb-1" />
-                {[0, 1, 2].map((i) => (
-                  <View
-                    key={i}
-                    className="flex-row items-center py-3"
-                    style={{ borderBottomWidth: i < 2 ? 1 : 0, borderBottomColor: theme.colors.divider }}
-                  >
-                    <Skeleton className="w-10 h-10 rounded-full mr-3" />
-                    <View className="flex-1 gap-1">
-                      <Skeleton className="h-3 w-24" />
-                      <Skeleton className="h-4 w-32" />
-                    </View>
-                  </View>
-                ))}
+                <CardTitleSkeleton className="mb-1" />
+                <IconRowsSkeleton rows={3} />
               </ClinicalCard>
             ) : (
               <ClinicalCard className="flex-col gap-3 mt-4">
@@ -370,8 +360,34 @@ export default function Profile() {
             )}
           </FadeItem>
 
-          {/* Sensitivity history */}
+          {/* Appointments — role-aware (patient requests / doctor queue) */}
           <FadeItem index={3}>
+            <TouchableOpacity
+              onPress={() => router.push("/(modules)/appointments")}
+              activeOpacity={0.7}
+              className="mt-4"
+            >
+              <ClinicalCard>
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3 flex-1 pr-2">
+                  <IconBadge icon={CalendarCheck} size="md" tone="soft" />
+                  <View className="flex-1">
+                    <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
+                      Appointments
+                    </Text>
+                    <Text className="text-sm" style={{ color: theme.colors.muted }}>
+                      Book visits & track requests
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight size={18} color={theme.colors.faint} />
+              </View>
+              </ClinicalCard>
+            </TouchableOpacity>
+          </FadeItem>
+
+          {/* Sensitivity history */}
+          <FadeItem index={4}>
             <TouchableOpacity
               onPress={() => router.push("/(modules)/sensitivity")}
               activeOpacity={0.7}
@@ -404,7 +420,7 @@ export default function Profile() {
           </FadeItem>
 
           {/* Notifications */}
-          <FadeItem index={4}>
+          <FadeItem index={5}>
             <ClinicalCard className="flex-col gap-3 mt-4">
               <SectionTitle title="Notifications" />
               <View className="flex-row items-center justify-between py-3 border-b border-[#EEF2EF]">
@@ -442,7 +458,7 @@ export default function Profile() {
             </ClinicalCard>
           </FadeItem>
 
-          <FadeItem index={5}>
+          <FadeItem index={6}>
             <Pressable
               className="active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
               style={{ backgroundColor: theme.colors.danger }}

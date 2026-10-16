@@ -280,6 +280,8 @@ const styles = StyleSheet.create({
   },
   sideColActive: {
     backgroundColor: ACTIVE_BG,
+    borderRadius: 20,
+    overflow: "hidden",
   },
   sideLabel: {
     fontSize: 9,

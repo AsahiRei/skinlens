@@ -1,6 +1,9 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import { File, Paths } from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { ToastAndroid } from "react-native";
+import { Buffer } from "buffer";
 
 import {
   getAllProfiles,
@@ -8,8 +11,10 @@ import {
   getLatestRoutine,
   getSensitivityHistory,
 } from "@/lib/db";
+import { requireUser } from "@/lib/db/auth";
 import { formatter } from "@/utils/formatter";
 import { getHealthScoreResponse } from "@/utils/healthscore";
+import { supabase } from "@/utils/supabase";
 
 function escapeHtml(value: string): string {
   return value
@@ -319,6 +324,142 @@ export async function exportSkinReport(): Promise<void> {
   await Sharing.shareAsync(uri, {
     mimeType: "application/pdf",
     dialogTitle: "Share Skin Health Report",
+    UTI: "com.adobe.pdf",
+  });
+}
+
+/**
+ * Render the Skin Report to a local PDF file and return its URI.
+ * (expo-print v57: printToFileAsync saves into the app cache directory.)
+ */
+export async function generateSkinReportPdfUri(): Promise<string> {
+  const html = await generateSkinReportHtml();
+  const { uri } = await Print.printToFileAsync({ html });
+  return uri;
+}
+
+/**
+ * Upload the freshly generated Skin Report PDF to the private `reports`
+ * bucket at `reports/<patient_uid>/<appointmentId>.pdf` (see 0002 migration)
+ * so the doctor can open it from the appointment queue. Returns the storage
+ * path to persist on `appointments.report_pdf_path`. Best-effort: throws on
+ * failure so callers can fall back to manual share.
+ */
+export async function uploadSkinReportForAppointment(
+  appointmentId: string,
+): Promise<string> {
+  const user = await requireUser();
+  const localUri = await generateSkinReportPdfUri();
+  const base64 = await FileSystem.readAsStringAsync(localUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  // RN fetch cannot reliably send a Node Buffer/Uint8Array body, so send a
+  // Blob (binary-safe on Hermes) instead of the raw Buffer.
+  const bytes = Buffer.from(base64, "base64");
+  const ab = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  );
+  const body = new Blob([ab], { type: "application/pdf" });
+  const storagePath = `${user.id}/${appointmentId}.pdf`;
+  const { error } = await supabase.storage
+    .from("reports")
+    .upload(storagePath, body, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+  if (error) {
+    if (/bucket|not found/i.test(error.message)) {
+      throw new Error(
+        "Reports storage is not set up (missing `reports` bucket — apply supabase/migrations/0002_clinic_booking.sql).",
+      );
+    }
+    throw new Error(error.message);
+  }
+  return storagePath;
+}
+
+function cleanReportKey(reportPath: string): string {
+  const clean = reportPath
+    .replace(/^reports\//, "")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!clean) throw new Error("This appointment has no report file path.");
+  return clean;
+}
+
+/**
+ * Doctor (or patient) opens a report PDF stored at
+ * `appointments.report_pdf_path`.
+ *
+ * Uses a short-lived signed URL + native `File.downloadFileAsync` (SDK 57):
+ * the old `storage.download()` path goes through the app's 10s JSON fetch
+ * wrapper and `Blob.arrayBuffer()`, both of which fail for binary PDFs on
+ * Hermes/slow networks. Falls back to `storage.download()` when signed URLs
+ * are unavailable.
+ */
+export async function openAppointmentReport(reportPath: string): Promise<void> {
+  const key = cleanReportKey(reportPath);
+  const rawName = key.split("/").pop() || `report-${Date.now()}.pdf`;
+  const safeName = rawName.endsWith(".pdf") ? rawName : `${rawName}.pdf`;
+  const dest = new File(Paths.cache, `report-${Date.now()}-${safeName}`);
+
+  let localUri: string | null = null;
+  let lastError: unknown = null;
+
+  // Primary: signed URL + native download (binary-safe, no 10s abort).
+  try {
+    const { data, error } = await supabase.storage
+      .from("reports")
+      .createSignedUrl(key, 120);
+    if (error) throw new Error(error.message);
+    if (!data?.signedUrl) throw new Error("Could not create a report link.");
+    const downloaded = await File.downloadFileAsync(data.signedUrl, dest);
+    if (!downloaded.exists) throw new Error("Download produced no file.");
+    localUri = downloaded.uri;
+  } catch (err) {
+    lastError = err;
+    console.warn("[report] signed-url download failed, trying fallback:", err);
+  }
+
+  // Fallback: storage.download() → write base64 to cache (old path).
+  if (!localUri) {
+    try {
+      const { data, error } = await supabase.storage
+        .from("reports")
+        .download(key);
+      if (error || !data) throw new Error(error?.message ?? "Download failed.");
+      const arrayBuf = await data.arrayBuffer();
+      const base64 = Buffer.from(arrayBuf).toString("base64");
+      const legacyUri = `${FileSystem.cacheDirectory ?? ""}report-${Date.now()}-${safeName}`;
+      await FileSystem.writeAsStringAsync(legacyUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      localUri = legacyUri;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  if (!localUri) {
+    const msg =
+      lastError instanceof Error ? lastError.message : String(lastError ?? "");
+    if (/bucket|not found|object not found|does not exist/i.test(msg)) {
+      throw new Error(
+        "Report file not found — it may have been booked before PDF upload existed. Ask the patient to re-book.",
+      );
+    }
+    if (/row-level|policy|permission|unauthorized|forbidden|jwt/i.test(msg)) {
+      throw new Error("You don't have permission to open this report.");
+    }
+    throw new Error(msg || "Couldn't download the report PDF.");
+  }
+
+  const available = await Sharing.isAvailableAsync();
+  if (!available) throw new Error("Sharing is not available on this device.");
+  await Sharing.shareAsync(localUri, {
+    mimeType: "application/pdf",
+    dialogTitle: "Skin Health Report",
     UTI: "com.adobe.pdf",
   });
 }

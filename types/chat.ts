@@ -21,6 +21,7 @@ export type ChatUserContext = {
   stress_level?: string | null;
   routine_summary?: string | null;
   recommendations_summary?: string | null;
+  sensitivity_triggers?: string | null;
 };
 
 export type ChatRole = "user" | "assistant";
