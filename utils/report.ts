@@ -53,6 +53,29 @@ function fmtDateTime(dateStr: string): string {
   });
 }
 
+/** One line describing the dermatologist review state of a scan. */
+function reviewLine(result: {
+  validation_status?: string | null;
+  validated_at?: string | null;
+  doctor_notes?: string | null;
+}): string {
+  const notes = result.doctor_notes ? ` — ${escapeHtml(result.doctor_notes)}` : "";
+  if (result.validation_status === "confirmed") {
+    return `Reviewed by a dermatologist on ${fmtDate(result.validated_at)}${notes}`;
+  }
+  if (result.validation_status === "needs_review") {
+    return `Flagged for dermatologist follow-up on ${fmtDate(result.validated_at)}${notes}`;
+  }
+  return "Not yet reviewed by a dermatologist.";
+}
+
+/** Scan-history table cell for the review column. */
+function reviewCell(result: { validation_status?: string | null }): string {
+  if (result.validation_status === "confirmed") return "Confirmed";
+  if (result.validation_status === "needs_review") return "Follow-up";
+  return "—";
+}
+
 export async function generateSkinReportHtml(): Promise<string> {
   // Sequential: single shared SQLite handle — concurrent statements corrupt
   // it on Android (expo#48995). The proxy also serializes, this just reduces
@@ -106,6 +129,13 @@ export async function generateSkinReportHtml(): Promise<string> {
               : ""
           }</div>
           <div class="score-sub">Scanned on ${fmtDate(latest.created_at)}</div>
+          <div class="score-sub" style="color:${
+            latest.validation_status === "confirmed"
+              ? "#15803D"
+              : latest.validation_status === "needs_review"
+                ? "#B45309"
+                : "#6B7280"
+          };font-weight:${latest.validation_status && latest.validation_status !== "pending" ? 700 : 400}">${reviewLine(latest)}</div>
         </div>
       </div>
       <p class="para">${escapeHtml(latest.description)}</p>`
@@ -167,6 +197,7 @@ export async function generateSkinReportHtml(): Promise<string> {
           <td>${r.confidence ? `${(r.confidence * 100).toFixed(1)}%` : "—"}</td>
           <td class="num">${Math.round(r.healthscore)}%</td>
           <td>${fmt(r.severity)}</td>
+          <td>${reviewCell(r)}</td>
         </tr>`,
     )
     .join("");
@@ -278,7 +309,7 @@ export async function generateSkinReportHtml(): Promise<string> {
       ? `<table>
           <thead>
             <tr>
-              <th>Date</th><th>Condition</th><th>Confidence</th><th>Score</th><th>Severity</th>
+              <th>Date</th><th>Condition</th><th>Confidence</th><th>Score</th><th>Severity</th><th>Review</th>
             </tr>
           </thead>
           <tbody>${historyRows}</tbody>

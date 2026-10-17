@@ -52,12 +52,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // `notifications` closure both think the id is new and both prepend it,
   // producing duplicate keys like `scan-2026-10-13`.
   const generatingRef = React.useRef(false);
+  // Latest settings as seen by the mutation callbacks below (they are
+  // useCallback([]) so they can't close over the state without going stale).
+  const settingsRef = React.useRef(settings);
+  // Serializes cancel/reschedule: two rapid toggles used to interleave and
+  // could leave a reminder scheduled for a feature just switched off.
+  const settingsChainRef = React.useRef<Promise<void>>(Promise.resolve());
 
   const loadAll = async () => {
     try {
       const settingsStr = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
       if (settingsStr) {
         const saved = JSON.parse(settingsStr);
+        settingsRef.current = saved;
         setSettings(saved);
         // Schedule push notifications based on saved settings
         if (saved.scanReminders) await scheduleWeeklyScanReminder();
@@ -71,6 +78,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  // Re-reads the truth from SQLite — the rollback path for the optimistic
+  // mutations below when their write fails.
+  const reloadFromDb = async () => {
+    try {
+      setNotifications(dedupeById(await getNotifications()));
+    } catch (err) {
+      console.error("Error reloading notifications:", err);
+    }
+  };
+
   useEffect(() => {
     // Fetch-on-mount: setState happens in async continuations after awaits.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -79,21 +96,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const updateSettings = useCallback(
     async (partial: Partial<NotificationSettings>) => {
-      const next = { ...settings, ...partial };
+      // Read from the ref (not the useCallback closure) so two toggles in
+      // quick succession both see the result of the first one.
+      const next = { ...settingsRef.current, ...partial };
+      settingsRef.current = next;
       setSettings(next);
-      await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(next));
 
-      // Apply the new schedule: cancel everything first so toggles that are
-      // switched off stop firing, then re-schedule what is still enabled.
-      await cancelAllScheduledNotifications();
-      if (next.scanReminders) {
-        await scheduleWeeklyScanReminder();
-      }
-      if (next.dailyTips) {
-        await scheduleDailySkincareTip();
-      }
+      const apply = async () => {
+        await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(next));
+        // Apply the new schedule: cancel everything first so toggles that are
+        // switched off stop firing, then re-schedule what is still enabled.
+        await cancelAllScheduledNotifications();
+        if (next.scanReminders) {
+          await scheduleWeeklyScanReminder();
+        }
+        if (next.dailyTips) {
+          await scheduleDailySkincareTip();
+        }
+      };
+      const run = settingsChainRef.current.then(apply, apply);
+      settingsChainRef.current = run.catch(() => {});
+      await run;
     },
-    [settings],
+    [],
   );
 
   const markAsRead = useCallback(
@@ -101,27 +126,49 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
-      await dbMarkAsRead(id);
+      try {
+        await dbMarkAsRead(id);
+      } catch (err) {
+        // Optimistic only — without this the item stayed visibly read while
+        // the row was unchanged, so it "un-read itself" on the next reload.
+        console.error("[notifications] markAsRead failed:", err);
+        await reloadFromDb();
+      }
     },
     [],
   );
 
   const markAllAsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    await dbMarkAllAsRead();
+    try {
+      await dbMarkAllAsRead();
+    } catch (err) {
+      console.error("[notifications] markAllAsRead failed:", err);
+      await reloadFromDb();
+    }
   }, []);
 
   const deleteNotification = useCallback(
     async (id: string) => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-      await dbDeleteNotification(id);
+      try {
+        await dbDeleteNotification(id);
+      } catch (err) {
+        console.error("[notifications] delete failed:", err);
+        await reloadFromDb();
+      }
     },
     [],
   );
 
   const clearAll = useCallback(async () => {
     setNotifications([]);
-    await dbClearAll();
+    try {
+      await dbClearAll();
+    } catch (err) {
+      console.error("[notifications] clearAll failed:", err);
+      await reloadFromDb();
+    }
   }, []);
 
   const generateNotifications = useCallback(async () => {

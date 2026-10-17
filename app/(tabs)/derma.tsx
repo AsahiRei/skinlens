@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import { Camera, Map, Marker } from "@maplibre/maplibre-react-native";
 import type { CameraRef, MapRef } from "@maplibre/maplibre-react-native";
@@ -75,27 +75,36 @@ export default function Derma() {
   const mapRef = useRef<MapRef>(null);
   const cameraRef = useRef<CameraRef>(null);
   const router = useRouter();
+  // setVerified must never run after unmount (the fetch can outlive the tab).
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   const loadVerified = useCallback(async () => {
     try {
       const rows = await getVerifiedClinics();
-      setVerified(rows);
+      if (mountedRef.current) setVerified(rows);
     } catch (err) {
       console.error("[derma] verified clinics failed:", err);
     }
   }, []);
 
   // Verified locations come from the Supabase `clinics` table (managed from
-  // the website admin page), cached on-device for offline use.
-  useEffect(() => {
-    let active = true;
-    loadVerified().finally(() => {
-      if (active) setVerifiedLoading(false);
-    });
-    return () => {
-      active = false;
-    };
-  }, [loadVerified]);
+  // the website admin page), cached on-device for offline use. Reloaded on
+  // every focus — clinics published from the admin site used to stay hidden
+  // until the tab was remounted, because this only ever ran on mount.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void loadVerified().finally(() => {
+        if (active && mountedRef.current) setVerifiedLoading(false);
+      });
+      return () => {
+        active = false;
+      };
+    }, [loadVerified]),
+  );
 
   const customResults: Dermatologist[] = verified.map((c) => ({
     id: c.id,
@@ -287,10 +296,10 @@ export default function Derma() {
           <View className="flex-row items-center gap-3">
             <IconBadge icon={Stethoscope} size="lg" tone="soft" />
             <View className="flex-col flex-1">
-              <Text className="font-bold text-[15px]" style={{ color: "#10241A" }}>
+              <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
                 {d.name}
               </Text>
-              <Text className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
+              <Text className="text-xs mt-0.5" style={{ color: theme.colors.muted }}>
                 {d.specialty}
               </Text>
             </View>
@@ -302,29 +311,29 @@ export default function Derma() {
             </View>
           </View>
 
-          <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: "#EEF2EF" }}>
+          <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}>
             <View className="flex-row items-center gap-2">
               <Building
                 size={14}
-                color="#9CA3AF"
+                color={theme.colors.faint}
               />
-              <Text className="text-xs" style={{ color: "#3F4A44" }}>{d.clinic}</Text>
+              <Text className="text-xs" style={{ color: theme.colors.body }}>{d.clinic}</Text>
             </View>
             <View className="flex-row items-center gap-2">
               <MapPin
                 size={14}
-                color="#9CA3AF"
+                color={theme.colors.faint}
               />
               <Text
                 className="text-xs flex-1"
-                style={{ color: "#3F4A44" }}
+                style={{ color: theme.colors.body }}
                 numberOfLines={1}
               >
                 {d.address}
               </Text>
             </View>
             {extra?.description ? (
-              <Text className="text-xs mt-1" style={{ color: "#6B7280" }} numberOfLines={2}>
+              <Text className="text-xs mt-1" style={{ color: theme.colors.muted }} numberOfLines={2}>
                 {extra.description}
               </Text>
             ) : null}
@@ -334,13 +343,13 @@ export default function Derma() {
             <View className="flex-row items-center gap-3">
               {d.rating > 0 && (
                 <View className="flex-row items-center gap-1">
-                  <Star size={14} color="#F59E0B" />
-                  <Text className="text-xs font-semibold" style={{ color: "#10241A" }}>
+                  <Star size={14} color={theme.colors.star} />
+                  <Text className="text-xs font-semibold" style={{ color: theme.colors.ink }}>
                     {d.rating.toFixed(1)}
                   </Text>
                 </View>
               )}
-              <Text className="text-xs" style={{ color: "#9CA3AF" }}>
+              <Text className="text-xs" style={{ color: theme.colors.faint }}>
                 {d.distanceKm > 0 ? `${d.distanceKm.toFixed(1)} km away` : "Nearby"}
               </Text>
             </View>
@@ -387,7 +396,7 @@ export default function Derma() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <KeyboardAwareScroll
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: TAB_BAR_CLEARANCE }}
@@ -395,8 +404,8 @@ export default function Derma() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#15803D"
-            colors={["#15803D"]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
@@ -412,14 +421,14 @@ export default function Derma() {
         {/* Search bar */}
         <FadeItem index={1}>
           <View className="flex-row items-center bg-white px-4 py-3 mt-5 gap-2" style={{ borderRadius: theme.radius.input, borderWidth: 1, borderColor: theme.colors.cardBorder }}>
-            <Search size={18} color="#9CA3AF" />
+            <Search size={18} color={theme.colors.faint} />
             <TextInput
               value={query}
               onChangeText={setQuery}
               placeholder="Search by name, clinic, or specialty"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.colors.faint}
               className="flex-1 text-sm"
-              style={{ color: "#10241A" }}
+              style={{ color: theme.colors.ink }}
             />
             {query.length > 0 && (
               <Pressable onPress={() => setQuery("")} hitSlop={8}>
@@ -454,7 +463,7 @@ export default function Derma() {
 
         {/* Map: user location + clinic pins (custom pins before search) */}
         {showMap && (
-          <View className="overflow-hidden mt-4 h-56" style={{ borderRadius: 20, borderWidth: 1, borderColor: "#E5EDE8", backgroundColor: "#EAF6EE" }}>
+          <View className="overflow-hidden mt-4 h-56" style={{ borderRadius: 20, borderWidth: 1, borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.primarySoft }}>
             {locating || !mapCenter ? (
               <Skeleton className="h-full w-full" />
             ) : (
@@ -473,7 +482,7 @@ export default function Derma() {
                     id="user-location"
                     lngLat={[userLocation.longitude, userLocation.latitude]}
                   >
-                    <View className="h-4 w-4 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: "#15803D" }} />
+                    <View className="h-4 w-4 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: theme.colors.primary }} />
                   </Marker>
                 )}
 
@@ -495,7 +504,7 @@ export default function Derma() {
                         })
                       }
                     >
-                      <View className="h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: isCustomPin ? "#B45309" : "#15803D" }}>
+                      <View className="h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: isCustomPin ? "#B45309" : theme.colors.primary }}>
                         {isCustomPin ? (
                           <MapPin size={13} color="white" />
                         ) : (
@@ -602,10 +611,10 @@ export default function Derma() {
                   <View className="flex-row items-center gap-3">
                     <IconBadge icon={Stethoscope} size="lg" tone="soft" />
                     <View className="flex-col flex-1">
-                      <Text className="font-bold text-[15px]" style={{ color: "#10241A" }}>
+                      <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
                         {d.name}
                       </Text>
-                      <Text className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
+                      <Text className="text-xs mt-0.5" style={{ color: theme.colors.muted }}>
                         {d.specialty}
                       </Text>
                     </View>
@@ -614,22 +623,22 @@ export default function Derma() {
                     )}
                   </View>
 
-                  <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: "#EEF2EF" }}>
+                  <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}>
                     <View className="flex-row items-center gap-2">
                       <Building
                         size={14}
-                        color="#9CA3AF"
+                        color={theme.colors.faint}
                       />
-                      <Text className="text-xs" style={{ color: "#3F4A44" }}>{d.clinic}</Text>
+                      <Text className="text-xs" style={{ color: theme.colors.body }}>{d.clinic}</Text>
                     </View>
                     <View className="flex-row items-center gap-2">
                       <MapPin
                         size={14}
-                        color="#9CA3AF"
+                        color={theme.colors.faint}
                       />
                       <Text
                         className="text-xs flex-1"
-                        style={{ color: "#3F4A44" }}
+                        style={{ color: theme.colors.body }}
                         numberOfLines={1}
                       >
                         {d.address}
@@ -641,13 +650,13 @@ export default function Derma() {
                     <View className="flex-row items-center gap-3">
                       {d.rating > 0 && (
                         <View className="flex-row items-center gap-1">
-                          <Star size={14} color="#F59E0B" />
-                          <Text className="text-xs font-semibold" style={{ color: "#10241A" }}>
+                          <Star size={14} color={theme.colors.star} />
+                          <Text className="text-xs font-semibold" style={{ color: theme.colors.ink }}>
                             {d.rating.toFixed(1)}
                           </Text>
                         </View>
                       )}
-                      <Text className="text-xs" style={{ color: "#9CA3AF" }}>
+                      <Text className="text-xs" style={{ color: theme.colors.faint }}>
                         {d.distanceKm > 0 ? `${d.distanceKm.toFixed(1)} km away` : "Nearby"}
                       </Text>
                     </View>

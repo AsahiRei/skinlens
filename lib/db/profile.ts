@@ -7,7 +7,7 @@ import { supabase } from "@/utils/supabase";
 
 import { requireUser } from "./auth";
 import { getDatabase } from "./database";
-import { enqueueSync } from "./sync-queue";
+import { enqueueSync, hasPendingSync, removeSyncEntry } from "./sync-queue";
 
 function now() {
   return new Date().toISOString();
@@ -20,6 +20,60 @@ function swallow(p: PromiseLike<unknown>) {
 }
 
 // ── User Profile ──
+
+// Local mirror of a user_profile row as returned by Supabase.
+async function writeUserRow(
+  db: Awaited<ReturnType<typeof getDatabase>>,
+  data: {
+    id: string;
+    username?: string | null;
+    first_name?: string | null;
+    email?: string | null;
+    age?: string | null;
+    gender?: string | null;
+    user_setup?: boolean | number | null;
+    face_image_url?: string | null;
+    face_embedding?: string | null;
+    created_at?: string | null;
+  },
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, gender, user_setup, face_image_url, face_embedding, created_at, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      data.id,
+      data.username ?? null,
+      data.first_name ?? null,
+      data.email ?? "",
+      data.age ?? "",
+      data.gender ?? null,
+      data.user_setup ? 1 : 0,
+      data.face_image_url ?? null,
+      data.face_embedding ?? null,
+      data.created_at ?? now(),
+      now(),
+    ],
+  );
+}
+
+/**
+ * Server row → local mirror, skipped while an offline edit for this record is
+ * still queued: the server copy is then knowingly older than the local one and
+ * a full-row REPLACE would throw the patient's fresh write away (including
+ * face_embedding, which would bounce them back into face enrollment).
+ */
+async function refreshUserRowFromServer(
+  db: Awaited<ReturnType<typeof getDatabase>>,
+  userId: string,
+): Promise<void> {
+  if (await hasPendingSync("user_profile", userId)) return;
+  const { data } = await supabase
+    .from("user_profile")
+    .select("*")
+    .eq("id", userId)
+    .single();
+  if (data) await writeUserRow(db, data);
+}
 
 export async function getUserProfile(): Promise<UserProfile | null> {
   const user = await requireUser();
@@ -40,34 +94,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 
   if (local) {
     // Refresh in background if online
-    swallow(
-      (async () => {
-        const { data } = await supabase
-          .from("user_profile")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        if (data) {
-          await db.runAsync(
-            `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, gender, user_setup, face_image_url, face_embedding, created_at, synced_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              data.id,
-              data.username,
-              data.first_name ?? null,
-              data.email,
-              data.age ?? "",
-              data.gender ?? null,
-              data.user_setup ? 1 : 0,
-              (data as { face_image_url?: string | null }).face_image_url ?? null,
-              (data as { face_embedding?: string | null }).face_embedding ?? null,
-              data.created_at,
-              now(),
-            ],
-          );
-        }
-      })(),
-    );
+    swallow(refreshUserRowFromServer(db, user.id));
     return {
       username: local.username,
       first_name: local.first_name ?? undefined,
@@ -95,23 +122,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
       .single();
     if (error) throw error;
 
-    await db.runAsync(
-      `INSERT OR REPLACE INTO user_profile (id, username, first_name, email, age, gender, user_setup, face_image_url, face_embedding, created_at, synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        data.id,
-        data.username,
-        data.first_name ?? null,
-        data.email,
-        data.age ?? "",
-        data.gender ?? null,
-        data.user_setup ? 1 : 0,
-        (data as { face_image_url?: string | null }).face_image_url ?? null,
-        (data as { face_embedding?: string | null }).face_embedding ?? null,
-        data.created_at,
-        now(),
-      ],
-    );
+    await writeUserRow(db, data);
     return data;
   } catch {
     return null;
@@ -143,58 +154,56 @@ export async function updateUserProfile(
     [user.id, user.email ?? "", now()],
   );
 
-  // Write locally
-  if (updates.gender !== undefined) {
-    await db.runAsync(`UPDATE user_profile SET gender = ? WHERE id = ?`, [
-      updates.gender,
-      user.id,
-    ]);
-  }
-  if (updates.user_setup !== undefined) {
-    await db.runAsync(`UPDATE user_profile SET user_setup = ? WHERE id = ?`, [
-      updates.user_setup ? 1 : 0,
-      user.id,
-    ]);
-  }
-  if (updates.first_name !== undefined) {
-    await db.runAsync(`UPDATE user_profile SET first_name = ? WHERE id = ?`, [
-      updates.first_name,
-      user.id,
-    ]);
-  }
-  if (updates.age !== undefined) {
-    await db.runAsync(`UPDATE user_profile SET age = ? WHERE id = ?`, [
-      updates.age,
-      user.id,
-    ]);
-  }
-  if (updates.face_image_url !== undefined) {
-    await db.runAsync(`UPDATE user_profile SET face_image_url = ? WHERE id = ?`, [
-      updates.face_image_url,
-      user.id,
-    ]);
-  }
-  if (updates.face_embedding !== undefined) {
-    await db.runAsync(`UPDATE user_profile SET face_embedding = ? WHERE id = ?`, [
-      updates.face_embedding,
+  // Write locally — ONE statement (was one UPDATE per changed field, each a
+  // separate trip through the serialized SQLite handle).
+  const columns: string[] = [];
+  const values: (string | number | null)[] = [];
+  const setColumn = (name: string, value: string | number | null) => {
+    columns.push(`${name} = ?`);
+    values.push(value);
+  };
+  if (updates.gender !== undefined) setColumn("gender", updates.gender);
+  if (updates.user_setup !== undefined)
+    setColumn("user_setup", updates.user_setup ? 1 : 0);
+  if (updates.first_name !== undefined) setColumn("first_name", updates.first_name);
+  if (updates.age !== undefined) setColumn("age", updates.age);
+  if (updates.face_image_url !== undefined)
+    setColumn("face_image_url", updates.face_image_url);
+  if (updates.face_embedding !== undefined)
+    setColumn("face_embedding", updates.face_embedding);
+
+  if (columns.length > 0) {
+    await db.runAsync(`UPDATE user_profile SET ${columns.join(", ")} WHERE id = ?`, [
+      ...values,
       user.id,
     ]);
   }
 
   // Queue sync
-  await enqueueSync("user_profile", "update", user.id, {
+  const queuedId = await enqueueSync("user_profile", "update", user.id, {
     ...updates,
     id: user.id,
   });
 
-  // Try sync now
+  // Try sync now. `.select()` catches the zero-row case (server profile row
+  // never created), which PostgREST otherwise reports as a silent success —
+  // the values would never reach the server.
   try {
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("user_profile")
       .update(updates)
       .eq("id", user.id)
-      .single();
+      .select("id");
     if (error) throw error;
+    if (updated && updated.length > 0) {
+      await removeSyncEntry(queuedId);
+    } else {
+      const { error: upsertError } = await supabase
+        .from("user_profile")
+        .upsert({ id: user.id, ...updates }, { onConflict: "id" });
+      if (upsertError) throw upsertError;
+      await removeSyncEntry(queuedId);
+    }
   } catch {
     // Will be retried on next connectivity change
   }
@@ -215,6 +224,7 @@ export async function getSkinProfile(): Promise<SkinProfile | null> {
   if (local) {
     swallow(
       (async () => {
+        if (await hasPendingSync("skin_profile", user.id)) return;
         const { data } = await supabase
           .from("skin_profile")
           .select("*")
@@ -263,7 +273,7 @@ export async function upsertSkinProfile(
     [user.id, profile.skin_type, profile.main_concerns, now()],
   );
 
-  await enqueueSync("skin_profile", "upsert", user.id, {
+  const queuedId = await enqueueSync("skin_profile", "upsert", user.id, {
     ...profile,
     id: user.id,
   });
@@ -274,6 +284,7 @@ export async function upsertSkinProfile(
       .upsert({ id: user.id, ...profile })
       .single();
     if (error) throw error;
+    await removeSyncEntry(queuedId);
   } catch {
     // Will be retried
   }
@@ -295,6 +306,7 @@ export async function getLifestyleProfile(): Promise<LifestyleProfile | null> {
   if (local) {
     swallow(
       (async () => {
+        if (await hasPendingSync("lifestyle_profile", user.id)) return;
         const { data } = await supabase
           .from("lifestyle_profile")
           .select("*")
@@ -362,7 +374,7 @@ export async function upsertLifestyleProfile(
     ],
   );
 
-  await enqueueSync("lifestyle_profile", "upsert", user.id, {
+  const queuedId = await enqueueSync("lifestyle_profile", "upsert", user.id, {
     ...profile,
     id: user.id,
   });
@@ -373,6 +385,7 @@ export async function upsertLifestyleProfile(
       .upsert({ id: user.id, ...profile })
       .single();
     if (error) throw error;
+    await removeSyncEntry(queuedId);
   } catch {
     // Will be retried
   }

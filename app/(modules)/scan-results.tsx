@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Image,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   ToastAndroid,
@@ -14,11 +13,12 @@ import { AlertCircle, FileText, Info, RefreshCw } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { ClinicalCard, PrimaryButton, SecondaryButton, SectionTitle, ScreenHeader, UiModal } from "@/components/ui";
-import { theme, cardShadow } from "@/lib/theme";
+import { ClinicalCard, PrimaryButton, SecondaryButton, UiModal } from "@/components/ui";
+import { theme } from "@/lib/theme";
 import {
   getLatestResultDetail,
   getLifestyleProfile,
+  getSensitivityHistory,
   getSkinProfile,
   insertResult,
   insertRoutine,
@@ -26,6 +26,7 @@ import {
 import type { ResultData } from "@/types/schema";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { getHealthScoreResponse } from "@/utils/healthscore";
+import { ingredientsAvoidedBySensitivity } from "@/utils/knowledge";
 import { generateRoutine } from "@/utils/routine-generator";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
@@ -123,6 +124,7 @@ export default function ScanResults() {
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
   const ranRef = useRef(false);
   const cancelledRef = useRef(false);
+  const busyRef = useRef(false);
 
   const showNotice = (message: string, title = "SkinLens") => {
     if (Platform.OS === "android") {
@@ -143,6 +145,11 @@ export default function ScanResults() {
   });
 
   const generateAndSave = async () => {
+    // Re-entry guard: the effect and the "Try Again" button both call this,
+    // and a second entry before the first finishes would insert the SAME
+    // scan twice (insertResult has no dedupe).
+    if (busyRef.current) return;
+    busyRef.current = true;
     try {
       setGenerating(true);
       setError(null);
@@ -163,6 +170,13 @@ export default function ScanResults() {
       const resolvedSkinType = skinProfile?.skin_type || "normal";
       setSkinType(resolvedSkinType);
 
+      // Personalisation inputs (best-effort): the profile's free-text
+      // concerns re-rank the knowledge base, and ingredients the patient
+      // logged as triggers are dropped when alternatives exist.
+      const sensitivity = await getSensitivityHistory().catch(() => []);
+      if (cancelledRef.current) return;
+      const avoidIngredients = ingredientsAvoidedBySensitivity(sensitivity);
+
       const routineJson = await generateRoutine({
         skin_type: resolvedSkinType,
         main_concern: detectionLabel,
@@ -170,6 +184,8 @@ export default function ScanResults() {
         stress_level: lifestyleProfile?.stress_level ?? "moderate",
         water_intake: lifestyleProfile?.water_intake ?? "1_to_1_5l",
         health_score: overallScore,
+        profile_concerns: skinProfile?.main_concerns ?? null,
+        avoid_ingredients: avoidIngredients,
       });
       if (cancelledRef.current) return;
       await insertRoutine(routineJson);
@@ -213,6 +229,7 @@ export default function ScanResults() {
           : "Failed to generate your routine. Please try again.",
       );
     } finally {
+      busyRef.current = false;
       if (!cancelledRef.current) setGenerating(false);
     }
   };
@@ -240,7 +257,7 @@ export default function ScanResults() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <UiModal
           visible={notice !== null}
@@ -261,7 +278,9 @@ export default function ScanResults() {
             <View className="w-full mt-2">
               <PrimaryButton
                 label="Try Again"
+                loading={generating}
                 onPress={() => {
+                  if (generating) return;
                   ranRef.current = false;
                   generateAndSave();
                 }}
@@ -277,7 +296,7 @@ export default function ScanResults() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <UiModal
         visible={notice !== null}
@@ -294,10 +313,10 @@ export default function ScanResults() {
       >
         <View className="flex-1 px-5 gap-5">
           <View className="pt-4 items-center">
-            <Text className="font-bold text-[24px] mt-1" style={{ color: "#10241A" }}>
+            <Text className="font-bold text-[24px] mt-1" style={{ color: theme.colors.ink }}>
               Scan Results
             </Text>
-            <Text className="text-gray-500">Your skin analysis</Text>
+            <Text style={{ color: theme.colors.muted }}>Your skin analysis</Text>
           </View>
 
           {/* Scanned image */}
@@ -322,7 +341,7 @@ export default function ScanResults() {
               {detectionLabel}
             </Text>
             {conf > 0 && (
-              <Text className="text-sm text-gray-500">
+              <Text className="text-sm" style={{ color: theme.colors.muted }}>
                 Confidence: {(conf * 100).toFixed(1)}%
               </Text>
             )}
@@ -346,15 +365,15 @@ export default function ScanResults() {
                 style={{ backgroundColor: color }}
                 className="h-2 w-2 rounded-full"
               />
-              <Text className="text-sm font-medium text-gray-500">
+              <Text className="text-sm font-medium" style={{ color: theme.colors.muted }}>
                 {severityLabel}
               </Text>
             </View>
           </View>
 
           {/* Top 3 classifications */}
-          <View className="bg-white rounded-[20px] py-4 px-4 gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
-            <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
+          <ClinicalCard className="gap-3">
+            <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
               Top 3 Predictions
             </Text>
             {topPredictions.map((pred, index) => {
@@ -366,78 +385,78 @@ export default function ScanResults() {
                     <View className="flex-row items-center gap-2">
                       <View
                         className="h-6 w-6 items-center justify-center rounded-full"
-                        style={{ backgroundColor: isTop ? "#10241A" : "#F4F7F5" }}
+                        style={{ backgroundColor: isTop ? theme.colors.ink : theme.colors.background }}
                       >
                         <Text
                           className="text-xs font-bold"
-                          style={{ color: isTop ? "#FFFFFF" : "#6B7280" }}
+                          style={{ color: isTop ? "#FFFFFF" : theme.colors.muted }}
                         >
                           {index + 1}
                         </Text>
                       </View>
-                      <Text className="text-sm font-bold capitalize" style={{ color: "#10241A" }}>
+                      <Text className="text-sm font-bold capitalize" style={{ color: theme.colors.ink }}>
                         {pred.label}
                       </Text>
                     </View>
-                    <Text className="text-sm font-medium" style={{ color: "#6B7280" }}>
+                    <Text className="text-sm font-medium" style={{ color: theme.colors.muted }}>
                       {pct.toFixed(1)}%
                     </Text>
                   </View>
-                  <View className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: "#F4F7F5" }}>
+                  <View className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: theme.colors.background }}>
                     <View
                       className="h-full rounded-full"
-                      style={{ width: `${pct}%`, backgroundColor: isTop ? "#15803D" : "#DCFCE7" }}
+                      style={{ width: `${pct}%`, backgroundColor: isTop ? theme.colors.primary : theme.colors.primaryTint }}
                     />
                   </View>
                 </View>
               );
             })}
-          </View>
+          </ClinicalCard>
 
           {/* Detection explanation */}
-          <View className="bg-white rounded-[20px] py-4 px-4 gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+          <ClinicalCard className="gap-3">
             <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: "#EAF6EE" }}>
+              <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: theme.colors.primarySoft }}>
                 <FileText
                   size={20}
-                  color="#15803D"
+                  color={theme.colors.primary}
                 />
               </View>
-              <Text className="flex-1 text-base font-bold" style={{ color: "#10241A" }}>
+              <Text className="flex-1 text-base font-bold" style={{ color: theme.colors.ink }}>
                 Detection Explanation
               </Text>
             </View>
-            <Text className="text-sm leading-5" style={{ color: "#3F4A44" }}>
+            <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>
               {detectionDescriptions[detectionLabel]}
             </Text>
-            <Text className="text-sm leading-5" style={{ color: "#3F4A44" }}>{message}</Text>
-          </View>
+            <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>{message}</Text>
+          </ClinicalCard>
 
           {/* Generating indicator */}
           {generating && (
-            <View className="bg-white rounded-[20px] py-10 px-6 items-center gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
-              <ActivityIndicator color="#15803D" size="small" />
-              <Text className="text-sm" style={{ color: "#6B7280" }}>
+            <ClinicalCard className="py-10 px-6 items-center gap-3">
+              <ActivityIndicator color={theme.colors.primary} size="small" />
+              <Text className="text-sm" style={{ color: theme.colors.muted }}>
                 Generating your routine...
               </Text>
-            </View>
+            </ClinicalCard>
           )}
 
           {/* Recommended products */}
           {!generating &&
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
-              <View className="bg-white rounded-[20px] py-4 px-4 gap-4" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
-                <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
+              <ClinicalCard className="gap-4">
+                <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
                   Recommended Products
                 </Text>
                 {resultData.recommendations.map((product) => (
                   <View
                     key={product.product_type}
                     className="gap-1.5 pb-3"
-                    style={{ borderBottomWidth: 1, borderBottomColor: "#EEF2EF" }}
+                    style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
                   >
-                    <Text className="font-bold" style={{ color: "#10241A" }}>
+                    <Text className="font-bold" style={{ color: theme.colors.ink }}>
                       {product.product_type}
                     </Text>
                     <View className="flex-row flex-wrap gap-1.5">
@@ -445,20 +464,20 @@ export default function ScanResults() {
                         <View
                           key={i}
                           className="rounded-full px-3 py-1"
-                          style={{ backgroundColor: "#EAF6EE" }}
+                          style={{ backgroundColor: theme.colors.primarySoft }}
                         >
-                          <Text className="text-xs font-semibold" style={{ color: "#14532D" }}>
+                          <Text className="text-xs font-semibold" style={{ color: theme.colors.primaryDeep }}>
                             {ingredient}
                           </Text>
                         </View>
                       ))}
                     </View>
-                    <Text className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
+                    <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
                       {product.reason}
                     </Text>
                   </View>
                 ))}
-              </View>
+              </ClinicalCard>
             )}
 
           <View className="h-4" />
@@ -467,9 +486,10 @@ export default function ScanResults() {
 
       <View className="py-6 w-full gap-2 px-5">
         <PrimaryButton
-          label={loading ? "Please wait…" : "Confirm Result"}
+          label="Confirm Result"
           onPress={handleConfirm}
           disabled={loading || generating}
+          loading={loading}
         />
         <SecondaryButton
           label="Scan Again"

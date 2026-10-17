@@ -3,7 +3,7 @@ import { supabase } from "@/utils/supabase";
 
 import { requireUser } from "./auth";
 import { getDatabase } from "./database";
-import { dequeueSync, enqueueSync } from "./sync-queue";
+import { dequeueSync, enqueueSync, removeSyncEntry } from "./sync-queue";
 
 function now() {
   return new Date().toISOString();
@@ -212,7 +212,7 @@ export async function addSensitivityEntry(input: {
     created_at: ts,
   };
 
-  await enqueueSync(
+  const queuedId = await enqueueSync(
     "sensitivity_history",
     "upsert",
     String(result.lastInsertRowId),
@@ -224,6 +224,10 @@ export async function addSensitivityEntry(input: {
       .from("sensitivity_history")
       .insert(serverPayload);
     if (error) throw error;
+    // Inline write landed — drop the queued copy. Leaving it behind made the
+    // next sync pass insert the SAME entry a second time (the queue is the
+    // offline fallback, not a mirror of successful writes).
+    await removeSyncEntry(queuedId);
   } catch {
     // Will be retried on next connectivity change
   }
@@ -254,7 +258,12 @@ export async function deleteSensitivityEntry(id: number): Promise<void> {
     trigger_cause: row.trigger_cause,
     occurred_at: row.occurred_at,
   };
-  await enqueueSync("sensitivity_history", "delete", String(id), deletePayload);
+  const queuedId = await enqueueSync(
+    "sensitivity_history",
+    "delete",
+    String(id),
+    deletePayload,
+  );
 
   try {
     const { data: matches, error: lookupError } = await supabase
@@ -272,6 +281,7 @@ export async function deleteSensitivityEntry(id: number): Promise<void> {
         .in("id", ids);
       if (error) throw error;
     }
+    await removeSyncEntry(queuedId);
   } catch {
     // Will be retried on next connectivity change
   }

@@ -10,6 +10,7 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import {
   ClinicalCard,
   EmptyState,
+  Notice,
   ScreenHeader,
   SectionTitle,
 } from "@/components/ui";
@@ -35,13 +36,20 @@ export default function DoctorSchedule() {
   } = useDoctorQueue();
 
   const [actingId, setActingId] = useState<string | null>(null);
+  // Action failures (incl. "slot already booked") must be visible here,
+  // not swallowed by console.error.
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleAction = async (id: string, status: AppointmentStatus) => {
     setActingId(id);
+    setActionError(null);
     try {
       await applyStatus(id, status);
     } catch (err) {
       console.error("[doctor/schedule] action failed:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Couldn't save that change — try again.",
+      );
     } finally {
       setActingId(null);
     }
@@ -74,6 +82,12 @@ export default function DoctorSchedule() {
             />
           </View>
         </FadeItem>
+
+        {actionError ? (
+          <View className="mt-3">
+            <Notice icon={CircleAlert} copy={actionError} />
+          </View>
+        ) : null}
 
         {loading ? (
           <View className="flex-col gap-3 mt-4">

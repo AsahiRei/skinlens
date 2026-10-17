@@ -11,13 +11,13 @@ import {
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { ArrowLeft, Send, MessageSquare, Download } from "lucide-react-native";
+import { Send, MessageSquare, Download } from "lucide-react-native";
 
 import TypewriterText from "@/components/TypewriterText";
 import TypingDots from "@/components/TypingDots";
 import { KeyboardAvoidingWrapper } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { IconBadge, UiModal } from "@/components/ui";
+import { BackChip, BackHeader, IconBadge, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import type { ChatMessage, ChatTurn } from "@/types/chat";
@@ -132,16 +132,7 @@ export default function Chatbot() {
       prev.map((m) => (m.id === id ? { ...m, animate: false } : m)),
     );
   };
-  const BackButton = (
-    <Pressable
-      onPress={() => router.back()}
-      hitSlop={8}
-      className="h-9 w-9 items-center justify-center rounded-full bg-white"
-      style={{ borderWidth: 1, borderColor: "#E5EDE8" }}
-    >
-      <ArrowLeft size={18} color="#15803D" />
-    </Pressable>
-  );
+  const BackButton = <BackChip onPress={() => router.back()} label="Back to chat" />;
 
   const InputBar = (
     <View
@@ -210,7 +201,7 @@ export default function Chatbot() {
         accessibilityRole="text"
         accessibilityLabel={`Assistant: ${message.content}`}
         className="max-w-[85%] rounded-2xl rounded-bl-[6px] px-4 py-3 self-start bg-white flex-col gap-2"
-        style={{ borderWidth: 1, borderColor: "#E5EDE8" }}
+        style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
       >
         {message.animate ? (
           <TypewriterText
@@ -230,7 +221,7 @@ export default function Chatbot() {
 
   if (!hasStarted) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <UiModal
           visible={downloadNotice !== null}
@@ -246,10 +237,10 @@ export default function Chatbot() {
           <View className="flex-1 items-center justify-center px-5 gap-6">
             <View className="items-center gap-2">
               <IconBadge icon={MessageSquare} size="lg" tone="soft" />
-              <Text className="font-bold text-[24px]" style={{ color: "#10241A" }}>
+              <Text className="font-bold text-[24px]" style={{ color: theme.colors.ink }}>
                 Chat
               </Text>
-              <Text className="text-center" style={{ color: "#6B7280" }}>
+              <Text className="text-center" style={{ color: theme.colors.muted }}>
                 Ask about your skin and routine
               </Text>
             </View>
@@ -261,7 +252,7 @@ export default function Chatbot() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <UiModal
         visible={downloadNotice !== null}
@@ -274,17 +265,11 @@ export default function Chatbot() {
       />
       <KeyboardAvoidingWrapper>
         <View className="px-5 pt-2">
-          <View className="flex-row items-center gap-3">
-            {BackButton}
-            <View className="flex-col flex-1">
-              <Text className="font-bold text-[20px]" style={{ color: "#10241A" }}>
-                Chat
-              </Text>
-              <Text className="text-[13px]" style={{ color: "#6B7280" }}>
-                Ask about your skin and routine
-              </Text>
-            </View>
-          </View>
+          <BackHeader
+            title="Chat"
+            subtitle="Ask about your skin and routine"
+            onBack={() => router.back()}
+          />
         </View>
         <ScrollView
           ref={scrollRef}
@@ -299,7 +284,7 @@ export default function Chatbot() {
             {isThinking && (
               <View
                 className="self-start rounded-2xl rounded-bl-[6px] px-2 py-1 bg-white"
-                style={{ borderWidth: 1, borderColor: "#E5EDE8" }}
+                style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
               >
                 <TypingDots label={thinkingLabel} />
               </View>

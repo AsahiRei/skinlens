@@ -231,15 +231,15 @@ export async function signOutLocal(): Promise<void> {
 }
 
 export async function validateSession(): Promise<Session | null> {
-  console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession start`);
+  if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession start`);
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession no cached session`);
+    if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession no cached session`);
     return null;
   }
-  console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession cached user=`, session.user?.id);
+  if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession cached user=`, session.user?.id);
 
   // Outer watchdog: getUser() goes through the global fetchWithTimeout
   // (10s), but supabase-js can still hang beyond that on a cold start
@@ -271,7 +271,7 @@ export async function validateSession(): Promise<Session | null> {
     return null;
   }
 
-  console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession getUser done hasUser=`, !!user, `error=`, error?.message ?? null);
+  if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession getUser done hasUser=`, !!user, `error=`, error?.message ?? null);
   if (error) {
     const status =
       typeof error === "object" && error !== null && "status" in error
@@ -290,10 +290,10 @@ export async function validateSession(): Promise<Session | null> {
   }
 
   if (!user) {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession no user, signing out locally`);
+    if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession no user, signing out locally`);
     await signOutLocal();
     return null;
   }
-  console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession valid user=`, user.id);
+  if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession valid user=`, user.id);
   return session;
 }

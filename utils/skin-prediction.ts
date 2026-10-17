@@ -97,11 +97,9 @@ async function decodeImageToPixels(
   const base64 = await FileSystem.readAsStringAsync(squareUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
-  const binaryString = atob(base64);
-  const imageBytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    imageBytes[i] = binaryString.charCodeAt(i);
-  }
+  // Buffer.from handles base64 natively — the atob + per-charCodeAt loop it
+  // replaced walked every byte in JS, twice per scan (enhance + classify).
+  const imageBytes = Buffer.from(base64, "base64");
   return jpeg.decode(imageBytes, { useTArray: true });
 }
 
@@ -183,11 +181,7 @@ export async function classifyImage(
   const base64 = await FileSystem.readAsStringAsync(squareUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
-  const binaryString = atob(base64);
-  const imageBytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    imageBytes[i] = binaryString.charCodeAt(i);
-  }
+  const imageBytes = Buffer.from(base64, "base64");
   const decoded = jpeg.decode(imageBytes, {
     useTArray: true,
   });

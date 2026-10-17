@@ -1,10 +1,10 @@
 import React from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Bell, Check, CheckCheck, Trash2 } from "lucide-react-native";
+import { Bell, Check, CheckCheck, Trash2 } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { ClinicalCard, EmptyState, ScreenHeader, UiModal } from "@/components/ui";
+import { BackHeader, ClinicalCard, EmptyState, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ScreenGradient } from "@/components/ScreenGradient";
@@ -84,7 +84,7 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <ScrollView
         className="flex-1 px-5"
@@ -94,90 +94,95 @@ export default function NotificationsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#15803D"
-            colors={["#15803D"]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
         {/* Header */}
-        <View className="flex-row items-center justify-between mt-2">
-          <View className="flex-row items-center gap-3">
-            <Pressable
-              onPress={() => (selecting ? exitSelection() : router.back())}
-              className="h-10 w-10 items-center justify-center rounded-full bg-white active:opacity-80"
-              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-            >
-              <ArrowLeft size={20} color={theme.colors.primary} />
-            </Pressable>
-            <ScreenHeader
-              title={selecting ? "Select" : "Notifications"}
-              subtitle={
-                selecting
-                  ? `${selected.size} selected`
-                  : unreadCount > 0
-                    ? `${unreadCount} unread`
-                    : undefined
-              }
-            />
-          </View>
-          {!selecting && uniqueNotifications.length > 0 && (
-            <View className="flex-row items-center gap-1">
-              {unreadCount > 0 && (
-                <Pressable
-                  onPress={markAllAsRead}
-                  accessibilityRole="button"
-                  accessibilityLabel="Mark all as read"
-                  className="h-9 w-9 items-center justify-center rounded-full active:opacity-80"
-                  style={{ backgroundColor: theme.colors.primarySoft }}
-                >
-                  <CheckCheck size={16} color={theme.colors.primary} />
-                </Pressable>
-              )}
-              <Pressable
-                onPress={() => setSelecting(true)}
-                accessibilityRole="button"
-                accessibilityLabel="Select notifications to delete"
-                className="h-9 px-4 items-center justify-center rounded-full active:opacity-80"
-              >
-                <Text className="font-semibold text-[14px]" style={{ color: theme.colors.primary }}>
-                  Select
-                </Text>
-              </Pressable>
-            </View>
-          )}
-          {selecting && (
-            <View className="flex-row items-center gap-1">
-              <Pressable
-                onPress={exitSelection}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel selection"
-                className="h-9 px-3 items-center justify-center rounded-full active:opacity-80"
-              >
-                <Text className="font-semibold text-[14px]" style={{ color: theme.colors.muted }}>
-                  Cancel
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setConfirmVisible(true)}
-                disabled={selected.size === 0}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  selected.size > 0
-                    ? `Delete ${selected.size} selected notifications`
-                    : "Delete selected notifications"
-                }
-                className="h-9 px-4 items-center justify-center rounded-full active:opacity-80"
-                style={{
-                  backgroundColor:
-                    selected.size > 0 ? theme.colors.danger : theme.colors.cardBorder,
-                }}
-              >
-                <Text className="font-semibold text-[14px]" style={{ color: "#FFFFFF" }}>
-                  {selected.size > 0 ? `Delete (${selected.size})` : "Delete"}
-                </Text>
-              </Pressable>
-            </View>
-          )}
+        <View className="mt-2">
+          <BackHeader
+            title={selecting ? "Select" : "Notifications"}
+            subtitle={
+              selecting
+                ? `${selected.size} selected`
+                : unreadCount > 0
+                  ? `${unreadCount} unread`
+                  : undefined
+            }
+            onBack={() => (selecting ? exitSelection() : router.back())}
+            rightClassName="flex-row items-center gap-1"
+            right={
+              <>
+                {!selecting && uniqueNotifications.length > 0 && (
+                  <View className="flex-row items-center gap-1">
+                    {unreadCount > 0 && (
+                      <Pressable
+                        onPress={markAllAsRead}
+                        accessibilityRole="button"
+                        accessibilityLabel="Mark all as read"
+                        className="h-9 w-9 items-center justify-center rounded-full active:opacity-80"
+                        style={{ backgroundColor: theme.colors.primarySoft }}
+                      >
+                        <CheckCheck size={16} color={theme.colors.primary} />
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={() => setSelecting(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Select notifications to delete"
+                      className="h-9 px-4 items-center justify-center rounded-full active:opacity-80"
+                    >
+                      <Text
+                        className="font-semibold text-[14px]"
+                        style={{ color: theme.colors.primary }}
+                      >
+                        Select
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+                {selecting && (
+                  <View className="flex-row items-center gap-1">
+                    <Pressable
+                      onPress={exitSelection}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancel selection"
+                      className="h-9 px-3 items-center justify-center rounded-full active:opacity-80"
+                    >
+                      <Text
+                        className="font-semibold text-[14px]"
+                        style={{ color: theme.colors.muted }}
+                      >
+                        Cancel
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setConfirmVisible(true)}
+                      disabled={selected.size === 0}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        selected.size > 0
+                          ? `Delete ${selected.size} selected notifications`
+                          : "Delete selected notifications"
+                      }
+                      className="h-9 px-4 items-center justify-center rounded-full active:opacity-80"
+                      style={{
+                        backgroundColor:
+                          selected.size > 0
+                            ? theme.colors.danger
+                            : theme.colors.cardBorder,
+                      }}
+                    >
+                      <Text className="font-semibold text-[14px]" style={{ color: "#FFFFFF" }}>
+                        {selected.size > 0 ? `Delete (${selected.size})` : "Delete"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+              </>
+            }
+          />
         </View>
 
         {/* Notifications list */}

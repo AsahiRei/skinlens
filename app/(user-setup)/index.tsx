@@ -12,10 +12,10 @@ export default function Index() {
     <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
     <View className="flex-1 items-center justify-center p-6">
-      <Text className="text-[28px] font-bold text-center" style={{ color: "#10241A" }}>
+      <Text className="text-[28px] font-bold text-center" style={{ color: theme.colors.ink }}>
         Let’s get to know your skin
       </Text>
-      <Text className="mt-3 text-center" style={{ color: "#6B7280" }}>
+      <Text className="mt-3 text-center" style={{ color: theme.colors.muted }}>
         Answer a few quick questions to set up your routine.
       </Text>
       <View className="w-full mt-4">

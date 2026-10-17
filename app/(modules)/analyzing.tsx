@@ -13,7 +13,7 @@ import Animated, {
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
-import { theme, cardShadow } from "@/lib/theme";
+import { theme } from "@/lib/theme";
 import stepsData from "@/data/steps.json";
 import detectionMetaJson from "@/data/detection-meta.json";
 import { classifyImage, enhanceImage } from "@/utils/skin-prediction";
@@ -49,8 +49,14 @@ export default function Analyzing() {
   const [displayUris, setDisplayUris] = useState<(string | null)[]>([null, null, null]);
   const [detectedResult, setDetectedResult] = useState<ClassificationResult | null>(null);
   const [finalUris, setFinalUris] = useState<string[]>([]);
+  const [running, setRunning] = useState(false);
   const ranRef = useRef(false);
   const cancelledRef = useRef(false);
+  // Re-entry + navigation guards: "Try Again" can be tapped repeatedly and
+  // the confirm buttons fire router.replace, which would otherwise stack
+  // duplicate screens if tapped twice.
+  const busyRef = useRef(false);
+  const navRef = useRef(false);
 
   // imageUris comes from navigation params — never trust it blindly.
   const multiAngles: string[] = useMemo(() => {
@@ -106,6 +112,9 @@ export default function Analyzing() {
   };
 
   const run = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setRunning(true);
     console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} run start isMulti=`, isMulti, `count=`, isMulti ? multiAngles.length : 1, `source=`, sourceType);
     try {
       setError(null);
@@ -205,6 +214,9 @@ export default function Analyzing() {
           ? e.message
           : "Failed to analyze the image. Please try again.",
       );
+    } finally {
+      busyRef.current = false;
+      if (!cancelledRef.current) setRunning(false);
     }
   };
 
@@ -219,8 +231,10 @@ export default function Analyzing() {
   }, []);
 
   const handleProceedToSurvey = () => {
+    if (navRef.current) return;
     console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} proceed to survey label=`, detectedResult?.label);
     if (!detectedResult || !finalUris[0]) return;
+    navRef.current = true;
     router.replace({
       pathname: "/(modules)/survey",
       params: {
@@ -234,6 +248,8 @@ export default function Analyzing() {
   };
 
   const handleRescan = () => {
+    if (navRef.current) return;
+    navRef.current = true;
     router.replace("/(tabs)/scan");
   };
 
@@ -245,7 +261,7 @@ export default function Analyzing() {
     const previewUri = displayUris[0] ?? finalUris[0] ?? (imageUri as string | undefined);
     const isNormal = detectedResult.label === "normal";
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <ScrollView
           className="flex-1"
@@ -255,14 +271,14 @@ export default function Analyzing() {
           <View className="items-center">
             <View
               className="h-12 w-12 rounded-full items-center justify-center"
-              style={{ backgroundColor: "#15803D" }}
+              style={{ backgroundColor: theme.colors.primary }}
             >
               <Check size={22} color="#FFFFFF" />
             </View>
-            <Text className="font-bold text-[24px] mt-3 text-center" style={{ color: "#10241A" }}>
+            <Text className="font-bold text-[24px] mt-3 text-center" style={{ color: theme.colors.ink }}>
               Scan Complete
             </Text>
-            <Text className="text-sm mt-1 text-center" style={{ color: "#6B7280" }}>
+            <Text className="text-sm mt-1 text-center" style={{ color: theme.colors.muted }}>
               {isNormal
                 ? "We didn't find any major skin issues."
                 : `We detected ${prettyLabel}.`}
@@ -271,7 +287,7 @@ export default function Analyzing() {
 
           <ClinicalCard className="mt-5 items-center gap-3 py-6 px-5">
             {previewUri ? (
-              <View className="w-28 h-28 rounded-3xl overflow-hidden bg-[#EAF6EE]" style={{ aspectRatio: 1 }}>
+              <View className="w-28 h-28 rounded-3xl overflow-hidden" style={{ aspectRatio: 1, backgroundColor: theme.colors.primarySoft }}>
                 <Image source={{ uri: previewUri }} className="w-full h-full" resizeMode="cover" />
               </View>
             ) : null}
@@ -283,12 +299,12 @@ export default function Analyzing() {
                 {prettyLabel} {confidencePct > 0 ? `· ${confidencePct}%` : ""}
               </Text>
             </View>
-            <Text className="text-[15px] text-center leading-6" style={{ color: "#10241A" }}>
+            <Text className="text-[15px] text-center leading-6" style={{ color: theme.colors.ink }}>
               {isNormal
                 ? "Your skin looks healthy. Proceed to a short survey to finalize your result?"
                 : `We detected ${prettyLabel}. Proceed to a short survey to finalize your result?`}
             </Text>
-            <Text className="text-xs text-center leading-5" style={{ color: "#6B7280" }}>
+            <Text className="text-xs text-center leading-5" style={{ color: theme.colors.muted }}>
               A few quick questions help confirm the AI result and personalize your routine.
             </Text>
           </ClinicalCard>
@@ -308,7 +324,7 @@ export default function Analyzing() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <View className="flex-1 px-5 items-center justify-center">
           <ClinicalCard className="py-10 px-6 items-center gap-2 w-full">
@@ -318,7 +334,9 @@ export default function Analyzing() {
             <View className="w-full mt-2">
               <PrimaryButton
                 label="Try Again"
+                loading={running}
                 onPress={() => {
+                  if (busyRef.current) return;
                   ranRef.current = false;
                   run();
                 }}
@@ -334,7 +352,7 @@ export default function Analyzing() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <View className="flex-1 px-6">
         <View className="flex-1 items-center justify-center gap-8">
@@ -344,8 +362,8 @@ export default function Analyzing() {
               {multiAngles.map((uri, i) => (
                 <View key={i} className="relative items-center">
                   <View
-                    className="w-24 h-24 rounded-2xl overflow-hidden bg-[#EAF6EE]"
-                    style={{ elevation: 6, aspectRatio: 1 }}
+                    className="w-24 h-24 rounded-2xl overflow-hidden"
+                    style={{ elevation: 6, aspectRatio: 1, backgroundColor: theme.colors.primarySoft }}
                   >
                     {(displayUris[i] ?? uri) && (
                       <Image
@@ -363,8 +381,8 @@ export default function Analyzing() {
                       <View
                         style={{
                           height: 2,
-                          backgroundColor: "#15803D",
-                          shadowColor: "#15803D",
+                          backgroundColor: theme.colors.primary,
+                          shadowColor: theme.colors.primary,
                           shadowOffset: { width: 0, height: 0 },
                           shadowOpacity: 0.8,
                           shadowRadius: 6,
@@ -374,19 +392,19 @@ export default function Analyzing() {
                     </Animated.View>
                     {/* Corner brackets */}
                     <View className="absolute top-2 left-2">
-                      <View style={{ width: 14, height: 14, borderTopWidth: 2, borderLeftWidth: 2, borderColor: "#15803D" }} />
+                      <View style={{ width: 14, height: 14, borderTopWidth: 2, borderLeftWidth: 2, borderColor: theme.colors.primary }} />
                     </View>
                     <View className="absolute top-2 right-2">
-                      <View style={{ width: 14, height: 14, borderTopWidth: 2, borderRightWidth: 2, borderColor: "#15803D" }} />
+                      <View style={{ width: 14, height: 14, borderTopWidth: 2, borderRightWidth: 2, borderColor: theme.colors.primary }} />
                     </View>
                     <View className="absolute bottom-2 left-2">
-                      <View style={{ width: 14, height: 14, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: "#15803D" }} />
+                      <View style={{ width: 14, height: 14, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: theme.colors.primary }} />
                     </View>
                     <View className="absolute bottom-2 right-2">
-                      <View style={{ width: 14, height: 14, borderBottomWidth: 2, borderRightWidth: 2, borderColor: "#15803D" }} />
+                      <View style={{ width: 14, height: 14, borderBottomWidth: 2, borderRightWidth: 2, borderColor: theme.colors.primary }} />
                     </View>
                   </View>
-                  <Text className="text-xs font-semibold text-[#14532D] mt-2">
+                  <Text className="text-xs font-semibold mt-2" style={{ color: theme.colors.primaryDeep }}>
                     {ANGLE_LABELS[i]}
                   </Text>
                 </View>
@@ -395,8 +413,8 @@ export default function Analyzing() {
           ) : (
             <View className="relative items-center justify-center">
               <View
-                className="w-64 h-64 rounded-3xl overflow-hidden bg-[#EAF6EE]"
-                style={{ elevation: 8, aspectRatio: 1 }}
+                className="w-64 h-64 rounded-3xl overflow-hidden"
+                style={{ elevation: 8, aspectRatio: 1, backgroundColor: theme.colors.primarySoft }}
               >
                 {(displayUris[0] ?? imageUri) && (
                   <Image
@@ -414,8 +432,8 @@ export default function Analyzing() {
                   <View
                     style={{
                       height: 3,
-                      backgroundColor: "#15803D",
-                      shadowColor: "#15803D",
+                      backgroundColor: theme.colors.primary,
+                      shadowColor: theme.colors.primary,
                       shadowOffset: { width: 0, height: 0 },
                       shadowOpacity: 0.8,
                       shadowRadius: 8,
@@ -435,26 +453,26 @@ export default function Analyzing() {
                 </Animated.View>
                 {/* Corner brackets */}
                 <View className="absolute top-3 left-3">
-                  <View style={{ width: 20, height: 20, borderTopWidth: 3, borderLeftWidth: 3, borderColor: "#15803D" }} />
+                  <View style={{ width: 20, height: 20, borderTopWidth: 3, borderLeftWidth: 3, borderColor: theme.colors.primary }} />
                 </View>
                 <View className="absolute top-3 right-3">
-                  <View style={{ width: 20, height: 20, borderTopWidth: 3, borderRightWidth: 3, borderColor: "#15803D" }} />
+                  <View style={{ width: 20, height: 20, borderTopWidth: 3, borderRightWidth: 3, borderColor: theme.colors.primary }} />
                 </View>
                 <View className="absolute bottom-3 left-3">
-                  <View style={{ width: 20, height: 20, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: "#15803D" }} />
+                  <View style={{ width: 20, height: 20, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: theme.colors.primary }} />
                 </View>
                 <View className="absolute bottom-3 right-3">
-                  <View style={{ width: 20, height: 20, borderBottomWidth: 3, borderRightWidth: 3, borderColor: "#15803D" }} />
+                  <View style={{ width: 20, height: 20, borderBottomWidth: 3, borderRightWidth: 3, borderColor: theme.colors.primary }} />
                 </View>
               </View>
             </View>
           )}
 
           <View className="pt-2">
-            <Text className="font-bold text-[24px] text-center" style={{ color: "#10241A" }}>
+            <Text className="font-bold text-[24px] text-center" style={{ color: theme.colors.ink }}>
               Scanning Your Skin
             </Text>
-            <Text className="text-center" style={{ color: "#6B7280" }}>
+            <Text className="text-center" style={{ color: theme.colors.muted }}>
               {isMulti
                 ? `Analyzing ${multiAngles.length} angles`
                 : "Analysis in progress"}
@@ -462,13 +480,13 @@ export default function Analyzing() {
           </View>
 
           <View className="w-full gap-3">
-            <Text className="text-center text-base font-medium" style={{ color: "#3F4A44" }}>
+            <Text className="text-center text-base font-medium" style={{ color: theme.colors.body }}>
               {steps[stepIndex].label}...
             </Text>
-            <InlineProgress progress={progressPct} height={8} color="#15803D" trackColor="#EAF6EE" />
+            <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
           </View>
 
-          <View className="bg-white rounded-[20px] py-4 px-4 w-full gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+          <ClinicalCard className="w-full gap-3">
             {steps.map((step, i) => {
               const isDone = i < stepIndex;
               const isActive = i === stepIndex;
@@ -478,10 +496,10 @@ export default function Analyzing() {
                     className="h-7 w-7 rounded-full items-center justify-center"
                     style={{
                       backgroundColor: isDone
-                        ? "#15803D"
+                        ? theme.colors.primary
                         : isActive
-                          ? "#EAF6EE"
-                          : "#F4F7F5",
+                          ? theme.colors.primarySoft
+                          : theme.colors.background,
                     }}
                   >
                     {isDone ? (
@@ -489,7 +507,7 @@ export default function Analyzing() {
                     ) : (
                       <Text
                         className="text-xs font-bold"
-                        style={{ color: isActive ? "#15803D" : "#9CA3AF" }}
+                        style={{ color: isActive ? theme.colors.primary : theme.colors.faint }}
                       >
                         {i + 1}
                       </Text>
@@ -498,7 +516,7 @@ export default function Analyzing() {
                   <Text
                     className="text-sm"
                     style={{
-                      color: isDone || isActive ? "#10241A" : "#9CA3AF",
+                      color: isDone || isActive ? theme.colors.ink : theme.colors.faint,
                       fontWeight: isActive ? "700" : "400",
                       textDecorationLine: isDone ? "line-through" : "none",
                     }}
@@ -508,7 +526,7 @@ export default function Analyzing() {
                 </View>
               );
             })}
-          </View>
+          </ClinicalCard>
         </View>
       </View>
     </SafeAreaView>

@@ -137,42 +137,54 @@ async function openAndMigrate(useNewConnection: boolean): Promise<SQLite.SQLiteD
       );
     `);
 
-    // Migration: add new columns to results table if they don't exist
-    const migrationColumns = [
+    // Secondary indexes for the WHERE / ORDER BY clauses the app actually
+    // issues (the schema above is all CREATE TABLE — without these every
+    // read is a full table scan, including the per-server-row natural-key
+    // lookups in sensitivity.ts).
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_results_user_created
+        ON results (user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_results_user_id
+        ON results (user_id, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_routines_user_id
+        ON routines (user_id, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_sensitivity_user_trigger
+        ON sensitivity_history (user_id, trigger_cause);
+      CREATE INDEX IF NOT EXISTS idx_sensitivity_user_occurred
+        ON sensitivity_history (user_id, occurred_at DESC, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+        ON notifications (user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_sync_queue_lookup
+        ON sync_queue (table_name, record_id);
+    `);
+
+    // Column migrations — driven by PRAGMA table_info instead of the old
+    // "try ALTER, swallow the duplicate-column error" loop, which threw and
+    // caught ~11 exceptions (with stack capture) on every single app open.
+    await ensureColumns(db, "results", [
       { name: "confidence", type: "REAL" },
       { name: "detection_label", type: "TEXT" },
       { name: "survey_answers", type: "TEXT" },
-    ];
-    for (const col of migrationColumns) {
+      { name: "validation_status", type: "TEXT" },
+      { name: "doctor_notes", type: "TEXT" },
+      { name: "validated_by", type: "TEXT" },
+      { name: "validated_at", type: "TEXT" },
+    ]);
+    await ensureColumns(db, "user_profile", [
+      { name: "first_name", type: "TEXT" },
+      // Face recognition enrollment (offline mirror of the server-side
+      // ALTER TABLE public.user_profile ADD COLUMN ...).
+      { name: "face_image_url", type: "TEXT" },
+      { name: "face_embedding", type: "TEXT" },
+    ]);
+
+    // Drop the legacy phone_number column when it is still present.
+    if (await hasColumn(db, "user_profile", "phone_number")) {
       try {
-        await db.runAsync(`ALTER TABLE results ADD COLUMN ${col.name} ${col.type}`);
+        await db.runAsync(`ALTER TABLE user_profile DROP COLUMN phone_number`);
       } catch {
-        // Column already exists, ignore
+        // SQLite version doesn't support DROP COLUMN — harmless, leave it.
       }
-    }
-
-    // Migration: add first_name column to user_profile if it doesn't exist
-    try {
-      await db.runAsync(`ALTER TABLE user_profile ADD COLUMN first_name TEXT`);
-    } catch {
-      // Column already exists, ignore
-    }
-
-    // Migration: face recognition enrollment columns (offline mirror of the
-    // server-side ALTER TABLE public.user_profile ADD COLUMN ...).
-    for (const col of ["face_image_url TEXT", "face_embedding TEXT"]) {
-      try {
-        await db.runAsync(`ALTER TABLE user_profile ADD COLUMN ${col}`);
-      } catch {
-        // Column already exists, ignore
-      }
-    }
-
-    // Migration: drop phone_number column from user_profile if it exists
-    try {
-      await db.runAsync(`ALTER TABLE user_profile DROP COLUMN phone_number`);
-    } catch {
-      // Column already removed or SQLite version doesn't support it, ignore
     }
 
     // Clean stuck notification entries from sync queue (string IDs can't sync to bigint column)
@@ -181,6 +193,37 @@ async function openAndMigrate(useNewConnection: boolean): Promise<SQLite.SQLiteD
     );
 
   return db;
+}
+
+async function tableColumns(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+): Promise<Set<string>> {
+  const rows = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(${table})`,
+  );
+  return new Set(rows.map((r) => r.name));
+}
+
+async function hasColumn(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+  column: string,
+): Promise<boolean> {
+  return (await tableColumns(db, table)).has(column);
+}
+
+async function ensureColumns(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+  columns: { name: string; type: string }[],
+): Promise<void> {
+  const existing = await tableColumns(db, table);
+  for (const col of columns) {
+    if (existing.has(col.name)) continue;
+    await db.runAsync(`ALTER TABLE ${table} ADD COLUMN ${col.name} ${col.type}`);
+    existing.add(col.name);
+  }
 }
 
 /**

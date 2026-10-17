@@ -11,14 +11,14 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { ArrowLeft, TrendingUp, Calendar, FileText, ArrowRight, Check } from "lucide-react-native";
+import { TrendingUp, Calendar, FileText, ArrowRight, Check } from "lucide-react-native";
 import Svg, { Path, Circle, Line as SvgLine } from "react-native-svg";
 
 import { FadeItem } from "@/components/FadeItem";
 import Skeleton from "@/components/Skeleton";
 import TypewriterText from "@/components/TypewriterText";
-import { ClinicalCard, EmptyState, IconBadge, Pill, ScreenHeader, SectionTitle } from "@/components/ui";
-import { theme, cardShadow } from "@/lib/theme";
+import { BackHeader, ClinicalCard, EmptyState, IconBadge, Pill, SectionTitle } from "@/components/ui";
+import { theme } from "@/lib/theme";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { getAllResults, getThisWeekResults } from "@/lib/db";
@@ -68,7 +68,7 @@ function ConfidenceTrendChart({ results }: { results: Result[] }) {
   if (reversed.length < 2) {
     return (
       <View className="items-center py-6">
-        <Text className="text-xs text-[#9CA3AF]">
+        <Text className="text-xs" style={{ color: theme.colors.faint }}>
           Need at least 2 scans to show trend
         </Text>
       </View>
@@ -142,7 +142,7 @@ function ConfidenceTrendChart({ results }: { results: Result[] }) {
         className="flex-row justify-between mt-1"
       >
         {visibleLabels.map((label, i) => (
-          <Text key={i} className="text-[10px] text-[#9CA3AF]" style={{ width: 30, textAlign: "center" }}>
+          <Text key={i} className="text-[10px]" style={{ width: 30, textAlign: "center", color: theme.colors.faint }}>
             {label}
           </Text>
         ))}
@@ -157,7 +157,7 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
   if (reversed.length === 0) {
     return (
       <View className="items-center py-6">
-        <Text className="text-xs text-[#9CA3AF]">No data yet</Text>
+        <Text className="text-xs" style={{ color: theme.colors.faint }}>No data yet</Text>
       </View>
     );
   }
@@ -280,7 +280,7 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
                 );
               })}
             </View>
-            <Text className="text-[10px] text-[#9CA3AF] mt-1">
+            <Text className="text-[10px]" style={{ color: theme.colors.faint, marginTop: 1 }}>
               {labels[dayIndex]}
             </Text>
           </View>
@@ -433,31 +433,29 @@ export default function Progress() {
       >
         {/* Header */}
         <FadeItem index={0}>
-          <View className="flex-row items-center gap-3 mb-1 mt-2">
-            <Pressable
-              onPress={() => router.back()}
-              className="h-9 w-9 items-center justify-center rounded-full bg-white active:opacity-70"
-              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-            >
-              <ArrowLeft size={18} color={theme.colors.primary} />
-            </Pressable>
-            <Text className="font-bold text-[24px]" style={{ color: theme.colors.ink }}>Progress</Text>
-            <View className="flex-1" />
-            <Pressable
-              onPress={handleExport}
-              disabled={exporting}
-              className="flex-row items-center gap-1.5 rounded-full border px-3.5 py-2 bg-white active:opacity-70"
-              style={{ borderColor: theme.colors.cardBorder, opacity: exporting ? 0.7 : 1 }}
-            >
-              {exporting ? (
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              ) : (
-                <FileText size={14} color={theme.colors.primary} />
-              )}
-              <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>
-                {exporting ? "Generating…" : "Export PDF"}
-              </Text>
-            </Pressable>
+          <View className="mb-1 mt-2">
+            <BackHeader
+              title="Progress"
+              onBack={() => router.back()}
+              rightClassName="flex-row items-center gap-1.5"
+              right={
+                <Pressable
+                  onPress={handleExport}
+                  disabled={exporting}
+                  className="flex-row items-center gap-1.5 rounded-full border px-3.5 py-2 bg-white active:opacity-70"
+                  style={{ borderColor: theme.colors.cardBorder, opacity: exporting ? 0.7 : 1 }}
+                >
+                  {exporting ? (
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                  ) : (
+                    <FileText size={14} color={theme.colors.primary} />
+                  )}
+                  <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>
+                    {exporting ? "Generating…" : "Export PDF"}
+                  </Text>
+                </Pressable>
+              }
+            />
           </View>
         </FadeItem>
 
@@ -542,11 +540,11 @@ export default function Progress() {
                       />
                     ) : (
                       <View className="w-full h-full items-center justify-center">
-                        <Text className="text-xs text-[#9CA3AF]">No image</Text>
+                        <Text className="text-xs" style={{ color: theme.colors.faint }}>No image</Text>
                       </View>
                     )}
                   </View>
-                  <Text className="text-xs text-[#9CA3AF] mt-2">
+                  <Text className="text-xs" style={{ color: theme.colors.faint, marginTop: 2 }}>
                     {formatDateFull(firstResult.created_at)}
                   </Text>
                 </View>
@@ -574,7 +572,7 @@ export default function Progress() {
                       />
                     ) : (
                       <View className="w-full h-full items-center justify-center">
-                        <Text className="text-xs text-[#9CA3AF]">No image</Text>
+                        <Text className="text-xs" style={{ color: theme.colors.faint }}>No image</Text>
                       </View>
                     )}
                   </View>
@@ -631,6 +629,22 @@ export default function Progress() {
                           <Text className="text-xs" style={{ color: theme.colors.faint }}>
                             Confidence: {conf}
                           </Text>
+                          {result.validation_status === "confirmed" ||
+                          result.validation_status === "needs_review" ? (
+                            <Text
+                              className="text-xs font-bold"
+                              style={{
+                                color:
+                                  result.validation_status === "confirmed"
+                                    ? theme.colors.primary
+                                    : "#B45309",
+                              }}
+                            >
+                              {result.validation_status === "confirmed"
+                                ? "Dermatologist confirmed"
+                                : "Flagged for follow-up"}
+                            </Text>
+                          ) : null}
                         </View>
                       </View>
                       <Text className="text-xs font-bold" style={{ color: theme.colors.primary }}>

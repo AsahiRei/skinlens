@@ -34,6 +34,7 @@ import {
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import { PrimaryButton } from "@/components/ui";
+import { theme } from "@/lib/theme";
 import { saveFaceIdentity } from "@/lib/db";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import {
@@ -256,16 +257,16 @@ export default function FaceEnroll() {
   // Same one-question layout as setup step 9 — title, one line, button.
   if (!started) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <View className="flex-1 px-5 pt-8 pb-6">
           <Text
             className="font-bold text-[22px]"
-            style={{ color: "#10241A" }}
+            style={{ color: theme.colors.ink }}
           >
             {isReenroll ? "Update your profile picture" : "Take a profile picture"}
           </Text>
-          <Text className="text-sm leading-5 mt-2" style={{ color: "#6B7280" }}>
+          <Text className="text-sm leading-5 mt-2" style={{ color: theme.colors.muted }}>
             You&apos;ll take one photo on the next screen.
           </Text>
 
@@ -343,7 +344,7 @@ export default function FaceEnroll() {
           <View className="px-5">
             <View className="bg-white rounded-2xl p-4 gap-1.5">
               <View className="flex-row items-center gap-2">
-                <ScanFace size={20} color="#15803D" />
+                <ScanFace size={20} color={theme.colors.primary} />
                 <Text className="font-bold text-gray-900 text-lg">
                   {isReenroll ? "Update your profile picture" : "Take a profile picture"}
                 </Text>
@@ -416,7 +417,7 @@ export default function FaceEnroll() {
                   alignItems: "center", justifyContent: "center",
                 }}
               >
-                <CameraIcon size={26} color={canCapture ? "#15803D" : "rgba(255,255,255,0.4)"} />
+                <CameraIcon size={26} color={canCapture ? theme.colors.primary : "rgba(255,255,255,0.4)"} />
               </View>
             </Pressable>
           </View>
@@ -431,20 +432,14 @@ export default function FaceEnroll() {
               >
                 <RefreshCw size={26} color="white" />
               </Pressable>
-              <Pressable
-                onPress={handleConfirm}
-                disabled={saving}
-                className="flex-1 ml-4 rounded-full items-center justify-center py-4"
-                style={{ backgroundColor: saving ? "rgba(21,128,61,0.5)" : "#15803D" }}
-              >
-                {saving ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text className="font-bold text-white">
-                    {isReenroll ? "Save picture" : "Use photo"}
-                  </Text>
-                )}
-              </Pressable>
+              <View className="flex-1 ml-4">
+                <PrimaryButton
+                  label={isReenroll ? "Save picture" : "Use photo"}
+                  onPress={handleConfirm}
+                  loading={saving}
+                  disabled={saving}
+                />
+              </View>
             </View>
           </View>
         )}

@@ -43,6 +43,10 @@ export default function Index() {
   const [stuck, setStuck] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const routedRef = useRef(false);
+  // Shared with safeReplace so a queued retry can't fire after unmount or
+  // after a fresh boot attempt took over.
+  const mountedRef = useRef(true);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const safeReplace = useCallback(
     (
@@ -62,8 +66,10 @@ export default function Index() {
       } catch {
         // Navigation not ready yet (cold start race) — retry once shortly.
         routedRef.current = false;
-        setTimeout(() => {
-          if (routedRef.current) return;
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(() => {
+          retryTimerRef.current = null;
+          if (routedRef.current || !mountedRef.current) return;
           routedRef.current = true;
           try {
             router.replace(path as never);
@@ -76,9 +82,9 @@ export default function Index() {
 
   useEffect(() => {
     routedRef.current = false;
-    let mounted = true;
+    mountedRef.current = true;
     const stuckTimer = setTimeout(() => {
-      if (mounted && !routedRef.current) setStuck(true);
+      if (mountedRef.current && !routedRef.current) setStuck(true);
     }, STUCK_AFTER_MS);
 
     const initialize = async () => {
@@ -96,7 +102,7 @@ export default function Index() {
           console.warn("[index] onboarding check inconclusive, continuing:", err);
         }
         console.log(`[SkinLens][Boot] ${new Date().toISOString()} onboarding flag=`, isOnboarded);
-        if (!mounted || routedRef.current) return;
+        if (!mountedRef.current || routedRef.current) return;
         if (isOnboarded !== "true") {
           safeReplace("/onboarding");
           return;
@@ -109,7 +115,7 @@ export default function Index() {
         } catch (err) {
           console.warn("[index] database open inconclusive, continuing:", err);
         }
-        if (!mounted || routedRef.current) return;
+        if (!mountedRef.current || routedRef.current) return;
 
         // 3. Cached session (AsyncStorage-only, no network).
         let cachedSession = null;
@@ -124,7 +130,7 @@ export default function Index() {
           console.warn("[index] cached session read failed:", err);
         }
         console.log(`[SkinLens][Boot] ${new Date().toISOString()} cached session user=`, cachedSession?.user?.id ?? null);
-        if (!mounted || routedRef.current) return;
+        if (!mountedRef.current || routedRef.current) return;
         if (!cachedSession?.user) {
           safeReplace("/welcome");
           return;
@@ -145,7 +151,7 @@ export default function Index() {
             "local profile read",
           );
           console.log(`[SkinLens][Boot] ${new Date().toISOString()} local user_setup=`, localProfile?.user_setup ?? null);
-          if (!mounted || routedRef.current) return;
+          if (!mountedRef.current || routedRef.current) return;
           if (localProfile?.user_setup === 1) {
             // Cached profile says setup is done — go to tabs immediately.
             // Server re-validation happens in SyncManager / _layout (they
@@ -156,7 +162,7 @@ export default function Index() {
         } catch (err) {
           console.warn("[index] local profile check inconclusive:", err);
         }
-        if (!mounted || routedRef.current) return;
+        if (!mountedRef.current || routedRef.current) return;
 
         // 5. No local cache — server decides. validateSession fails open to
         // the cached session while offline (12s outer watchdog inside).
@@ -171,11 +177,14 @@ export default function Index() {
           return;
         }
         console.log(`[SkinLens][Boot] ${new Date().toISOString()} validated session user=`, session?.user?.id ?? null);
-        if (!mounted || routedRef.current) return;
+        if (!mountedRef.current || routedRef.current) return;
         if (!session?.user) {
           try {
             await withTimeout(handleInvalidSession(), 8000, "invalid session purge");
           } catch {}
+          // The purge awaited a timeout — a Retry pressed during it starts a
+          // NEW run, so this one must not route anymore.
+          if (!mountedRef.current || routedRef.current) return;
           safeReplace("/welcome");
           return;
         }
@@ -199,7 +208,7 @@ export default function Index() {
             error: unknown;
           };
           const { data: userSetup, error: setupError } = setupRes;
-          if (!mounted || routedRef.current) return;
+          if (!mountedRef.current || routedRef.current) return;
           if (setupError) {
             safeReplace("/(tabs)");
             return;
@@ -228,8 +237,12 @@ export default function Index() {
     initialize();
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
       clearTimeout(stuckTimer);
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
     };
   }, [router, attempt, safeReplace]);
 

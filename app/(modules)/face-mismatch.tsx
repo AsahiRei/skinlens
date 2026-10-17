@@ -16,7 +16,7 @@ export default function FaceMismatch() {
       : null;
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <View className="flex-1 px-5 items-center justify-center">
         <ClinicalCard className="py-10 px-6 items-center gap-3 w-full">

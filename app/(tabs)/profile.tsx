@@ -323,7 +323,7 @@ export default function Profile() {
             ) : (
               <ClinicalCard className="flex-col gap-3 mt-4">
                 <SectionTitle title="Lifestyle Info" />
-                <View className="flex-row items-center py-3 border-b border-[#EEF2EF]">
+                <View className="flex-row items-center py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
                   <View className="mr-3">
                     <IconBadge icon={Moon} size="md" tone="soft" />
                   </View>
@@ -334,7 +334,7 @@ export default function Profile() {
                     </Text>
                   </View>
                 </View>
-                <View className="flex-row items-center py-3 border-b border-[#EEF2EF]">
+                <View className="flex-row items-center py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
                   <View className="mr-3">
                     <IconBadge icon={Droplets} size="md" tone="soft" />
                   </View>
@@ -423,7 +423,7 @@ export default function Profile() {
           <FadeItem index={5}>
             <ClinicalCard className="flex-col gap-3 mt-4">
               <SectionTitle title="Notifications" />
-              <View className="flex-row items-center justify-between py-3 border-b border-[#EEF2EF]">
+              <View className="flex-row items-center justify-between py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
                 <View className="flex-col flex-1 pr-3">
   <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
                       Scan Reminders

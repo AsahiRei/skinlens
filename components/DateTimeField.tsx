@@ -54,7 +54,7 @@ export function DateTimeField({
     <View className="flex-col gap-2">
       <View
         className="flex-row items-center gap-2 rounded-2xl py-3.5 px-4 border"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }}
+        style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }}
       >
         <Pressable
           onPress={openPicker}

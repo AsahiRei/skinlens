@@ -2,6 +2,7 @@ import type React from "react";
 import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import type { LucideIcon } from "lucide-react-native";
+import { ArrowLeft } from "lucide-react-native";
 
 import { cardShadow, theme } from "@/lib/theme";
 
@@ -26,6 +27,57 @@ export function ScreenHeader({
           {subtitle}
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+/* ---------- Back chip: the single back affordance for every stack screen
+ * h-9 / icon 18 is the app-wide standard (matches the tab dock rhythm); a few
+ * screens used h-10 / icon 20 and read visibly larger than their neighbours. */
+export function BackChip({
+  onPress,
+  label = "Go back",
+}: {
+  onPress: () => void;
+  label?: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      className="h-9 w-9 items-center justify-center rounded-full bg-white active:opacity-70"
+      style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <ArrowLeft size={18} color={theme.colors.primary} />
+    </Pressable>
+  );
+}
+
+/* ---------- Back header: back chip + ScreenHeader (+ optional right slot).
+ * Wraps ScreenHeader in flex-1 so a right-hand action is pushed to the edge
+ * instead of colliding with the title. */
+export function BackHeader({
+  title,
+  subtitle,
+  onBack,
+  right,
+  rightClassName = "",
+}: {
+  title: string;
+  subtitle?: string;
+  onBack?: () => void;
+  right?: React.ReactNode;
+  rightClassName?: string;
+}) {
+  return (
+    <View className="flex-row items-center gap-3">
+      {onBack ? <BackChip onPress={onBack} /> : null}
+      <View className="flex-1">
+        <ScreenHeader title={title} subtitle={subtitle} />
+      </View>
+      {right ? <View className={rightClassName}>{right}</View> : null}
     </View>
   );
 }

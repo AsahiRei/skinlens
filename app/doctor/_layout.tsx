@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 10,
     minHeight: 74,
-    shadowColor: "#10241A",
+    shadowColor: theme.colors.ink,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.28,
     shadowRadius: 28,

@@ -1,4 +1,8 @@
-import { getIngredientsForCondition, getProductsForCondition } from "./knowledge";
+import {
+  getIngredientsForCondition,
+  getProductsForCondition,
+  selectForProfile,
+} from "./knowledge";
 
 function parseAndValidateRoutine(jsonStr: string): string {
   let parsed: any;
@@ -188,13 +192,26 @@ export function buildRuleBasedRoutine(
     stress_level?: string;
     water_intake?: string;
   },
+  profile?: {
+    profile_concerns?: string | null;
+    avoid_ingredients?: string[] | null;
+  },
 ): string {
   const safeSkinType = normalize(skinType, "normal");
   const safeConcern = normalize(mainConcern, "normal");
   const score = Number.isFinite(healthScore) ? Math.round(healthScore) : 0;
 
-  let ingredients = getIngredientsForCondition(safeConcern).slice(0, 8);
-  let products = getProductsForCondition(safeConcern).slice(0, 4);
+  // Personalised (but still purely rule-based) ranking: condition first,
+  // then skin type / profile concerns re-order the same knowledge base,
+  // then logged sensitivities drop ingredients when alternatives exist.
+  const selection = selectForProfile({
+    condition: safeConcern,
+    skin_type: safeSkinType,
+    profile_concerns: profile?.profile_concerns ?? null,
+    avoid_ingredients: profile?.avoid_ingredients ?? null,
+  });
+  let ingredients = selection.ingredients.slice(0, 8);
+  let products = selection.products.slice(0, 4);
   // Unknown concern labels fall back to the "normal" maintenance set so the
   // routine is never empty.
   if (products.length === 0) {
@@ -231,8 +248,18 @@ export function buildRuleBasedRoutine(
       ? `Your ${safeSkinType} skin looks healthy with a score of ${score}/100. This routine works daily to ${benefit}`
       : `Your ${safeSkinType} skin looks well-managed (${safeConcern}) with a score of ${score}/100. This routine works daily to ${benefit}`;
 
+  // Personalisation notes (skin type tuning, sensitivity exclusions) come
+  // straight from selectForProfile — same deterministic input → output.
+  const summaryTail = [
+    ...selection.notes,
+    lifestyleNote ? `Also note: ${lifestyleNote}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const summary = summaryTail ? `${summaryBase}. ${summaryTail}` : `${summaryBase}.`;
+
   const fallback = {
-    summary: lifestyleNote ? `${summaryBase}. Also note: ${lifestyleNote}` : `${summaryBase}.`,
+    summary: summary,
     morning_routine: [
       step(
         1,
@@ -297,6 +324,10 @@ export type GenerateRoutineInput = {
   stress_level: string;
   water_intake: string;
   health_score: number;
+  /** Free-text main concerns from the skin profile (re-ranks knowledge). */
+  profile_concerns?: string | null;
+  /** Ingredient names from the sensitivity log (dropped when possible). */
+  avoid_ingredients?: string[] | null;
   /**
    * Kept for backward compatibility with callers that streamed LLM tokens.
    * Rule-based generation is instant, so this is never called.
@@ -316,10 +347,18 @@ export async function generateRoutine({
   stress_level,
   water_intake,
   health_score,
+  profile_concerns,
+  avoid_ingredients,
 }: GenerateRoutineInput): Promise<string> {
-  return buildRuleBasedRoutine(skin_type, main_concern, health_score, {
-    sleep_quality,
-    stress_level,
-    water_intake,
-  });
+  return buildRuleBasedRoutine(
+    skin_type,
+    main_concern,
+    health_score,
+    {
+      sleep_quality,
+      stress_level,
+      water_intake,
+    },
+    { profile_concerns, avoid_ingredients },
+  );
 }

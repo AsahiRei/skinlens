@@ -10,7 +10,8 @@ import {
 } from "lucide-react-native";
 
 import { DateTimeField } from "@/components/DateTimeField";
-import { ClinicalCard, Pill } from "@/components/ui";
+import { DoctorResultValidation } from "@/components/DoctorResultValidation";
+import { ClinicalCard, Pill, PrimaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import {
   isRemoteImageUrl,
@@ -253,6 +254,11 @@ export function DoctorAppointmentCard({
       </View>
       )}
 
+      {/* AI scan review — open while the visit is still active */}
+      {a.status === "requested" || a.status === "scheduled" ? (
+        <DoctorResultValidation patientId={a.patient_id} />
+      ) : null}
+
       {/* Actions */}
       {a.status === "requested" ? (
         <View className="flex-col gap-2">
@@ -283,25 +289,12 @@ export function DoctorAppointmentCard({
                 minimumDate={new Date()}
                 fallbackDate={SCHEDULER_FALLBACK}
               />
-              <Pressable
+              <PrimaryButton
+                label="Confirm schedule"
                 onPress={() => onAction(a.id, "scheduled", scheduledDate.toISOString())}
                 disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel="Confirm schedule"
-                className="rounded-full active:opacity-80"
-                style={{ borderRadius: theme.radius.pill, overflow: "hidden", opacity: busy ? 0.7 : 1 }}
-              >
-                <LinearGradient
-                  colors={[...theme.gradients.dark]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  className="py-3.5 px-5 items-center justify-center"
-                >
-                  <Text className="font-bold text-white text-[14px]">
-                    {busy ? "Confirming…" : "Confirm schedule"}
-                  </Text>
-                </LinearGradient>
-              </Pressable>
+                loading={busy}
+              />
             </View>
           ) : null}
 

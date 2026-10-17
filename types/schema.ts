@@ -15,6 +15,9 @@ export type SkinProfile = {
   main_concerns: string;
 };
 
+/** "pending" until a dermatologist reviews the scan (migration 0007). */
+export type ValidationStatus = "pending" | "confirmed" | "needs_review";
+
 export type Result = {
   id: number;
   severity: string;
@@ -28,6 +31,11 @@ export type Result = {
   confidence?: number | null;
   detection_label?: string | null;
   survey_answers?: string | null;
+  /** Set server-side by a dermatologist; null/undefined = not reviewed. */
+  validation_status?: ValidationStatus | null;
+  doctor_notes?: string | null;
+  validated_by?: string | null;
+  validated_at?: string | null;
 };
 
 export type LifestyleProfile = {

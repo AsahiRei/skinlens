@@ -10,12 +10,12 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { ArrowLeft, Calendar } from "lucide-react-native";
+import { Calendar } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { PrimaryButton, SecondaryButton } from "@/components/ui";
+import { BackHeader, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { cardShadow, theme } from "@/lib/theme";
 import profileOptions from "@/data/profile-options.json";
 import {
@@ -68,15 +68,15 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <View className="bg-white rounded-[20px] py-4 px-4 gap-3 mt-4" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
-      <Text className="text-base font-semibold" style={{ color: "#10241A" }}>{title}</Text>
+    <View className="bg-white rounded-[20px] py-4 px-4 gap-3 mt-4" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }}>
+      <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>{title}</Text>
       {children}
     </View>
   );
 }
 
 function FieldLabel({ label }: { label: string }) {
-  return <Text className="text-sm" style={{ color: "#6B7280" }}>{label}</Text>;
+  return <Text className="text-sm" style={{ color: theme.colors.muted }}>{label}</Text>;
 }
 
 function OptionChips({
@@ -100,12 +100,12 @@ function OptionChips({
             style={
               isSelected
                 ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
-                : { backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }
+                : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
             }
           >
             <Text
               className="text-sm font-semibold"
-              style={{ color: isSelected ? "#FFFFFF" : "#3F4A44" }}
+              style={{ color: isSelected ? "#FFFFFF" : theme.colors.body }}
             >
               {formatter(opt)}
             </Text>
@@ -209,29 +209,21 @@ export default function EditProfile() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <FadeItem index={0}>
-        <View className="flex-row items-center gap-3 px-5 pt-4 pb-1 mt-2">
-          <Pressable
-            onPress={() => router.back()}
-            className="w-9 h-9 rounded-full bg-white items-center justify-center active:opacity-70"
-            style={{ borderWidth: 1, borderColor: "#E5EDE8" }}
-          >
-            <ArrowLeft size={18} color="#15803D" />
-          </Pressable>
-          <View>
-            <Text className="font-bold text-[20px]" style={{ color: "#10241A" }}>Edit Profile</Text>
-            <Text className="text-sm" style={{ color: "#6B7280" }}>
-              Update your personal and skin info
-            </Text>
-          </View>
+        <View className="px-5 pt-4 pb-1 mt-2">
+          <BackHeader
+            title="Edit Profile"
+            subtitle="Update your personal and skin info"
+            onBack={() => router.back()}
+          />
         </View>
       </FadeItem>
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#15803D" size="small" />
+          <ActivityIndicator color={theme.colors.primary} size="small" />
         </View>
       ) : (
         <KeyboardAwareScroll contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
@@ -239,13 +231,13 @@ export default function EditProfile() {
             <Section title="Personal Info">
               <View className="gap-1.5">
                 <FieldLabel label="First Name" />
-                <View className="bg-white rounded-2xl px-4" style={{ borderWidth: 1, borderColor: "#E5EDE8" }}>
+                <View className="bg-white rounded-2xl px-4" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}>
                   <TextInput
                     value={firstName}
                     onChangeText={setFirstName}
                     placeholder="Your first name"
-                    placeholderTextColor="#9CA3AF"
-                    className="py-3 text-[#10241A]"
+                    placeholderTextColor={theme.colors.faint}
+                    className="py-3" style={{ color: theme.colors.ink }}
                   />
                 </View>
               </View>
@@ -270,17 +262,17 @@ export default function EditProfile() {
                     <Pressable
                       onPress={() => setShowPicker(true)}
                       className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border active:opacity-90"
-                      style={{ backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }}
+                      style={{ backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }}
                     >
                       <View
                         className="h-9 w-9 items-center justify-center rounded-full"
-                        style={{ backgroundColor: "#EAF6EE" }}
+                        style={{ backgroundColor: theme.colors.primarySoft }}
                       >
-                        <Calendar size={18} color="#15803D" />
+                        <Calendar size={18} color={theme.colors.primary} />
                       </View>
                       <Text
                         className="flex-1 font-semibold"
-                        style={{ color: dob ? "#10241A" : "#9CA3AF" }}
+                        style={{ color: dob ? theme.colors.ink : theme.colors.faint }}
                       >
                         {dob ? formatDob(dob) : originalAge || "Select your date of birth"}
                       </Text>

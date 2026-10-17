@@ -3,6 +3,8 @@ import { uploadImageToCloudinary } from "@/utils/cloudinary";
 
 import { handleInvalidSession } from "./auth";
 import { getDatabase } from "./database";
+import { isMissingColumnError } from "./pg-errors";
+import { claimAnonymousResults } from "./results";
 import { dequeueSync, removeSyncEntry } from "./sync-queue";
 
 function isAuthSyncError(err: unknown): boolean {
@@ -17,13 +19,18 @@ function isAuthSyncError(err: unknown): boolean {
       : "";
   // Supabase auth errors: invalid JWT / user gone. PostgREST may surface
   // these as PGRST301 or via message text.
+  //
+  // NOTE: schema errors such as `column ... does not exist` (42703) or
+  // `relation ... does not exist` must NEVER match here — handleInvalidSession
+  // wipes every local table on a match, so a stale schema cache would log the
+  // patient out and destroy their offline data. Those are handled by
+  // isMissingColumnError fallbacks instead.
   if (code === "PGRST301") return true;
   const msg = err instanceof Error ? err.message.toLowerCase() : String(err ?? "").toLowerCase();
   return (
     msg.includes("jwt") ||
     msg.includes("user_not_found") ||
     msg.includes("user from sub claim") ||
-    msg.includes("does not exist") ||
     msg.includes("not authenticated") ||
     msg.includes("invalid token") ||
     msg.includes("token revoked") ||
@@ -31,14 +38,19 @@ function isAuthSyncError(err: unknown): boolean {
   );
 }
 
-export async function processSyncQueue(): Promise<void> {
+export async function processSyncQueue(opts?: {
+  // Set by callers that just ran validateSession() themselves: skips the
+  // second (identical) network round trip. The queue drain below still runs
+  // — only the redundant auth re-verification is skipped.
+  sessionValidated?: boolean;
+}): Promise<void> {
   // SyncManager (mount) and network transitions can trigger this
   // concurrently; without a guard two passes would pick up and double-apply
   // the same queue rows.
   if (processing) return;
   processing = true;
   try {
-    await processSyncQueueInner();
+    await processSyncQueueInner(opts?.sessionValidated === true);
   } finally {
     processing = false;
   }
@@ -46,7 +58,7 @@ export async function processSyncQueue(): Promise<void> {
 
 let processing = false;
 
-async function processSyncQueueInner(): Promise<void> {
+async function processSyncQueueInner(sessionValidated = false): Promise<void> {
   // Deleted-user guard: the cached AsyncStorage session may belong to an
   // account that no longer exists. Validating first stops us from pushing
   // that user's queued rows (which would fail / leak) and purges the
@@ -56,10 +68,21 @@ async function processSyncQueueInner(): Promise<void> {
     data: { session: cached },
   } = await supabase.auth.getSession();
   if (!cached) return;
-  const valid = await validateSession();
-  if (!valid) {
-    await handleInvalidSession();
-    return;
+  if (!sessionValidated) {
+    const valid = await validateSession();
+    if (!valid) {
+      await handleInvalidSession();
+      return;
+    }
+  }
+
+  // Scans taken while signed out sit under user_id='anonymous' and would be
+  // invisible to every read (which filters on the real id). Claim them first
+  // so their queue entries are picked up by THIS pass.
+  try {
+    await claimAnonymousResults();
+  } catch (err) {
+    console.warn("[sync] claimAnonymousResults failed:", err);
   }
 
   const entries = await dequeueSync();
@@ -85,11 +108,21 @@ async function processSyncQueueInner(): Promise<void> {
               id: string;
               [k: string]: unknown;
             };
-            const { error } = await supabase
+            // `.select()` matters: PostgREST reports NO error when an UPDATE
+            // matches zero rows (profile row never created server-side), which
+            // would drop the fields silently. Empty result → create it.
+            const { data: updated, error } = await supabase
               .from("user_profile")
               .update(updates)
-              .eq("id", id);
+              .eq("id", id)
+              .select("id");
             if (error) throw error;
+            if (!updated || updated.length === 0) {
+              const { error: upsertError } = await supabase
+                .from("user_profile")
+                .upsert({ id, ...updates }, { onConflict: "id" });
+              if (upsertError) throw upsertError;
+            }
           }
           break;
         }
@@ -124,16 +157,15 @@ async function processSyncQueueInner(): Promise<void> {
             const cloudUrl = await uploadImageToCloudinary(payload.image_url);
             payload.image_url = cloudUrl ?? null;
           }
-          // The server `results` table has no confidence / detection_label /
-          // survey_answers columns (verified against the live schema), so
-          // they must be excluded or the whole write fails. They are kept
-          // on the local row. TODO: add those columns server-side, then stop
-          // stripping them here and in insertResult.
+          // Validation columns are owned by the validate_ai_result() RPC
+          // (migration 0007) — strip them defensively so a patient sync can
+          // never overwrite a dermatologist's review.
           const {
-            confidence: _confidence,
-            detection_label: _detectionLabel,
-            survey_answers: _surveyAnswers,
             id: payloadId,
+            validation_status: _validationStatus,
+            doctor_notes: _doctorNotes,
+            validated_by: _validatedBy,
+            validated_at: _validatedAt,
             ...remotePayload
           } = payload;
 
@@ -157,35 +189,81 @@ async function processSyncQueueInner(): Promise<void> {
 
           const tempId =
             typeof payloadId === "number" && payloadId < 0 ? payloadId : null;
-          if (tempId !== null) {
-            // Row was created offline with a negative temp id. Insert
-            // WITHOUT an id so the server generates a real one — reusing
-            // the temp id collides with other users' temp rows and trips
-            // RLS (42501). Then remap the local row to the server id.
-            const { data, error } = await supabase
-              .from("results")
-              .insert(remotePayload)
-              .select("id")
-              .single();
-            if (error) throw error;
-            const ts = new Date().toISOString();
-            const alreadyLocal = await db.getFirstAsync<{ id: number }>(
-              `SELECT id FROM results WHERE id = ?`,
-              [data.id],
-            );
-            if (alreadyLocal) {
-              await db.runAsync(`DELETE FROM results WHERE id = ?`, [tempId]);
+
+          const writeResultsRow = async (
+            body: Record<string, unknown>,
+          ): Promise<number | null> => {
+            if (tempId !== null) {
+              // Row was created offline with a negative temp id. Insert
+              // WITHOUT an id so the server generates a real one — reusing
+              // the temp id collides with other users' temp rows and trips
+              // RLS (42501). Then remap the local row to the server id.
+              const { data, error } = await supabase
+                .from("results")
+                .insert(body)
+                .select("id")
+                .single();
+              if (error) throw error;
+              const ts = new Date().toISOString();
+              const alreadyLocal = await db.getFirstAsync<{ id: number }>(
+                `SELECT id FROM results WHERE id = ?`,
+                [data.id],
+              );
+              if (alreadyLocal) {
+                await db.runAsync(`DELETE FROM results WHERE id = ?`, [
+                  tempId,
+                ]);
+              } else {
+                await db.runAsync(
+                  `UPDATE results SET id = ?, synced_at = ? WHERE id = ?`,
+                  [data.id, ts, tempId],
+                );
+              }
+              return typeof data.id === "number" ? data.id : null;
             } else {
+              const { error } = await supabase
+                .from("results")
+                .upsert(
+                  { id: payloadId, ...body },
+                  { onConflict: "id", ignoreDuplicates: false },
+                );
+              if (error) throw error;
+              return null;
+            }
+          };
+
+          try {
+            await writeResultsRow(remotePayload);
+          } catch (err) {
+            if (!isMissingColumnError(err)) throw err;
+            // Server predates migration 0007: push the core row now, keep
+            // this entry queued so confidence / detection_label /
+            // survey_answers flow up on the next pass after 0007 is applied.
+            console.warn(
+              `[sync] results entry ${entry.id}: server missing scan columns (apply supabase/migrations/0007_result_validation.sql), core row synced; scan fields stay queued`,
+            );
+            const {
+              confidence: _confidence,
+              detection_label: _detectionLabel,
+              survey_answers: _surveyAnswers,
+              ...corePayload
+            } = remotePayload;
+            const serverId = await writeResultsRow(corePayload);
+            if (tempId !== null && serverId !== null) {
+              // The temp id was consumed by the insert above (local row
+              // remapped). Re-point the still-queued payload at the real
+              // id so the next pass upserts INTO that row instead of
+              // inserting a duplicate with a fresh server id.
               await db.runAsync(
-                `UPDATE results SET id = ?, synced_at = ? WHERE id = ?`,
-                [data.id, ts, tempId],
+                `UPDATE sync_queue SET record_id = ?, payload = ? WHERE id = ?`,
+                [
+                  String(serverId),
+                  JSON.stringify({ ...payload, id: serverId }),
+                  entry.id,
+                ],
               );
             }
-          } else {
-            const { error } = await supabase
-              .from("results")
-              .upsert({ id: payloadId, ...remotePayload }, { onConflict: "id", ignoreDuplicates: false });
-            if (error) throw error;
+            continue;
           }
           break;
         }
@@ -302,17 +380,39 @@ async function processSyncQueueInner(): Promise<void> {
             // No match = already gone server-side; still a success so the
             // queue entry is removed below.
           } else {
-            const { error } = await supabase
+            // Upsert by natural key, exactly like the delete branch: local
+            // sqlite ids are not server ids, and a bare insert would create a
+            // second server row whenever this entry is replayed (the inline
+            // write in addSensitivityEntry succeeds but used to leave the
+            // queued copy behind).
+            const { data: matches, error: lookupError } = await supabase
               .from("sensitivity_history")
-              .insert({
-                user_id: payload.user_id,
-                trigger_cause: payload.trigger_cause,
-                severity: payload.severity,
-                notes: payload.notes ?? null,
-                occurred_at: payload.occurred_at,
-                created_at: payload.created_at ?? payload.occurred_at,
-              });
-            if (error) throw error;
+              .select("id")
+              .eq("user_id", payload.user_id)
+              .eq("occurred_at", payload.occurred_at)
+              .eq("trigger_cause", payload.trigger_cause);
+            if (lookupError) throw lookupError;
+            const row = {
+              user_id: payload.user_id,
+              trigger_cause: payload.trigger_cause,
+              severity: payload.severity,
+              notes: payload.notes ?? null,
+              occurred_at: payload.occurred_at,
+              created_at: payload.created_at ?? payload.occurred_at,
+            };
+            const existing = matches ?? [];
+            if (existing.length > 0) {
+              const { error } = await supabase
+                .from("sensitivity_history")
+                .update(row)
+                .eq("id", existing[0].id);
+              if (error) throw error;
+            } else {
+              const { error } = await supabase
+                .from("sensitivity_history")
+                .insert(row);
+              if (error) throw error;
+            }
           }
           break;
         }

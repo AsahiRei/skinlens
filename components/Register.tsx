@@ -57,7 +57,7 @@ export default function Register() {
       return;
     }
     const cleanName = displayName.trim();
-    if (!cleanName) {
+    if (isDoctor && !cleanName) {
       ToastAndroid.show("Please enter your name", ToastAndroid.SHORT);
       return;
     }
@@ -110,8 +110,8 @@ export default function Register() {
         .from("user_profile")
         .insert({
           id: user.id,
-          username: cleanName,
-          first_name: cleanName,
+          username: isDoctor ? cleanName : undefined,
+          first_name: isDoctor ? cleanName : undefined,
           email: email.trim(),
         });
 
@@ -162,20 +162,24 @@ export default function Register() {
   return (
     <KeyboardAwareScroll contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: 40 }}>
       <View className="flex-col gap-4">
-        <View className="flex-col gap-2">
-          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Full Name</Text>
-          <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
-            <User size={22} color={theme.colors.muted} />
-            <TextInput
-              value={displayName}
-              onChangeText={setDisplayName}
-              placeholder={isDoctor ? "Dr. Jane Cruz" : "Enter your full name"}
-              className="flex-1 text-[#10241A]"
-              placeholderTextColor={theme.colors.faint}
-              autoCapitalize="words"
-            />
+
+        {isDoctor ? (
+          <View className="flex-col gap-2">
+            <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Full Name</Text>
+            <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+              <User size={22} color={theme.colors.muted} />
+              <TextInput
+                value={displayName}
+                onChangeText={setDisplayName}
+                placeholder="Dr. Jane Cruz"
+                className="flex-1"
+                style={{ color: theme.colors.ink }}
+                placeholderTextColor={theme.colors.faint}
+                autoCapitalize="words"
+              />
+            </View>
           </View>
-        </View>
+        ) : null}
         <View className="flex-col gap-2">
           <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Email Address</Text>
           <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
@@ -184,7 +188,8 @@ export default function Register() {
               value={email}
               onChangeText={setEmail}
               placeholder="Enter your email address"
-              className="flex-1 text-[#10241A]"
+              className="flex-1"
+              style={{ color: theme.colors.ink }}
               placeholderTextColor={theme.colors.faint}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -199,7 +204,8 @@ export default function Register() {
               value={password}
               onChangeText={setPassword}
               placeholder="Enter your password"
-              className="flex-1 text-[#10241A]"
+              className="flex-1"
+              style={{ color: theme.colors.ink }}
               placeholderTextColor={theme.colors.faint}
               secureTextEntry={!showPassword}
             />
@@ -224,7 +230,8 @@ export default function Register() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirm your password"
-              className="flex-1 text-[#10241A]"
+              className="flex-1"
+              style={{ color: theme.colors.ink }}
               placeholderTextColor={theme.colors.faint}
               secureTextEntry={!showConfirmPassword}
             />
@@ -269,7 +276,8 @@ export default function Register() {
                 value={inviteCode}
                 onChangeText={(t) => setInviteCode(t.toUpperCase())}
                 placeholder="SKN-XXXXXX"
-                className="flex-1 text-[#10241A]"
+                className="flex-1"
+                style={{ color: theme.colors.ink }}
                 placeholderTextColor={theme.colors.faint}
                 autoCapitalize="characters"
               />

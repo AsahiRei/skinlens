@@ -1,15 +1,15 @@
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Bell, Trash2 } from "lucide-react-native";
+import { Bell, Trash2 } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import {
+  BackHeader,
   ClinicalCard,
   EmptyState,
   PrimaryButton,
-  ScreenHeader,
   UiModal,
 } from "@/components/ui";
 import { theme } from "@/lib/theme";
@@ -63,18 +63,11 @@ export default function NotificationDetailScreen() {
 
   if (!notification) {
     return (
-      <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+      <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <View className="flex-1 px-5">
-          <View className="flex-row items-center gap-3 mt-2">
-            <Pressable
-              onPress={() => router.back()}
-              className="h-10 w-10 items-center justify-center rounded-full bg-white active:opacity-80"
-              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-            >
-              <ArrowLeft size={20} color={theme.colors.primary} />
-            </Pressable>
-            <ScreenHeader title="Notification" />
+          <View className="mt-2">
+            <BackHeader title="Notification" onBack={() => router.back()} />
           </View>
           <View className="mt-5">
             <ClinicalCard>
@@ -97,36 +90,30 @@ export default function NotificationDetailScreen() {
   });
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <ScrollView
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <View className="flex-row items-center justify-between mt-2">
-          <View className="flex-row items-center gap-3">
-            <Pressable
-              onPress={() => router.back()}
-              className="h-10 w-10 items-center justify-center rounded-full bg-white active:opacity-80"
-              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-            >
-              <ArrowLeft size={20} color={theme.colors.primary} />
-            </Pressable>
-            <ScreenHeader
-              title={typeLabel(notification.type)}
-              subtitle={fullDate}
-            />
-          </View>
-          <Pressable
-            onPress={() => setConfirmVisible(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Delete notification"
-            className="h-9 px-3 items-center justify-center rounded-full active:opacity-80"
-            style={{ backgroundColor: "#FEF2F2" }}
-          >
-            <Trash2 size={16} color={theme.colors.danger} />
-          </Pressable>
+        <View className="mt-2">
+          <BackHeader
+            title={typeLabel(notification.type)}
+            subtitle={fullDate}
+            onBack={() => router.back()}
+            right={
+              <Pressable
+                onPress={() => setConfirmVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Delete notification"
+                className="h-9 px-3 items-center justify-center rounded-full active:opacity-80"
+                style={{ backgroundColor: "#FEF2F2" }}
+              >
+                <Trash2 size={16} color={theme.colors.danger} />
+              </Pressable>
+            }
+          />
         </View>
 
         <ClinicalCard className="mt-5">

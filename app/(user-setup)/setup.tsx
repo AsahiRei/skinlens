@@ -13,8 +13,8 @@ import {
 import InlineProgress from "@/components/InlineProgress";
 import { KeyboardAvoidingWrapper } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { PrimaryButton, SecondaryButton } from "@/components/ui";
-import { cardShadow, theme } from "@/lib/theme";
+import { PrimaryButton, ClinicalCard, SecondaryButton } from "@/components/ui";
+import { theme } from "@/lib/theme";
 import profileOptions from "@/data/profile-options.json";
 import questionPage from "@/data/user-setup-questions.json";
 import { ScreenGradient } from "@/components/ScreenGradient";
@@ -106,16 +106,16 @@ export default function Setup() {
     pagerRef.current?.setPage(page - 1);
   };
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <View className="px-5 pt-4 gap-2">
         <View className="flex-row items-center justify-between">
-          <Text className="font-bold text-[11px]" style={{ color: "#15803D", letterSpacing: 1 }}>
+          <Text className="font-bold text-[11px]" style={{ color: theme.colors.primary, letterSpacing: 1 }}>
             STEP {page + 1} OF {totalSteps}
           </Text>
-          <Text className="text-xs" style={{ color: "#6B7280" }}>{progressPct}%</Text>
+          <Text className="text-xs" style={{ color: theme.colors.muted }}>{progressPct}%</Text>
         </View>
-        <InlineProgress progress={progressPct} height={8} color="#15803D" trackColor="#EAF6EE" />
+        <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
       </View>
       <KeyboardAvoidingWrapper>
       <PagerView
@@ -131,11 +131,11 @@ export default function Setup() {
           if (Math.abs(index - page) > 1) return <View key={index} />;
           return (
           <View key={index} className="px-5 gap-4">
-            <Text className="text-[22px] font-bold" style={{ color: "#10241A" }}>
+            <Text className="text-[22px] font-bold" style={{ color: theme.colors.ink }}>
               {item.label}
             </Text>
             {item.type === "options" && (
-              <View className="bg-white rounded-[20px] p-3 flex-col gap-2" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+              <ClinicalCard className="flex-col gap-2" style={{ padding: 12 }}>
                 {item.options?.map((option: any, optIndex: number) => {
                   const isSelected = answers[item.id] === option.value;
                   return (
@@ -146,25 +146,25 @@ export default function Setup() {
                       style={
                         isSelected
                           ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
-                          : { backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }
+                          : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
                       }
                     >
                       <View
                         className="h-9 w-9 items-center justify-center rounded-full"
                         style={{
-                          backgroundColor: isSelected ? "rgba(255,255,255,0.2)" : "#EAF6EE",
+                          backgroundColor: isSelected ? "rgba(255,255,255,0.2)" : theme.colors.primarySoft,
                         }}
                       >
                         <Text
                           className="font-bold text-[15px]"
-                          style={{ color: isSelected ? "#FFFFFF" : "#15803D" }}
+                          style={{ color: isSelected ? "#FFFFFF" : theme.colors.primary }}
                         >
                           {optIndex + 1}
                         </Text>
                       </View>
                       <Text
                         className="flex-1 font-semibold"
-                        style={{ color: isSelected ? "#FFFFFF" : "#10241A" }}
+                        style={{ color: isSelected ? "#FFFFFF" : theme.colors.ink }}
                       >
                         {option.label}
                       </Text>
@@ -177,22 +177,22 @@ export default function Setup() {
                     </Pressable>
                   );
                 })}
-              </View>
+              </ClinicalCard>
             )}
             {item.type === "text" && (
-              <View className="bg-white rounded-2xl px-4 py-3" style={{ borderWidth: 1, borderColor: "#E5EDE8" }}>
+              <View className="bg-white rounded-2xl px-4 py-3" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}>
                 <TextInput
                   value={answers[item.id] || ""}
                   onChangeText={(text) => handleSelect(item.id, text)}
                   placeholder="Type here..."
                   className="text-gray-900"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.colors.faint}
                   autoFocus
                 />
               </View>
             )}
             {item.type === "date" && (
-              <View className="bg-white rounded-[20px] p-4" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+              <ClinicalCard>
                 {Platform.OS === "ios" ? (
                   <DateTimePicker
                     value={dob ?? DOB_FALLBACK}
@@ -212,17 +212,17 @@ export default function Setup() {
                     <Pressable
                       onPress={() => setShowPicker(true)}
                       className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border active:opacity-90"
-                      style={{ backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }}
+                      style={{ backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }}
                     >
                       <View
                         className="h-9 w-9 items-center justify-center rounded-full"
-                        style={{ backgroundColor: "#EAF6EE" }}
+                        style={{ backgroundColor: theme.colors.primarySoft }}
                       >
-                        <Calendar size={18} color="#15803D" />
+                        <Calendar size={18} color={theme.colors.primary} />
                       </View>
                       <Text
                         className="flex-1 font-semibold"
-                        style={{ color: dob ? "#10241A" : "#9CA3AF" }}
+                        style={{ color: dob ? theme.colors.ink : theme.colors.faint }}
                       >
                         {dob ? formatDob(dob) : "Select your date of birth"}
                       </Text>
@@ -251,7 +251,7 @@ export default function Setup() {
                     )}
                   </>
                 )}
-              </View>
+              </ClinicalCard>
             )}
           </View>
           );
@@ -259,10 +259,10 @@ export default function Setup() {
         {/* Final step: profile picture ask. */}
         {Math.abs(questionPage.length - page) <= 1 ? (
           <View key="photo" className="px-5 gap-4">
-            <Text className="text-[22px] font-bold" style={{ color: "#10241A" }}>
+            <Text className="text-[22px] font-bold" style={{ color: theme.colors.ink }}>
               Take a profile picture
             </Text>
-            <Text className="text-sm leading-5" style={{ color: "#6B7280" }}>
+            <Text className="text-sm leading-5" style={{ color: theme.colors.muted }}>
               You&apos;ll take one photo on the next screen.
             </Text>
           </View>

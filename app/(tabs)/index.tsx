@@ -78,6 +78,10 @@ export default function Home() {
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [routineId, setRoutineId] = useState<number | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  // In-flight toggles: a fast second tap would otherwise compute its state
+  // from the stale `completedSteps` closure and land the two DB writes out of
+  // order. Same guard the Routine tab already uses.
+  const [pendingSteps, setPendingSteps] = useState<Set<string>>(new Set());
   const [loadingRoutine, setLoadingRoutine] = useState(true);
   const [activePeriod, setActivePeriod] = useState<Period>("morning");
 
@@ -159,6 +163,7 @@ export default function Home() {
   };
   const handleToggleStep = async (period: Period, step: number) => {
     const key = `${period}-${step}`;
+    if (pendingSteps.has(key)) return;
     const isCurrentlyDone = completedSteps.has(key);
 
     setCompletedSteps((prev) => {
@@ -167,6 +172,7 @@ export default function Home() {
       else next.add(key);
       return next;
     });
+    setPendingSteps((prev) => new Set(prev).add(key));
 
     try {
       if (routineId == null) throw new Error("Missing routine");
@@ -177,6 +183,12 @@ export default function Home() {
         const next = new Set(prev);
         if (isCurrentlyDone) next.add(key);
         else next.delete(key);
+        return next;
+      });
+    } finally {
+      setPendingSteps((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
         return next;
       });
     }
@@ -244,7 +256,7 @@ export default function Home() {
               accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
               hitSlop={8}
             >
-              <Bell size={20} color="#15803D" />
+              <Bell size={20} color={theme.colors.primary} />
               {unreadCount > 0 && (
                 <View className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full border border-white" style={{ backgroundColor: theme.colors.danger }} />
               )}
@@ -345,13 +357,13 @@ export default function Home() {
                   className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
                   style={{ backgroundColor: theme.colors.primarySoft }}
                 >
-                  <ChevronLeft size={16} color="#15803D" />
+                  <ChevronLeft size={16} color={theme.colors.primary} />
                 </Pressable>
 
                 <View className="flex-row items-center gap-2">
                   {(() => {
                     const Icon = PERIOD_CONFIG[activePeriod].icon;
-                    return <Icon size={18} color="#15803D" />;
+                    return <Icon size={18} color={theme.colors.primary} />;
                   })()}
                   <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
                     {PERIOD_CONFIG[activePeriod].label}
@@ -364,7 +376,7 @@ export default function Home() {
                   className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
                   style={{ backgroundColor: theme.colors.primarySoft }}
                 >
-                  <ChevronRight size={16} color="#15803D" />
+                  <ChevronRight size={16} color={theme.colors.primary} />
                 </Pressable>
               </View>
 
@@ -401,8 +413,8 @@ export default function Home() {
                   <InlineProgress
                     progress={routineProgress}
                     height={8}
-                    color="#15803D"
-                    trackColor="#EAF6EE"
+                    color={theme.colors.primary}
+                    trackColor={theme.colors.primarySoft}
                   />
 
                   <View className="flex-row items-start justify-between gap-2 mt-1">
@@ -410,21 +422,27 @@ export default function Home() {
                       const isDone = completedSteps.has(
                         `${activePeriod}-${item.step}`,
                       );
+                      const isPending = pendingSteps.has(
+                        `${activePeriod}-${item.step}`,
+                      );
                       return (
                         <Pressable
                           key={item.step}
                           onPress={() => handleToggleStep(activePeriod, item.step)}
+                          disabled={isPending}
                           accessibilityRole="checkbox"
                           accessibilityState={{ checked: isDone }}
                           accessibilityLabel={`${item.product_type}, ${isDone ? "completed" : "not completed"}`}
-                          className="flex-col items-center gap-1.5 flex-1 active:opacity-70"
+                          className={`flex-col items-center gap-1.5 flex-1 active:opacity-70 ${
+                            isPending ? "opacity-50" : ""
+                          }`}
                         >
                           <View
                             className="h-11 w-11 rounded-full items-center justify-center bg-white"
                             style={
                               isDone
                                 ? { backgroundColor: theme.colors.primary }
-                                : { borderWidth: 1.5, borderColor: "#15803D" }
+                                : { borderWidth: 1.5, borderColor: theme.colors.primary }
                             }
                           >
                             {isDone ? (
@@ -487,10 +505,10 @@ export default function Home() {
             >
               <ClinicalCard className="items-center gap-2">
                 <IconBadge icon={MessageSquare} size="lg" tone="soft" />
-                <Text className="font-bold text-[13px] text-center" style={{ color: "#10241A" }}>
+                <Text className="font-bold text-[13px] text-center" style={{ color: theme.colors.ink }}>
                   Chat
                 </Text>
-                <Text className="text-[11px] text-center" style={{ color: "#6B7280" }}>
+                <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
                   Ask skin questions
                 </Text>
               </ClinicalCard>
@@ -502,10 +520,10 @@ export default function Home() {
               >
                 <ClinicalCard className="items-center gap-2">
                   <IconBadge icon={TrendingUp} size="lg" tone="soft" />
-                  <Text className="font-bold text-[13px] text-center" style={{ color: "#10241A" }}>
+                  <Text className="font-bold text-[13px] text-center" style={{ color: theme.colors.ink }}>
                     Progress
                   </Text>
-                  <Text className="text-[11px] text-center" style={{ color: "#6B7280" }}>
+                  <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
                     Track your skin
                   </Text>
                 </ClinicalCard>
@@ -548,7 +566,7 @@ export default function Home() {
               {result ? (
                 <View className="flex-row items-center gap-3">
                   {result.image_url ? (
-                    <View className="h-12 w-12 rounded-2xl overflow-hidden" style={{ backgroundColor: "#EAF6EE" }}>
+                    <View className="h-12 w-12 rounded-2xl overflow-hidden" style={{ backgroundColor: theme.colors.primarySoft }}>
                       <Image
                         source={{ uri: result.image_url }}
                         className="w-full h-full"
@@ -571,12 +589,28 @@ export default function Home() {
                         ? `Confidence: ${Math.round(result.confidence * 100)}%`
                         : formatter(result.severity)}
                     </Text>
+                    {result.validation_status === "confirmed" ||
+                    result.validation_status === "needs_review" ? (
+                      <Text
+                        className="text-xs font-bold"
+                        style={{
+                          color:
+                            result.validation_status === "confirmed"
+                              ? theme.colors.primary
+                              : "#B45309",
+                        }}
+                      >
+                        {result.validation_status === "confirmed"
+                          ? "Dermatologist confirmed"
+                          : "Flagged for follow-up"}
+                      </Text>
+                    ) : null}
                   </View>
                   <Pressable
                     className="active:opacity-70"
                     onPress={() => router.push("/(modules)/progress")}
                   >
-                    <ChevronRight size={18} color="#9CA3AF" />
+                    <ChevronRight size={18} color={theme.colors.faint} />
                   </Pressable>
                 </View>
               ) : (

@@ -7,12 +7,12 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ArrowLeft, Plus, ShieldAlert, Trash2, X, TriangleAlert } from "lucide-react-native";
+import { Plus, ShieldAlert, Trash2, X, TriangleAlert } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
-import { ClinicalCard, IconBadge, Pill, PrimaryButton, SectionTitle, UiModal } from "@/components/ui";
+import { BackHeader, ClinicalCard, IconBadge, Pill, PrimaryButton, SectionTitle, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import profileOptions from "@/data/profile-options.json";
 import {
@@ -58,12 +58,12 @@ function ChipRow({
             style={
               isSelected
                 ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
-                : { backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }
+                : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
             }
           >
             <Text
               className="text-sm font-semibold"
-              style={{ color: isSelected ? "#FFFFFF" : "#3F4A44" }}
+              style={{ color: isSelected ? "#FFFFFF" : theme.colors.body }}
             >
               {formatter(opt)}
             </Text>
@@ -148,7 +148,7 @@ export default function SensitivityScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <UiModal
         visible={notice !== null}
@@ -184,32 +184,24 @@ export default function SensitivityScreen() {
         ]}
       />
       <FadeItem index={0}>
-        <View className="flex-row items-center gap-3 px-5 pt-4 pb-1 mt-2">
-          <Pressable
-            onPress={() => router.back()}
-            className="w-9 h-9 rounded-full bg-white items-center justify-center active:opacity-70"
-            style={{ borderWidth: 1, borderColor: "#E5EDE8" }}
-          >
-            <ArrowLeft size={18} color="#15803D" />
-          </Pressable>
-          <View className="flex-1">
-            <Text className="font-bold text-[20px]" style={{ color: "#10241A" }}>
-              Sensitivity History
-            </Text>
-            <Text className="text-sm" style={{ color: "#6B7280" }}>
-              Track reactions and possible triggers
-            </Text>
-          </View>
-          {!showForm && (
-            <Pressable
-              onPress={() => setShowForm(true)}
-              className="active:opacity-80"
-              accessibilityRole="button"
-              accessibilityLabel="Log an episode"
-            >
-              <IconBadge icon={Plus} size="md" tone="primary" />
-            </Pressable>
-          )}
+        <View className="px-5 pt-4 pb-1 mt-2">
+          <BackHeader
+            title="Sensitivity History"
+            subtitle="Track reactions and possible triggers"
+            onBack={() => router.back()}
+            right={
+              !showForm ? (
+                <Pressable
+                  onPress={() => setShowForm(true)}
+                  className="active:opacity-80"
+                  accessibilityRole="button"
+                  accessibilityLabel="Log an episode"
+                >
+                  <IconBadge icon={Plus} size="md" tone="primary" />
+                </Pressable>
+              ) : undefined
+            }
+          />
         </View>
       </FadeItem>
 
@@ -222,14 +214,14 @@ export default function SensitivityScreen() {
                 <Pressable
                   onPress={() => setShowForm(false)}
                   className="w-8 h-8 rounded-full items-center justify-center active:opacity-70"
-                  style={{ backgroundColor: "#F4F7F5" }}
+                  style={{ backgroundColor: theme.colors.background }}
                 >
-                  <X size={16} color="#6B7280" />
+                  <X size={16} color={theme.colors.muted} />
                 </Pressable>
               </View>
 
               <View className="gap-1.5">
-                <Text className="text-sm" style={{ color: "#6B7280" }}>Possible Trigger</Text>
+                <Text className="text-sm" style={{ color: theme.colors.muted }}>Possible Trigger</Text>
                 <ChipRow
                   options={TRIGGER_OPTIONS}
                   value={trigger}
@@ -238,7 +230,7 @@ export default function SensitivityScreen() {
               </View>
 
               <View className="gap-1.5">
-                <Text className="text-sm" style={{ color: "#6B7280" }}>Severity</Text>
+                <Text className="text-sm" style={{ color: theme.colors.muted }}>Severity</Text>
                 <ChipRow
                   options={SEVERITY_OPTIONS}
                   value={severity}
@@ -247,8 +239,8 @@ export default function SensitivityScreen() {
               </View>
 
               <View className="gap-1.5">
-                <Text className="text-sm" style={{ color: "#6B7280" }}>Notes (optional)</Text>
-                <View className="bg-white rounded-2xl px-4" style={{ borderWidth: 1, borderColor: "#E5EDE8" }}>
+                <Text className="text-sm" style={{ color: theme.colors.muted }}>Notes (optional)</Text>
+                <View className="bg-white rounded-2xl px-4" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}>
                   <TextInput
                     value={notes}
                     onChangeText={setNotes}
@@ -272,7 +264,7 @@ export default function SensitivityScreen() {
 
         {loading ? (
           <View className="py-10 items-center">
-            <ActivityIndicator color="#15803D" size="small" />
+            <ActivityIndicator color={theme.colors.primary} size="small" />
           </View>
         ) : entries.length === 0 ? (
           <FadeItem index={2}>

@@ -103,7 +103,8 @@ export default function Login() {
               value={email}
               onChangeText={setEmail}
               placeholder="Enter your email address"
-              className="flex-1 text-[#10241A]"
+              className="flex-1"
+              style={{ color: theme.colors.ink }}
               placeholderTextColor={theme.colors.faint}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -118,7 +119,8 @@ export default function Login() {
               value={password}
               onChangeText={setPassword}
               placeholder="Enter your password"
-              className="flex-1 text-[#10241A]"
+              className="flex-1"
+              style={{ color: theme.colors.ink }}
               placeholderTextColor={theme.colors.faint}
               secureTextEntry={!showPassword}
             />

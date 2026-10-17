@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 
 import {
@@ -39,26 +39,46 @@ export function useDoctorQueue() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Focus, pull-to-refresh and applyStatus all call load() concurrently with
+  // no ordering — a slow earlier response used to overwrite fresher rows.
+  // Each call takes a ticket; anything but the newest is dropped. The mounted
+  // flag stops a response that lands after the hook is gone from redirecting.
+  const requestIdRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestIdRef.current++; // invalidate anything in flight
+    };
+  }, []);
 
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    const isStale = () =>
+      requestIdRef.current !== requestId || !mountedRef.current;
     setError(null);
     try {
       const prof = await getMyDoctorProfile();
+      if (isStale()) return;
       if (!prof) {
         router.replace("/doctor/profile" as never);
         return;
       }
       setDoctor(prof);
       const appts = await getClinicAppointments(prof.clinicId);
+      if (isStale()) return;
       setRows(appts);
       const names = await resolveAppointmentNames(appts);
+      if (isStale()) return;
       setPatientNames(names.patientNames);
       setPatientAvatars(names.patientAvatars);
     } catch (err) {
+      if (isStale()) return;
       console.error("[doctor] queue load failed:", err);
       setError(err instanceof Error ? err.message : "Couldn't load schedule.");
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   }, [router]);
 

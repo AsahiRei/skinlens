@@ -189,3 +189,161 @@ export function formatKnowledgeForPrompt(
 
   return lines.join("\n");
 }
+
+/* ── Profile-aware selection ───────────────────────────────────────────
+ * Personalisation layer for the rule-based routine generator. The detected
+ * condition remains the primary signal; the profile's skin type and
+ * free-text concerns only re-rank entries from the SAME knowledge base,
+ * and the patient's sensitivity log can drop ingredients — still fully
+ * deterministic, no LLM involved. */
+
+/** Secondary conditions that a skin type contributes to the ranking. */
+const SKIN_TYPE_CONDITIONS: Record<string, SkinCondition[]> = {
+  oily: ["oily"],
+  dry: ["dry"],
+  combination: ["oily", "dry"],
+  sensitive: ["eczema"],
+  normal: [],
+};
+
+/**
+ * Floors for sensitivity-based filtering: never strip the routine down to
+ * almost nothing — if exclusions would leave fewer items than this, the
+ * top-ranked picks are restored (and a patch-test note is added instead).
+ */
+export const MIN_SELECTED_INGREDIENTS = 4;
+export const MIN_SELECTED_PRODUCTS = 2;
+
+function rankBy<T>(items: T[], score: (item: T) => number): T[] {
+  return items
+    .map((item, index) => ({ item, index, score: score(item) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((entry) => entry.item);
+}
+
+export type ProfileSelection = {
+  ingredients: Ingredient[];
+  products: ProductEntry[];
+  /** Short human-readable notes; the routine summary appends these. */
+  notes: string[];
+};
+
+/**
+ * Ranked, personalised picks for a profile:
+ *  1. entries matching the detected condition (weight 4),
+ *  2. entries matching a condition implied by the skin type (weight 2 —
+ *     oily→oily, dry→dry, combination→oily+dry, sensitive→eczema),
+ *  3. entries named in the profile's free-text concerns (weight 1),
+ * then sensitivity-log ingredients/products are dropped unless that would
+ * push the list under its floor.
+ */
+export function selectForProfile(opts: {
+  condition: string;
+  skin_type?: string | null;
+  profile_concerns?: string | null;
+  avoid_ingredients?: string[] | null;
+}): ProfileSelection {
+  const primary = normalizeCondition(opts.condition ?? "");
+  const skinType = (opts.skin_type ?? "").toLowerCase().trim();
+  const secondary = SKIN_TYPE_CONDITIONS[skinType] ?? [];
+  const concerns = (opts.profile_concerns ?? "").toLowerCase().trim();
+  const avoid = new Set(
+    (opts.avoid_ingredients ?? [])
+      .map((name) => name.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const notes: string[] = [];
+
+  const ingScore = (ing: Ingredient): number => {
+    let score = 0;
+    if (ing.concerns.includes(primary)) score += 4;
+    if (secondary.some((c) => ing.concerns.includes(c))) score += 2;
+    if (concerns && concerns.includes(ing.name.toLowerCase())) score += 1;
+    return score;
+  };
+  const prodScore = (prod: ProductEntry): number => {
+    let score = 0;
+    if (prod.concerns.includes(primary)) score += 4;
+    if (secondary.some((c) => prod.concerns.includes(c))) score += 2;
+    if (
+      concerns &&
+      prod.recommended_ingredients.some((ing) =>
+        concerns.includes(ing.toLowerCase()),
+      )
+    ) {
+      score += 1;
+    }
+    return score;
+  };
+
+  const rankedIngredients = rankBy(ingredients, ingScore);
+  const rankedProducts = rankBy(products, prodScore);
+
+  const isAvoided = (name: string) => avoid.has(name.toLowerCase());
+
+  const skippedIngredients = rankedIngredients.filter((i) => isAvoided(i.name));
+  let selectedIngredients = rankedIngredients.filter((i) => !isAvoided(i.name));
+  if (skippedIngredients.length > 0) {
+    if (selectedIngredients.length >= MIN_SELECTED_INGREDIENTS) {
+      const names = skippedIngredients
+        .slice(0, 3)
+        .map((i) => i.name)
+        .join(", ");
+      notes.push(`Skipped ${names} because of your sensitivity log.`);
+    } else {
+      selectedIngredients = rankedIngredients.slice(0, MIN_SELECTED_INGREDIENTS);
+      notes.push(
+        "Some logged triggers stay in the routine in small amounts because it needs them — patch-test first.",
+      );
+    }
+  }
+
+  const containsAvoided = (prod: ProductEntry) =>
+    prod.recommended_ingredients.some((ing) => isAvoided(ing));
+  const skippedProducts = rankedProducts.filter(containsAvoided);
+  let selectedProducts = rankedProducts.filter((p) => !containsAvoided(p));
+  if (skippedProducts.length > 0) {
+    if (selectedProducts.length >= MIN_SELECTED_PRODUCTS) {
+      const names = skippedProducts
+        .slice(0, 2)
+        .map((p) => p.product_type)
+        .join(", ");
+      notes.push(`Left out ${names} because of your sensitivity log.`);
+    } else {
+      selectedProducts = rankedProducts.slice(0, MIN_SELECTED_PRODUCTS);
+      notes.push(
+        "One recommended product type may contain a logged trigger — check its ingredient list before buying.",
+      );
+    }
+  }
+
+  if (skinType && secondary.length > 0) {
+    notes.unshift(`Tuned for your ${skinType} skin type.`);
+  }
+
+  return { ingredients: selectedIngredients, products: selectedProducts, notes };
+}
+
+/**
+ * Ingredient names from the knowledge base that appear anywhere in the
+ * patient's sensitivity log (trigger cause + notes are free text, so match
+ * by substring on the whole corpus).
+ */
+export function ingredientsAvoidedBySensitivity(
+  entries: { trigger_cause?: string | null; notes?: string | null }[],
+): string[] {
+  const corpus = entries
+    .map((e) => `${e.trigger_cause ?? ""} ${e.notes ?? ""}`)
+    .join(" \n ")
+    .toLowerCase();
+  if (!corpus.trim()) return [];
+  const avoid: string[] = [];
+  for (const ing of ingredients) {
+    const name = ing.name.toLowerCase();
+    if (corpus.includes(name) && !avoid.some((a) => a.toLowerCase() === name)) {
+      avoid.push(ing.name);
+    }
+  }
+  return avoid;
+}

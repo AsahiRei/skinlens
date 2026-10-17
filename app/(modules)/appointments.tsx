@@ -9,9 +9,9 @@ import {
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
-  ArrowLeft,
   CalendarCheck,
   CalendarClock,
+  CircleAlert,
   LogOut,
   Stethoscope,
   Ticket,
@@ -24,9 +24,11 @@ import Skeleton from "@/components/Skeleton";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import {
+  BackChip,
   ClinicalCard,
   EmptyState,
   IconBadge,
+  Notice,
   Pill,
   PrimaryButton,
   ScreenHeader,
@@ -90,6 +92,9 @@ export default function AppointmentsScreen() {
   const [schedulingId, setSchedulingId] = useState<string | null>(null);
   const [scheduledDate, setScheduledDate] = useState<Date>(SCHEDULER_FALLBACK);
   const [acting, setActing] = useState(false);
+  // Cancel/schedule/decline failures (e.g. the slot is already booked)
+  // must be visible, not just logged.
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Retry invite code (register-time redeem may have failed offline).
   const [retryOpen, setRetryOpen] = useState(false);
@@ -148,11 +153,21 @@ export default function AppointmentsScreen() {
   }, [load]);
 
   const handleCancel = async (id: string) => {
+    // No busy state here before: a double-tap fired two cancelAppointment
+    // calls and two racing load()s.
+    if (acting) return;
+    setActing(true);
+    setActionError(null);
     try {
       await cancelAppointment(id);
       await load();
     } catch (err) {
       console.error("[appointments] cancel failed:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Couldn't cancel that visit.",
+      );
+    } finally {
+      setActing(false);
     }
   };
 
@@ -160,7 +175,9 @@ export default function AppointmentsScreen() {
     id: string,
     status: "scheduled" | "completed" | "cancelled" | "declined",
   ) => {
+    if (acting) return;
     setActing(true);
+    setActionError(null);
     try {
       await updateAppointment(id, {
         status,
@@ -172,6 +189,11 @@ export default function AppointmentsScreen() {
       await load();
     } catch (err) {
       console.error("[appointments] doctor action failed:", err);
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "Couldn't save that change — try again.",
+      );
     } finally {
       setActing(false);
     }
@@ -240,29 +262,30 @@ export default function AppointmentsScreen() {
                 <LogOut size={18} color={theme.colors.primary} />
               </Pressable>
             ) : (
-              <Pressable
-                onPress={() => router.back()}
-                hitSlop={8}
-                className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-              >
-                <ArrowLeft size={18} color={theme.colors.primary} />
-              </Pressable>
+              <BackChip onPress={() => router.back()} />
             )}
-            <ScreenHeader
-              title={
-                role === "doctor" ? "Clinic Requests" : "My Appointments"
-              }
-              subtitle={
-                role === "doctor"
-                  ? doctor
-                    ? `${doctor.clinicName} · ${pending.length} waiting`
-                    : "Doctor queue"
-                  : "Requests you sent from clinic pages"
-              }
-            />
+            <View className="flex-1">
+              <ScreenHeader
+                title={
+                  role === "doctor" ? "Clinic Requests" : "My Appointments"
+                }
+                subtitle={
+                  role === "doctor"
+                    ? doctor
+                      ? `${doctor.clinicName} A→ ${pending.length} waiting`
+                      : "Doctor queue"
+                    : "Requests you sent from clinic pages"
+                }
+              />
+            </View>
           </View>
         </FadeItem>
+
+        {actionError ? (
+          <View className="mt-3">
+            <Notice icon={CircleAlert} copy={actionError} />
+          </View>
+        ) : null}
 
         {loading ? (
           <View className="flex-col gap-3 mt-4">
@@ -310,10 +333,11 @@ export default function AppointmentsScreen() {
                 onChangeText={setRetryName}
                 placeholder="Display name (Dr. Jane Cruz)"
                 placeholderTextColor={theme.colors.faint}
-                className="bg-white rounded-2xl px-4 py-3 text-[#10241A]"
+                className="bg-white rounded-2xl px-4 py-3"
                 style={{
                   borderWidth: 1,
                   borderColor: theme.colors.cardBorder,
+                  color: theme.colors.ink,
                 }}
               />
               <TextInput
@@ -322,10 +346,11 @@ export default function AppointmentsScreen() {
                 placeholder="SKN-XXXXXX"
                 placeholderTextColor={theme.colors.faint}
                 autoCapitalize="characters"
-                className="bg-white rounded-2xl px-4 py-3 text-[#10241A]"
+                className="bg-white rounded-2xl px-4 py-3"
                 style={{
                   borderWidth: 1,
                   borderColor: theme.colors.cardBorder,
+                  color: theme.colors.ink,
                 }}
               />
               <PrimaryButton
@@ -503,7 +528,9 @@ export default function AppointmentsScreen() {
                         a.status === "scheduled" ? (
                           <Pressable
                             onPress={() => void handleCancel(a.id)}
+                            disabled={acting}
                             hitSlop={8}
+                            style={{ opacity: acting ? 0.5 : 1 }}
                           >
                             <Text
                               className="text-xs font-bold underline"
@@ -558,9 +585,11 @@ export default function AppointmentsScreen() {
                                 onPress={() =>
                                   void handleDoctorAction(a.id, "declined")
                                 }
+                                disabled={acting}
                                 className="flex-1 rounded-full py-3 items-center active:opacity-70"
                                 style={{
                                   backgroundColor: theme.colors.danger,
+                                  opacity: acting ? 0.6 : 1,
                                 }}
                               >
                                 <Text className="font-bold text-white text-[14px]">
@@ -575,9 +604,11 @@ export default function AppointmentsScreen() {
                               onPress={() =>
                                 void handleDoctorAction(a.id, "completed")
                               }
+                              disabled={acting}
                               className="flex-1 rounded-full py-3 items-center active:opacity-80"
                               style={{
                                 backgroundColor: theme.colors.primary,
+                                opacity: acting ? 0.6 : 1,
                               }}
                             >
                               <Text className="font-bold text-white text-[14px]">
@@ -588,10 +619,12 @@ export default function AppointmentsScreen() {
                               onPress={() =>
                                 void handleDoctorAction(a.id, "cancelled")
                               }
+                              disabled={acting}
                               className="flex-1 rounded-full py-3 items-center active:opacity-70 bg-white"
                               style={{
                                 borderWidth: 1,
                                 borderColor: theme.colors.cardBorder,
+                                opacity: acting ? 0.6 : 1,
                               }}
                             >
                               <Text
@@ -654,8 +687,8 @@ export default function AppointmentsScreen() {
             placeholder="SKN-XXXXXX"
             placeholderTextColor={theme.colors.faint}
             autoCapitalize="characters"
-            className="bg-white rounded-2xl px-4 py-3 text-[#10241A]"
-            style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+            className="bg-white rounded-2xl px-4 py-3"
+            style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, color: theme.colors.ink }}
           />
         </View>
       </UiModal>

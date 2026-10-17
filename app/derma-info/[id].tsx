@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  ArrowLeft,
   User,
   Building,
   CalendarCheck,
@@ -28,6 +27,7 @@ import { DateTimeField } from "@/components/DateTimeField";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import {
+  BackHeader,
   ClinicalCard,
   IconBadge,
   Notice,
@@ -296,16 +296,11 @@ export default function DermatologistDetails() {
       >
         {/* Header / back */}
         <FadeItem index={0}>
-          <View className="flex-row items-center gap-3 mt-2">
-            <Pressable
-              onPress={() => router.back()}
-              hitSlop={8}
-              className="h-9 w-9 items-center justify-center rounded-full bg-white"
-              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-            >
-              <ArrowLeft size={18} color={theme.colors.primary} />
-            </Pressable>
-            <Text className="font-bold text-[20px]" style={{ color: theme.colors.ink }}>Details</Text>
+          <View className="mt-2">
+            <BackHeader
+              title="Details"
+              onBack={() => router.back()}
+            />
           </View>
         </FadeItem>
 
@@ -451,12 +446,12 @@ export default function DermatologistDetails() {
                     style={
                       doctorId === null
                         ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
-                        : { backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }
+                        : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
                     }
                   >
                     <Text
                       className="text-sm font-semibold"
-                      style={{ color: doctorId === null ? "#FFFFFF" : "#3F4A44" }}
+                      style={{ color: doctorId === null ? "#FFFFFF" : theme.colors.body }}
                     >
                       First available
                     </Text>
@@ -471,12 +466,12 @@ export default function DermatologistDetails() {
                         style={
                           selected
                             ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
-                            : { backgroundColor: "#FFFFFF", borderColor: "#E5EDE8" }
+                            : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
                         }
                       >
                         <Text
                           className="text-sm font-semibold"
-                          style={{ color: selected ? "#FFFFFF" : "#3F4A44" }}
+                          style={{ color: selected ? "#FFFFFF" : theme.colors.body }}
                         >
                           {d.display_name}
                         </Text>

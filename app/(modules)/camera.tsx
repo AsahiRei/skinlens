@@ -33,6 +33,7 @@ import {
   Sun,
   Moon,
   Contrast,
+  TriangleAlert,
 } from "lucide-react-native";
 
 import type { FaceBounds, LightingQuality, ScanAngle } from "@/types/schema";
@@ -41,6 +42,12 @@ import {
   evaluateAlignment,
   getAlignmentGuidance,
 } from "@/utils/face-quality";
+import {
+  blocksCapture,
+  measureImageLighting,
+  type ImageLighting,
+} from "@/utils/lighting";
+import { theme } from "@/lib/theme";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -72,7 +79,7 @@ const GuidanceCard = React.memo(function GuidanceCard({
   isMulti: boolean; currentAngle: ScanAngle;
 }) {
   const color =
-    score > 80 ? "#4ADE80" : score > 50 ? "#F59E0B" : "#DC2626";
+    score > 80 ? "#4ADE80" : score > 50 ? theme.colors.star : theme.colors.danger;
   const statusLabel = !hasFace
     ? "Position your face in the frame"
     : score > 80
@@ -80,7 +87,7 @@ const GuidanceCard = React.memo(function GuidanceCard({
       : message;
   const lightingGood = lighting === "good";
   const LightingIcon = lightingGood ? Sun : lighting === "dim" ? Moon : Contrast;
-  const lightingColor = lightingGood ? "#4ADE80" : "#F59E0B";
+  const lightingColor = lightingGood ? "#4ADE80" : theme.colors.star;
   return (
     <View
       pointerEvents="none"
@@ -141,7 +148,7 @@ const CaptureButton = React.memo(function CaptureButton({
           alignItems: "center", justifyContent: "center",
         }}
       >
-        <CameraIcon size={26} color={canCapture ? "#15803D" : "rgba(255,255,255,0.4)"} />
+        <CameraIcon size={26} color={canCapture ? theme.colors.primary : "rgba(255,255,255,0.4)"} />
       </View>
     </Pressable>
   );
@@ -182,7 +189,7 @@ const MultiAngleStepper = React.memo(function MultiAngleStepper({
                   style={{
                     width: 22, height: 22, borderRadius: 11,
                     backgroundColor: captured
-                      ? "#15803D"
+                      ? theme.colors.primary
                       : current
                         ? "white"
                         : "rgba(255,255,255,0.15)",
@@ -194,7 +201,7 @@ const MultiAngleStepper = React.memo(function MultiAngleStepper({
                     <Text
                       style={{
                         fontSize: 11, fontWeight: "800",
-                        color: current ? "#15803D" : "rgba(255,255,255,0.5)",
+                        color: current ? theme.colors.primary : "rgba(255,255,255,0.5)",
                       }}
                     >
                       {i + 1}
@@ -215,7 +222,7 @@ const MultiAngleStepper = React.memo(function MultiAngleStepper({
                 <View
                   style={{
                     width: 14, height: 2, borderRadius: 1, marginHorizontal: 8,
-                    backgroundColor: filled ? "#15803D" : "rgba(255,255,255,0.18)",
+                    backgroundColor: filled ? theme.colors.primary : "rgba(255,255,255,0.18)",
                   }}
                 />
               )}
@@ -242,6 +249,14 @@ export default function FaceDetectionScreen() {
 
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [qs, setQs] = useState<QualityStatus>(INITIAL_QS);
+
+  // Pixel-based lighting verdict for the frame in preview (checked in the
+  // background right after capture — blocks only dark/glare, fails open).
+  const [photoLighting, setPhotoLighting] = useState<ImageLighting | null>(null);
+  const [photoChecking, setPhotoChecking] = useState(false);
+  const lightingSeqRef = useRef(0);
+  const photoLightingRef = useRef<ImageLighting | null>(null);
+  const photoCheckingRef = useRef(false);
 
   const [isMultiAngle, setIsMultiAngle] = useState(false);
   const [capturedAngles, setCapturedAngles] = useState<Record<ScanAngle, string | null>>({
@@ -401,6 +416,27 @@ export default function FaceDetectionScreen() {
       previewPathRef.current = filePath;
       console.log(`[SkinLens][Camera] ${new Date().toISOString()} capture success path=`, filePath.slice(-60));
       setPreviewUri("file://" + filePath);
+      // Measure the ACTUAL captured pixels — the live preview verdict above
+      // is only a geometry proxy (face size + position, fixed contrast).
+      const seq = ++lightingSeqRef.current;
+      photoLightingRef.current = null;
+      photoCheckingRef.current = true;
+      setPhotoLighting(null);
+      setPhotoChecking(true);
+      measureImageLighting("file://" + filePath)
+        .then((verdict) => {
+          if (lightingSeqRef.current !== seq) return; // superseded (retake)
+          photoLightingRef.current = verdict;
+          photoCheckingRef.current = false;
+          setPhotoLighting(verdict);
+          setPhotoChecking(false);
+        })
+        .catch((err) => {
+          if (lightingSeqRef.current !== seq) return;
+          photoCheckingRef.current = false;
+          setPhotoChecking(false);
+          console.warn("[Camera] lighting check failed, allowing photo:", err);
+        });
       if (isMultiAngleRef.current) {
         setCapturedAngles((prev) => ({ ...prev, [currentAngleRef.current]: filePath }));
       }
@@ -412,6 +448,11 @@ export default function FaceDetectionScreen() {
   }, [photoOutput]);
 
   const handleRetake = useCallback(() => {
+    lightingSeqRef.current++; // invalidate any check still in flight
+    photoLightingRef.current = null;
+    photoCheckingRef.current = false;
+    setPhotoLighting(null);
+    setPhotoChecking(false);
     if (photoRef.current) { photoRef.current.dispose(); photoRef.current = null; }
     previewPathRef.current = null;
     setPreviewUri(null);
@@ -425,6 +466,13 @@ export default function FaceDetectionScreen() {
     const filePath = previewPathRef.current;
     console.log(`[SkinLens][Camera] ${new Date().toISOString()} confirm angle=`, currentAngleRef.current, `multi=`, isMultiAngleRef.current, `hasFile=`, !!filePath);
     if (!filePath) return;
+    // Gate: dark / glare frames must be retaken; while the check runs the
+    // button shows a spinner instead of confirming an uninspected photo.
+    const lighting = photoLightingRef.current;
+    if (photoCheckingRef.current || (lighting && blocksCapture(lighting.quality))) {
+      console.log(`[SkinLens][Camera] ${new Date().toISOString()} confirm blocked checking=`, photoCheckingRef.current, `quality=`, lighting?.quality);
+      return;
+    }
     if (photoRef.current) { photoRef.current.dispose(); photoRef.current = null; }
     previewPathRef.current = null;
     setPreviewUri(null);
@@ -490,12 +538,14 @@ export default function FaceDetectionScreen() {
   }
 
   const isPreview = previewUri !== null;
+  const confirmBlocked =
+    photoLighting !== null && blocksCapture(photoLighting.quality);
   // Derived from React state (updated on every detection callback), NOT from
   // the faceVisible shared value — reading .value during render is stale
   // because it never triggers a re-render.
   const hasFace = qs.alignmentScore > 0;
   const scoreColor =
-    qs.alignmentScore > 80 ? "#4ADE80" : qs.alignmentScore > 50 ? "#F59E0B" : "#DC2626";
+    qs.alignmentScore > 80 ? "#4ADE80" : qs.alignmentScore > 50 ? theme.colors.star : theme.colors.danger;
 
   return (
     <View className="flex-1 bg-black">
@@ -540,7 +590,7 @@ export default function FaceDetectionScreen() {
             <Pressable
               onPress={() => setIsMultiAngle((p) => !p)}
               className="px-4 py-2 rounded-full"
-              style={{ backgroundColor: isMultiAngle ? "#15803D" : "rgba(255,255,255,0.15)" }}
+              style={{ backgroundColor: isMultiAngle ? theme.colors.primary : "rgba(255,255,255,0.15)" }}
             >
               <Text className="text-xs font-semibold text-white">
                 {isMultiAngle ? "Multi-Angle" : "Single Shot"}
@@ -599,6 +649,49 @@ export default function FaceDetectionScreen() {
         />
       )}
 
+      {/* Captured-frame lighting verdict (pixel check on the preview photo) */}
+      {isPreview && (photoChecking || photoLighting) ? (
+        <View className="absolute left-5 right-5" style={{ bottom: 122 }}>
+          <View
+            className="flex-row items-center gap-2 px-4 py-3"
+            style={{
+              borderRadius: 16,
+              backgroundColor: confirmBlocked
+                ? "rgba(153,27,27,0.95)"
+                : "rgba(0,0,0,0.7)",
+              borderWidth: 1,
+              borderColor: confirmBlocked ? "#FCA5A5" : "rgba(255,255,255,0.2)",
+            }}
+          >
+            {photoChecking ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : confirmBlocked ? (
+              <TriangleAlert size={16} color="#FCA5A5" />
+            ) : photoLighting?.quality === "good" ? (
+              <Sun size={16} color="#4ADE80" />
+            ) : photoLighting?.icon === "moon" ? (
+              <Moon size={16} color={theme.colors.star} />
+            ) : photoLighting?.icon === "contrast" ? (
+              <Contrast size={16} color={theme.colors.star} />
+            ) : (
+              <Sun size={16} color={theme.colors.star} />
+            )}
+            <Text
+              className="text-xs flex-1 text-white"
+              style={{ fontWeight: "600" }}
+            >
+              {photoChecking
+                ? "Checking the light in this photo…"
+                : confirmBlocked
+                  ? `${photoLighting?.message ?? "Bad lighting"} — retake this photo`
+                  : photoLighting?.quality === "good"
+                    ? "Light looks good"
+                    : photoLighting?.message ?? ""}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
       {/* Bottom controls */}
       {!isPreview ? (
         <View className="absolute bottom-0 left-0 right-0 flex-row items-center justify-center" style={{ height: 110, paddingBottom: 20 }}>
@@ -616,8 +709,23 @@ export default function FaceDetectionScreen() {
           <Pressable onPress={handleRetake} className="w-16 h-16 rounded-full items-center justify-center" style={{ borderWidth: 2, borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" }}>
             <RefreshCw size={26} color="white" />
           </Pressable>
-          <Pressable onPress={handleConfirm} className="w-16 h-16 rounded-full items-center justify-center" style={{ backgroundColor: "#15803D" }}>
-            <Check size={26} color="white" />
+          <Pressable
+            onPress={handleConfirm}
+            disabled={photoChecking || confirmBlocked}
+            accessibilityLabel="Use this photo"
+            className="w-16 h-16 rounded-full items-center justify-center"
+            style={{
+              backgroundColor: confirmBlocked ? theme.colors.muted : theme.colors.primary,
+              opacity: photoChecking ? 0.85 : 1,
+            }}
+          >
+            {photoChecking ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : confirmBlocked ? (
+              <TriangleAlert size={26} color="white" />
+            ) : (
+              <Check size={26} color="white" />
+            )}
           </Pressable>
         </View>
       )}

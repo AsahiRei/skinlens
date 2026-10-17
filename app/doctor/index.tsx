@@ -11,11 +11,12 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import {
   ClinicalCard,
   EmptyState,
+  Notice,
   ScreenHeader,
   SectionTitle,
 } from "@/components/ui";
 import { useDoctorQueue } from "@/hooks/useDoctorQueue";
-import { theme, cardShadow } from "@/lib/theme";
+import { theme } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import {
   patientAvatarFor,
@@ -50,14 +51,21 @@ export default function DoctorHome() {
   const [actingId, setActingId] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  // Scheduling/decline failures (e.g. a slot another visit already holds)
+  // used to vanish into console.error — surface them to the doctor instead.
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleAction = async (id: string, status: AppointmentStatus, scheduledAt?: string) => {
     setActingId(id);
+    setActionError(null);
     try {
       await applyStatus(id, status, scheduledAt);
       setSchedulingId(null);
     } catch (err) {
       console.error("[doctor/home] action failed:", err);
+      setActionError(
+        err instanceof Error ? err.message : "Couldn't save that change — try again.",
+      );
     } finally {
       setActingId(null);
     }
@@ -144,12 +152,18 @@ export default function DoctorHome() {
           </View>
         </FadeItem>
 
+        {actionError ? (
+          <View className="mt-3">
+            <Notice icon={CircleAlert} copy={actionError} />
+          </View>
+        ) : null}
+
         {/* Stat strip */}
         <FadeItem index={1}>
           <View className="flex-row gap-3 mt-4">
-            <View
-              className="flex-1 bg-white px-3 py-3.5 items-center"
-              style={{ borderRadius: theme.radius.card, borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }}
+            <ClinicalCard
+              className="flex-1 items-center"
+              style={{ paddingHorizontal: 12, paddingVertical: 14 }}
             >
               <View className="h-9 w-9 rounded-xl items-center justify-center" style={{ backgroundColor: "#FEF3C7" }}>
                 <Inbox size={18} color="#B45309" />
@@ -160,10 +174,10 @@ export default function DoctorHome() {
               <Text className="text-[11px] font-semibold" style={{ color: theme.colors.muted }}>
                 New requests
               </Text>
-            </View>
-            <View
-              className="flex-1 bg-white px-3 py-3.5 items-center"
-              style={{ borderRadius: theme.radius.card, borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }}
+            </ClinicalCard>
+            <ClinicalCard
+              className="flex-1 items-center"
+              style={{ paddingHorizontal: 12, paddingVertical: 14 }}
             >
               <View className="h-9 w-9 rounded-xl items-center justify-center" style={{ backgroundColor: theme.colors.primarySoft }}>
                 <CalendarClock size={18} color={theme.colors.primary} />
@@ -174,10 +188,10 @@ export default function DoctorHome() {
               <Text className="text-[11px] font-semibold" style={{ color: theme.colors.muted }}>
                 Scheduled
               </Text>
-            </View>
-            <View
-              className="flex-1 bg-white px-3 py-3.5 items-center"
-              style={{ borderRadius: theme.radius.card, borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }}
+            </ClinicalCard>
+            <ClinicalCard
+              className="flex-1 items-center"
+              style={{ paddingHorizontal: 12, paddingVertical: 14 }}
             >
               <View className="h-9 w-9 rounded-xl items-center justify-center" style={{ backgroundColor: theme.colors.primarySoft }}>
                 <CheckCheck size={18} color={theme.colors.primary} />
@@ -188,7 +202,7 @@ export default function DoctorHome() {
               <Text className="text-[11px] font-semibold" style={{ color: theme.colors.muted }}>
                 Today
               </Text>
-            </View>
+            </ClinicalCard>
           </View>
         </FadeItem>
 

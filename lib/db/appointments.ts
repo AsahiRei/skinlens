@@ -1,6 +1,7 @@
 import { supabase } from "@/utils/supabase";
 
 import { requireUser } from "./auth";
+import { isDuplicateKeyError, isMissingColumnError } from "./pg-errors";
 
 export type AppointmentStatus =
   | "requested"
@@ -127,16 +128,6 @@ export async function getDoctorsForClinic(
   return ((data ?? []) as DoctorRow[]).filter((d) => d.is_active !== false);
 }
 
-function isMissingColumnError(error: { message?: string }): boolean {
-  const msg = error?.message ?? "";
-  return (
-    /column .* does not exist/i.test(msg) ||
-    /42703/.test(msg) ||
-    /PGRST204/.test(msg) ||
-    /schema cache/i.test(msg)
-  );
-}
-
 /** Patient creates a booking request at a verified clinic. */
 export async function requestAppointment(input: {
   clinicId: string;
@@ -249,9 +240,41 @@ export async function getClinicAppointments(
   return (data ?? []) as AppointmentRow[];
 }
 
+/** Friendly copy for a slot that is already held by another visit. */
+export const SLOT_TAKEN_MESSAGE =
+  "That time slot is already booked at your clinic — pick a different date & time.";
+
+/**
+ * True when a CONFIRMED visit already occupies this exact minute for the
+ * doctor being scheduled (an unassigned scheduled row counts too, so the
+ * clinic never double-books a slot). Checked client-side before every
+ * schedule write; the partial unique index from migration 0007 is the
+ * backstop for races.
+ */
+async function hasSlotConflict(
+  appointmentId: string,
+  clinicId: string,
+  scheduledAt: string,
+  doctorId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("id, doctor_id")
+    .eq("clinic_id", clinicId)
+    .eq("status", "scheduled")
+    .eq("scheduled_at", scheduledAt)
+    .neq("id", appointmentId)
+    .limit(20);
+  if (error) throw new Error(error.message);
+  return (data ?? []).some(
+    (row) => row.doctor_id === null || row.doctor_id === doctorId,
+  );
+}
+
 /**
  * Doctor schedules / completes / declines (RLS: doctor update own clinic).
  * Pass scheduledAt (ISO) when moving requested → scheduled.
+ * Rejects a slot that another confirmed visit already holds.
  */
 export async function updateAppointment(
   id: string,
@@ -265,11 +288,34 @@ export async function updateAppointment(
   const patch: Record<string, unknown> = { status: input.status };
   if (input.scheduledAt !== undefined) patch.scheduled_at = input.scheduledAt;
   if (input.claimAsDoctor) patch.doctor_id = user.id;
+
+  if (input.status === "scheduled" && input.scheduledAt) {
+    const { data: row, error: rowError } = await supabase
+      .from("appointments")
+      .select("clinic_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (rowError) throw new Error(rowError.message);
+    if (!row) {
+      throw new Error(
+        "Couldn't find that appointment — pull to refresh and try again.",
+      );
+    }
+    const clinicId = (row as { clinic_id: string }).clinic_id;
+    if (await hasSlotConflict(id, clinicId, input.scheduledAt, user.id)) {
+      throw new Error(SLOT_TAKEN_MESSAGE);
+    }
+  }
+
   const { error } = await supabase
     .from("appointments")
     .update(patch)
     .eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Lost a race against the unique slot index (migration 0007).
+    if (isDuplicateKeyError(error)) throw new Error(SLOT_TAKEN_MESSAGE);
+    throw new Error(error.message);
+  }
 }
 
 /**

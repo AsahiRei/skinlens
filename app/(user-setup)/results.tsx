@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   Text,
   ToastAndroid,
@@ -12,8 +11,8 @@ import { Check } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { PrimaryButton } from "@/components/ui";
-import { cardShadow, theme } from "@/lib/theme";
+import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { theme } from "@/lib/theme";
 import { getLatestResultDetail, updateUserProfile } from "@/lib/db";
 import type { ResultData } from "@/types/schema";
 import { getHealthScoreResponse } from "@/utils/healthscore";
@@ -61,23 +60,40 @@ export default function Results() {
       setLoading(false);
     }
   };
+  const fetchResult = useCallback(async () => {
+    setResultLoading(true);
+    try {
+      const data = await getLatestResultDetail();
+      if (data) {
+        setResultData(data);
+      }
+    } catch (error) {
+      console.error("Result error:", error);
+    } finally {
+      setResultLoading(false);
+    }
+  }, []);
+  // Mount fetch lives in its own cancelled-flag IIFE: the initial render
+  // already shows the loading card (resultLoading starts true), so no
+  // setState may run synchronously from the effect body.
   useEffect(() => {
-    const fetchResult = async () => {
+    let cancelled = false;
+    void (async () => {
       try {
         const data = await getLatestResultDetail();
-        if (data) {
-          setResultData(data);
-        }
+        if (!cancelled && data) setResultData(data);
       } catch (error) {
         console.error("Result error:", error);
       } finally {
-        setResultLoading(false);
+        if (!cancelled) setResultLoading(false);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-    fetchResult();
   }, []);
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
@@ -85,10 +101,10 @@ export default function Results() {
       >
         <View className="flex-1 px-5 gap-5">
           <View className="pt-4 items-center">
-            <Text className="font-bold text-[24px]" style={{ color: "#10241A" }}>
+            <Text className="font-bold text-[24px]" style={{ color: theme.colors.ink }}>
               Skin Results
             </Text>
-            <Text style={{ color: "#6B7280" }}>
+            <Text style={{ color: theme.colors.muted }}>
               Your skin analysis
             </Text>
           </View>
@@ -114,42 +130,42 @@ export default function Results() {
             </View>
           </View>
 
-          <View className="bg-white rounded-[20px] py-4 px-4 gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+          <ClinicalCard className="gap-3">
             <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: "#EAF6EE" }}>
-                <Check size={20} color="#15803D" />
+              <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: theme.colors.primarySoft }}>
+                <Check size={20} color={theme.colors.primary} />
               </View>
-              <Text className="flex-1 text-base font-bold" style={{ color: "#10241A" }}>
+              <Text className="flex-1 text-base font-bold" style={{ color: theme.colors.ink }}>
                 Your routine is ready
               </Text>
             </View>
-            <Text className="text-sm leading-5" style={{ color: "#3F4A44" }}>{message}</Text>
-          </View>
+            <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>{message}</Text>
+          </ClinicalCard>
 
           {resultLoading ? (
-            <View className="bg-white rounded-[20px] py-10 px-6 items-center gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
-              <ActivityIndicator color="#15803D" size="small" />
-              <Text className="text-sm" style={{ color: "#6B7280" }}>
+            <ClinicalCard className="items-center gap-3" style={{ paddingVertical: 40, paddingHorizontal: 24 }}>
+              <ActivityIndicator color={theme.colors.primary} size="small" />
+              <Text className="text-sm" style={{ color: theme.colors.muted }}>
                 Loading your recommended products...
               </Text>
-            </View>
+            </ClinicalCard>
           ) : (
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
-              <View className="bg-white rounded-[20px] py-4 px-4 gap-4" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
-                <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
+              <ClinicalCard className="gap-4">
+                <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
                   Recommended Products
                 </Text>
-                <Text className="text-sm pb-3" style={{ color: "#6B7280", borderBottomWidth: 1, borderBottomColor: "#EEF2EF" }}>
+                <Text className="text-sm pb-3" style={{ color: theme.colors.muted, borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}>
                   {resultData.description}
                 </Text>
                 {resultData.recommendations.map((product) => (
                   <View
                     key={product.product_type}
                     className="gap-1.5 pb-3"
-                    style={{ borderBottomWidth: 1, borderBottomColor: "#EEF2EF" }}
+                    style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
                   >
-                    <Text className="font-bold" style={{ color: "#10241A" }}>
+                    <Text className="font-bold" style={{ color: theme.colors.ink }}>
                       {product.product_type}
                     </Text>
                     <View className="flex-row flex-wrap gap-1.5">
@@ -157,43 +173,43 @@ export default function Results() {
                         <View
                           key={i}
                           className="rounded-full px-3 py-1"
-                          style={{ backgroundColor: "#EAF6EE" }}
+                          style={{ backgroundColor: theme.colors.primarySoft }}
                         >
-                          <Text className="text-xs font-semibold" style={{ color: "#14532D" }}>
+                          <Text className="text-xs font-semibold" style={{ color: theme.colors.primaryDeep }}>
                             {ingredient}
                           </Text>
                         </View>
                       ))}
                     </View>
-                    <Text className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
+                    <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
                       {product.reason}
                     </Text>
                   </View>
                 ))}
-              </View>
+              </ClinicalCard>
             )
           )}
 
           {Object.keys(parsedAnswers).length > 0 && (
-            <View className="bg-white rounded-[20px] py-4 px-4 gap-3" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
-              <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
+            <ClinicalCard className="gap-3">
+              <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
                 Your Answers
               </Text>
               {Object.entries(parsedAnswers).map(([question, answer]) => (
                 <View
                   key={question}
                   className="flex-row justify-between gap-3 pb-2"
-                  style={{ borderBottomWidth: 1, borderBottomColor: "#EEF2EF" }}
+                  style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
                 >
-                  <Text className="flex-1 text-sm" style={{ color: "#6B7280" }}>
+                  <Text className="flex-1 text-sm" style={{ color: theme.colors.muted }}>
                     {formatter(question)}
                   </Text>
-                  <Text className="text-sm font-bold" style={{ color: "#10241A" }}>
+                  <Text className="text-sm font-bold" style={{ color: theme.colors.ink }}>
                     {formatter(answer)}
                   </Text>
                 </View>
               ))}
-            </View>
+            </ClinicalCard>
           )}
 
           <View className="h-4" />
@@ -205,17 +221,7 @@ export default function Results() {
           onPress={getStarted}
           loading={loading}
         />
-        <Pressable
-          className="rounded-full bg-white active:opacity-80 p-4"
-          style={{ borderWidth: 1.5, borderColor: theme.colors.primary }}
-          onPress={() => router.back()}
-        >
-          <View className="flex-row items-center justify-center gap-1">
-            <Text className="text-center font-bold" style={{ color: theme.colors.primary }}>
-              Retry Again
-            </Text>
-          </View>
-        </Pressable>
+        <SecondaryButton label="Retry Again" onPress={fetchResult} />
       </View>
     </SafeAreaView>
   );

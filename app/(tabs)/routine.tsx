@@ -143,7 +143,7 @@ export default function Routines() {
     }
   };
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: "#F4F7F5" }}>
+    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <ScrollView
         className="flex-1 px-5"
@@ -153,8 +153,8 @@ export default function Routines() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#15803D"
-            colors={["#15803D"]}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
       >
@@ -186,7 +186,7 @@ export default function Routines() {
             </FadeItem>
 
             <FadeItem index={1}>
-              <View className="flex-row items-center gap-2 mt-5 p-1 rounded-full bg-white" style={{ borderWidth: 1, borderColor: "#E5EDE8", ...cardShadow }}>
+              <View className="flex-row items-center gap-2 mt-5 p-1 rounded-full bg-white" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }}>
                 {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
                   const { label, icon: Icon } = PERIOD_CONFIG[period];
                   const isActive = activePeriod === period;
@@ -231,13 +231,13 @@ export default function Routines() {
               {routine && totalSteps > 0 && (
                 <ClinicalCard className="mt-4">
                   <View className="flex-row justify-between items-center">
-                    <Text className="font-bold" style={{ color: "#10241A" }}>
+                    <Text className="font-bold" style={{ color: theme.colors.ink }}>
                       {doneCount}/{totalSteps} completed
                     </Text>
-                    <Text className="text-xs" style={{ color: "#6B7280" }}>{progressPct}%</Text>
+                    <Text className="text-xs" style={{ color: theme.colors.muted }}>{progressPct}%</Text>
                   </View>
                   <View className="mt-2">
-                    <InlineProgress progress={progressPct} height={8} color="#15803D" trackColor="#EAF6EE" />
+                    <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
                   </View>
                 </ClinicalCard>
               )}
@@ -305,14 +305,14 @@ export default function Routines() {
                               className={`font-bold text-[15px] ${
                                 isDone ? "line-through" : ""
                               }`}
-                              style={{ color: "#10241A" }}
+                              style={{ color: theme.colors.ink }}
                             >
                               {item.product_type}
                             </Text>
-                            <Text className="text-xs" style={{ color: "#3F4A44" }}>
+                            <Text className="text-xs" style={{ color: theme.colors.body }}>
                               {item.instruction}
                             </Text>
-                            <Text className="text-xs" style={{ color: "#9CA3AF" }}>
+                            <Text className="text-xs" style={{ color: theme.colors.faint }}>
                               {item.reason}
                             </Text>
                           </View>
@@ -328,13 +328,13 @@ export default function Routines() {
             <FadeItem index={8}>
               {routine && routine.recommended_products?.length > 0 && (
                 <View className="mt-7 gap-3">
-                  <Text className="font-bold text-[16px]" style={{ color: "#10241A" }}>
+                  <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
                     Recommended products
                   </Text>
                   {routine.recommended_products.map((product, index) => (
                     <FadeItem key={index} index={Math.min(9 + index, 11)}>
                       <ClinicalCard key={index} className="gap-1.5">
-                        <Text className="font-bold text-[15px]" style={{ color: "#10241A" }}>
+                        <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
                           {product.product_type}
                         </Text>
                         <View className="flex-row flex-wrap gap-1.5 mt-1">
@@ -342,15 +342,15 @@ export default function Routines() {
                             <View
                               key={i}
                               className="rounded-full px-3 py-1"
-                              style={{ backgroundColor: "#EAF6EE" }}
+                              style={{ backgroundColor: theme.colors.primarySoft }}
                             >
-                              <Text className="text-xs font-semibold" style={{ color: "#14532D" }}>
+                              <Text className="text-xs font-semibold" style={{ color: theme.colors.primaryDeep }}>
                                 {ingredient}
                               </Text>
                             </View>
                           ))}
                         </View>
-                        <Text className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
+                        <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
                           {product.reason}
                         </Text>
                       </ClinicalCard>

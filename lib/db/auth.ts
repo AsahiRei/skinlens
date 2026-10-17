@@ -10,7 +10,7 @@ export async function requireUser(): Promise<User> {
   } = await supabase.auth.getSession();
   const user = session?.user;
   if (!user) {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} requireUser no session`);
+    if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} requireUser no session`);
     throw new Error("You need to be signed in to continue.");
   }
   return user;

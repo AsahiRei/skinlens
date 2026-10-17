@@ -163,8 +163,8 @@ export default function DoctorProfileScreen() {
             onChangeText={setLinkName}
             placeholder="Display name (Dr. Jane Cruz)"
             placeholderTextColor={theme.colors.faint}
-            className="bg-white rounded-2xl px-4 py-3 text-[#10241A]"
-            style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+            className="bg-white rounded-2xl px-4 py-3"
+            style={{ color: theme.colors.ink, borderWidth: 1, borderColor: theme.colors.cardBorder }}
           />
           <TextInput
             value={linkCode}
@@ -172,8 +172,8 @@ export default function DoctorProfileScreen() {
             placeholder="SKN-XXXXXX"
             placeholderTextColor={theme.colors.faint}
             autoCapitalize="characters"
-            className="bg-white rounded-2xl px-4 py-3 text-[#10241A]"
-            style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+            className="bg-white rounded-2xl px-4 py-3"
+            style={{ color: theme.colors.ink, borderWidth: 1, borderColor: theme.colors.cardBorder }}
           />
         </View>
       </UiModal>
@@ -279,8 +279,8 @@ export default function DoctorProfileScreen() {
                   onChangeText={setLinkName}
                   placeholder="Display name (Dr. Jane Cruz)"
                   placeholderTextColor={theme.colors.faint}
-                  className="bg-white rounded-2xl px-4 py-3 text-[#10241A]"
-                  style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                  className="bg-white rounded-2xl px-4 py-3"
+                  style={{ color: theme.colors.ink, borderWidth: 1, borderColor: theme.colors.cardBorder }}
                 />
                 <TextInput
                   value={linkCode}
@@ -288,8 +288,8 @@ export default function DoctorProfileScreen() {
                   placeholder="SKN-XXXXXX"
                   placeholderTextColor={theme.colors.faint}
                   autoCapitalize="characters"
-                  className="bg-white rounded-2xl px-4 py-3 text-[#10241A]"
-                  style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                  className="bg-white rounded-2xl px-4 py-3"
+                  style={{ color: theme.colors.ink, borderWidth: 1, borderColor: theme.colors.cardBorder }}
                 />
                 {linkError ? (
                   <Text className="text-xs" style={{ color: theme.colors.danger }}>
