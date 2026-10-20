@@ -108,7 +108,9 @@ export default function DoctorProfileScreen() {
   const handleLink = useCallback(async () => {
     setLinkError(null);
     const code = linkCode.trim().toUpperCase();
-    const name = (linkName.trim() || doctor?.displayName || "").trim();
+    // The "Switch hospital" modal has no name field, so keep the doctor's
+    // existing name. The initial-link card still lets a new doctor type one.
+    const name = (doctor?.displayName || linkName.trim() || "").trim();
     if (!code || !name) {
       setLinkError("Enter your display name and the invite code.");
       return;
@@ -157,25 +159,15 @@ export default function DoctorProfileScreen() {
             {linkError}
           </Text>
         ) : null}
-        <View className="flex-col gap-2">
-          <TextInput
-            value={linkName}
-            onChangeText={setLinkName}
-            placeholder="Display name (Dr. Jane Cruz)"
-            placeholderTextColor={theme.colors.faint}
-            className="bg-white rounded-2xl px-4 py-3"
-            style={{ color: theme.colors.ink, borderWidth: 1, borderColor: theme.colors.cardBorder }}
-          />
-          <TextInput
-            value={linkCode}
-            onChangeText={(t) => setLinkCode(t.toUpperCase())}
-            placeholder="SKN-XXXXXX"
-            placeholderTextColor={theme.colors.faint}
-            autoCapitalize="characters"
-            className="bg-white rounded-2xl px-4 py-3"
-            style={{ color: theme.colors.ink, borderWidth: 1, borderColor: theme.colors.cardBorder }}
-          />
-        </View>
+        <TextInput
+          value={linkCode}
+          onChangeText={(t) => setLinkCode(t.toUpperCase())}
+          placeholder="SKN-XXXXXX"
+          placeholderTextColor={theme.colors.faint}
+          autoCapitalize="characters"
+          className="bg-white rounded-2xl px-4 py-3"
+          style={{ color: theme.colors.ink, borderWidth: 1, borderColor: theme.colors.cardBorder }}
+        />
       </UiModal>
 
       <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>

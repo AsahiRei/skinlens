@@ -355,13 +355,14 @@ export function SectionTitle({
   return (
     <View className="flex-row items-center justify-between">
       <Text
-        className="font-bold text-[16px]"
+        className="font-bold text-[16px] flex-1"
+        numberOfLines={1}
         style={{ color: theme.colors.ink }}
       >
         {title}
       </Text>
       {meta ? (
-        <Text className="text-xs" style={{ color: theme.colors.faint }}>
+        <Text className="text-xs ml-2" style={{ color: theme.colors.faint }}>
           {meta}
         </Text>
       ) : null}

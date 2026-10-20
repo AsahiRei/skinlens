@@ -13,7 +13,7 @@
     "November",
     "December"
   ],
-  "genders": ["male", "female"],
+  "genders": ["male", "female", "non_binary", "other", "prefer_not_to_say"],
   "skinTypes": ["normal", "combination", "dry", "oily", "sensitive"],
   "concerns": ["none", "pigmentation", "acne", "eczema", "dry", "oily"],
   "sleepOptions": ["excellent", "good", "fair", "poor", "very_poor"],

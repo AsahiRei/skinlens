@@ -272,7 +272,7 @@ export default function AppointmentsScreen() {
                 subtitle={
                   role === "doctor"
                     ? doctor
-                      ? `${doctor.clinicName} A→ ${pending.length} waiting`
+                      ? `${doctor.clinicName} · ${pending.length} waiting`
                       : "Doctor queue"
                     : "Requests you sent from clinic pages"
                 }
@@ -406,12 +406,10 @@ export default function AppointmentsScreen() {
               </FadeItem>
             ) : (
               <FadeItem index={1}>
-                <View className="flex-row items-center justify-between">
-                  <SectionTitle
-                    title="Requests"
-                    meta={`${rows.length} total`}
-                  />
-                </View>
+                <SectionTitle
+                  title="Requests"
+                  meta={`${rows.length} total`}
+                />
               </FadeItem>
             )}
 

@@ -12,6 +12,7 @@ import { Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 
 import { theme } from "@/lib/theme";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
+import LegalModal from "@/components/LegalModal";
 import { PrimaryButton } from "@/components/ui";
 import { signInWithGoogle, supabase } from "@/utils/supabase";
 
@@ -20,6 +21,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [legal, setLegal] = useState<null | "terms" | "privacy">(null);
   const router = useRouter();
   //login
   const handleLogin = async () => {
@@ -145,16 +147,33 @@ export default function Login() {
         <PrimaryButton label="Login" onPress={handleLogin} loading={loading} />
         <Text className="text-center px-4 mt-2" style={{ color: theme.colors.muted }}>
           By continuing, you agree to our{" "}
-          <Text className="font-medium underline" style={{ color: theme.colors.primary }}>
+          <Text
+            onPress={() => setLegal("terms")}
+            accessibilityRole="button"
+            accessibilityLabel="Read Terms and Conditions"
+            className="font-medium underline"
+            style={{ color: theme.colors.primary }}
+          >
             Terms and Conditions
           </Text>{" "}
           and{" "}
-          <Text className="font-medium underline" style={{ color: theme.colors.primary }}>
+          <Text
+            onPress={() => setLegal("privacy")}
+            accessibilityRole="button"
+            accessibilityLabel="Read Privacy Policy"
+            className="font-medium underline"
+            style={{ color: theme.colors.primary }}
+          >
             Privacy Policy
           </Text>
           .
         </Text>
       </View>
+      <LegalModal
+        visible={legal !== null}
+        initialSection={legal ?? undefined}
+        onDismiss={() => setLegal(null)}
+      />
     </KeyboardAwareScroll>
   );
 }

@@ -56,6 +56,8 @@ export default function NotificationDetailScreen() {
     if (!notification) return;
     if (notification.type === "scan_reminder") {
       router.push("/(tabs)/scan");
+    } else if (notification.type === "appointment_reply") {
+      router.push("/(modules)/appointments");
     } else {
       router.push("/(tabs)/routine");
     }

@@ -15,6 +15,8 @@ import {
   MessageSquare,
   TrendingUp,
   Scan,
+  ShieldAlert,
+  CalendarCheck,
 } from "lucide-react-native";
 
 import { LinearGradient } from "expo-linear-gradient";
@@ -496,7 +498,7 @@ export default function Home() {
           />
         </FadeItem>
 
-        {/* Chatbot & Progress quick actions */}
+        {/* Chatbot, Progress, Sensitivity & Appointments quick actions */}
         <FadeItem index={7}>
           <View className="flex-row gap-3 mt-3">
             <Pressable
@@ -528,6 +530,38 @@ export default function Home() {
                   </Text>
                 </ClinicalCard>
               </Pressable>
+          </View>
+
+          <View className="flex-row gap-3 mt-3">
+            <Pressable
+              className="flex-1 active:opacity-90"
+              onPress={() => router.push("/(modules)/sensitivity")}
+            >
+              <ClinicalCard className="items-center gap-2">
+                <IconBadge icon={ShieldAlert} size="lg" tone="soft" />
+                <Text className="font-bold text-[13px] text-center" style={{ color: theme.colors.ink }}>
+                  Sensitivity
+                </Text>
+                <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
+                  Skin sensitivity
+                </Text>
+              </ClinicalCard>
+            </Pressable>
+
+            <Pressable
+              className="flex-1 active:opacity-90"
+              onPress={() => router.push("/(modules)/appointments")}
+            >
+              <ClinicalCard className="items-center gap-2">
+                <IconBadge icon={CalendarCheck} size="lg" tone="soft" />
+                <Text className="font-bold text-[13px] text-center" style={{ color: theme.colors.ink }}>
+                  Appointments
+                </Text>
+                <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
+                  Book & track visits
+                </Text>
+              </ClinicalCard>
+            </Pressable>
           </View>
         </FadeItem>
 

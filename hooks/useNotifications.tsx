@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { Notification, NotificationSettings } from "@/types/schema";
-import { generateScanReminder, generateDailyTip } from "@/lib/notifications";
+import { generateScanReminder, generateDailyTip, syncAppointmentReplies } from "@/lib/notifications";
 import {
   scheduleWeeklyScanReminder,
   scheduleDailySkincareTip,
@@ -69,6 +69,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         // Schedule push notifications based on saved settings
         if (saved.scanReminders) await scheduleWeeklyScanReminder();
         if (saved.dailyTips) await scheduleDailySkincareTip();
+      }
+
+      // Doctor replies (schedule / decline / complete) show up here — checked
+      // against each new notification fetch so the badge updates on open.
+      try {
+        await syncAppointmentReplies();
+      } catch (err) {
+        console.warn("[notifications] appointment replies check failed:", err);
       }
 
       const remoteNotifications = await getNotifications();
@@ -213,6 +221,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const refresh = useCallback(async () => {
     try {
+      await syncAppointmentReplies();
       setNotifications(dedupeById(await getNotifications()));
     } catch (err) {
       console.error("Error refreshing notifications:", err);

@@ -11,7 +11,7 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import { PrimaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import onboardingPage from "@/data/onboarding.json";
-import { cancelDownload, getModelDownloadState, getModelPath, getSelectedModel } from "@/utils/llama";
+import { cancelDownload, getModelDownloadState, getModelPath } from "@/utils/llama";
 
 export default function Onboarding() {
   const pagerRef = useRef<PagerView>(null);
@@ -22,7 +22,6 @@ export default function Onboarding() {
   const [totalMB, setTotalMB] = useState(0);
   const [status, setStatus] = useState<"downloading" | "error">("downloading");
   const [errorMessage, setErrorMessage] = useState("");
-  const [modelLabel, setModelLabel] = useState("");
   const router = useRouter();
   const downloadingRef = useRef(false);
 
@@ -67,8 +66,6 @@ export default function Onboarding() {
       downloadingRef.current = true;
       setDownloading(true);
       try {
-        const model = await getSelectedModel();
-        setModelLabel(model.label);
         await getModelPath(reportProgress);
         await AsyncStorage.setItem("is_onboarded", "true");
         router.replace("/welcome");
@@ -137,12 +134,10 @@ export default function Onboarding() {
             <Download size={28} color="#15803D" />
           </View>
           <Text className="text-center text-xl font-bold" style={{ color: "#10241A" }}>
-            Downloading Model
+            Downloading Resources
           </Text>
           <Text className="text-center text-sm" style={{ color: "#6B7280" }}>
-            {modelLabel
-              ? `${modelLabel} is needed for skin analysis. This may take a few minutes on first download.`
-              : "The model is needed for skin analysis. This may take a few minutes on first download."}
+            Resources are needed for skin analysis. This may take a few minutes on first download.
           </Text>
 
           {status === "downloading" ? (

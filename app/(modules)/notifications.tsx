@@ -21,7 +21,10 @@ function formatDate(dateStr: string): string {
 }
 
 function typeLabel(type: string): string {
-  return type === "scan_reminder" ? "Scan reminder" : "Skin tip";
+  if (type === "scan_reminder") return "Scan reminder";
+  if (type === "daily_tip") return "Skin tip";
+  if (type === "appointment_reply") return "Appointment update";
+  return type;
 }
 
 export default function NotificationsScreen() {

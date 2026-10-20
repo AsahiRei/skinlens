@@ -6,7 +6,6 @@ import {
   ScrollView,
   Switch,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -14,12 +13,9 @@ import {
   Moon,
   Droplets,
   Activity,
-  CalendarCheck,
-  ChevronRight,
   LogOut,
   Pencil,
   ScanFace,
-  ShieldAlert,
 } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
@@ -37,10 +33,9 @@ import { theme, cardShadow } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { useNotifications } from "@/hooks/useNotifications";
-import { getAllProfiles, getSensitivityHistory, updateUserProfile } from "@/lib/db";
+import { getAllProfiles, updateUserProfile } from "@/lib/db";
 import type {
   LifestyleProfile,
-  SensitivityEntry,
   SkinProfile,
   UserProfile,
 } from "@/types/schema";
@@ -54,7 +49,6 @@ export default function Profile() {
   const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
   const [lifestyleProfile, setLifestyleProfile] =
     useState<LifestyleProfile | null>(null);
-  const [sensitivity, setSensitivity] = useState<SensitivityEntry[]>([]);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingSkin, setLoadingSkin] = useState(true);
   const [loadingLifestyle, setLoadingLifestyle] = useState(true);
@@ -69,7 +63,6 @@ export default function Profile() {
       setUserProfile(userProfile);
       setSkinProfile(skinProfile);
       setLifestyleProfile(lifestyleProfile);
-      setSensitivity(await getSensitivityHistory());
     } catch (err) {
       console.error("Error fetching profiles:", err);
     } finally {
@@ -94,7 +87,6 @@ export default function Profile() {
   };
 
   const goEdit = () => router.push("/(modules)/edit-profile");
-  const latestSensitivity = sensitivity[0];
   const displayName = userProfile?.first_name || userProfile?.username || "";
   const avatarInitial = (displayName || userProfile?.email || "?")
     .trim()
@@ -360,67 +352,8 @@ export default function Profile() {
             )}
           </FadeItem>
 
-          {/* Appointments — role-aware (patient requests / doctor queue) */}
-          <FadeItem index={3}>
-            <TouchableOpacity
-              onPress={() => router.push("/(modules)/appointments")}
-              activeOpacity={0.7}
-              className="mt-4"
-            >
-              <ClinicalCard>
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center gap-3 flex-1 pr-2">
-                  <IconBadge icon={CalendarCheck} size="md" tone="soft" />
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
-                      Appointments
-                    </Text>
-                    <Text className="text-sm" style={{ color: theme.colors.muted }}>
-                      Book visits & track requests
-                    </Text>
-                  </View>
-                </View>
-                <ChevronRight size={18} color={theme.colors.faint} />
-              </View>
-              </ClinicalCard>
-            </TouchableOpacity>
-          </FadeItem>
-
-          {/* Sensitivity history */}
-          <FadeItem index={4}>
-            <TouchableOpacity
-              onPress={() => router.push("/(modules)/sensitivity")}
-              activeOpacity={0.7}
-              className="mt-4"
-            >
-              <ClinicalCard>
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center gap-3 flex-1 pr-2">
-                  <IconBadge icon={ShieldAlert} size="md" tone="soft" />
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
-                      Skin Sensitivity
-                    </Text>
-                    <Text className="text-sm" style={{ color: theme.colors.muted }}>
-                      {latestSensitivity
-                        ? `${formatter(latestSensitivity.severity)} · ${formatter(latestSensitivity.trigger_cause)}`
-                        : "No episodes logged yet"}
-                    </Text>
-                  </View>
-                </View>
-                <View className="flex-row items-center gap-1.5">
-                  {sensitivity.length > 0 && (
-                    <Pill label={`${sensitivity.length}`} />
-                  )}
-                  <ChevronRight size={18} color={theme.colors.faint} />
-                </View>
-              </View>
-              </ClinicalCard>
-            </TouchableOpacity>
-          </FadeItem>
-
           {/* Notifications */}
-          <FadeItem index={5}>
+          <FadeItem index={3}>
             <ClinicalCard className="flex-col gap-3 mt-4">
               <SectionTitle title="Notifications" />
               <View className="flex-row items-center justify-between py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
@@ -458,7 +391,7 @@ export default function Profile() {
             </ClinicalCard>
           </FadeItem>
 
-          <FadeItem index={6}>
+          <FadeItem index={4}>
             <Pressable
               className="active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
               style={{ backgroundColor: theme.colors.danger }}

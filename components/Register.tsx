@@ -11,6 +11,7 @@ import { User, Mail, Lock, Eye, EyeOff, Check, Stethoscope, Ticket } from "lucid
 
 import { theme } from "@/lib/theme";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
+import LegalModal from "@/components/LegalModal";
 import { PrimaryButton } from "@/components/ui";
 import { supabase } from "@/utils/supabase";
 import { redeemInviteCode } from "@/lib/db/appointments";
@@ -26,10 +27,12 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [legal, setLegal] = useState<null | "terms" | "privacy">(null);
   const router = useRouter();
   //register
   const handleRegister = async () => {
     console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleRegister start email=`, email);
+
     // Validate before loading
     if (!agreed) {
       ToastAndroid.show(
@@ -132,14 +135,15 @@ export default function Register() {
           );
         } catch (redeemErr) {
           console.log(`[SkinLens][Auth] ${new Date().toISOString()} redeem failed:`, redeemErr);
-          // Patient profile already exists — user can retry the code later
-          // from Appointments instead of losing the whole account.
+          await supabase.from("user_profile").delete().eq("id", user.id);
+          await supabase.auth.signOut();
           ToastAndroid.show(
             redeemErr instanceof Error
               ? redeemErr.message
               : "Invalid invite code.",
             ToastAndroid.LONG,
           );
+          return;
         }
       } else {
         ToastAndroid.show("Account created successfully!", ToastAndroid.SHORT);
@@ -303,13 +307,27 @@ export default function Register() {
           </View>
           <Text className="flex-1" style={{ color: theme.colors.muted }}>
             I agree to the{" "}
-            <Text className="font-medium underline" style={{ color: theme.colors.primary }}>
+            <Text
+              onPress={(e) => {
+                e.stopPropagation();
+                setLegal("terms");
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Read Terms and Conditions"
+              className="font-medium underline"
+              style={{ color: theme.colors.primary }}
+            >
               Terms and Conditions
             </Text>
           </Text>
         </Pressable>
         <PrimaryButton label="Create Account" onPress={handleRegister} loading={loading} />
       </View>
+      <LegalModal
+        visible={legal !== null}
+        initialSection={legal ?? undefined}
+        onDismiss={() => setLegal(null)}
+      />
     </KeyboardAwareScroll>
   );
 }

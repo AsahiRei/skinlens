@@ -120,7 +120,10 @@ export type SensitivityEntry = {
   created_at: string;
 };
 
-export type NotificationType = "scan_reminder" | "daily_tip";
+export type NotificationType =
+  | "scan_reminder"
+  | "daily_tip"
+  | "appointment_reply";
 
 export type Notification = {
   id: string;

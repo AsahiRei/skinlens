@@ -381,31 +381,41 @@ export async function uploadSkinReportForAppointment(
 ): Promise<string> {
   const user = await requireUser();
   const localUri = await generateSkinReportPdfUri();
-  const base64 = await FileSystem.readAsStringAsync(localUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  // RN fetch cannot reliably send a Node Buffer/Uint8Array body, so send a
-  // Blob (binary-safe on Hermes) instead of the raw Buffer.
-  const bytes = Buffer.from(base64, "base64");
-  const ab = bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  );
-  const body = new Blob([ab], { type: "application/pdf" });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error("You need to be signed in to send the report.");
+
+  // Native multipart-free upload (files/legacy): uploads the PDF bytes
+  // straight from disk. RN's fetch Blob body can't hold an ArrayBuffer
+  // ("Creating blobs from 'ArrayBuffer' ... not supported") and the global
+  // supabase fetch wrapper aborts uploads at 10s — both avoided here.
   const storagePath = `${user.id}/${appointmentId}.pdf`;
-  const { error } = await supabase.storage
-    .from("reports")
-    .upload(storagePath, body, {
-      contentType: "application/pdf",
-      upsert: true,
-    });
-  if (error) {
-    if (/bucket|not found/i.test(error.message)) {
+  const baseUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/reports`;
+  const res = await FileSystem.uploadAsync(`${baseUrl}/${storagePath}`, localUri, {
+    httpMethod: "POST",
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    mimeType: "application/pdf",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-upsert": "true",
+    },
+  });
+  if (res.status !== 200 && res.status !== 201) {
+    let message = `Upload failed (HTTP ${res.status}).`;
+    try {
+      const parsed = JSON.parse(res.body) as { message?: string };
+      if (parsed.message) message = parsed.message;
+    } catch {
+      /* non-JSON error body */
+    }
+    if (/bucket|not found/i.test(message)) {
       throw new Error(
         "Reports storage is not set up (missing `reports` bucket — apply supabase/migrations/0002_clinic_booking.sql).",
       );
     }
-    throw new Error(error.message);
+    throw new Error(message);
   }
   return storagePath;
 }

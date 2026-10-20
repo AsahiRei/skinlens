@@ -15,7 +15,10 @@
     "type": "options",
     "options": [
       { "value": "male", "label": "Male", "points": 0, "icon": "male-outline" },
-      { "value": "female", "label": "Female", "points": 0, "icon": "female-outline" }
+      { "value": "female", "label": "Female", "points": 0, "icon": "female-outline" },
+      { "value": "non_binary", "label": "Non-binary", "points": 0, "icon": "person-outline" },
+      { "value": "other", "label": "Other", "points": 0, "icon": "ellipsis-horizontal-outline" },
+      { "value": "prefer_not_to_say", "label": "Prefer not to say", "points": 0, "icon": "eye-off-outline" }
     ]
   },
   {

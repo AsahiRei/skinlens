@@ -673,6 +673,11 @@ export default function Derma() {
                             distanceKm: String(d.distanceKm),
                             rating: String(d.rating),
                             availableToday: String(d.availableToday),
+                            // Unverified pins are view-on-map only — pass
+                            // coordinates so the detail screen can open the
+                            // full map at this exact place.
+                            lat: String(clinicCoords[d.id]?.latitude ?? ""),
+                            lng: String(clinicCoords[d.id]?.longitude ?? ""),
                           },
                         })
                       }
