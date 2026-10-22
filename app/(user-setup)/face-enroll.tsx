@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Image,
   Pressable,
   Text,
@@ -46,8 +45,6 @@ import {
   getAlignmentGuidance,
 } from "@/utils/face-quality";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
 export default function FaceEnroll() {
   const router = useRouter();
   const { healthScore, answers, mode, skipIntro } = useLocalSearchParams<{
@@ -79,6 +76,8 @@ export default function FaceEnroll() {
 
   const isCapturingRef = useRef(false);
   const previewPathRef = useRef<string | null>(null);
+  // Same as camera.tsx — log camera errors once so LogBox never blocks the UI.
+  const cameraErrorLoggedRef = useRef(false);
   const canCaptureRef = useRef(false);
   const lastFrameRef = useRef(0);
   const scoreRef = useRef(0);
@@ -319,10 +318,13 @@ export default function FaceEnroll() {
           isActive={!isPreview}
           performanceMode="fast"
           autoMode
-          windowWidth={SCREEN_WIDTH}
-          windowHeight={SCREEN_HEIGHT}
           onFacesDetected={handleFacesDetected}
-          onError={(error) => console.error("Enroll camera error:", error)}
+          onError={(error) => {
+            if (!cameraErrorLoggedRef.current) {
+              cameraErrorLoggedRef.current = true;
+              console.log("Enroll camera error:", error);
+            }
+          }}
           outputs={outputs}
         />
 

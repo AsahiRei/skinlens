@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import {
   Camera,
@@ -42,6 +42,16 @@ export default function Scan() {
   // lighting checks) and stacked a second camera screen.
   const pickingRef = useRef(false);
   const navRef = useRef(false);
+
+  // Focus reset: Expo Router keeps tab screens mounted, so without this the
+  // nav guard stays true forever after the first push — "Use Camera" would
+  // never open the camera again while "Upload Photo" (which doesn't check
+  // navRef) kept working.
+  useFocusEffect(
+    useCallback(() => {
+      navRef.current = false;
+    }, []),
+  );
 
   const goToAnalyzing = (uri: string) => {
     if (navRef.current) return;

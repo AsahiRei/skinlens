@@ -21,7 +21,7 @@ import { getFaceIdentity } from "@/lib/db/profile";
 import {
   cosineSimilarity,
   FACE_MATCH_THRESHOLD,
-  getFaceEmbedding,
+  getFaceEmbeddingCandidates,
   parseEmbedding,
 } from "@/utils/face-embeddings";
 import type { ClassificationResult } from "@/types/skin";
@@ -129,17 +129,11 @@ export default function Analyzing() {
       goToStep(0);
 
       console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} enhance start count=`, uris.length);
-      if (isMulti) {
-        const enhanced = await Promise.all(
-          uris.map((uri) => enhanceImage(uri)),
-        );
-        if (cancelledRef.current) return;
-        setDisplayUris(enhanced);
-      } else {
-        const enhanced = await enhanceImage(uris[0]);
-        if (cancelledRef.current) return;
-        setDisplayUris([enhanced]);
-      }
+      const enhancedUris: string[] = await Promise.all(
+        uris.map((uri) => enhanceImage(uri)),
+      );
+      if (cancelledRef.current) return;
+      setDisplayUris(isMulti ? enhancedUris : [enhancedUris[0]]);
       console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} enhance done`);
       await new Promise((r) => setTimeout(r, 600));
       if (cancelledRef.current) return;
@@ -170,10 +164,32 @@ export default function Analyzing() {
       console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face-verify stored=`, !!stored, `enrolled=`, !!enrolled);
       if (stored && enrolled) {
         try {
-          const live = await getFaceEmbedding(uris[0]);
-          const similarity = cosineSimilarity(live, enrolled);
+          // Score every crop candidate (center square + face-aware crop) and
+          // pass if ANY of them matches, so varied framing doesn't lock out
+          // genuine users. For multi-angle scans every angle from the same
+          // live session counts.
+          let similarity = 0;
+          const urisToCheck = isMulti ? uris : [uris[0]];
+          for (const uri of urisToCheck) {
+            const live = await getFaceEmbeddingCandidates(uri);
+            if (cancelledRef.current) return;
+            for (const cand of live) {
+              similarity = Math.max(similarity, cosineSimilarity(cand, enrolled));
+            }
+          }
+          console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face similarity(raw)=`, similarity.toFixed(3), `threshold=`, FACE_MATCH_THRESHOLD);
+          // Rescue attempt: harshly lit/low-quality captures sometimes score
+          // below threshold on the raw image. Re-score the lighting-normalized
+          // copy before redirecting to the mismatch screen.
+          if (similarity < FACE_MATCH_THRESHOLD && enhancedUris[0]) {
+            const rescued = await getFaceEmbeddingCandidates(enhancedUris[0]);
+            if (cancelledRef.current) return;
+            for (const cand of rescued) {
+              similarity = Math.max(similarity, cosineSimilarity(cand, enrolled));
+            }
+            console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face similarity(enhanced)=`, similarity.toFixed(3));
+          }
           console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face similarity=`, similarity.toFixed(3), `threshold=`, FACE_MATCH_THRESHOLD);
-          if (cancelledRef.current) return;
           if (similarity < FACE_MATCH_THRESHOLD) {
             console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face MISMATCH, redirecting`);
             router.replace({

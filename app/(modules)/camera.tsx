@@ -266,6 +266,10 @@ export default function FaceDetectionScreen() {
 
   const isCapturingRef = useRef(false);
   const photoRef = useRef<Photo | null>(null);
+  // Camera errors are logged once per mount: console.error inside onError
+  // raises a full-screen LogBox overlay in dev that blocks touches (e.g. the
+  // "Use Camera" button), and CameraX keeps re-firing the same error.
+  const cameraErrorLoggedRef = useRef(false);
   const previewPathRef = useRef<string | null>(null);
   const currentAngleRef = useRef<ScanAngle>("front");
   const isMultiAngleRef = useRef(false);
@@ -556,10 +560,13 @@ export default function FaceDetectionScreen() {
         performanceMode="fast"
         autoMode
         cameraFacing={cameraPosition}
-        windowWidth={SCREEN_WIDTH}
-        windowHeight={SCREEN_HEIGHT}
         onFacesDetected={handleFacesDetected}
-        onError={(error) => console.error("Camera error:", error)}
+        onError={(error) => {
+          if (!cameraErrorLoggedRef.current) {
+            cameraErrorLoggedRef.current = true;
+            console.log("Camera error:", error);
+          }
+        }}
         outputs={outputs}
       />
 
