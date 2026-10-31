@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Image,
   Pressable,
@@ -13,6 +13,8 @@ import {
   Moon,
   Droplets,
   Activity,
+  ChevronRight,
+  CirclePlay,
   LogOut,
   Pencil,
   ScanFace,
@@ -28,10 +30,12 @@ import {
   IconRowsSkeleton,
 } from "@/components/ProfileSkeletons";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { CoachTarget, useTutorial } from "@/components/TutorialCoach";
 import { ScreenHeader, UiModal, ClinicalCard, IconBadge, Pill, SectionTitle } from "@/components/ui";
 import { theme, cardShadow } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
+import { useCoachScroller } from "@/hooks/useCoachScroller";
 import { useNotifications } from "@/hooks/useNotifications";
 import { getAllProfiles, updateUserProfile } from "@/lib/db";
 import type {
@@ -44,6 +48,7 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 
 export default function Profile() {
   const router = useRouter();
+  const { startTutorial } = useTutorial();
   const { settings, updateSettings } = useNotifications();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
@@ -56,6 +61,10 @@ export default function Profile() {
   const [refreshing, setRefreshing] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const focusTrigger = useFocusTrigger();
+  // Replaying from this screen leaves it scrolled down where the Replay
+  // button lives — the tutorial needs to scroll its target back into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   const fetchProfiles = async () => {
     try {
       const { userProfile, skinProfile, lifestyleProfile } =
@@ -140,9 +149,12 @@ export default function Profile() {
       <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <ScrollView
+          ref={scrollRef}
           className="flex-1 px-5"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
+          onScroll={onScroll}
+          scrollEventThrottle={32}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -172,6 +184,7 @@ export default function Profile() {
                     <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>Edit</Text>
                   </Pressable>
                 </View>
+                <CoachTarget id="profile.card" scrollIntoView={scrollIntoView}>
                 <LinearGradient
                   colors={[...theme.gradients.dark]}
                   start={{ x: 0, y: 0.5 }}
@@ -272,6 +285,7 @@ export default function Profile() {
                     />
                   </View>
                 </LinearGradient>
+                </CoachTarget>
               </View>
             )}
           </FadeItem>
@@ -391,7 +405,35 @@ export default function Profile() {
             </ClinicalCard>
           </FadeItem>
 
+          {/* App: replay the first-run tour */}
           <FadeItem index={4}>
+            <ClinicalCard className="mt-4">
+              <SectionTitle title="App" />
+              <Pressable
+                onPress={() => {
+                  // The tour navigates itself: every step carries its own
+                  // screen's href, so it walks back to Home on its own.
+                  startTutorial();
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Replay tutorial"
+                className="flex-row items-center gap-3 pt-3"
+              >
+                <IconBadge icon={CirclePlay} size="md" tone="soft" />
+                <View className="flex-1">
+                  <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
+                    Replay Tutorial
+                  </Text>
+                  <Text className="text-sm" style={{ color: theme.colors.faint }}>
+                    Watch the app tour again
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={theme.colors.faint} />
+              </Pressable>
+            </ClinicalCard>
+          </FadeItem>
+
+          <FadeItem index={5}>
             <Pressable
               className="active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
               style={{ backgroundColor: theme.colors.danger }}

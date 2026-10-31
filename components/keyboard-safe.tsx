@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, ReactNode, Ref } from "react";
 import {
   KeyboardAvoidingView as RNKeyboardAvoidingView,
   Platform,
@@ -77,6 +77,9 @@ export function SafeKeyboardAvoidingView({
 
 type AwareScrollProps = ScrollViewProps & {
   children: ReactNode;
+  /** React 19 passes ref as a plain prop — function components have to
+   * declare and forward it explicitly (it is not part of ScrollViewProps). */
+  ref?: Ref<ScrollView>;
 };
 
 /** Library KeyboardAwareScrollView when linked, plain ScrollView otherwise. */
@@ -86,6 +89,7 @@ export function SafeKeyboardAwareScrollView({
   keyboardShouldPersistTaps = "handled",
   showsVerticalScrollIndicator = false,
   style,
+  ref,
   ...rest
 }: AwareScrollProps) {
   if (controller?.KeyboardAwareScrollView) {
@@ -98,6 +102,7 @@ export function SafeKeyboardAwareScrollView({
         showsVerticalScrollIndicator={showsVerticalScrollIndicator}
         bottomOffset={24}
         extraKeyboardSpace={8}
+        ref={ref}
         {...rest}
       >
         {children}
@@ -110,6 +115,7 @@ export function SafeKeyboardAwareScrollView({
       contentContainerStyle={contentContainerStyle}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+      ref={ref}
       {...rest}
     >
       {children}

@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -14,6 +14,7 @@ import { FadeItem } from "@/components/FadeItem";
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { CoachTarget } from "@/components/TutorialCoach";
 import { theme, cardShadow } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import {
@@ -22,6 +23,7 @@ import {
   ScreenHeader,
 } from "@/components/ui";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
+import { useCoachScroller } from "@/hooks/useCoachScroller";
 import {
   getLatestRoutine,
   getTodayProgress,
@@ -55,6 +57,10 @@ export default function Routines() {
   const [pendingSteps, setPendingSteps] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const focusTrigger = useFocusTrigger();
+  // Tab screens keep their scroll offset between visits, so the tutorial
+  // needs to be able to scroll its target back into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   const fetchRoutine = async () => {
     setLoadingRoutine(true);
     setLoadError(false);
@@ -146,9 +152,12 @@ export default function Routines() {
     <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <ScrollView
+        ref={scrollRef}
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -186,7 +195,7 @@ export default function Routines() {
             </FadeItem>
 
             <FadeItem index={1}>
-              <View className="flex-row items-center gap-2 mt-5 p-1 rounded-full bg-white" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }}>
+              <CoachTarget id="routine.periods" className="flex-row items-center gap-2 mt-5 p-1 rounded-full bg-white" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }} scrollIntoView={scrollIntoView}>
                 {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
                   const { label, icon: Icon } = PERIOD_CONFIG[period];
                   const isActive = activePeriod === period;
@@ -223,7 +232,7 @@ export default function Routines() {
                     </Pressable>
                   );
                 })}
-              </View>
+              </CoachTarget>
             </FadeItem>
 
             {/* Progress */}

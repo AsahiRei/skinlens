@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { StyleSheet } from "react-native";
-import type { ScrollViewProps } from "react-native";
+import type { ScrollView, ScrollViewProps } from "react-native";
 import {
   SafeKeyboardAvoidingView,
   SafeKeyboardAwareScrollView,
@@ -33,6 +33,9 @@ export function KeyboardAvoidingWrapper({
 
 type KeyboardAwareScrollProps = ScrollViewProps & {
   children: ReactNode;
+  /** React 19 passes ref as a plain prop — function components have to
+   * declare and forward it explicitly (it is not part of ScrollViewProps). */
+  ref?: Ref<ScrollView>;
 };
 
 /**
@@ -45,10 +48,12 @@ export function KeyboardAwareScroll({
   contentContainerStyle,
   keyboardShouldPersistTaps = "handled",
   showsVerticalScrollIndicator = false,
+  ref,
   ...rest
 }: KeyboardAwareScrollProps) {
   return (
     <SafeKeyboardAwareScrollView
+      ref={ref}
       style={styles.flex}
       contentContainerStyle={[styles.grow, contentContainerStyle]}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}

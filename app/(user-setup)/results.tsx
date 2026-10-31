@@ -13,7 +13,9 @@ import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
-import { getLatestResultDetail, updateUserProfile } from "@/lib/db";
+import { getLatestResultDetail, requireUser, updateUserProfile } from "@/lib/db";
+import { useTutorial } from "@/components/TutorialCoach";
+import { setTutorialPending } from "@/lib/tutorial";
 import type { ResultData } from "@/types/schema";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { formatter } from "@/utils/formatter";
@@ -46,10 +48,23 @@ export default function Results() {
     parsedAnswers,
   );
   const router = useRouter();
+  const { startTutorial } = useTutorial();
   const getStarted = async () => {
     setLoading(true);
     try {
       await updateUserProfile({ user_setup: true });
+      // Arm the first-run tour flag: the boot router reads it, so killing
+      // the app mid-tour replays the tour on the next launch instead of
+      // silently dropping it.
+      try {
+        const user = await requireUser();
+        await setTutorialPending(user.id);
+      } catch (err) {
+        console.warn("[results] tutorial flag not armed:", err);
+      }
+      // Walk the user through the real app: the coach tour opens on Home
+      // and moves through every tab as it explains each feature.
+      startTutorial();
       router.replace("/(tabs)");
     } catch {
       ToastAndroid.show(

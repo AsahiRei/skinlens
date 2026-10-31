@@ -6,6 +6,8 @@ import { useRouter } from "expo-router";
 import { getDatabase } from "@/lib/db";
 import { handleInvalidSession } from "@/lib/db/auth";
 import { theme } from "@/lib/theme";
+import { isTutorialPending } from "@/lib/tutorial";
+import { useTutorial } from "@/components/TutorialCoach";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import { supabase, validateSession } from "@/utils/supabase";
 
@@ -38,8 +40,21 @@ function withTimeout<T>(promise: Promise<T> | PromiseLike<T>, ms: number, label:
 // so the user is never trapped on the spinner with no feedback.
 const STUCK_AFTER_MS = 12_000;
 
+// A first-run tour armed by results.tsx beats the tabs, so killing the app
+// mid-tour replays it on the next launch. isTutorialPending never throws,
+// and the timeout keeps the boot path offline-first; failure means "no tour".
+async function tutorialPendingFor(userId: string): Promise<boolean> {
+  try {
+    return await withTimeout(isTutorialPending(userId), 3000, "tutorial flag");
+  } catch (err) {
+    console.warn("[index] tutorial flag check inconclusive:", err);
+    return false;
+  }
+}
+
 export default function Index() {
   const router = useRouter();
+  const { startTutorial } = useTutorial();
   const [stuck, setStuck] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const routedRef = useRef(false);
@@ -153,9 +168,14 @@ export default function Index() {
           console.log(`[SkinLens][Boot] ${new Date().toISOString()} local user_setup=`, localProfile?.user_setup ?? null);
           if (!mountedRef.current || routedRef.current) return;
           if (localProfile?.user_setup === 1) {
-            // Cached profile says setup is done — go to tabs immediately.
-            // Server re-validation happens in SyncManager / _layout (they
-            // purge + redirect to /welcome if the account is really gone).
+            // Cached profile says setup is done — skip the network wait and
+            // go straight to the tabs. An unfinished first-run tour replays
+            // over them. Server re-validation happens in SyncManager /
+            // _layout (they purge + redirect to /welcome if the account is
+            // really gone).
+            const tutorialPending = await tutorialPendingFor(userId);
+            if (!mountedRef.current || routedRef.current) return;
+            if (tutorialPending) startTutorial();
             safeReplace("/(tabs)");
             return;
           }
@@ -221,6 +241,11 @@ export default function Index() {
             safeReplace("/(user-setup)");
             return;
           }
+          // Setup already done — an unfinished first-run tour replays over
+          // the tabs.
+          const tutorialPending = await tutorialPendingFor(session.user.id);
+          if (!mountedRef.current || routedRef.current) return;
+          if (tutorialPending) startTutorial();
           safeReplace("/(tabs)");
         } catch (err) {
           console.warn("[index] server setup check inconclusive, going to tabs:", err);
@@ -244,7 +269,7 @@ export default function Index() {
         retryTimerRef.current = null;
       }
     };
-  }, [router, attempt, safeReplace]);
+  }, [router, attempt, safeReplace, startTutorial]);
 
   return (
     <View className="flex-1 items-center justify-center px-8" style={{ backgroundColor: theme.colors.background }}>

@@ -8,6 +8,7 @@ import { NetworkProvider } from "@/hooks/useNetwork";
 import { NotificationProvider } from "@/hooks/useNotifications";
 import { OfflineModal } from "@/components/OfflineModal";
 import { SyncManager } from "@/components/SyncManager";
+import { TutorialCoachProvider } from "@/components/TutorialCoach";
 import { clearLocalUserData } from "@/lib/db/auth";
 import { createSessionFromUrl, supabase } from "@/utils/supabase";
 import { releaseLlama } from "@/utils/llama";
@@ -89,12 +90,16 @@ export default function RootLayout() {
           <SyncManager />
           <OfflineModal />
           <KeyboardProvider>
+          {/* Wraps the whole app so the tour overlay can dim/spotlight any
+           * screen, including the tab bar. */}
+          <TutorialCoachProvider>
           <Stack
             screenOptions={{
               animation: "ios_from_right",
               headerShown: false,
             }}
           />
+          </TutorialCoachProvider>
           </KeyboardProvider>
         </NotificationProvider>
       </NetworkProvider>

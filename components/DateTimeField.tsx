@@ -1,9 +1,20 @@
 import { useState } from "react";
-import { Platform, Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, ToastAndroid, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { CalendarClock } from "lucide-react-native";
 
 import { theme } from "@/lib/theme";
+import { PAST_TIME_MESSAGE } from "@/lib/db/appointments";
+
+/**
+ * Effective floor for a picked slot: the later of the caller's
+ * `minimumDate` and the moment of picking. The prop is usually
+ * `new Date()` captured at render — stale by the time the user finishes
+ * chaining through the Android date → time dialogs.
+ */
+function floorAtCommit(minimumDate: Date): number {
+  return Math.max(minimumDate.getTime(), Date.now());
+}
 
 function fmtSlot(value: Date): string {
   return value.toLocaleString("en-US", {
@@ -136,6 +147,19 @@ export function DateTimeField({
                   0,
                   0,
                 );
+                // The date dialog's minimumDate only clamps by DAY, so the
+                // time dialog happily accepts an hour that already passed
+                // (3 PM now → "today 2 PM"). Reject it here instead of
+                // committing a slot in the past.
+                if (
+                  minimumDate &&
+                  combined.getTime() < floorAtCommit(minimumDate)
+                ) {
+                  if (Platform.OS === "android") {
+                    ToastAndroid.show(PAST_TIME_MESSAGE, ToastAndroid.SHORT);
+                  }
+                  return;
+                }
                 onChange(combined);
               }}
             />

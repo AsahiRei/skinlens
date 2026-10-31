@@ -12,6 +12,8 @@ import {
 
 import { FadeItem } from "@/components/FadeItem";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { CoachTarget } from "@/components/TutorialCoach";
+import { useCoachScroller } from "@/hooks/useCoachScroller";
 import {
   ClinicalCard,
   GradientHeroCta,
@@ -42,6 +44,10 @@ export default function Scan() {
   // lighting checks) and stacked a second camera screen.
   const pickingRef = useRef(false);
   const navRef = useRef(false);
+  // Tab screens keep their scroll offset between visits, so the tutorial
+  // needs to be able to scroll its target back into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
 
   // Focus reset: Expo Router keeps tab screens mounted, so without this the
   // nav guard stays true forever after the first push — "Use Camera" would
@@ -161,9 +167,12 @@ export default function Scan() {
         ]}
       />
       <ScrollView
+        ref={scrollRef}
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: TAB_BAR_CLEARANCE }}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
       >
         <FadeItem index={0}>
           <ScreenHeader
@@ -174,7 +183,7 @@ export default function Scan() {
 
         {/* Action buttons */}
         <FadeItem index={1}>
-          <View className="flex-col gap-3 mt-5">
+          <CoachTarget id="scan.actions" className="flex-col gap-3 mt-5" scrollIntoView={scrollIntoView}>
             <GradientHeroCta
               className="mt-0"
               icon={Camera}
@@ -213,7 +222,7 @@ export default function Scan() {
                 </View>
               }
             />
-          </View>
+          </CoachTarget>
         </FadeItem>
 
         {/* How it works */}

@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Image, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import {
@@ -25,6 +25,7 @@ import { FadeItem } from "@/components/FadeItem";
 import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { CoachTarget } from "@/components/TutorialCoach";
 import {
   ClinicalCard,
   EmptyState,
@@ -33,7 +34,7 @@ import {
   Pill,
   SectionTitle,
 } from "@/components/ui";
-import { useFocusTrigger } from "@/hooks";
+import { useCoachScroller, useFocusTrigger } from "@/hooks";
 import { cardShadow, theme } from "@/lib/theme";
 import { useNotifications } from "@/hooks/useNotifications";
 import {
@@ -70,6 +71,10 @@ const PERIOD_CONFIG: Record<
 
 export default function Home() {
   const focusTrigger = useFocusTrigger();
+  // Lets the tutorial scroll a target back into view — this screen's
+  // targets live inside the ScrollView and the tour blocks scrolling.
+  const scrollRef = useRef<ScrollView>(null);
+  const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   const { unreadCount, generateNotifications } = useNotifications();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -223,9 +228,12 @@ export default function Home() {
     <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <ScrollView
+        ref={scrollRef}
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -237,6 +245,7 @@ export default function Home() {
       >
         {/* Header */}
         <FadeItem index={0}>
+          <CoachTarget id="home.header" scrollIntoView={scrollIntoView}>
           <View className="flex-row items-center justify-between mt-2">
             <View className="flex-col">
               <Text className="font-semibold text-[13px]" style={{ color: theme.colors.muted }}>
@@ -264,6 +273,7 @@ export default function Home() {
               )}
             </Pressable>
           </View>
+          </CoachTarget>
         </FadeItem>
 
         {/* Skin health score */}
@@ -273,6 +283,7 @@ export default function Home() {
           </View>
         </FadeItem>
         <FadeItem index={2}>
+          <CoachTarget id="home.score" scrollIntoView={scrollIntoView}>
           {loadingResult ? (
             <LinearGradient
               colors={[...theme.gradients.dark]}
@@ -336,6 +347,7 @@ export default function Home() {
               </View>
             </LinearGradient>
           )}
+          </CoachTarget>
         </FadeItem>
 
         {/* Routine (paginated: morning / afternoon / evening) */}
@@ -345,6 +357,7 @@ export default function Home() {
           </View>
         </FadeItem>
         <FadeItem index={4}>
+          <CoachTarget id="home.routine" scrollIntoView={scrollIntoView}>
           {loadingRoutine ? (
             <ClinicalCard className="mt-2.5 flex-col gap-3">
               <Skeleton className="h-5 w-36 rounded-md" />
@@ -471,6 +484,7 @@ export default function Home() {
               )}
             </ClinicalCard>
           )}
+          </CoachTarget>
         </FadeItem>
 
         {/* Quick AI Scan — dark gradient hero */}
@@ -480,6 +494,7 @@ export default function Home() {
           </View>
         </FadeItem>
         <FadeItem index={6}>
+          <CoachTarget id="home.scan" scrollIntoView={scrollIntoView}>
           <GradientHeroCta
             icon={Camera}
             title="Scan Your Skin"
@@ -496,6 +511,7 @@ export default function Home() {
               </View>
             }
           />
+          </CoachTarget>
         </FadeItem>
 
         {/* Chatbot, Progress, Sensitivity & Appointments quick actions */}

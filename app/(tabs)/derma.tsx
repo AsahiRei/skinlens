@@ -6,6 +6,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import type { ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
@@ -28,6 +29,8 @@ import { FadeItem } from "@/components/FadeItem";
 import Skeleton from "@/components/Skeleton";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
+import { CoachTarget } from "@/components/TutorialCoach";
+import { useCoachScroller } from "@/hooks/useCoachScroller";
 import {
   ClinicalCard,
   EmptyState,
@@ -75,6 +78,10 @@ export default function Derma() {
   const mapRef = useRef<MapRef>(null);
   const cameraRef = useRef<CameraRef>(null);
   const router = useRouter();
+  // Tab screens keep their scroll offset between visits, so the tutorial
+  // needs to be able to scroll its target back into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   // setVerified must never run after unmount (the fetch can outlive the tab).
   const mountedRef = useRef(true);
   useEffect(() => () => {
@@ -399,7 +406,10 @@ export default function Derma() {
     <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <KeyboardAwareScroll
+        ref={scrollRef}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: TAB_BAR_CLEARANCE }}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -440,6 +450,7 @@ export default function Derma() {
 
         {/* Find nearby CTA — dark gradient hero */}
         <FadeItem index={2}>
+          <CoachTarget id="derma.find" scrollIntoView={scrollIntoView}>
           <GradientHeroCta
             icon={locating ? Locate : Navigation}
             title={locating ? "Locating..." : "Find Nearby"}
@@ -453,6 +464,7 @@ export default function Derma() {
               </View>
             }
           />
+          </CoachTarget>
         </FadeItem>
 
         {errorMsg && (
