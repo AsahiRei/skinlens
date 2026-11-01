@@ -21,7 +21,8 @@
       "label": "Excellent",
       "color": "#16a34a",
       "trackColor": "#dcfce7",
-      "messageTemplate": "Your skin health is in great shape. We've built a maintenance routine{personalizedClause} to help protect these results long-term."
+      "messageTemplate": "Your skin health is in great shape. We've built a maintenance routine{personalizedClause} to help protect these results long-term.",
+      "shortMessageTemplate": "Your skin health is in great shape{personalizedClause}."
     },
     {
       "minScore": 70,
@@ -29,7 +30,8 @@
       "label": "Good",
       "color": "#65a30d",
       "trackColor": "#ecfccb",
-      "messageTemplate": "You're doing well overall. We've generated a routine{personalizedClause} to fine-tune a few areas and help you reach your best skin yet."
+      "messageTemplate": "You're doing well overall. We've generated a routine{personalizedClause} to fine-tune a few areas and help you reach your best skin yet.",
+      "shortMessageTemplate": "You're doing well overall{personalizedClause}."
     },
     {
       "minScore": 50,
@@ -37,7 +39,8 @@
       "label": "Fair",
       "color": "#f59e0b",
       "trackColor": "#fef3c7",
-      "messageTemplate": "There's room to improve. Your routine{personalizedClause} targets the key habits holding your skin health back."
+      "messageTemplate": "There's room to improve. Your routine{personalizedClause} targets the key habits holding your skin health back.",
+      "shortMessageTemplate": "There's room to improve{personalizedClause}."
     },
     {
       "minScore": 30,
@@ -45,7 +48,8 @@
       "label": "Poor",
       "color": "#f97316",
       "trackColor": "#ffedd5",
-      "messageTemplate": "Your skin health needs attention. We've created a focused routine{personalizedClause} to help you rebuild healthy habits step by step."
+      "messageTemplate": "Your skin health needs attention. We've created a focused routine{personalizedClause} to help you rebuild healthy habits step by step.",
+      "shortMessageTemplate": "Your skin health needs attention{personalizedClause}."
     },
     {
       "minScore": 0,
@@ -53,7 +57,8 @@
       "label": "Critical",
       "color": "#ef4444",
       "trackColor": "#fee2e2",
-      "messageTemplate": "Your skin health score is quite low right now. We've built a routine{personalizedClause} to address the most pressing issues first."
+      "messageTemplate": "Your skin health score is quite low right now. We've built a routine{personalizedClause} to address the most pressing issues first.",
+      "shortMessageTemplate": "Your skin health score is quite low{personalizedClause}."
     }
   ]
 }

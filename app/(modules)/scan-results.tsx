@@ -247,7 +247,7 @@ export default function ScanResults() {
   const handleConfirm = async () => {
     setLoading(true);
     try {
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/scan");
     } catch {
       showNotice("Something went wrong. Please try again.");
     } finally {

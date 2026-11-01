@@ -47,12 +47,23 @@ const PERIOD_CONFIG: Record<
   evening: { label: "Evening", icon: Moon, key: "evening_routine" },
 };
 
+// Matches the greeting buckets on the Home tab: before noon is morning,
+// until 6pm is afternoon, everything after is evening.
+const periodForNow = (): Period => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "morning";
+  if (hour < 18) return "afternoon";
+  return "evening";
+};
+
 export default function Routines() {
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [routineId, setRoutineId] = useState<number | null>(null);
   const [loadingRoutine, setLoadingRoutine] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [activePeriod, setActivePeriod] = useState<Period>("morning");
+  const [activePeriod, setActivePeriod] = useState<Period>(periodForNow);
+  // Once the user taps a period themselves, stop re-syncing to the clock.
+  const manualPeriod = useRef(false);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [pendingSteps, setPendingSteps] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
@@ -82,6 +93,10 @@ export default function Routines() {
     }
   };
   useEffect(() => {
+    // Sync-on-focus: tab screens stay mounted between visits, so the
+    // default period must follow the clock whenever the screen regains
+    // focus — unless the user picked one by hand.
+    if (!manualPeriod.current) setActivePeriod(periodForNow());
     // Fetch-on-focus effect: setState happens in async continuations after
     // awaits, not synchronously — the extra render pass is inherent to loading.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -202,7 +217,10 @@ export default function Routines() {
                   return (
                     <Pressable
                       key={period}
-                      onPress={() => setActivePeriod(period)}
+                      onPress={() => {
+                        manualPeriod.current = true;
+                        setActivePeriod(period);
+                      }}
                       className="flex-1 rounded-full active:opacity-80"
                       style={{ borderRadius: 999, overflow: "hidden" }}
                     >

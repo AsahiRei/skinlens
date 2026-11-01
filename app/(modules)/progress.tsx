@@ -395,8 +395,11 @@ export default function Progress() {
 
   // Before vs Today
   const firstResult = sortedByDate[0] ?? null;
-  const firstResultWithImage = sortedByDate.find((r) => r.image_url) ?? firstResult;
   const latestResult = sortedByDate[sortedByDate.length - 1] ?? null;
+  // Use the oldest scan that has an image (not just the first scan with an image,
+  // which could be the latest scan if earlier scans lack images).
+  const firstResultWithImage =
+    sortedByDate.find((r) => r.image_url && r.id !== latestResult?.id) ?? firstResult;
 
   // One point per day for the trend charts (latest scan wins intraday).
   const trendResults = dedupeDailyResults(allResults);

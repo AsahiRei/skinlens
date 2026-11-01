@@ -40,11 +40,12 @@ import { useNotifications } from "@/hooks/useNotifications";
 import {
   getLatestResult,
   getLatestRoutine,
+  getSkinProfile,
   getTodayProgress,
   getUserProfile,
   toggleStep as toggleStepDb,
 } from "@/lib/db";
-import type { Period, Routine, RoutineStep, Result, UserProfile } from "@/types/schema";
+import type { Period, Routine, RoutineStep, Result, SkinProfile, UserProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
@@ -77,6 +78,7 @@ export default function Home() {
   const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   const { unreadCount, generateNotifications } = useNotifications();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingResult, setLoadingResult] = useState(true);
@@ -109,6 +111,13 @@ export default function Home() {
       console.error("Error fetching user profile:", err);
     } finally {
       setLoadingUser(false);
+    }
+  };
+  const fetchSkinProfile = async () => {
+    try {
+      setSkinProfile(await getSkinProfile());
+    } catch (err) {
+      console.error("Error fetching skin profile:", err);
     }
   };
   const fetchResult = async () => {
@@ -144,6 +153,7 @@ export default function Home() {
   const loadAll = async () => {
     await Promise.all([
       fetchUserProfile(),
+      fetchSkinProfile(),
       fetchResult(),
       fetchRoutine(),
       generateNotifications(),
@@ -213,8 +223,10 @@ export default function Home() {
     : 0;
 
   const scoreExplanation = result
-    ? result.description?.trim() ||
-      getHealthScoreResponse(Number(result.healthscore) || 0).message
+    ? getHealthScoreResponse(Number(result.healthscore) || 0, {
+        skin_type: skinProfile?.skin_type ?? "",
+        main_concern: skinProfile?.main_concerns ?? "",
+      }).shortMessage
     : "";
 
   const goToPeriod = (direction: -1 | 1) => {

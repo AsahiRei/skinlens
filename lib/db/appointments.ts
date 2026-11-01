@@ -141,6 +141,15 @@ export async function requestAppointment(input: {
    * Ignored when null. */
   patientAvatarUrl?: string | null;
 }): Promise<AppointmentRow> {
+  // Hard backstop (the booking screen already blocks this with a modal):
+  // never persist a preferred slot that has already passed — the picked
+  // value can go stale while the form sits open.
+  if (input.preferredTime) {
+    const at = Date.parse(input.preferredTime);
+    if (Number.isFinite(at) && at <= Date.now()) {
+      throw new Error(PAST_TIME_MESSAGE);
+    }
+  }
   const user = await requireUser();
   const base = {
     patient_id: user.id,
@@ -243,6 +252,15 @@ export async function getClinicAppointments(
 /** Friendly copy for a slot that is already held by another visit. */
 export const SLOT_TAKEN_MESSAGE =
   "That time slot is already booked at your clinic — pick a different date & time.";
+
+/**
+ * Friendly copy for a picked slot that has already passed. The picker only
+ * clamps the value at pick-time (and its minimumDate is captured at render),
+ * so the slot goes stale while the form sits open — the booking screens
+ * re-check it at press-time and show this instead of sending the request.
+ */
+export const PAST_TIME_MESSAGE =
+  "That time has already passed — please pick a later date & time.";
 
 /**
  * True when a CONFIRMED visit already occupies this exact minute for the

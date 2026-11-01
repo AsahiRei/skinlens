@@ -4,6 +4,7 @@ export interface HealthScoreResponse {
   severity: Severity;
   label: string;
   message: string;
+  shortMessage: string;
   color: string;
   trackColor: string;
 }

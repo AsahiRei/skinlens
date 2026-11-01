@@ -13,6 +13,7 @@ import {
   User,
   Building,
   CalendarCheck,
+  CalendarX,
   MapPin,
   Navigation,
   Star,
@@ -43,6 +44,7 @@ import {
   formatPatientDisplayName,
   getDoctorsForClinic,
   isRemoteImageUrl,
+  PAST_TIME_MESSAGE,
   requestAppointment,
   type DoctorRow,
 } from "@/lib/db/appointments";
@@ -100,6 +102,10 @@ export default function DermatologistDetails() {
 
   const [booking, setBooking] = useState(false);
   const [showBooked, setShowBooked] = useState(false);
+  // The picked slot can go stale while the form sits open (the picker only
+  // clamps at pick-time). When "Book Appointment" is pressed with an already
+  // passed slot we block the request and explain why in a modal.
+  const [showPastSlot, setShowPastSlot] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // Real booking (verified clinics only — needs a Supabase clinic UUID).
   const [doctors, setDoctors] = useState<DoctorRow[]>([]);
@@ -137,6 +143,15 @@ export default function DermatologistDetails() {
   const handleBook = async () => {
     if (!isCustomEntry || !params.id) return;
     if (booking) return;
+    // Press-time re-validation: the picker's minimumDate is captured when the
+    // screen renders and only clamps at pick-time, so a slot chosen for "later
+    // today" can already be in the past by the time the user hits Book (or was
+    // picked as an earlier time today on iOS, whose spinner has no time floor).
+    // Never send a request for a schedule that has passed.
+    if (preferredDate && preferredDate.getTime() <= Date.now()) {
+      setShowPastSlot(true);
+      return;
+    }
     setBooking(true);
     try {
       // 1. Real booking request → appointments (status 'requested').
@@ -198,6 +213,13 @@ export default function DermatologistDetails() {
     } catch (err) {
       console.error("[book-appointment]", err);
       const msg = err instanceof Error ? err.message : "";
+      // requestAppointment re-checks the slot at write time — surface that
+      // with the same modal instead of a toast (covers a slot that went
+      // stale between the press-time check and the write).
+      if (msg === PAST_TIME_MESSAGE) {
+        setShowPastSlot(true);
+        return;
+      }
       notify(
         /network|fetch|failed/i.test(msg)
           ? "You're offline — connect to book this clinic."
@@ -448,6 +470,22 @@ export default function DermatologistDetails() {
           </View>
         </FadeItem>
       </ScrollView>
+
+      <UiModal
+        visible={showPastSlot}
+        onDismiss={() => setShowPastSlot(false)}
+        title="Schedule unavailable"
+        message="You're not allowed to appoint on that schedule — the time you picked has already passed. Please choose a later date & time."
+        icon={CalendarX}
+        tone="warning"
+        actions={[
+          {
+            label: "Choose a new time",
+            kind: "primary" as const,
+            onPress: () => setShowPastSlot(false),
+          },
+        ]}
+      />
 
       <UiModal
         visible={showBooked}

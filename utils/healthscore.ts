@@ -12,6 +12,7 @@ type HealthBand = {
   color: string;
   trackColor: string;
   messageTemplate: string;
+  shortMessageTemplate: string;
 };
 
 const bands = healthScoreData.bands as HealthBand[];
@@ -35,6 +36,10 @@ export const getHealthScoreResponse = (
     severity: band.severity,
     label: band.label,
     message: band.messageTemplate.replace(
+      "{personalizedClause}",
+      personalizedClause,
+    ),
+    shortMessage: band.shortMessageTemplate.replace(
       "{personalizedClause}",
       personalizedClause,
     ),
