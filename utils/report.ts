@@ -87,6 +87,7 @@ export async function generateSkinReportHtml(): Promise<string> {
 
   const latest = results[0] ?? null;
   const score = latest?.healthscore ?? 0;
+  const latestImageUrl = latest?.image_url ?? null;
   const health = getHealthScoreResponse(score, {
     skin_type: skinProfile?.skin_type ?? "",
     main_concern: skinProfile?.main_concerns ?? "",
@@ -96,6 +97,8 @@ export async function generateSkinReportHtml(): Promise<string> {
     userProfile?.first_name ||
     userProfile?.username ||
     "SkinLens User";
+
+  const userImageUrl = userProfile?.face_image_url ?? null;
 
   const profileRows = [
     ["Name", escapeHtml(name)],
@@ -116,6 +119,10 @@ export async function generateSkinReportHtml(): Promise<string> {
         </tr>`,
     )
     .join("");
+
+  const analysisImageHtml = latestImageUrl
+    ? `<img src="${latestImageUrl}" class="profile-img" alt="Skin Analysis" />`
+    : "";
 
   const assessmentBlock = latest
     ? `
@@ -236,6 +243,10 @@ export async function generateSkinReportHtml(): Promise<string> {
     }
     .brand { color: #15803D; font-size: 22px; font-weight: 800; margin: 0; }
     .subtitle { color: #6B7280; font-size: 12px; margin: 4px 0 0; }
+    .header-content { display: flex; align-items: center; justify-content: space-between; }
+    .assessment-container { display: flex; gap: 20px; align-items: flex-start; }
+    .assessment-details { flex: 1; }
+    .profile-img { width: 120px; height: 120px; border-radius: 12px; border: 2px solid #15803D; object-fit: cover; }
     h2 {
       font-size: 14px;
       color: #14532D;
@@ -287,15 +298,24 @@ export async function generateSkinReportHtml(): Promise<string> {
 </head>
 <body>
   <div class="header">
-    <p class="brand">SkinLens — Skin Health Report</p>
-    <p class="subtitle">Generated ${fmtDateTime(new Date().toISOString())} · For ${escapeHtml(name)}</p>
+    <div class="header-content">
+      <div>
+        <p class="brand">SkinLens — Skin Health Report</p>
+        <p class="subtitle">Generated ${fmtDateTime(new Date().toISOString())} · For ${escapeHtml(name)}</p>
+      </div>
+    </div>
   </div>
 
   <h2>Patient Profile</h2>
   <table>${profileRows}</table>
 
   <h2>Latest Assessment</h2>
-  ${assessmentBlock}
+  <div class="assessment-container">
+    ${analysisImageHtml}
+    <div class="assessment-details">
+      ${assessmentBlock}
+    </div>
+  </div>
 
   <h2>Recommended Products</h2>
   ${recommendationsBlock}

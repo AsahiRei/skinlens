@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Pressable,
   RefreshControl,
-  Text,
   TextInput,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import type { ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -75,6 +75,8 @@ export default function Derma() {
   const [verified, setVerified] = useState<VerifiedClinic[]>([]);
   const [verifiedLoading, setVerifiedLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const ITEMS_PER_PAGE = 4;
   const mapRef = useRef<MapRef>(null);
   const cameraRef = useRef<CameraRef>(null);
   const router = useRouter();
@@ -139,6 +141,11 @@ export default function Derma() {
     `${d.name} ${d.specialty} ${d.clinic}`
       .toLowerCase()
       .includes(query.toLowerCase()),
+  );
+
+  const paginatedFiltered = filtered.slice(
+    currentPage * ITEMS_PER_PAGE,
+    (currentPage + 1) * ITEMS_PER_PAGE,
   );
 
   // Verified locations from Supabase — shown instead of the empty state.
@@ -292,6 +299,10 @@ export default function Derma() {
     refreshing,
     userLocation,
   ]);
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [query, results]);
 
   // Pinned/validated verified card (from the Supabase `clinics` table).
   // Shared by the pre-search list and the pinned section after a live search.
@@ -617,7 +628,7 @@ export default function Derma() {
                 />
               </View>
             )}
-            {filtered.map((d, idx) => (
+            {paginatedFiltered.map((d, idx) => (
               <FadeItem key={d.id} index={Math.min(4 + idx, 8)}>
                 <ClinicalCard key={d.id} className="flex-col gap-3">
                   <View className="flex-row items-center gap-3">
@@ -711,6 +722,32 @@ export default function Derma() {
                 </ClinicalCard>
               </FadeItem>
             ))}
+            {filtered.length > ITEMS_PER_PAGE && (
+              <View className="flex-row items-center justify-center gap-4 mt-4 mb-6">
+                <Pressable
+                  onPress={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                  disabled={currentPage === 0}
+                  className={`p-2 rounded-full ${currentPage === 0 ? "opacity-30" : "active:opacity-60"}`}
+                >
+                  <Text className="font-bold text-lg" style={{ color: theme.colors.primary }}>
+                    ←
+                  </Text>
+                </Pressable>
+                <Text className="text-xs font-medium" style={{ color: theme.colors.muted }}>
+                  Page {currentPage + 1} of {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
+                </Text>
+                <Pressable
+                  onPress={() => setCurrentPage((p) => p + 1)}
+                  disabled={currentPage >= Math.ceil(filtered.length / ITEMS_PER_PAGE) - 1}
+                  className={`p-2 rounded-full ${currentPage >= Math.ceil(filtered.length / ITEMS_PER_PAGE) - 1 ? "opacity-30" : "active:opacity-60"}`}
+                >
+                  <Text className="font-bold text-lg" style={{ color: theme.colors.primary }}>
+                    →
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
           </View>
         )}
       </KeyboardAwareScroll>

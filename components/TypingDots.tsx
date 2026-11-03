@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { View } from "react-native";
+import { FONT_FAMILY } from "@/components/Text";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -58,7 +59,10 @@ export default function TypingDots({ label = "Thinking" }: { label?: string }) {
 
   return (
     <View className="flex-row items-center gap-2 px-2 py-1.5">
-      <Animated.Text style={pulseStyle} className="text-[13px] font-semibold text-[#14532D]">
+      <Animated.Text
+        style={[pulseStyle, { fontFamily: FONT_FAMILY }]}
+        className="text-[13px] font-semibold text-[#14532D]"
+      >
         {label}
       </Animated.Text>
       <View className="flex-row items-center gap-1">

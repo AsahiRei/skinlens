@@ -4,9 +4,9 @@ import {
   Dimensions,
   Image,
   Pressable,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import {
   useCameraDevice,
   useCameraPermission,

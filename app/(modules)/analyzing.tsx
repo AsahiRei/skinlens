@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Image, ScrollView, Text, View } from "react-native";
+import { Image, ScrollView, View } from "react-native";
+import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AlertCircle, ArrowRight, Check, RefreshCw } from "lucide-react-native";
 import Animated, {

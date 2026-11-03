@@ -2,10 +2,10 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  Text,
   TextInput,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Plus, ShieldAlert, Trash2, X, TriangleAlert } from "lucide-react-native";
 

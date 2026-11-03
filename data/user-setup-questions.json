@@ -27,7 +27,7 @@
     "type": "options",
     "options": [
       { "label": "Normal", "value": "normal", "points": 5, "icon": "leaf-outline" },
-      { "label": "Combination", "value": "combination", "points": 4, "icon": "layers-outline" },
+      { "label": "Combination", "value": "combination", "points": 4, "icon": "layers-outline", "isCombination": true },
       { "label": "Dry", "value": "dry", "points": 3, "icon": "sunny-outline" },
       { "label": "Oily", "value": "oily", "points": 3, "icon": "water-outline" },
       { "label": "Sensitive", "value": "sensitive", "points": 2, "icon": "alert-circle-outline" }

@@ -9,7 +9,14 @@ import {
   useRef,
   useState,
 } from "react";
-import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { Text } from "@/components/Text";
 import { usePathname, useRouter } from "expo-router";
 import Animated, {
   useAnimatedStyle,
@@ -25,26 +32,28 @@ import { TUTORIAL_STEPS, type CoachStep } from "@/lib/tutorial-steps";
 
 export type CoachRect = { x: number; y: number; width: number; height: number };
 
-/** A registered tour target: the measure callback plus an optional way to
- * scroll the target back into view (screens that host targets inside a
- * scrollable pass `useCoachScroller`'s scrollIntoView). */
+/** Resolved position/rotation of the mascot for the current step. */
+type MascotPose = {
+  left: number;
+  top: number;
+  flip: boolean;
+  rotation: number;
+  /** Which art to show: the up-pointing or the down-pointing mascot. */
+  down: boolean;
+};
+
 type CoachTargetEntry = {
   measure: () => void;
   scrollIntoView?: (rect: CoachRect) => void;
 };
 
 type CoachContextValue = {
-  /** Run the full tour (first-run flow calls this before opening the tabs). */
   startTutorial: () => void;
   registerTarget: (id: string, entry: CoachTargetEntry) => void;
   unregisterTarget: (id: string) => void;
   reportTarget: (id: string, rect: CoachRect) => void;
 };
 
-/** Group segments (e.g. "(tabs)") are not part of a route's identity, and
- * usePathname may or may not keep them — strip both sides before comparing,
- * otherwise the tour re-pushes routes it is already on (polluting the back
- * stack) or fails to notice it already arrived. */
 function normalizePath(path: string): string {
   const withoutQuery = path.split("?")[0] ?? "";
   return (
@@ -77,13 +86,61 @@ export function useTutorial(): CoachContextValue {
   return ctx;
 }
 
-/** Gap between the highlighted element and the dimmed layer. */
 const HOLE_PADDING = 8;
 const SPOTLIGHT_ANIM = { duration: 260 };
+const CARD_GAP = 16;
+const CARD_EDGE = 24;
+const CARD_PADDING = 18;
+
+/** The mascot art is a tall portrait: 572 × 1024. */
+const MASCOT_HEIGHT = 160;
+const MASCOT_WIDTH = Math.round((MASCOT_HEIGHT * 572) / 1024);
+/** Reserved right-hand column so the mascot never lands on the card copy. */
+const MASCOT_GUTTER = CARD_PADDING + MASCOT_WIDTH + 6;
+/**
+ * How far the mascot reaches past the card edge toward the spotlight. The
+ * upward pose can reach further because its top third is empty air, while the
+ * downward pose stops sooner so the shoes never land on the highlighted UI.
+ */
+const MASCOT_POKE_UP = 36;
+const MASCOT_POKE_DOWN = 16;
+/** Furthest the mascot may lean, so it never tips onto its side. */
+const MAX_ROTATION = 55;
+/** Direction each pose's finger points, in degrees (0 = right, 90 = down). */
+const POSE_UP_NATIVE = -105;
+const POSE_DOWN_NATIVE = 143;
+const POSE_UP = require("@/assets/images/others/4.png");
+const POSE_DOWN = require("@/assets/images/others/5.png");
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+/** Wraps an angle into (-180, 180]. */
+function normalizeDeg(deg: number): number {
+  const wrapped = deg % 360;
+  if (wrapped > 180) return wrapped - 360;
+  if (wrapped <= -180) return wrapped + 360;
+  return wrapped;
+}
+
+/**
+ * Where the card sits vertically for a given spotlight rect. Keep this in
+ * sync with the `cardStyle` worklet below — it repeats the same maths because
+ * a worklet can't call a function that lives on the JS runtime.
+ */
+function cardTopFor(
+  rect: CoachRect,
+  cardHeight: number,
+  winH: number,
+): number {
+  const spaceBelow = winH - (rect.y + rect.height);
+  return spaceBelow > cardHeight + CARD_GAP + 24
+    ? rect.y + rect.height + CARD_GAP
+    : Math.max(rect.y - cardHeight - CARD_GAP, 16);
+}
 
 const styles = StyleSheet.create({
-  /* Dim layer — four panes around the spotlight so the highlighted hole
-   * stays fully interactive-looking while everything else is covered. */
   pane: { position: "absolute", backgroundColor: "rgba(16, 36, 26, 0.62)" },
   ring: {
     position: "absolute",
@@ -93,32 +150,40 @@ const styles = StyleSheet.create({
   },
   card: {
     position: "absolute",
-    left: 24,
-    right: 24,
+    left: CARD_EDGE,
+    right: CARD_EDGE,
     backgroundColor: "#FFFFFF",
     borderRadius: theme.radius.card,
     borderWidth: 1,
     borderColor: theme.colors.cardBorder,
-    padding: 18,
+    paddingTop: CARD_PADDING,
+    paddingBottom: CARD_PADDING,
+    paddingLeft: CARD_PADDING,
+    // The mascot stands in this column on every step, so the copy never
+    // reflows underneath it.
+    paddingRight: MASCOT_GUTTER,
     ...cardShadow,
+  },
+  mascot: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: MASCOT_WIDTH,
+    height: MASCOT_HEIGHT,
+  },
+  mascotArt: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: MASCOT_WIDTH,
+    height: MASCOT_HEIGHT,
   },
 });
 
-/**
- * Interactive coach-mark tutorial: dims the screen, puts a spotlight on the
- * real element being explained and walks the user through every tab
- * (Home → Scan → Routine → Derma → Profile), navigating between them as the
- * tour advances. Screens mark their elements with <CoachTarget id="..."> and
- * the first-run flow starts the tour via startTutorial().
- *
- * Mounted once in the root layout so the overlay covers the whole app,
- * including the tab bar.
- */
 export function TutorialCoachProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { width: winW, height: winH } = useWindowDimensions();
-  // id -> target entry, fed by the CoachTarget wrappers.
   const targets = useRef(new Map<string, CoachTargetEntry>());
   const [steps, setSteps] = useState<CoachStep[] | null>(null);
   const [index, setIndex] = useState(0);
@@ -127,8 +192,6 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
     rect: CoachRect;
   } | null>(null);
   const [cardHeight, setCardHeight] = useState(220);
-  // React state can't stop a double-tap (updates are async) — the ref makes
-  // start/end idempotent, same pattern as the setup loading screen.
   const activeRef = useRef(false);
   const stepsRef = useRef<CoachStep[] | null>(null);
   const indexRef = useRef(0);
@@ -153,26 +216,16 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
   const unregisterTarget = useCallback((id: string) => {
     targets.current.delete(id);
   }, []);
-  // Only the current step's reports land — a rect measured for another step
-  // (or an earlier visit) must not move the spotlight. The derived `rect`
-  // below drops stale reports without a state-reset effect.
   const scrolledStepRef = useRef(-1);
   const reportTarget = useCallback((id: string, r: CoachRect) => {
     const stepIndex = indexRef.current;
     const step = stepsRef.current?.[stepIndex];
     if (!step || step.target !== id) return;
-    // The driver re-measures on a tick to catch layout changes; ignore the
-    // no-op reports so the spotlight only animates when it actually moved.
     setRectReport((prev) =>
       prev && prev.step === stepIndex && sameRect(prev.rect, r)
         ? prev
         : { step: stepIndex, rect: r },
     );
-    // Tab screens keep their scroll offset between visits and the tour
-    // blocks all input, so a target can sit above/below the fold when the
-    // spotlight lands (e.g. replaying from the bottom of Profile puts
-    // profile.card off-screen). Ask the screen to scroll it into view —
-    // at most once per step, so we never fight our own scroll animation.
     const entry = targets.current.get(id);
     if (!entry?.scrollIntoView || scrolledStepRef.current === stepIndex) return;
     const margin = 12;
@@ -197,20 +250,14 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
       scrolledStepRef.current = -1;
       setSteps(null);
       setRectReport(null);
-      // Done (or skipped) — never auto-run the tour again on boot.
       void requireUser()
         .then((user) => clearTutorialPending(user.id))
         .catch(() => {});
-      // Finish lands back on Home; Skip leaves the user where they are.
       if (finished && !sameRoute(pathname, "/(tabs)")) router.push("/(tabs)");
     },
     [pathname, router],
   );
 
-  // Step driver: navigate to the step's screen (if it has one), then keep
-  // measuring the target — screens mount and lay out asynchronously, tab
-  // transitions report mid-flight coordinates, and scroll offsets can shift
-  // between visits.
   useEffect(() => {
     if (!steps) return;
     const step = steps[index];
@@ -224,19 +271,11 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
     const tick = () => {
       if (cancelled) return;
       attempt += 1;
-      // Measuring before the destination has landed returns the outgoing
-      // screen's coordinates (or zeros for a detached tab) — that's what
-      // used to park the spotlight in the wrong place when the tour was
-      // replayed from another tab. The fallback keeps the old behaviour
-      // in case the navigation somehow never lands.
       const arrived =
         !step.href ||
         attempt > 20 ||
         sameRoute(pathnameRef.current, step.href);
       if (arrived) targets.current.get(step.target)?.measure();
-      // Keep re-measuring for a settle window: the target moves after its
-      // first report (tab transition, staggered FadeItem reveal, late data
-      // load) and the last report wins.
       if (attempt < 40) timer = setTimeout(tick, 160);
     };
     timer = setTimeout(tick, needsNav ? 120 : 0);
@@ -246,10 +285,92 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
     };
   }, [steps, index, pathname, router]);
 
-  /* Spotlight rect → animated shared values. Before the first measurement
-   * the rect covers the whole screen (solid dim), then it snaps onto the
-   * target and glides between steps. */
   const rect = rectReport?.step === index ? rectReport.rect : null;
+
+  /**
+   * Where the mascot stands and which way it leans. It lives in the card's
+   * right-hand gutter and reaches past the card edge toward the spotlight,
+   * so it can never land on the highlighted element itself.
+   */
+  const mascot = useMemo<MascotPose | null>(() => {
+    if (!rect) return null;
+    const cardTop = cardTopFor(rect, cardHeight, winH);
+    const targetBelow = rect.y + rect.height / 2 > cardTop + cardHeight / 2;
+    const poke = targetBelow ? MASCOT_POKE_DOWN : MASCOT_POKE_UP;
+    // Mirror the card's inner padding on the right, so the mascot sits in the
+    // reserved gutter with a 6pt gap to the copy (see MASCOT_GUTTER).
+    const left = winW - CARD_EDGE - 1 - CARD_PADDING - MASCOT_WIDTH;
+    const top = targetBelow
+      ? cardTop + cardHeight + poke - MASCOT_HEIGHT
+      : cardTop - poke;
+    const aim = Math.atan2(
+      rect.y + rect.height / 2 - (top + MASCOT_HEIGHT / 2),
+      rect.x + rect.width / 2 - (left + MASCOT_WIDTH / 2),
+    ) * (180 / Math.PI);
+    const native = targetBelow ? POSE_DOWN_NATIVE : POSE_UP_NATIVE;
+    // Mirroring the art swaps its pointing direction across the vertical
+    // axis, so try both and keep whichever needs the smaller lean.
+    const lean = normalizeDeg(aim - native);
+    const leanFlipped = normalizeDeg(aim - (180 - native));
+    const flip = Math.abs(leanFlipped) < Math.abs(lean);
+    const pose: MascotPose = {
+      left,
+      top,
+      flip,
+      rotation: clamp(flip ? leanFlipped : lean, -MAX_ROTATION, MAX_ROTATION),
+      down: targetBelow,
+    };
+    return pose;
+  }, [rect, cardHeight, winH, winW]);
+
+  /**
+   * The mascot is rendered straight from shared values so it can stay on
+   * screen during the beat where the spotlight rect is cleared between steps.
+   * `mpose` picks the art (0 = pointing up, 1 = pointing down) and `mopacity`
+   * fades it in on the first step of a run.
+   */
+  const mx = useSharedValue(0);
+  const my = useSharedValue(0);
+  const mrot = useSharedValue(0);
+  const mflip = useSharedValue(1);
+  const mpose = useSharedValue(0);
+  const mopacity = useSharedValue(0);
+  const hadMascotRef = useRef(false);
+  useEffect(() => {
+    if (!steps) {
+      // A fresh run should start from the first pose, not glide in from
+      // wherever the previous one finished.
+      hadMascotRef.current = false;
+      mopacity.value = 0;
+      return;
+    }
+    if (!mascot) return;
+    // Snap on the first appearance, glide between steps afterwards.
+    const anim = {
+      duration: hadMascotRef.current ? SPOTLIGHT_ANIM.duration : 1,
+    };
+    hadMascotRef.current = true;
+    mx.value = withTiming(mascot.left, anim);
+    my.value = withTiming(mascot.top, anim);
+    mrot.value = withTiming(mascot.rotation, anim);
+    mflip.value = withTiming(mascot.flip ? -1 : 1, anim);
+    // Swapping the art instantly keeps the two poses from ghosting together.
+    mpose.value = withTiming(mascot.down ? 1 : 0, { duration: 1 });
+    mopacity.value = withTiming(1, { duration: 200 });
+  }, [mascot, steps, mx, my, mrot, mflip, mpose, mopacity]);
+  const mascotStyle = useAnimatedStyle(() => ({
+    left: mx.value,
+    top: my.value,
+    opacity: mopacity.value,
+    transform: [{ rotate: `${mrot.value}deg` }, { scaleX: mflip.value }],
+  }));
+  const poseUpStyle = useAnimatedStyle(() => ({
+    opacity: mopacity.value * (1 - mpose.value),
+  }));
+  const poseDownStyle = useAnimatedStyle(() => ({
+    opacity: mopacity.value * mpose.value,
+  }));
+
   const rsx = useSharedValue(0);
   const rsy = useSharedValue(0);
   const rsw = useSharedValue(0);
@@ -312,14 +433,14 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
     height: rsh.value + HOLE_PADDING * 2,
     opacity: ringOpacity.value,
   }));
-  /* Tooltip sits below the spotlight when there is room, otherwise above. */
   const cardStyle = useAnimatedStyle(() => {
-    const gap = 16;
+    // Inlined rather than calling cardTopFor(): worklets can't call functions
+    // that live on the JS runtime.
     const spaceBelow = winH - (rsy.value + rsh.value);
     const top =
-      spaceBelow > cardHeight + gap + 24
-        ? rsy.value + rsh.value + gap
-        : Math.max(rsy.value - cardHeight - gap, 16);
+      spaceBelow > cardHeight + CARD_GAP + 24
+        ? rsy.value + rsh.value + CARD_GAP
+        : Math.max(rsy.value - cardHeight - CARD_GAP, 16);
     return { top };
   }, [cardHeight, winH]);
 
@@ -348,8 +469,7 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
         statusBarTranslucent
         onRequestClose={() => endTutorial(false)}
       >
-        {/* Full-screen press catcher: taps never reach the UI mid-tour. */}
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1 }} pointerEvents={step?.interactive ? "box-none" : "auto"}>
           <Animated.View pointerEvents="none" style={[styles.pane, topPane]} />
           <Animated.View pointerEvents="none" style={[styles.pane, bottomPane]} />
           <Animated.View pointerEvents="none" style={[styles.pane, leftPane]} />
@@ -360,7 +480,6 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
               style={[styles.card, cardStyle]}
               onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}
             >
-              {/* key: remeasure the card when the copy changes length */}
               <View key={index}>
                 <Text
                   style={{
@@ -409,18 +528,33 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
               </View>
             </Animated.View>
           ) : null}
+          {step ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.mascot, mascotStyle]}
+            >
+              <Animated.Image
+                source={POSE_UP}
+                style={[styles.mascotArt, poseUpStyle]}
+                resizeMode="contain"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+              <Animated.Image
+                source={POSE_DOWN}
+                style={[styles.mascotArt, poseDownStyle]}
+                resizeMode="contain"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+            </Animated.View>
+          ) : null}
         </View>
       </Modal>
     </TutorialContext.Provider>
   );
 }
 
-/**
- * Marks a UI element as a tour target. Measures itself into window
- * coordinates on layout and whenever the tour asks (the provider calls the
- * registered measure on each step). `collapsable={false}` keeps Android
- * from eliding the native view, which would break measureInWindow.
- */
 export function CoachTarget({
   id,
   children,
@@ -428,9 +562,6 @@ export function CoachTarget({
   ...rest
 }: ViewProps & {
   id: string;
-  /** From useCoachScroller — lets the coach scroll this target back into
-   * view when it measures off-screen. Pass it for targets that live inside
-   * a scrollable. */
   scrollIntoView?: (rect: CoachRect) => void;
 }) {
   const { registerTarget, unregisterTarget, reportTarget } = useTutorial();

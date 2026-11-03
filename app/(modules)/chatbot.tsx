@@ -4,11 +4,11 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
   TextInput,
   ToastAndroid,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Send, MessageSquare, Download } from "lucide-react-native";

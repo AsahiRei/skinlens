@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { Text } from "@/components/Text";
 import { CalendarCheck2, CalendarClock, CheckCheck, CircleAlert, Inbox } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";

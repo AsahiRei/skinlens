@@ -1,5 +1,6 @@
 import type React from "react";
-import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, View } from "react-native";
+import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
 import type { LucideIcon } from "lucide-react-native";
 import { ArrowLeft } from "lucide-react-native";

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
 import { CalendarCheck2 } from "lucide-react-native";
 

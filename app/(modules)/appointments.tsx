@@ -2,11 +2,11 @@ import { useCallback, useState } from "react";
 import {
   Pressable,
   RefreshControl,
-  Text,
   TextInput,
   ToastAndroid,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   CalendarCheck,

@@ -4,10 +4,10 @@ import {
   Image,
   Platform,
   ScrollView,
-  Text,
   ToastAndroid,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AlertCircle, FileText, Info, RefreshCw } from "lucide-react-native";
 

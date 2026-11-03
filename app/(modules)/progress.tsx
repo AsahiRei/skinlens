@@ -5,10 +5,10 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  Text,
   ToastAndroid,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { TrendingUp, Calendar, FileText, ArrowRight, Check } from "lucide-react-native";

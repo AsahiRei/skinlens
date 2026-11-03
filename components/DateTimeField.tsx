@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Platform, Pressable, Text, ToastAndroid, View } from "react-native";
+import { Platform, Pressable, ToastAndroid, View } from "react-native";
+import { Text } from "@/components/Text";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { CalendarClock } from "lucide-react-native";
 

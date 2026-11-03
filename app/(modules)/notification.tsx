@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Bell, Trash2 } from "lucide-react-native";
 
@@ -119,10 +120,10 @@ export default function NotificationDetailScreen() {
         </View>
 
         <ClinicalCard className="mt-5">
-          <Text className="font-bold text-[20px] leading-7" style={{ color: theme.colors.ink }}>
+          <Text className="font-bold text-[16px] leading-5" style={{ color: theme.colors.ink }}>
             {notification.title}
           </Text>
-          <Text className="text-[15px] leading-6 mt-2" style={{ color: theme.colors.body }}>
+          <Text className="text-[14px] leading-5 mt-2" style={{ color: theme.colors.body }}>
             {notification.message}
           </Text>
         </ClinicalCard>

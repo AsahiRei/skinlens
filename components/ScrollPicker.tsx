@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
+import { FONT_FAMILY } from "@/components/Text";
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
@@ -134,5 +135,6 @@ const s = StyleSheet.create({
   text: {
     fontSize: 16,
     textAlign: "center",
+    fontFamily: FONT_FAMILY,
   },
 });

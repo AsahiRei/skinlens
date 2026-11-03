@@ -3,10 +3,10 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  Text,
   TextInput,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useFocusEffect } from "expo-router";
 import {
   Building2,

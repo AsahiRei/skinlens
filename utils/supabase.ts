@@ -74,6 +74,10 @@ async function upsertProfile(
   fullName?: string,
 ) {
   const email = user.email ?? "";
+
+  const { data: existing } = await supabase.from("user_profile").select("id").eq("id", user.id).single();
+  if (existing) return;
+
   const { error: insertError } = await supabase.from("user_profile").upsert(
     {
       id: user.id,

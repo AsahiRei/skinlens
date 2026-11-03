@@ -1,18 +1,22 @@
 [
   {
     "title": "Understand Your Skin",
+    "image": "skin",
     "description": "Learn more about your skin and identify possible skin concerns."
   },
   {
     "title": "Take a Clear Photo",
+    "image": "camera",
     "description": "Capture a clear photo of your skin to get better results."
   },
   {
     "title": "Get Insights",
+    "image": "insights",
     "description": "See results from your photo with helpful skin information."
   },
   {
     "title": "Track Your Skin",
+    "image": "tracking",
     "description": "Monitor your skin over time and keep track of your progress."
   }
 ]

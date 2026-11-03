@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
+import { Text } from "@/components/Text";
 import * as WebBrowser from "expo-web-browser";
 import { ImageOff } from "lucide-react-native";
 import PagerView from "react-native-pager-view";

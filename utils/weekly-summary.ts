@@ -3,28 +3,16 @@ import { getLlamaContext, runExclusive } from "./llama";
 import { stripThinkTags } from "./llm-helpers";
 import { formatter } from "./formatter";
 
-const SYSTEM_PROMPT = `You are a skincare assistant. You report the user's current skin progress using only the scan data you are given.
+const SYSTEM_PROMPT = `You are a friendly skincare assistant. Your goal is to summarize the user's skin progress for the week based on their scan data.
 
-Rules:
-- State only what the data shows right now: the scores, the direction of change, and the findings recorded.
-- Do not give advice, tips, product or routine suggestions, or next steps.
-- Do not predict what will happen next or guess at causes.
-- Do not praise, congratulate, or reassure the user.
-- Do not ask the user any questions.
-- Never mention a number that is not in the data.
-- Reply in 1-2 plain sentences. No Markdown, no bullet points, no emoji.
+Guidelines:
+- Be warm, encouraging, and supportive.
+- If the score has improved, acknowledge the progress positively.
+- Keep it concise (1-2 sentences).
+- Use plain text only — no Markdown, no bullet points, no emoji.
+- State the facts clearly (scores, changes, and findings) but weave them into a natural, friendly summary.
+- Do not diagnose conditions or recommend specific prescription medications.
 - Respond in English only.`;
-
-const ADVISORY_PATTERNS: RegExp[] = [
-  /\b(?:should|ought to|must)\b/i,
-  /\b(?:recommend|advise|advice|suggest|suggestion|tips?|next steps?)\b/i,
-  /\b(?:try|consider|apply|switch|avoid|aim|consult)\b/i,
-  /\b(?:remember to|make sure|keep it up|keep going|keep up)\b/i,
-  /\buse\s+(?:a|an|some|the|your|more|less|products?|serums?|creams?|sunscreen)\b/i,
-  /\b(?:will|going to|expected to|likely|probably|in the future|soon)\b/i,
-  /\b(?:great|excellent|awesome|amazing|fantastic|wonderful|congratulations|proud)\b/i,
-  /^(?:start|try|use|apply|consider|aim|keep|avoid|switch|add|remember|make|consult|choose|pick|follow|stick|reduce|increase|boost|target|monitor)\b/i,
-];
 
 function buildFacts(results: Result[]) {
   const byDate = [...results].sort(
@@ -96,6 +84,30 @@ function splitSentences(text: string): string[] {
   return sentences;
 }
 
+const ADVISORY_PATTERNS = [
+  /suggest/i,
+  /recommend/i,
+  /try/i,
+  /should/i,
+  /could/i,
+  /consider/i,
+  /please/i,
+  /drink/i,
+  /eat/i,
+  /sleep/i,
+  /exercise/i,
+  /visit/i,
+  /doctor/i,
+  /dermatologist/i,
+  /consult/i,
+  /cream/i,
+  /ointment/i,
+  /lotion/i,
+  /serum/i,
+  /wash/i,
+  /cleanse/i,
+];
+
 function isAdvisory(sentence: string): boolean {
   if (sentence.trim().endsWith("?")) return true;
   return ADVISORY_PATTERNS.some((pattern) => pattern.test(sentence));
@@ -105,19 +117,10 @@ function buildSummaryText(raw: string): string {
   const cleaned = cleanText(stripThinkTags(raw));
   if (!cleaned) return "";
 
-  const sentences = splitSentences(cleaned);
-  const descriptive = sentences.filter((s) => !isAdvisory(s));
-  if (descriptive.length === 0) return "";
-
-  const last = descriptive[descriptive.length - 1];
-  const kept =
-    descriptive.length > 1 && !/[.!?]$/.test(last.trim())
-      ? descriptive.slice(0, -1)
-      : descriptive;
-
-  return kept
+  return cleaned
+    .split("\n")
+    .filter((s) => s.trim())
     .slice(0, 2)
-    .map((s) => s.trim())
     .join(" ")
     .trim();
 }
@@ -141,7 +144,7 @@ export async function generateWeeklySummary(
         },
       ],
       n_predict: 128,
-      temperature: 0.3,
+      temperature: 0.4,
       top_p: 0.9,
       stop: ["</s>", "<|eot_id|>", "<|end_of_text|>"],
       chat_template_kwargs: { enable_thinking: false },

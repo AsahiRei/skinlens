@@ -11,6 +11,8 @@ export type CoachStep = {
   href?: string;
   title: string;
   body: string;
+  /** If true, the spotlight allows touches to pass through to the UI. */
+  interactive?: boolean;
 };
 
 export const TUTORIAL_STEPS: CoachStep[] = [

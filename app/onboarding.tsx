@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { View, Image } from "react-native";
+import { Text } from "@/components/Text";
 import PagerView from "react-native-pager-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ArrowRight, Download, AlertCircle } from "lucide-react-native";
+import { ArrowRight, AlertCircle } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -11,7 +20,20 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import { PrimaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import onboardingPage from "@/data/onboarding.json";
-import { cancelDownload, getModelDownloadState, getModelPath } from "@/utils/llama";
+import {
+  cancelDownload,
+  getModelDownloadState,
+  getModelPath,
+} from "@/utils/llama";
+
+const onboardingImages = {
+  skin: require("@/assets/images/onboarding/1.png"),
+  camera: require("@/assets/images/onboarding/2.png"),
+  insights: require("@/assets/images/onboarding/3.png"),
+  tracking: require("@/assets/images/onboarding/4.png"),
+};
+
+const downloadingImage = require("@/assets/images/onboarding/5.png");
 
 export default function Onboarding() {
   const pagerRef = useRef<PagerView>(null);
@@ -25,7 +47,29 @@ export default function Onboarding() {
   const router = useRouter();
   const downloadingRef = useRef(false);
 
-  const reportProgress = (fraction: number, bytesWritten?: number, totalBytes?: number) => {
+  // Gentle looping bounce for the mascot on the download screen.
+  const bounceY = useSharedValue(0);
+
+  useEffect(() => {
+    bounceY.value = withRepeat(
+      withSequence(
+        withTiming(-14, { duration: 750, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 750, easing: Easing.in(Easing.quad) }),
+      ),
+      -1,
+      false,
+    );
+  }, [bounceY]);
+
+  const bounceStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: bounceY.value }],
+  }));
+
+  const reportProgress = (
+    fraction: number,
+    bytesWritten?: number,
+    totalBytes?: number,
+  ) => {
     setProgress(Math.round(fraction * 100));
     if (typeof bytesWritten === "number" && bytesWritten >= 0) {
       setDownloadedMB(bytesWritten / (1024 * 1024));
@@ -113,7 +157,10 @@ export default function Onboarding() {
   };
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       {!downloading && (
         <View className="mb-6 flex-row items-center justify-center gap-1.5 px-6 mt-2">
@@ -130,14 +177,22 @@ export default function Onboarding() {
 
       {downloading ? (
         <View className="flex-1 items-center justify-center px-6 gap-4">
-          <View className="h-14 w-14 rounded-full items-center justify-center" style={{ backgroundColor: "#EAF6EE" }}>
-            <Download size={28} color="#15803D" />
-          </View>
-          <Text className="text-center text-xl font-bold" style={{ color: "#10241A" }}>
+          <Animated.View style={bounceStyle}>
+            <Image
+              source={downloadingImage}
+              style={{ width: 150, height: 250 }}
+              resizeMode="contain"
+            />
+          </Animated.View>
+          <Text
+            className="text-center text-xl font-bold"
+            style={{ color: "#10241A" }}
+          >
             Downloading Resources
           </Text>
           <Text className="text-center text-sm" style={{ color: "#6B7280" }}>
-            Resources are needed for skin analysis. This may take a few minutes on first download.
+            Resources are needed for skin analysis. This may take a few minutes
+            on first download.
           </Text>
 
           {status === "downloading" ? (
@@ -148,7 +203,10 @@ export default function Onboarding() {
                 color="#15803D"
                 trackColor="#EAF6EE"
               />
-              <Text className="text-center text-sm font-medium" style={{ color: "#3F4A44" }}>
+              <Text
+                className="text-center text-sm font-medium"
+                style={{ color: "#3F4A44" }}
+              >
                 {totalMB > 0
                   ? `${progress}% (${downloadedMB.toFixed(0)} / ${totalMB.toFixed(0)} MB)`
                   : `${progress}%`}
@@ -158,7 +216,9 @@ export default function Onboarding() {
             <View className="w-full items-center gap-2">
               <View className="flex-row items-center gap-2">
                 <AlertCircle size={18} color="#DC2626" />
-                <Text className="text-sm" style={{ color: "#DC2626" }}>{errorMessage}</Text>
+                <Text className="text-sm" style={{ color: "#DC2626" }}>
+                  {errorMessage}
+                </Text>
               </View>
               <View className="w-full mt-2">
                 <PrimaryButton label="Retry" onPress={handleRetry} />
@@ -178,14 +238,25 @@ export default function Onboarding() {
           >
             {onboardingPage.map((item, index) => {
               return (
-              <View key={index} className="items-center justify-center px-8">
-                <Text className="text-[28px] font-bold text-center mt-2" style={{ color: "#10241A" }}>
-                  {item.title}
-                </Text>
-                <Text className="mt-3 text-center text-[15px] leading-6" style={{ color: "#6B7280" }}>
-                  {item.description}
-                </Text>
-              </View>
+                <View key={index} className="items-center justify-center px-8">
+                  <Image
+                    source={onboardingImages[item.image as keyof typeof onboardingImages]}
+                    style={{ width: 400, height: 400 }}
+                    resizeMode="contain"
+                  />
+                  <Text
+                    className="text-[28px] font-bold text-center mt-2"
+                    style={{ color: "#10241A" }}
+                  >
+                    {item.title}
+                  </Text>
+                  <Text
+                    className="mt-3 text-center text-[15px] leading-6"
+                    style={{ color: "#6B7280" }}
+                  >
+                    {item.description}
+                  </Text>
+                </View>
               );
             })}
           </PagerView>

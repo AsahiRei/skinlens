@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Image, Pressable, Text, ToastAndroid, View } from "react-native";
+import { Image, Pressable, ToastAndroid, View } from "react-native";
+import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   CalendarCheck2,

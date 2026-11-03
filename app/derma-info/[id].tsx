@@ -4,10 +4,11 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
   ToastAndroid,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   User,
@@ -508,7 +509,10 @@ export default function DermatologistDetails() {
           {
             label: "Done",
             kind: "ghost" as const,
-            onPress: () => setShowBooked(false),
+            onPress: () => {
+              setShowBooked(false);
+              router.push("/(modules)/appointments");
+            },
           },
         ]}
       />

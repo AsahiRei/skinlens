@@ -3,11 +3,11 @@ import {
   ActivityIndicator,
   Platform,
   Pressable,
-  Text,
   TextInput,
   ToastAndroid,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Calendar } from "lucide-react-native";

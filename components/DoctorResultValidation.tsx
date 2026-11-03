@@ -2,10 +2,10 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  Text,
   TextInput,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { Check, ChevronDown, ScanFace, TriangleAlert } from "lucide-react-native";
 
 import { Pill } from "@/components/ui";

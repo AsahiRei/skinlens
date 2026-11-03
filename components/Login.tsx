@@ -2,11 +2,11 @@ import { useState } from "react";
 import {
   Image,
   Pressable,
-  Text,
   TextInput,
   ToastAndroid,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 
@@ -171,7 +171,7 @@ export default function Login() {
       </View>
       <LegalModal
         visible={legal !== null}
-        initialSection={legal ?? undefined}
+        type={legal ?? "terms"}
         onDismiss={() => setLegal(null)}
       />
     </KeyboardAwareScroll>

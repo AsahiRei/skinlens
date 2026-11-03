@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import { Bell, Check, CheckCheck, Trash2 } from "lucide-react-native";
 
@@ -251,13 +252,6 @@ export default function NotificationsScreen() {
                         numberOfLines={1}
                       >
                         {notification.title}
-                      </Text>
-                      <Text
-                        className="text-sm mt-1"
-                        style={{ color: theme.colors.muted }}
-                        numberOfLines={2}
-                      >
-                        {notification.message}
                       </Text>
                       <Text className="text-xs mt-2" style={{ color: theme.colors.faint }}>
                         {typeLabel(notification.type)}, {formatDate(notification.created_at)}

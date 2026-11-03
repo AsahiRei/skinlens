@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, TextInput, ToastAndroid, View } from "react-native";
+import { TextInput, ToastAndroid, View, Image } from "react-native";
+import { Text } from "@/components/Text";
 import { Mail } from "lucide-react-native";
 import { useRouter } from "expo-router";
 
@@ -15,17 +16,25 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const handleResetEmail = async () => {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} forgot-password submit email=`, email);
+    console.log(
+      `[SkinLens][Auth] ${new Date().toISOString()} forgot-password submit email=`,
+      email,
+    );
     setLoading(true);
     try {
       await sendResetEmail(email);
-      console.log(`[SkinLens][Auth] ${new Date().toISOString()} forgot-password email sent`);
+      console.log(
+        `[SkinLens][Auth] ${new Date().toISOString()} forgot-password email sent`,
+      );
       ToastAndroid.show(
         "Email has been sent. Please check in your mailbox.",
         ToastAndroid.SHORT,
       );
     } catch (err) {
-      console.log(`[SkinLens][Auth] ${new Date().toISOString()} forgot-password failed:`, err);
+      console.log(
+        `[SkinLens][Auth] ${new Date().toISOString()} forgot-password failed:`,
+        err,
+      );
       ToastAndroid.show(
         "Something went wrong. Please try again.",
         ToastAndroid.SHORT,
@@ -35,38 +44,53 @@ export default function ForgotPassword() {
     }
   };
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <KeyboardAwareScroll contentContainerStyle={{ paddingHorizontal: 20 }}>
-      <View className="flex-col">
-        <Text className="text-[24px] font-bold text-center mt-4" style={{ color: "#10241A" }}>
-          Forgot Password
-        </Text>
-        <Text className="text-center mt-2" style={{ color: "#6B7280" }}>
-          Enter your email account to reset password
-        </Text>
-        <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2 mt-6" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}>
-          <Mail size={22} color={theme.colors.faint} />
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email address"
-            className="flex-1"
-            style={{ color: theme.colors.ink }}
-            placeholderTextColor={theme.colors.faint}
-            keyboardType="email-address"
-            autoCapitalize="none"
+        <View className="flex-col">
+          <Image
+            source={require("@/assets/images/others/1.png")}
+            style={{ width: 400, height: 400 }}
+            resizeMode="contain"
+            className="self-center"
           />
+          <Text
+            className="text-[24px] font-bold text-center mt-4"
+            style={{ color: "#10241A" }}
+          >
+            Forgot Password
+          </Text>
+          <Text className="text-center mt-2" style={{ color: "#6B7280" }}>
+            Enter your email account to reset password
+          </Text>
+          <View
+            className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2 mt-6"
+            style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+          >
+            <Mail size={22} color={theme.colors.faint} />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Enter your email address"
+              className="flex-1"
+              style={{ color: theme.colors.ink }}
+              placeholderTextColor={theme.colors.faint}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+          <View className="mt-4 flex-col gap-2">
+            <PrimaryButton
+              label={loading ? "Please wait…" : "Continue"}
+              onPress={handleResetEmail}
+              disabled={loading}
+            />
+            <SecondaryButton label="Cancel" onPress={() => router.back()} />
+          </View>
         </View>
-        <View className="mt-4 flex-col gap-2">
-          <PrimaryButton
-            label={loading ? "Please wait…" : "Continue"}
-            onPress={handleResetEmail}
-            disabled={loading}
-          />
-          <SecondaryButton label="Cancel" onPress={() => router.back()} />
-        </View>
-      </View>
       </KeyboardAwareScroll>
     </SafeAreaView>
   );

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import {
+  Image,
   Pressable,
-  Text,
   TextInput,
   ToastAndroid,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import { Lock, Eye, EyeOff } from "lucide-react-native";
 
@@ -62,6 +63,12 @@ export default function CreateNewPassword() {
       <ScreenGradient />
       <KeyboardAwareScroll contentContainerStyle={{ paddingHorizontal: 20 }}>
       <View className="flex-col">
+        <Image
+          source={require("@/assets/images/others/2.png")}
+          style={{ width: 400, height: 400 }}
+          resizeMode="contain"
+          className="self-center"
+        />
         <Text className="text-[24px] font-bold text-center mt-4" style={{ color: "#10241A" }}>
           New Password
         </Text>

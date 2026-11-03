@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AlertCircle, Check } from "lucide-react-native";
 
@@ -84,6 +85,7 @@ export default function Loading() {
       goToStep(0);
       await Promise.all([
         updateUserProfile({
+          username: parsedAnswers.first_name,
           first_name: parsedAnswers.first_name,
           age: parsedAnswers.age,
           gender: parsedAnswers.gender,

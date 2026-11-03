@@ -133,6 +133,7 @@ export async function updateUserProfile(
   updates: Partial<
     Pick<
       UserProfile,
+      | "username"
       | "gender"
       | "user_setup"
       | "first_name"
@@ -162,6 +163,7 @@ export async function updateUserProfile(
     columns.push(`${name} = ?`);
     values.push(value);
   };
+  if (updates.username !== undefined) setColumn("username", updates.username);
   if (updates.gender !== undefined) setColumn("gender", updates.gender);
   if (updates.user_setup !== undefined)
     setColumn("user_setup", updates.user_setup ? 1 : 0);

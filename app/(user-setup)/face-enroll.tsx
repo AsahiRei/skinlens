@@ -3,10 +3,10 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  Text,
   ToastAndroid,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import {
   useCameraDevice,
   useCameraPermission,

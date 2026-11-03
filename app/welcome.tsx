@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Pressable, Text, View, Image } from "react-native";
+import { Pressable, View, Image } from "react-native";
+import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
 
 import Login from "@/components/Login";

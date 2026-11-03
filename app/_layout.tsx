@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { AppState, StatusBar } from "react-native";
 import { Stack, useRouter } from "expo-router";
+import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
 import * as Linking from "expo-linking";
 import { SafeKeyboardProvider as KeyboardProvider } from "@/components/keyboard-safe";
 
@@ -15,12 +17,33 @@ import { releaseLlama } from "@/utils/llama";
 
 import "../global.css";
 
+// Keep the native splash on screen until Redaction10 has loaded, so the first
+// visible frame never paints in the system font. The splash is dismissed by
+// the effect below; on web this is a no-op.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 export default function RootLayout() {
   const router = useRouter();
   // Coalesces rapid duplicate SIGNED_OUT events (logout fires one per
   // signOut scope + one from validateSession's purge) into a single
   // redirect so navigation never loops.
   const lastSignOutRedirect = useRef(0);
+  // App-wide default typeface — components/Text.tsx applies it to every <Text>.
+  // Both weights are loaded so font-bold (700) resolves to the real Bold face
+  // instead of falling back to the system font (iOS resolves it at runtime;
+  // Android gets it via the expo-font config plugin in app.json).
+  const [fontsLoaded, fontError] = useFonts({
+    "Redaction10-Regular": require("../assets/fonts/Redaction10-Regular.ttf"),
+    "Redaction10-Bold": require("../assets/fonts/Redaction10-Bold.ttf"),
+  });
+  useEffect(() => {
+    if (fontError) {
+      console.warn("[SkinLens][Font] failed to load Redaction10:", fontError);
+    }
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, fontError]);
   useEffect(() => {
     console.log(`[SkinLens][Boot] ${new Date().toISOString()} RootLayout mount`);
     const sub = Linking.addEventListener("url", ({ url }) => {

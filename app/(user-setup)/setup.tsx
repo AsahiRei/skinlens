@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Platform, Pressable, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, TextInput, View } from "react-native";
+import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import PagerView from "react-native-pager-view";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -177,6 +178,42 @@ export default function Setup() {
                     </Pressable>
                   );
                 })}
+                {answers[item.id] === "combination" && (
+                  <View className="mt-2 gap-2 px-2">
+                    <Text className="text-xs font-medium" style={{ color: theme.colors.muted }}>
+                      Specify combination details:
+                    </Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {["Oily", "Dry", "Acne", "Sensitive"].map((detail) => {
+                        const detailId = `${item.id}_${detail.toLowerCase()}`;
+                        const isDetailSelected = answers[detailId] === "true";
+                        return (
+                          <Pressable
+                            key={detail}
+                            onPress={() => {
+                              setAnswers((prev) => ({
+                                ...prev,
+                                [detailId]: isDetailSelected ? "false" : "true",
+                              }));
+                            }}
+                            className="px-3 py-1.5 rounded-full border"
+                            style={{
+                              backgroundColor: isDetailSelected ? theme.colors.primarySoft : "#FFFFFF",
+                              borderColor: isDetailSelected ? theme.colors.primary : theme.colors.cardBorder,
+                            }}
+                          >
+                            <Text
+                              className="text-xs font-semibold"
+                              style={{ color: isDetailSelected ? theme.colors.primary : theme.colors.ink }}
+                            >
+                              {detail}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
               </ClinicalCard>
             )}
             {item.type === "text" && (

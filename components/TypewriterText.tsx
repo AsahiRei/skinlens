@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Text, type TextStyle, type StyleProp } from "react-native";
+import { type TextStyle, type StyleProp } from "react-native";
+import { Text } from "@/components/Text";
 
 export default function TypewriterText({
   text,

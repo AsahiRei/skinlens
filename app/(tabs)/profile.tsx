@@ -5,9 +5,9 @@ import {
   RefreshControl,
   ScrollView,
   Switch,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import {
   Moon,

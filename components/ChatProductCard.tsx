@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
+import { Text } from "@/components/Text";
 import * as WebBrowser from "expo-web-browser";
 import { ShoppingBag } from "lucide-react-native";
 

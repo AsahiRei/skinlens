@@ -4,9 +4,9 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  Text,
   View,
 } from "react-native";
+import { Text } from "@/components/Text";
 import { Sun, CloudSun, Moon, Check, List, AlertCircle } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
