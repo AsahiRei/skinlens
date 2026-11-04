@@ -4,7 +4,7 @@ import { Text } from "@/components/Text";
 import { CalendarCheck2, CalendarClock, CheckCheck, CircleAlert, Inbox } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
-import { DoctorAppointmentCard, SCHEDULER_FALLBACK } from "@/components/DoctorAppointmentCard";
+import { DoctorAppointmentCard } from "@/components/DoctorAppointmentCard";
 import { DoctorWeekCalendar, dayKey, sameDay } from "@/components/DoctorWeekCalendar";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -46,29 +46,20 @@ export default function DoctorHome() {
     applyStatus,
   } = useDoctorQueue();
 
-  // Scheduler state (one row at a time) + per-row busy flag.
-  const [schedulingId, setSchedulingId] = useState<string | null>(null);
-  const [scheduledDate, setScheduledDate] = useState<Date>(SCHEDULER_FALLBACK);
-  const [actingId, setActingId] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
-  // Scheduling/decline failures (e.g. a slot another visit already holds)
-  // used to vanish into console.error — surface them to the doctor instead.
+  // Action failures (e.g. slot already booked) surface via the card's
+  // confirmation dialog; keep a top-level banner for anything else.
   const [actionError, setActionError] = useState<string | null>(null);
 
   const handleAction = async (id: string, status: AppointmentStatus, scheduledAt?: string) => {
-    setActingId(id);
-    setActionError(null);
     try {
       await applyStatus(id, status, scheduledAt);
-      setSchedulingId(null);
     } catch (err) {
       console.error("[doctor/home] action failed:", err);
       setActionError(
         err instanceof Error ? err.message : "Couldn't save that change — try again.",
       );
-    } finally {
-      setActingId(null);
     }
   };
 
@@ -100,12 +91,8 @@ export default function DoctorHome() {
     return !Number.isNaN(d.getTime()) && sameDay(d, selectedDay);
   };
 
-  const visibleFresh = fresh.filter((r) =>
-    matchesDay(r.scheduled_at ?? r.preferred_time),
-  );
-  const visibleHistory = history.filter((r) =>
-    matchesDay(r.scheduled_at ?? r.preferred_time),
-  );
+  const visibleFresh = fresh.filter((r) => matchesDay(r.scheduled_at ?? r.preferred_time));
+  const visibleHistory = history.filter((r) => matchesDay(r.scheduled_at ?? r.preferred_time));
   const shownHistory = showAllHistory ? visibleHistory : visibleHistory.slice(0, 3);
 
   const skeleton = (
@@ -146,9 +133,7 @@ export default function DoctorHome() {
         <FadeItem index={0}>
           <View className="mt-2">
             <ScreenHeader
-              title={
-                doctor ? `${greetingFor()}, ${doctor.displayName}` : greetingFor()
-              }
+              title={doctor ? `${greetingFor()}, ${doctor.displayName}` : greetingFor()}
             />
           </View>
         </FadeItem>
@@ -254,13 +239,7 @@ export default function DoctorHome() {
                       appointment={a}
                       patientName={patientDisplayFor(a, patientNames)}
                       patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
-                      expanded={schedulingId === a.id}
-                      busy={actingId === a.id}
-                      scheduledDate={scheduledDate}
-                      onToggleSchedule={() =>
-                        setSchedulingId(schedulingId === a.id ? null : a.id)
-                      }
-                      onScheduledDateChange={setScheduledDate}
+                      busy={false}
                       onAction={(id, status, at) => void handleAction(id, status, at)}
                     />
                   </FadeItem>
@@ -293,18 +272,13 @@ export default function DoctorHome() {
                 <View className="flex-col gap-3 mt-3">
                   {shownHistory.map((a, idx) => (
                     <FadeItem key={a.id} index={Math.min(6 + idx, 9)}>
-                    <DoctorAppointmentCard
-                      appointment={a}
-                      patientName={patientDisplayFor(a, patientNames)}
-                      patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
-                      expanded={false}
-                      busy={false}
-                      scheduledDate={scheduledDate}
-                      onToggleSchedule={() => {}}
-                      onScheduledDateChange={() => {}}
-                      onAction={() => {}}
-                      compact
-                    />
+                      <DoctorAppointmentCard
+                        appointment={a}
+                        patientName={patientDisplayFor(a, patientNames)}
+                        patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
+                        compact
+                        onAction={() => {}}
+                      />
                     </FadeItem>
                   ))}
                 </View>

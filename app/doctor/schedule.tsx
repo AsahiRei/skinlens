@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, View } from "react-native";
 import { CalendarCheck2, CircleAlert } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
-import { DoctorAppointmentCard, SCHEDULER_FALLBACK } from "@/components/DoctorAppointmentCard";
+import { DoctorAppointmentCard } from "@/components/DoctorAppointmentCard";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ScreenGradient } from "@/components/ScreenGradient";
@@ -76,10 +76,7 @@ export default function DoctorSchedule() {
         {/* Header */}
         <FadeItem index={0}>
           <View className="mt-2">
-            <ScreenHeader
-              title="Schedule"
-              subtitle="Confirmed visits"
-            />
+            <ScreenHeader title="Schedule" subtitle="Confirmed visits" />
           </View>
         </FadeItem>
 
@@ -115,10 +112,7 @@ export default function DoctorSchedule() {
           <>
             <FadeItem index={2}>
               <View className="mt-5">
-                <SectionTitle
-                  title="Confirmed visits"
-                  meta={`${scheduled.length} total`}
-                />
+                <SectionTitle title="Confirmed visits" meta={`${scheduled.length} total`} />
               </View>
             </FadeItem>
             {scheduled.length === 0 ? (
@@ -139,11 +133,8 @@ export default function DoctorSchedule() {
                       appointment={a}
                       patientName={patientDisplayFor(a, patientNames)}
                       patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
-                      expanded={false}
                       busy={actingId === a.id}
-                      scheduledDate={SCHEDULER_FALLBACK}
-                      onToggleSchedule={() => {}}
-                      onScheduledDateChange={() => {}}
+                      compact
                       onAction={(id, status) => void handleAction(id, status)}
                     />
                   </FadeItem>

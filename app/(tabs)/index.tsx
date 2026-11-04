@@ -54,6 +54,12 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 
 const PERIOD_ORDER: Period[] = ["morning", "afternoon", "evening"];
 
+// Mascot pops up from behind the score card's top edge.
+const MASCOT_W = 100;
+const MASCOT_ASPECT = 1024 / 807; // width / height of the cropped PNG
+const MASCOT_H = MASCOT_W / MASCOT_ASPECT;
+const MASCOT_OVERLAP = 5; // px the fingers hang over the card's top edge
+
 const PERIOD_CONFIG: Record<
   Period,
   {
@@ -291,75 +297,99 @@ export default function Home() {
 
         {/* Skin health score */}
         <FadeItem index={1}>
-          <View className="mt-5">
+          {/* mt-10 (was mt-5) leaves headroom for the mascot above the card */}
+          <View className="mt-10">
             <SectionTitle title="Skin Health" />
           </View>
         </FadeItem>
         <FadeItem index={2}>
           <CoachTarget id="home.score" scrollIntoView={scrollIntoView}>
-          {loadingResult ? (
-            <LinearGradient
-              colors={[...theme.gradients.dark]}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              className="flex-row items-center gap-4 mt-2.5 px-4 py-4"
-              style={{ borderRadius: theme.radius.card, ...cardShadow }}
-            >
-              <Skeleton className="h-[68px] w-[68px] rounded-full" />
-              <View className="flex-col flex-1 gap-2">
-                <Skeleton className="h-4 w-32 rounded-md" />
-                <Skeleton className="h-3 w-28 rounded-md" />
-                <Skeleton className="h-3 w-44 rounded-md" />
-                <Skeleton className="h-3 w-32 rounded-md" />
-                <Skeleton className="h-8 w-24 rounded-full" />
-              </View>
-            </LinearGradient>
-          ) : (
-            <LinearGradient
-              colors={[...theme.gradients.dark]}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              className="flex-row items-center gap-4 mt-2.5 px-4 py-4"
-              style={{ borderRadius: theme.radius.card, ...cardShadow }}
-            >
-              <CircularProgress
-                progress={Number(result?.healthscore ?? 0)}
-                size={76}
-                strokeWidth={8}
-                color="#FFFFFF"
-                trackColor="rgba(255,255,255,0.25)"
-              >
-                <Text className="text-lg font-bold" style={{ color: "#FFFFFF" }}>
-                  {result?.healthscore ?? 0}%
-                </Text>
-              </CircularProgress>
-              <View className="flex-col flex-1">
-                <Text className="text-[11px] font-bold uppercase" style={{ color: "#BBF7D0", letterSpacing: 1 }}>
-                  Health Score
-                </Text>
-                <Text className="font-bold text-[16px] mt-0.5" style={{ color: "#FFFFFF" }}>
-                  {formatter(result?.severity ?? "—")} Progress
-                </Text>
-                {scoreExplanation ? (
-                  <Text
-                    className="text-[11px] mt-1 leading-4"
-                    style={{ color: "rgba(255,255,255,0.85)" }}
-                  >
-                    {scoreExplanation}
-                  </Text>
-                ) : null}
-                <Pressable
-                  className="rounded-full self-start mt-2.5 active:opacity-80 bg-white px-4 py-1.5"
-                  style={{ borderRadius: 999 }}
-                  onPress={() => router.push("/(modules)/progress")}
+            <View>
+              {loadingResult ? (
+                <LinearGradient
+                  colors={[...theme.gradients.dark]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  className="flex-row items-center gap-4 mt-2.5 px-4 py-4"
+                  style={{ borderRadius: theme.radius.card, ...cardShadow }}
                 >
-                  <Text className="text-xs font-bold" style={{ color: theme.colors.primaryDeep }}>
-                    View Progress
-                  </Text>
-                </Pressable>
+                  <Skeleton className="h-[68px] w-[68px] rounded-full" />
+                  <View className="flex-col flex-1 gap-2">
+                    <Skeleton className="h-4 w-32 rounded-md" />
+                    <Skeleton className="h-3 w-28 rounded-md" />
+                    <Skeleton className="h-3 w-44 rounded-md" />
+                    <Skeleton className="h-3 w-32 rounded-md" />
+                    <Skeleton className="h-8 w-24 rounded-full" />
+                  </View>
+                </LinearGradient>
+              ) : (
+                <LinearGradient
+                  colors={[...theme.gradients.dark]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  className="flex-row items-center gap-4 mt-2.5 px-4 py-4"
+                  style={{ borderRadius: theme.radius.card, ...cardShadow }}
+                >
+                  <CircularProgress
+                    progress={Number(result?.healthscore ?? 0)}
+                    size={76}
+                    strokeWidth={8}
+                    color="#FFFFFF"
+                    trackColor="rgba(255,255,255,0.25)"
+                  >
+                    <Text className="text-lg font-bold" style={{ color: "#FFFFFF" }}>
+                      {result?.healthscore ?? 0}%
+                    </Text>
+                  </CircularProgress>
+                  <View className="flex-col flex-1">
+                    <Text className="text-[11px] font-bold uppercase" style={{ color: "#BBF7D0", letterSpacing: 1 }}>
+                      Health Score
+                    </Text>
+                    <Text className="font-bold text-[16px] mt-0.5" style={{ color: "#FFFFFF" }}>
+                      {formatter(result?.severity ?? "—")} Progress
+                    </Text>
+                    {scoreExplanation ? (
+                      <Text
+                        className="text-[11px] mt-1 leading-4"
+                        style={{ color: "rgba(255,255,255,0.85)" }}
+                      >
+                        {scoreExplanation}
+                      </Text>
+                    ) : null}
+                    <Pressable
+                      className="rounded-full self-start mt-2.5 active:opacity-80 bg-white px-4 py-1.5"
+                      style={{ borderRadius: 999 }}
+                      onPress={() => router.push("/(modules)/progress")}
+                    >
+                      <Text className="text-xs font-bold" style={{ color: theme.colors.primaryDeep }}>
+                        View Progress
+                      </Text>
+                    </Pressable>
+                  </View>
+                </LinearGradient>
+              )}
+
+              {/* Mascot popping up from behind the card's top edge */}
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  // card has mt-2.5 (10px), so its top edge sits 10px below this wrapper's top
+                  top: 10 - (MASCOT_H - MASCOT_OVERLAP),
+                  width: MASCOT_W,
+                  height: MASCOT_H,
+                  zIndex: 10,
+                  elevation: 10, // Android: keeps her above the card's shadow/elevation
+                }}
+              >
+                <Image
+                  source={require("@/assets/images/others/7.png")}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="contain"
+                />
               </View>
-            </LinearGradient>
-          )}
+            </View>
           </CoachTarget>
         </FadeItem>
 
@@ -537,7 +567,7 @@ export default function Home() {
               <ClinicalCard className="items-center gap-2">
                 <IconBadge icon={MessageSquare} size="lg" tone="soft" />
                 <Text className="font-bold text-[13px] text-center" style={{ color: theme.colors.ink }}>
-                  Chat
+                  Ask Nerma
                 </Text>
                 <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
                   Ask skin questions

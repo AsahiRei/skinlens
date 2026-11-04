@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Image,
   Keyboard,
   Platform,
   Pressable,
@@ -11,13 +12,13 @@ import {
 import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Send, MessageSquare, Download } from "lucide-react-native";
+import { Send, Download } from "lucide-react-native";
 
 import TypewriterText from "@/components/TypewriterText";
 import TypingDots from "@/components/TypingDots";
 import { KeyboardAvoidingWrapper } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { BackChip, BackHeader, IconBadge, UiModal } from "@/components/ui";
+import { BackChip, BackHeader, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import type { ChatMessage, ChatTurn } from "@/types/chat";
@@ -236,9 +237,12 @@ export default function Chatbot() {
         <KeyboardAvoidingWrapper>
           <View className="flex-1 items-center justify-center px-5 gap-6">
             <View className="items-center gap-2">
-              <IconBadge icon={MessageSquare} size="lg" tone="soft" />
+              <Image
+                source={require("@/assets/images/others/6.png")}
+                className="h-42 w-42 rounded-2xl"
+              />
               <Text className="font-bold text-[24px]" style={{ color: theme.colors.ink }}>
-                Chat
+                Nerma
               </Text>
               <Text className="text-center" style={{ color: theme.colors.muted }}>
                 Ask about your skin and routine
