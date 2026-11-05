@@ -5,8 +5,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 import jpeg from "jpeg-js";
 import { Buffer } from "buffer";
 import { Image } from "react-native";
-import { createImageFaceDetector } from "react-native-vision-camera-face-detector";
-import type { ImageFaceDetector } from "react-native-vision-camera-face-detector";
+import { detectFaceCropRect, type CropRect } from "@/utils/face-crop";
 
 if (typeof (globalThis as Record<string, unknown>).Buffer === "undefined") {
   (globalThis as Record<string, unknown>).Buffer = Buffer;
@@ -16,21 +15,6 @@ if (typeof (globalThis as Record<string, unknown>).Buffer === "undefined") {
 // Same on-device pattern as utils/skin-prediction.ts (react-native-fast-tflite).
 const FACE_SIZE = 112;
 const EMBEDDING_DIM = 192;
-
-// ML Kit image detector used to locate the face before embedding. Cropping to
-// the face region instead of center-cropping the whole photo keeps the
-// embedding stable when the face is framed smaller/offset (gallery uploads,
-// varied distances) — the main cause of genuine users failing verification.
-let imageFaceDetector: ImageFaceDetector | null = null;
-function getImageFaceDetector(): ImageFaceDetector {
-  if (!imageFaceDetector) {
-    imageFaceDetector = createImageFaceDetector({
-      performanceMode: "accurate",
-      minFaceSize: 0.1,
-    });
-  }
-  return imageFaceDetector;
-}
 
 // Cosine similarity threshold for "same person".
 // 0.45 keeps genuine re-scans (with the face-aware crop below) comfortably
@@ -56,13 +40,6 @@ async function getFaceModel() {
   return faceModel;
 }
 
-type CropRect = {
-  originX: number;
-  originY: number;
-  width: number;
-  height: number;
-};
-
 function tryGetImageSize(
   imageUri: string,
 ): Promise<{ width: number; height: number } | null> {
@@ -73,51 +50,6 @@ function tryGetImageSize(
       () => resolve(null),
     );
   });
-}
-
-// Square region centered on the largest detected face (with margin), clamped
-// to image bounds. Returns null when no face is found so the caller can fall
-// back to the legacy center crop.
-function detectFaceCropRect(
-  imageUri: string,
-  width: number,
-  height: number,
-): CropRect | null {
-  try {
-    const faces = getImageFaceDetector().detectFaces(imageUri);
-    if (!faces || faces.length === 0) return null;
-    let best = faces[0];
-    for (const f of faces) {
-      if (f.bounds.width * f.bounds.height > best.bounds.width * best.bounds.height) {
-        best = f;
-      }
-    }
-    const b = best.bounds;
-    if (!(b.width > 0) || !(b.height > 0)) return null;
-    // Bounds center wildly outside the image means the coordinates came back
-    // in a different space — don't trust them.
-    const cx = b.x + b.width / 2;
-    const cy = b.y + b.height / 2;
-    if (cx < -width || cx > width * 2 || cy < -height || cy > height * 2) {
-      return null;
-    }
-    // Generous margin so the crop still covers hair + chin context.
-    let side = Math.max(b.width, b.height) * 1.5;
-    side = Math.min(side, width, height);
-    if (!(side > 0)) return null;
-    return {
-      originX: Math.max(0, Math.min(width - side, Math.round(cx - side / 2))),
-      originY: Math.max(0, Math.min(height - side, Math.round(cy - side / 2))),
-      width: Math.round(side),
-      height: Math.round(side),
-    };
-  } catch (err) {
-    console.log(
-      `[SkinLens][FaceID] ${new Date().toISOString()} face-crop detect failed, falling back to center crop:`,
-      err,
-    );
-    return null;
-  }
 }
 
 // Uniformly shaped 112x112 JPEG for whatever crop is requested; crop=null

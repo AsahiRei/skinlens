@@ -4,11 +4,8 @@ import { Text } from "@/components/Text";
 import { useRouter, useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import {
-  Camera,
-  Images,
   ArrowRight,
   AlertTriangle,
-  ImagePlus,
 } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
@@ -123,8 +120,6 @@ export default function Scan() {
         onDismiss={() => setNotice(null)}
         title={notice?.title ?? ""}
         message={notice?.message}
-        icon={notice?.title === "Permission needed" ? AlertTriangle : ImagePlus}
-        tone="warning"
         actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
       />
       <UiModal
@@ -132,7 +127,6 @@ export default function Scan() {
         onDismiss={() => {}}
         title="Checking the light"
         message="Reviewing your photo before the scan…"
-        tone="soft"
         dismissOnBackdrop={false}
         actions={[]}
       />
@@ -145,8 +139,6 @@ export default function Scan() {
             ? `${lightingWarning.message}. Scans are most accurate in even light — you can pick another photo or continue anyway.`
             : undefined
         }
-        icon={AlertTriangle}
-        tone="warning"
         actions={[
           {
             label: "Pick another photo",
@@ -187,7 +179,6 @@ export default function Scan() {
           <CoachTarget id="scan.actions" className="flex-col gap-3 mt-5" scrollIntoView={scrollIntoView}>
             <GradientHeroCta
               className="mt-0"
-              icon={Camera}
               title="Use Camera"
               subtitle="Guided face photo to check your skin"
               onPress={() => {
@@ -208,7 +199,6 @@ export default function Scan() {
 
             <GradientHeroCta
               className="mt-0"
-              icon={Images}
               title="Upload Photo"
               subtitle="Choose from your gallery"
               onPress={handleUploadPhoto}

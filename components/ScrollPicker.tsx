@@ -123,7 +123,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     height: ITEM_HEIGHT,
-    backgroundColor: "#15803D",
+    backgroundColor: "#214E36",
     borderRadius: 12,
     zIndex: 0,
   },

@@ -133,7 +133,7 @@ export default function Results() {
               trackColor={trackColor}
             >
               <Text className="text-3xl font-semibold text-gray-700">
-                {score}%
+                {score}/100
               </Text>
             </CircularProgress>
             <View className="flex-row items-center gap-1.5">

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ToastAndroid } from "react-native";
 import { useRouter } from "expo-router";
-import { Trash2 } from "lucide-react-native";
 
 import { UiModal } from "@/components/ui";
 import { deleteMyAccount } from "@/lib/db/auth";
@@ -68,8 +67,6 @@ export default function DeleteAccountModal({
           ? "Your profile, face enrollment, scan history, routines, appointments and reports will be permanently deleted."
           : "Deleting your account permanently removes all of your SkinLens data from our servers and this device."
       }
-      icon={Trash2}
-      tone="danger"
       dismissOnBackdrop={!loading}
       actions={[
         confirming

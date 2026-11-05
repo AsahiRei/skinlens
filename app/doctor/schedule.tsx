@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { RefreshControl, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
-import { CalendarCheck2, CircleAlert } from "lucide-react-native";
+import { CircleAlert } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { DoctorAppointmentCard } from "@/components/DoctorAppointmentCard";
@@ -197,7 +197,7 @@ export default function DoctorSchedule() {
         ) : error ? (
           <FadeItem index={2}>
             <ClinicalCard className="mt-4">
-              <EmptyState icon={CircleAlert} title="Couldn't load" copy={error} />
+              <EmptyState title="Couldn't load" copy={error} />
             </ClinicalCard>
           </FadeItem>
         ) : (
@@ -214,7 +214,6 @@ export default function DoctorSchedule() {
               <FadeItem index={3}>
                 <ClinicalCard className="mt-3">
                   <EmptyState
-                    icon={CalendarCheck2}
                     title="Nothing scheduled"
                     copy="Confirmed visits will appear here once you schedule requests from Home."
                   />

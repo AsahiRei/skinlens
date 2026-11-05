@@ -1,10 +1,10 @@
 import { Pressable, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ScanFace, Camera, RefreshCw } from "lucide-react-native";
+
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { ClinicalCard, IconBadge, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
@@ -21,7 +21,6 @@ export default function FaceMismatch() {
       <ScreenGradient />
       <View className="flex-1 px-5 items-center justify-center">
         <ClinicalCard className="py-10 px-6 items-center gap-3 w-full">
-          <IconBadge icon={ScanFace} size="lg" tone="warning" />
           <Text className="font-bold text-2xl text-center" style={{ color: theme.colors.ink }}>
             Face Not Matched
           </Text>
@@ -40,14 +39,12 @@ export default function FaceMismatch() {
           <View className="w-full mt-2">
             <PrimaryButton
               label="Retry Scan"
-              icon={Camera}
               onPress={() => router.replace("/(modules)/camera")}
             />
           </View>
           <View className="w-full">
             <SecondaryButton
               label="Update My Face"
-              icon={RefreshCw}
               onPress={() =>
                 router.replace({
                   pathname: "/(user-setup)/face-enroll",

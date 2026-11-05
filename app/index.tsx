@@ -275,7 +275,7 @@ export default function Index() {
   return (
     <View className="flex-1 items-center justify-center px-8" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
-      <ActivityIndicator size="large" color="#15803D" />
+      <ActivityIndicator size="large" color="#214E36" />
       {stuck && (
         <View className="items-center mt-6 gap-2">
           <Text className="text-sm text-center" style={{ color: "#6B7280" }}>
@@ -289,7 +289,7 @@ export default function Index() {
             accessibilityRole="button"
             accessibilityLabel="Retry loading"
             className="rounded-full px-5 py-2.5 mt-1 active:opacity-70"
-            style={{ backgroundColor: "#15803D" }}
+            style={{ backgroundColor: "#214E36" }}
           >
             <Text className="text-sm font-bold text-white">Retry</Text>
           </Pressable>

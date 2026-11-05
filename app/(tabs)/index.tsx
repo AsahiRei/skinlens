@@ -11,11 +11,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  Camera,
   ArrowRight,
+  Scan,
   MessageSquare,
   TrendingUp,
-  Scan,
   ShieldAlert,
   CalendarCheck,
 } from "lucide-react-native";
@@ -47,8 +46,9 @@ import {
   toggleStep as toggleStepDb,
 } from "@/lib/db";
 import type { Period, Routine, RoutineStep, Result, SkinProfile, UserProfile } from "@/types/schema";
-import { formatter } from "@/utils/formatter";
+import { formatter, displayName } from "@/utils/formatter";
 import { getHealthScoreResponse } from "@/utils/healthscore";
+import { formatScore } from "@/utils/detection-score";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
@@ -90,6 +90,9 @@ export default function Home() {
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingResult, setLoadingResult] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Scan photos are blurred on the dashboard until tapped, so a glance at
+  // the phone doesn't expose a close-up of the user's face.
+  const [revealPhoto, setRevealPhoto] = useState(false);
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [routineId, setRoutineId] = useState<number | null>(null);
@@ -274,7 +277,7 @@ export default function Home() {
                 <Skeleton className="h-7 w-40 mt-1 rounded-lg" />
               ) : (
                 <Text className="font-bold text-[24px] mt-0.5" style={{ color: theme.colors.ink }}>
-                  {userProfile?.first_name || userProfile?.username || "Welcome"}
+                  {displayName(userProfile?.first_name || userProfile?.username) || "Welcome"}
                 </Text>
               )}
             </View>
@@ -337,9 +340,14 @@ export default function Home() {
                     color="#FFFFFF"
                     trackColor="rgba(255,255,255,0.25)"
                   >
-                    <Text className="text-lg font-bold" style={{ color: "#FFFFFF" }}>
-                      {result?.healthscore ?? 0}%
-                    </Text>
+                    <View className="items-center">
+                      <Text className="text-lg font-bold leading-5" style={{ color: "#FFFFFF" }}>
+                        {result?.healthscore != null ? Math.round(result.healthscore) : "--"}
+                      </Text>
+                      <Text className="text-[10px] font-semibold" style={{ color: "rgba(255,255,255,0.75)" }}>
+                        /100
+                      </Text>
+                    </View>
                   </CircularProgress>
                   <View className="flex-col flex-1">
                     <Text className="text-[11px] font-bold uppercase" style={{ color: "#BBF7D0", letterSpacing: 1 }}>
@@ -463,7 +471,6 @@ export default function Home() {
 
               {totalCount === 0 ? (
                 <EmptyState
-                  icon={Scan}
                   copy={`No ${PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps.`}
                 />
               ) : (
@@ -539,7 +546,6 @@ export default function Home() {
         <FadeItem index={6}>
           <CoachTarget id="home.scan" scrollIntoView={scrollIntoView}>
           <GradientHeroCta
-            icon={Camera}
             title="Scan Your Skin"
             subtitle="Take or upload a photo"
             onPress={() => router.push("/(tabs)/scan")}
@@ -659,28 +665,38 @@ export default function Home() {
               {result ? (
                 <View className="flex-row items-center gap-3">
                   {result.image_url ? (
-                    <View className="h-12 w-12 rounded-2xl overflow-hidden" style={{ backgroundColor: theme.colors.primarySoft }}>
+                    <Pressable
+                      onPress={() => setRevealPhoto((v) => !v)}
+                      accessibilityRole="button"
+                      accessibilityLabel={revealPhoto ? "Hide scan photo" : "Show scan photo"}
+                      className="h-12 w-12 rounded-2xl overflow-hidden"
+                      style={{ backgroundColor: theme.colors.primarySoft }}
+                    >
                       <Image
                         source={{ uri: result.image_url }}
                         className="w-full h-full"
                         resizeMode="cover"
+                        blurRadius={revealPhoto ? 0 : 14}
                       />
-                    </View>
+                    </Pressable>
                   ) : (
                     <IconBadge icon={Scan} size="md" tone="soft" />
                   )}
                   <View className="flex-col flex-1">
                     <Text className="text-sm font-semibold" style={{ color: theme.colors.ink }}>
-                      {formatter(result.detection_label ?? result.severity)} — Score: {result.healthscore}%
+                      {formatter(result.detection_label ?? result.severity)} · {formatScore(result.healthscore)}
                     </Text>
                     <Text
                             className="text-xs mt-0.5"
                             style={{ color: theme.colors.muted }}
                       numberOfLines={1}
                     >
-                      {result.confidence
-                        ? `Confidence: ${Math.round(result.confidence * 100)}%`
-                        : formatter(result.severity)}
+                      {[
+                        formatter(result.severity),
+                        result.confidence ? `${Math.round(result.confidence * 100)}% AI confidence` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </Text>
                     {result.validation_status === "confirmed" ||
                     result.validation_status === "needs_review" ? (
@@ -700,7 +716,9 @@ export default function Home() {
                     ) : null}
                   </View>
                   <Pressable
-                    className="active:opacity-70"
+                    className="active:opacity-70 p-2 -m-2"
+                    accessibilityRole="button"
+                    accessibilityLabel="View scan history"
                     onPress={() => router.push("/(modules)/progress")}
                   >
                     <ChevronRight size={18} color={theme.colors.faint} />
@@ -708,7 +726,6 @@ export default function Home() {
                 </View>
               ) : (
                 <EmptyState
-                  icon={Scan}
                   copy="No scans yet."
                 />
               )}

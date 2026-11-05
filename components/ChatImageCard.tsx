@@ -26,7 +26,7 @@ export default function ChatImageCard({ image }: { image: ChatImage }) {
           className="items-center justify-center bg-gray-100 flex-col gap-1"
         >
           <ImageOff size={20} color="#9CA3AF" />
-          <Text className="text-[10px] text-gray-400 px-2 text-center">
+          <Text className="text-[10px] text-gray-500 px-2 text-center">
             Preview unavailable
           </Text>
         </View>

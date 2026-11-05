@@ -34,6 +34,7 @@ import {
   Moon,
   Contrast,
   TriangleAlert,
+  Timer,
 } from "lucide-react-native";
 
 import type { FaceBounds, LightingQuality, ScanAngle } from "@/types/schema";
@@ -48,11 +49,33 @@ import {
   type ImageLighting,
 } from "@/utils/lighting";
 import { theme } from "@/lib/theme";
+import { cropToFace } from "@/utils/face-crop";
+
+// Module-level on purpose: usePhotoOutput memoizes on targetResolution by
+// reference. An inline object literal is new every render, which recreated the
+// photo output and re-ran session.configure() on each re-render. A capture in
+// flight then failed with "ImageCaptureException: Camera is closed".
+const PHOTO_TARGET_RESOLUTION = { width: 720, height: 1280 };
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const CAMERA_STYLE = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
 const FACE_BOX_TIMING = { duration: 100, easing: Easing.linear };
+
+// ── Auto-capture ──
+// The shutter fires on its own once the pose has been "ready" (aligned, lit,
+// steady) for AUTO_HOLD_MS without interruption. Detections arrive ~10x/s,
+// so the countdown is driven by the detection callback itself — no timers.
+const AUTO_HOLD_MS = 2000;
+// Lower bar than "perfect": side angles lose points for yaw by design, so 70
+// still means "clearly on target" for them (manual capture unlocks at 50).
+const AUTO_MIN_SCORE = 70;
+// Face centre / size may drift at most this fraction of the face size between
+// two detections and still count as "holding still".
+const AUTO_STEADY_DRIFT = 0.06;
+// Grace period after a retake / angle change so the camera doesn't snap the
+// next photo before the user has even looked back at the screen.
+const AUTO_COOLDOWN_MS = 1500;
 
 const INITIAL_QS: QualityStatus = {
   lighting: { quality: "good", message: "", icon: "sun" },
@@ -76,18 +99,24 @@ const ANGLE_GUIDE: Record<ScanAngle, { label: string; shortLabel: string; instru
 
 const GuidanceCard = React.memo(function GuidanceCard({
   score, message, hasFace, lighting, lightingMessage, isMulti, currentAngle,
+  autoCapture, countdown, steady,
 }: {
   score: number; message: string; hasFace: boolean;
   lighting: LightingQuality; lightingMessage: string;
   isMulti: boolean; currentAngle: ScanAngle;
+  autoCapture: boolean; countdown: number | null; steady: boolean;
 }) {
   const color =
     score > 80 ? "#4ADE80" : score > 50 ? theme.colors.star : theme.colors.danger;
   const statusLabel = !hasFace
     ? "Position your face in the frame"
-    : score > 80
-      ? "Hold still — ready"
-      : message;
+    : countdown !== null
+      ? `Hold still — capturing in ${countdown}`
+      : autoCapture && score >= AUTO_MIN_SCORE && !steady
+        ? "Hold still…"
+        : score > 80
+          ? autoCapture ? "Hold still — ready" : "Ready — tap to capture"
+          : message;
   const lightingGood = lighting === "good";
   const LightingIcon = lightingGood ? Sun : lighting === "dim" ? Moon : Contrast;
   const lightingColor = lightingGood ? "#4ADE80" : theme.colors.star;
@@ -154,6 +183,28 @@ const CaptureButton = React.memo(function CaptureButton({
         <CameraIcon size={26} color={canCapture ? theme.colors.primary : "rgba(255,255,255,0.4)"} />
       </View>
     </Pressable>
+  );
+});
+
+const AutoCountdown = React.memo(function AutoCountdown({ value }: { value: number }) {
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}
+    >
+      <View
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={`Capturing in ${value}`}
+        style={{
+          width: 96, height: 96, borderRadius: 48,
+          backgroundColor: "rgba(0,0,0,0.45)",
+          borderWidth: 3, borderColor: "#4ADE80",
+          alignItems: "center", justifyContent: "center",
+        }}
+      >
+        <Text style={{ color: "white", fontSize: 44, fontWeight: "800" }}>{value}</Text>
+      </View>
+    </View>
   );
 });
 
@@ -243,7 +294,7 @@ export default function FaceDetectionScreen() {
   const [cameraPosition, setCameraPosition] = useState<"front" | "back">("front");
   const device = useCameraDevice(cameraPosition);
   const photoOutput = usePhotoOutput({
-    targetResolution: { width: 720, height: 1280 },
+    targetResolution: PHOTO_TARGET_RESOLUTION,
     containerFormat: "jpeg",
     quality: 0.85,
     qualityPrioritization: "balanced",
@@ -251,6 +302,8 @@ export default function FaceDetectionScreen() {
   const outputs = useMemo(() => [photoOutput], [photoOutput]);
 
   const [previewUri, setPreviewUri] = useState<string | null>(null);
+  // True once previewUri is the square face crop rather than the full photo.
+  const [previewCropped, setPreviewCropped] = useState(false);
   const [qs, setQs] = useState<QualityStatus>(INITIAL_QS);
 
   // Pixel-based lighting verdict for the frame in preview (checked in the
@@ -273,12 +326,30 @@ export default function FaceDetectionScreen() {
   // raises a full-screen LogBox overlay in dev that blocks touches (e.g. the
   // "Use Camera" button), and CameraX keeps re-firing the same error.
   const cameraErrorLoggedRef = useRef(false);
-  const previewPathRef = useRef<string | null>(null);
+  // file:// URIs. previewUriRef is the face crop once it's ready (what the
+  // skin model analyzes); originalUriRef is the full photo, kept for face
+  // verification, which does its own cropping.
+  const previewUriRef = useRef<string | null>(null);
+  const originalUriRef = useRef<string | null>(null);
+  const capturedOriginalsRef = useRef<Record<ScanAngle, string | null>>({ front: null, left: null, right: null });
   const currentAngleRef = useRef<ScanAngle>("front");
   const isMultiAngleRef = useRef(false);
   const capturedAnglesRef = useRef<Record<ScanAngle, string | null>>({ front: null, left: null, right: null });
   const cameraPositionRef = useRef<"front" | "back">("front");
   const qsRef = useRef<QualityStatus>(INITIAL_QS);
+
+  // Auto-capture. readySinceRef marks when the pose last became ready;
+  // countdown is the whole seconds left (null = not counting).
+  const [autoCapture, setAutoCapture] = useState(true);
+  const autoCaptureRef = useRef(true);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<number | null>(null);
+  const [steady, setSteady] = useState(false);
+  const steadyRef = useRef(false);
+  const readySinceRef = useRef<number | null>(null);
+  const lastCenterRef = useRef<{ x: number; y: number; size: number } | null>(null);
+  const autoBlockedUntilRef = useRef(0);
+  const handleCaptureRef = useRef<() => void>(() => {});
 
   const faceX = useSharedValue(0);
   const faceY = useSharedValue(0);
@@ -291,6 +362,28 @@ export default function FaceDetectionScreen() {
   useEffect(() => { isMultiAngleRef.current = isMultiAngle; }, [isMultiAngle]);
   useEffect(() => { capturedAnglesRef.current = capturedAngles; }, [capturedAngles]);
   useEffect(() => { cameraPositionRef.current = cameraPosition; }, [cameraPosition]);
+  useEffect(() => { autoCaptureRef.current = autoCapture; }, [autoCapture]);
+
+  const setCountdownIfChanged = useCallback((value: number | null) => {
+    if (countdownRef.current === value) return;
+    countdownRef.current = value;
+    setCountdown(value);
+  }, []);
+
+  const setSteadyIfChanged = useCallback((value: boolean) => {
+    if (steadyRef.current === value) return;
+    steadyRef.current = value;
+    setSteady(value);
+  }, []);
+
+  /** Stops any running countdown; `cooldown` also delays the next one. */
+  const resetAutoCapture = useCallback((cooldown: boolean) => {
+    readySinceRef.current = null;
+    lastCenterRef.current = null;
+    setCountdownIfChanged(null);
+    setSteadyIfChanged(false);
+    if (cooldown) autoBlockedUntilRef.current = Date.now() + AUTO_COOLDOWN_MS;
+  }, [setCountdownIfChanged, setSteadyIfChanged]);
 
   useEffect(() => {
     guidePulse.value = withRepeat(
@@ -395,6 +488,42 @@ export default function FaceDetectionScreen() {
         // directly so a front face can never unlock a side-angle capture.
         canCapture: alignment.score >= 50 && alignment.isFacingFront,
       };
+      // ── Auto-capture: aligned + usable light + steady for AUTO_HOLD_MS ──
+      const center = {
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2,
+        size: Math.max(bounds.width, bounds.height, 1),
+      };
+      const last = lastCenterRef.current;
+      lastCenterRef.current = center;
+      const isSteady =
+        last !== null &&
+        Math.abs(center.x - last.x) / center.size < AUTO_STEADY_DRIFT &&
+        Math.abs(center.y - last.y) / center.size < AUTO_STEADY_DRIFT &&
+        Math.abs(center.size - last.size) / center.size < AUTO_STEADY_DRIFT;
+      setSteadyIfChanged(isSteady);
+      const nowMs = Date.now();
+      const autoReady =
+        autoCaptureRef.current &&
+        nowMs >= autoBlockedUntilRef.current &&
+        next.canCapture &&
+        alignment.score >= AUTO_MIN_SCORE &&
+        !blocksCapture(lighting.quality) &&
+        isSteady;
+      let fireAuto = false;
+      if (autoReady) {
+        if (readySinceRef.current === null) readySinceRef.current = nowMs;
+        const remaining = AUTO_HOLD_MS - (nowMs - readySinceRef.current);
+        if (remaining <= 0) {
+          fireAuto = true;
+        } else {
+          setCountdownIfChanged(Math.ceil(remaining / 1000));
+        }
+      } else {
+        readySinceRef.current = null;
+        setCountdownIfChanged(null);
+      }
+
       const prev = qsRef.current;
       if (
         prev.alignmentScore !== next.alignmentScore ||
@@ -406,8 +535,17 @@ export default function FaceDetectionScreen() {
         qsRef.current = next;
         setQs(next);
       }
+      if (fireAuto) {
+        console.log(`[SkinLens][Camera] ${new Date().toISOString()} auto-capture fired angle=`, currentAngleRef.current);
+        resetAutoCapture(false);
+        handleCaptureRef.current();
+      }
     } else {
       faceVisible.value = 0;
+      readySinceRef.current = null;
+      lastCenterRef.current = null;
+      setCountdownIfChanged(null);
+      setSteadyIfChanged(false);
       const prev = qsRef.current;
       if (prev.alignmentScore !== 0 || prev.canCapture) {
         const next = { ...prev, alignmentScore: 0, alignmentMessage: "", canCapture: false };
@@ -415,13 +553,19 @@ export default function FaceDetectionScreen() {
         setQs(next);
       }
     }
-  }, [estimateBrightness, faceX, faceY, faceW, faceH, faceVisible]);
+  }, [estimateBrightness, faceX, faceY, faceW, faceH, faceVisible, setCountdownIfChanged, setSteadyIfChanged, resetAutoCapture]);
 
   const handleFlipCamera = useCallback(() => {
+    resetAutoCapture(true);
     setCameraPosition((prev) => (prev === "front" ? "back" : "front"));
     // eslint-disable-next-line react-hooks/immutability
     faceVisible.value = 0;
-  }, [faceVisible]);
+  }, [faceVisible, resetAutoCapture]);
+
+  const toggleAutoCapture = useCallback(() => {
+    resetAutoCapture(false);
+    setAutoCapture((p) => !p);
+  }, [resetAutoCapture]);
 
   const handleCapture = useCallback(async () => {
     if (isCapturingRef.current || !qsRef.current.canCapture) {
@@ -433,20 +577,38 @@ export default function FaceDetectionScreen() {
     try {
       const photo = await photoOutput.capturePhoto({}, {});
       const filePath = await photo.saveToTemporaryFileAsync();
+      const originalUri = "file://" + filePath;
       photoRef.current = photo;
-      previewPathRef.current = filePath;
+      originalUriRef.current = originalUri;
+      // Not confirmable until the crop exists (Confirm is also gated on
+      // photoChecking, which covers crop + lighting).
+      previewUriRef.current = null;
       console.log(`[SkinLens][Camera] ${new Date().toISOString()} capture success path=`, filePath.slice(-60));
-      setPreviewUri("file://" + filePath);
-      // Measure the ACTUAL captured pixels — the live preview verdict above
-      // is only a geometry proxy (face size + position, fixed contrast).
+      // Show the full photo instantly, then swap in the face crop.
+      setPreviewUri(originalUri);
+      setPreviewCropped(false);
       const seq = ++lightingSeqRef.current;
       photoLightingRef.current = null;
       photoCheckingRef.current = true;
       setPhotoLighting(null);
       setPhotoChecking(true);
-      measureImageLighting("file://" + filePath)
-        .then((verdict) => {
+      if (isMultiAngleRef.current) {
+        setCapturedAngles((prev) => ({ ...prev, [currentAngleRef.current]: originalUri }));
+      }
+      // Crop to the face (detected on the still photo, never throws — falls
+      // back to the full photo), then measure lighting on the crop so a
+      // bright window or dark room behind the user doesn't skew the verdict.
+      cropToFace(originalUri)
+        .then(async (crop) => {
           if (lightingSeqRef.current !== seq) return; // superseded (retake)
+          previewUriRef.current = crop.uri;
+          setPreviewUri(crop.uri);
+          setPreviewCropped(crop.cropped);
+          if (isMultiAngleRef.current) {
+            setCapturedAngles((prev) => ({ ...prev, [currentAngleRef.current]: crop.uri }));
+          }
+          const verdict = await measureImageLighting(crop.uri);
+          if (lightingSeqRef.current !== seq) return;
           photoLightingRef.current = verdict;
           photoCheckingRef.current = false;
           setPhotoLighting(verdict);
@@ -458,35 +620,37 @@ export default function FaceDetectionScreen() {
           setPhotoChecking(false);
           console.warn("[Camera] lighting check failed, allowing photo:", err);
         });
-      if (isMultiAngleRef.current) {
-        setCapturedAngles((prev) => ({ ...prev, [currentAngleRef.current]: filePath }));
-      }
     } catch (error) {
       console.log(`[SkinLens][Camera] ${new Date().toISOString()} capture failed:`, error);
       console.error("Failed to capture photo:", error);
       isCapturingRef.current = false;
     }
   }, [photoOutput]);
+  useEffect(() => { handleCaptureRef.current = () => { void handleCapture(); }; }, [handleCapture]);
 
   const handleRetake = useCallback(() => {
+    resetAutoCapture(true);
     lightingSeqRef.current++; // invalidate any check still in flight
     photoLightingRef.current = null;
     photoCheckingRef.current = false;
     setPhotoLighting(null);
     setPhotoChecking(false);
     if (photoRef.current) { photoRef.current.dispose(); photoRef.current = null; }
-    previewPathRef.current = null;
+    previewUriRef.current = null;
+    originalUriRef.current = null;
     setPreviewUri(null);
+    setPreviewCropped(false);
     isCapturingRef.current = false;
     if (isMultiAngleRef.current) {
       setCapturedAngles((prev) => ({ ...prev, [currentAngleRef.current]: null }));
     }
-  }, []);
+  }, [resetAutoCapture]);
 
   const handleConfirm = useCallback(() => {
-    const filePath = previewPathRef.current;
-    console.log(`[SkinLens][Camera] ${new Date().toISOString()} confirm angle=`, currentAngleRef.current, `multi=`, isMultiAngleRef.current, `hasFile=`, !!filePath);
-    if (!filePath) return;
+    const uri = previewUriRef.current;
+    const originalUri = originalUriRef.current ?? uri;
+    console.log(`[SkinLens][Camera] ${new Date().toISOString()} confirm angle=`, currentAngleRef.current, `multi=`, isMultiAngleRef.current, `hasFile=`, !!uri);
+    if (!uri || !originalUri) return;
     // Gate: dark / glare frames must be retaken; while the check runs the
     // button shows a spinner instead of confirming an uninspected photo.
     const lighting = photoLightingRef.current;
@@ -495,8 +659,10 @@ export default function FaceDetectionScreen() {
       return;
     }
     if (photoRef.current) { photoRef.current.dispose(); photoRef.current = null; }
-    previewPathRef.current = null;
+    previewUriRef.current = null;
+    originalUriRef.current = null;
     setPreviewUri(null);
+    setPreviewCropped(false);
     isCapturingRef.current = false;
 
     if (isMultiAngleRef.current) {
@@ -504,30 +670,41 @@ export default function FaceDetectionScreen() {
       const cur = currentAngleRef.current;
       const idx = angles.indexOf(cur);
       const next = angles[idx + 1];
-      const allCaptures = { ...capturedAnglesRef.current, [cur]: filePath };
+      const allCaptures = { ...capturedAnglesRef.current, [cur]: uri };
+      const allOriginals = { ...capturedOriginalsRef.current, [cur]: originalUri };
 
       if (next && !allCaptures[next]) {
         capturedAnglesRef.current = allCaptures;
+        capturedOriginalsRef.current = allOriginals;
         setCapturedAngles(allCaptures);
         setCurrentAngle(next);
+        resetAutoCapture(true);
         const resetQs: QualityStatus = { ...INITIAL_QS };
         qsRef.current = resetQs;
         setQs(resetQs);
         return;
       }
 
-      const uris = angles.map((a) => allCaptures[a]).filter(Boolean).map((p) => "file://" + p);
+      // Keep crops and originals index-aligned per angle.
+      const done = angles.filter((a) => allCaptures[a]);
+      const uris = done.map((a) => allCaptures[a] as string);
+      const originals = done.map((a) => allOriginals[a] ?? (allCaptures[a] as string));
       router.push({
         pathname: "/(modules)/analyzing",
-        params: { imageUri: uris[0], sourceType: "camera", imageUris: JSON.stringify(uris) },
+        params: {
+          imageUri: uris[0],
+          sourceType: "camera",
+          imageUris: JSON.stringify(uris),
+          originalUris: JSON.stringify(originals),
+        },
       });
     } else {
       router.push({
         pathname: "/(modules)/analyzing",
-        params: { imageUri: "file://" + filePath, sourceType: "camera" },
+        params: { imageUri: uri, sourceType: "camera", originalUris: JSON.stringify([originalUri]) },
       });
     }
-  }, [router]);
+  }, [router, resetAutoCapture]);
 
   const handleCameraError = useCallback((error: Error) => {
     if (!cameraErrorLoggedRef.current) {
@@ -590,12 +767,24 @@ export default function FaceDetectionScreen() {
         outputs={outputs}
       />
 
-      {isPreview && (
+      {isPreview && !previewCropped && (
         <Image
           source={{ uri: previewUri }}
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
           resizeMode="cover"
         />
+      )}
+
+      {/* Face crop — shown whole (not zoomed) so the user approves exactly
+          what the skin model will analyze. */}
+      {isPreview && previewCropped && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#000", alignItems: "center", justifyContent: "center" }}>
+          <Image
+            source={{ uri: previewUri }}
+            style={{ width: SCREEN_WIDTH - 32, height: SCREEN_WIDTH - 32, borderRadius: 16 }}
+            resizeMode="cover"
+          />
+        </View>
       )}
 
       {/* Top gradient */}
@@ -614,15 +803,33 @@ export default function FaceDetectionScreen() {
             </Text>
           </Pressable>
           {!isPreview && (
-            <Pressable
-              onPress={() => setIsMultiAngle((p) => !p)}
-              className="px-4 py-2 rounded-full"
-              style={{ backgroundColor: isMultiAngle ? theme.colors.primary : "rgba(255,255,255,0.15)" }}
-            >
-              <Text className="text-xs font-semibold text-white">
-                {isMultiAngle ? "Multi-Angle" : "Single Shot"}
-              </Text>
-            </Pressable>
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                onPress={toggleAutoCapture}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: autoCapture }}
+                accessibilityLabel="Auto capture"
+                className="flex-row items-center gap-1 px-3 py-2 rounded-full"
+                style={{ backgroundColor: autoCapture ? theme.colors.primary : "rgba(255,255,255,0.15)" }}
+              >
+                <Timer size={13} color="#FFFFFF" />
+                <Text className="text-xs font-semibold text-white">
+                  {autoCapture ? "Auto" : "Manual"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  resetAutoCapture(true);
+                  setIsMultiAngle((p) => !p);
+                }}
+                className="px-4 py-2 rounded-full"
+                style={{ backgroundColor: isMultiAngle ? theme.colors.primary : "rgba(255,255,255,0.15)" }}
+              >
+                <Text className="text-xs font-semibold text-white">
+                  {isMultiAngle ? "Multi-Angle" : "Single Shot"}
+                </Text>
+              </Pressable>
+            </View>
           )}
         </View>
       </View>
@@ -660,6 +867,9 @@ export default function FaceDetectionScreen() {
         </View>
       )}
 
+      {/* Auto-capture countdown */}
+      {!isPreview && countdown !== null && <AutoCountdown value={countdown} />}
+
       {/* Bottom gradient */}
       <View pointerEvents="none" style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 200, backgroundColor: "rgba(0,0,0,0.6)" }} />
 
@@ -673,6 +883,9 @@ export default function FaceDetectionScreen() {
           lightingMessage={qs.lighting.message}
           isMulti={isMultiAngle}
           currentAngle={currentAngle}
+          autoCapture={autoCapture}
+          countdown={countdown}
+          steady={steady}
         />
       )}
 

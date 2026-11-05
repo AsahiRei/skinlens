@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { CloudOff } from "lucide-react-native";
 
 import { UiModal } from "@/components/ui";
 import { useNetwork } from "@/hooks/useNetwork";
@@ -27,8 +26,6 @@ export function OfflineModal() {
       onDismiss={() => setDismissed(true)}
       title="You're offline"
       message="You are in offline mode. Changes you make will be saved on this device and synced when you reconnect."
-      icon={CloudOff}
-      tone="warning"
       actions={[
         { label: "Continue offline", onPress: () => setDismissed(true) },
       ]}

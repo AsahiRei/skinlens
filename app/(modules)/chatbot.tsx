@@ -12,7 +12,7 @@ import {
 import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Send, Download } from "lucide-react-native";
+import { Send } from "lucide-react-native";
 
 import TypewriterText from "@/components/TypewriterText";
 import TypingDots from "@/components/TypingDots";
@@ -283,8 +283,6 @@ export default function Chatbot() {
           onDismiss={() => setDownloadNotice(null)}
           title="Downloading model"
           message={downloadNotice ?? undefined}
-          icon={Download}
-          tone="soft"
           actions={[{ label: "Got it", onPress: () => setDownloadNotice(null) }]}
         />
         <View className="px-5 pt-2">{BackButton}</View>
@@ -332,8 +330,6 @@ export default function Chatbot() {
         onDismiss={() => setDownloadNotice(null)}
         title="Downloading model"
         message={downloadNotice ?? undefined}
-        icon={Download}
-        tone="soft"
         actions={[{ label: "Got it", onPress: () => setDownloadNotice(null) }]}
       />
       <KeyboardAvoidingWrapper>

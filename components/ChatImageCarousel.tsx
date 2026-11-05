@@ -41,7 +41,7 @@ export default function ChatImageCarousel({
             className="items-center justify-center bg-gray-100 flex-col gap-1"
           >
             <ImageOff size={20} color="#9CA3AF" />
-            <Text className="text-[10px] text-gray-400">
+            <Text className="text-[10px] text-gray-500">
               Preview unavailable
             </Text>
           </View>
@@ -85,7 +85,7 @@ export default function ChatImageCarousel({
                   className="items-center justify-center bg-gray-100 flex-col gap-1"
                 >
                   <ImageOff size={22} color="#9CA3AF" />
-                  <Text className="text-[10px] text-gray-400">
+                  <Text className="text-[10px] text-gray-500">
                     Preview unavailable
                   </Text>
                 </View>

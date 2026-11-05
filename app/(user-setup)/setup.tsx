@@ -5,9 +5,7 @@ import { useRouter } from "expo-router";
 import PagerView from "react-native-pager-view";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  ArrowRight,
   Calendar,
-  Camera as CameraIcon,
   Check,
 } from "lucide-react-native";
 
@@ -312,7 +310,6 @@ export default function Setup() {
           label={isPhotoStep ? "Take Profile Picture" : "Next"}
           onPress={handleNext}
           disabled={!isAnswered}
-          icon={isPhotoStep ? CameraIcon : ArrowRight}
         />
         {page !== 0 && (
           <SecondaryButton label="Back" onPress={handleBack} />

@@ -3,7 +3,6 @@ import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  Bell,
   Building2,
   CalendarClock,
   Info,
@@ -134,7 +133,6 @@ export default function NotificationDetailScreen() {
           <View className="mt-5">
             <ClinicalCard>
               <EmptyState
-                icon={Bell}
                 title="Not found"
                 copy="This notification was deleted or is no longer available."
               />
@@ -259,8 +257,6 @@ export default function NotificationDetailScreen() {
         onDismiss={() => setConfirmVisible(false)}
         title="Delete this notification?"
         message="This cannot be undone."
-        icon={Trash2}
-        tone="danger"
         actions={[
           { label: "Cancel", onPress: () => setConfirmVisible(false), kind: "ghost" },
           {

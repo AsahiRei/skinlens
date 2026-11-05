@@ -1,6 +1,5 @@
 import { Dimensions, ScrollView, View } from "react-native";
 import { Text } from "@/components/Text";
-import { ScrollText, ShieldCheck } from "lucide-react-native";
 
 import { UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
@@ -19,7 +18,6 @@ export default function LegalModal({
 }) {
   const sections = type === "terms" ? TERMS_SECTIONS : PRIVACY_SECTIONS;
   const title = type === "terms" ? "Terms & Conditions" : "Privacy Policy";
-  const icon = type === "terms" ? ScrollText : ShieldCheck;
 
   const SCROLL_MAX = Math.round(Dimensions.get("window").height * 0.5);
 
@@ -29,8 +27,6 @@ export default function LegalModal({
       onDismiss={onDismiss}
       title={title}
       message="Please read carefully before using SkinLens."
-      icon={icon}
-      tone="soft"
       actions={[{ label: "Close", kind: "secondary", onPress: onDismiss }]}
     >
       <ScrollView

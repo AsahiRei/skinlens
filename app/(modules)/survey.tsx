@@ -4,7 +4,6 @@ import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import PagerView from "react-native-pager-view";
 import {
-  ArrowRight,
   Check,
   CheckCircle,
   Droplets,
@@ -210,7 +209,6 @@ export default function Survey() {
           label={isLastPage ? "See Results" : "Next"}
           onPress={handleNext}
           disabled={!isAnswered}
-          icon={isLastPage ? undefined : ArrowRight}
         />
         {page !== 0 && (
           <SecondaryButton label="Back" onPress={handleBack} />

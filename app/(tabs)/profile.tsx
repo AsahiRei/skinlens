@@ -10,14 +10,13 @@ import {
 import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import {
-  Moon,
-  Droplets,
-  Activity,
   ChevronRight,
-  CirclePlay,
   LogOut,
   Pencil,
   ScanFace,
+  ShieldCheck,
+  TriangleAlert,
+  UserRoundSearch,
 } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
@@ -32,13 +31,17 @@ import {
 } from "@/components/ProfileSkeletons";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { CoachTarget, useTutorial } from "@/components/TutorialCoach";
-import { ScreenHeader, UiModal, ClinicalCard, IconBadge, Pill, SectionTitle } from "@/components/ui";
+import { ScreenHeader, UiModal, ClinicalCard, Pill, SectionTitle } from "@/components/ui";
 import { theme, cardShadow } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { useCoachScroller } from "@/hooks/useCoachScroller";
 import { useNotifications } from "@/hooks/useNotifications";
 import { getAllProfiles, updateUserProfile } from "@/lib/db";
+import {
+  getMyProfileValidation,
+  type ProfileValidation,
+} from "@/lib/db/profile-review";
 import type {
   LifestyleProfile,
   SkinProfile,
@@ -62,6 +65,11 @@ export default function Profile() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
+  // undefined = unknown (offline / not migrated) → card hidden;
+  // null = never reviewed.
+  const [validation, setValidation] = useState<
+    ProfileValidation | null | undefined
+  >(undefined);
   const focusTrigger = useFocusTrigger();
   // Replaying from this screen leaves it scrolled down where the Replay
   // button lives — the tutorial needs to scroll its target back into view.
@@ -80,6 +88,11 @@ export default function Profile() {
       setLoadingUser(false);
       setLoadingSkin(false);
       setLoadingLifestyle(false);
+    }
+    try {
+      setValidation(await getMyProfileValidation());
+    } catch {
+      // Offline or 0012 not applied — keep whatever we showed last.
     }
   };
   useEffect(() => {
@@ -125,7 +138,6 @@ export default function Profile() {
         visible={pickerVisible}
         onDismiss={() => setPickerVisible(false)}
         title="Profile picture"
-        icon={ScanFace}
         actions={[
           {
             label: "Take new picture",
@@ -333,9 +345,6 @@ export default function Profile() {
               <ClinicalCard className="flex-col gap-3 mt-4">
                 <SectionTitle title="Lifestyle Info" />
                 <View className="flex-row items-center py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
-                  <View className="mr-3">
-                    <IconBadge icon={Moon} size="md" tone="soft" />
-                  </View>
                   <View className="flex-1">
                     <Text className="text-sm" style={{ color: theme.colors.faint }}>Sleep Quality</Text>
                     <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
@@ -344,9 +353,6 @@ export default function Profile() {
                   </View>
                 </View>
                 <View className="flex-row items-center py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
-                  <View className="mr-3">
-                    <IconBadge icon={Droplets} size="md" tone="soft" />
-                  </View>
                   <View className="flex-1">
                     <Text className="text-sm" style={{ color: theme.colors.faint }}>Water Intake</Text>
                     <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
@@ -355,9 +361,6 @@ export default function Profile() {
                   </View>
                 </View>
                 <View className="flex-row items-center py-3">
-                  <View className="mr-3">
-                    <IconBadge icon={Activity} size="md" tone="soft" />
-                  </View>
                   <View className="flex-1">
                     <Text className="text-sm" style={{ color: theme.colors.faint }}>Stress Level</Text>
                     <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
@@ -369,8 +372,18 @@ export default function Profile() {
             )}
           </FadeItem>
 
+          {/* Dermatologist review of the profile data */}
+          {validation !== undefined ? (
+            <FadeItem index={3}>
+              <ProfileReviewCard
+                validation={validation}
+                onBook={() => router.push("/(tabs)/derma")}
+              />
+            </FadeItem>
+          ) : null}
+
           {/* Notifications */}
-          <FadeItem index={3}>
+          <FadeItem index={4}>
             <ClinicalCard className="flex-col gap-3 mt-4">
               <SectionTitle title="Notifications" />
               <View className="flex-row items-center justify-between py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
@@ -409,7 +422,7 @@ export default function Profile() {
           </FadeItem>
 
           {/* App: replay the first-run tour */}
-          <FadeItem index={4}>
+          <FadeItem index={5}>
             <ClinicalCard className="mt-4">
               <SectionTitle title="App" />
               <Pressable
@@ -422,7 +435,6 @@ export default function Profile() {
                 accessibilityLabel="Replay tutorial"
                 className="flex-row items-center gap-3 pt-3"
               >
-                <IconBadge icon={CirclePlay} size="md" tone="soft" />
                 <View className="flex-1">
                   <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
                     Replay Tutorial
@@ -436,7 +448,7 @@ export default function Profile() {
             </ClinicalCard>
           </FadeItem>
 
-          <FadeItem index={5}>
+          <FadeItem index={6}>
             <Pressable
               className="active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
               style={{ backgroundColor: theme.colors.danger }}
@@ -461,5 +473,104 @@ export default function Profile() {
         </ScrollView>
       </SafeAreaView>
     </>
+  );
+}
+
+function ProfileReviewCard({
+  validation,
+  onBook,
+}: {
+  validation: ProfileValidation | null;
+  onBook: () => void;
+}) {
+  const reviewed = validation !== null;
+  const current = validation?.is_current ?? false;
+  const confirmed = reviewed && current && validation.status === "confirmed";
+  const flagged = reviewed && current && validation.status === "needs_review";
+
+  const Icon = confirmed ? ShieldCheck : flagged ? TriangleAlert : UserRoundSearch;
+  const iconColor = confirmed
+    ? theme.colors.primary
+    : flagged || (reviewed && !current)
+      ? theme.colors.star
+      : theme.colors.faint;
+  const title = !reviewed
+    ? "Not yet reviewed"
+    : !current
+      ? "Updated since last review"
+      : confirmed
+        ? "Verified by your dermatologist"
+        : "Your dermatologist left a follow-up";
+  const body = !reviewed
+    ? "Book a consultation and your dermatologist can verify your skin type, lifestyle and sensitivity history."
+    : !current
+      ? "You changed your profile after it was reviewed. It will be checked again at your next consultation."
+      : confirmed
+        ? "Your profile details were checked and confirmed."
+        : "Some of your profile details may need correcting — see the note below.";
+  const when = validation?.validated_at
+    ? new Date(validation.validated_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : "";
+
+  return (
+    <ClinicalCard className="flex-col gap-3 mt-4">
+      <SectionTitle title="Dermatologist Review" />
+      <View className="flex-row items-start gap-3">
+        <View
+          className="h-9 w-9 rounded-full items-center justify-center"
+          style={{ backgroundColor: confirmed ? theme.colors.primarySoft : theme.colors.background }}
+        >
+          <Icon size={18} color={iconColor} />
+        </View>
+        <View className="flex-1">
+          <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
+            {title}
+          </Text>
+          <Text className="text-sm mt-0.5" style={{ color: theme.colors.faint }}>
+            {body}
+          </Text>
+          {reviewed ? (
+            <Text className="text-xs mt-1.5" style={{ color: theme.colors.muted }}>
+              {validation.validator_name ? `${validation.validator_name} · ` : ""}
+              {when}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      {validation?.doctor_notes ? (
+        <View
+          className="rounded-xl px-3 py-2.5"
+          style={{
+            backgroundColor: flagged ? theme.colors.warningBg : theme.colors.background,
+            borderWidth: 1,
+            borderColor: flagged ? theme.colors.warningBorder : theme.colors.cardBorder,
+          }}
+        >
+          <Text
+            className="text-sm"
+            style={{ color: flagged ? theme.colors.warningText : theme.colors.body }}
+          >
+            {validation.doctor_notes}
+          </Text>
+        </View>
+      ) : null}
+      {!reviewed ? (
+        <Pressable
+          onPress={onBook}
+          accessibilityRole="button"
+          accessibilityLabel="Find a dermatologist"
+          className="flex-row items-center gap-1 self-start active:opacity-70"
+        >
+          <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>
+            Find a dermatologist
+          </Text>
+          <ChevronRight size={16} color={theme.colors.primary} />
+        </Pressable>
+      ) : null}
+    </ClinicalCard>
   );
 }

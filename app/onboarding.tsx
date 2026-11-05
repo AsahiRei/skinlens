@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Image } from "react-native";
+import { View, Image, useWindowDimensions } from "react-native";
 import { Text } from "@/components/Text";
 import PagerView from "react-native-pager-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ArrowRight, AlertCircle } from "lucide-react-native";
+import { AlertCircle } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import Animated, {
   Easing,
+  Extrapolation,
+  FadeIn,
+  interpolate,
+  interpolateColor,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withRepeat,
   withSequence,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 
 import InlineProgress from "@/components/InlineProgress";
@@ -35,6 +41,145 @@ const onboardingImages = {
 
 const downloadingImage = require("@/assets/images/onboarding/5.png");
 
+type OnboardingItem = (typeof onboardingPage)[number];
+
+/**
+ * A single onboarding slide whose content is driven by the pager's continuous
+ * scroll position (page index + offset). Because it is scroll-driven rather
+ * than press-driven, tapping "Next" and swiping produce the exact same motion,
+ * and the animation tracks the finger mid-swipe.
+ *
+ * `distance` is how far this slide is from the centre: -1 (one page to the
+ * right, incoming), 0 (focused), 1 (one page to the left, outgoing).
+ */
+function OnboardingSlide({
+  item,
+  index,
+  scroll,
+  width,
+  reduceMotion,
+}: {
+  item: OnboardingItem;
+  index: number;
+  scroll: SharedValue<number>;
+  width: number;
+  reduceMotion: boolean;
+}) {
+  const range = [index - 1, index, index + 1];
+
+  // Each layer lags the page by a different amount -> parallax depth.
+  // Image lags the most and shrinks slightly; text layers trail behind it.
+  const imageStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scroll.value, range, [0, 1, 0], Extrapolation.CLAMP);
+    if (reduceMotion) return { opacity };
+    return {
+      opacity,
+      transform: [
+        {
+          translateX: interpolate(
+            scroll.value,
+            range,
+            [-width * 0.45, 0, width * 0.45],
+            Extrapolation.CLAMP,
+          ),
+        },
+        {
+          scale: interpolate(scroll.value, range, [0.7, 1, 0.7], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+
+  const titleStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scroll.value, range, [0, 1, 0], Extrapolation.CLAMP);
+    if (reduceMotion) return { opacity };
+    return {
+      opacity,
+      transform: [
+        {
+          translateX: interpolate(
+            scroll.value,
+            range,
+            [-width * 0.25, 0, width * 0.25],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
+
+  const descriptionStyle = useAnimatedStyle(() => {
+    // Description fades faster so it reads as the "last" layer to arrive.
+    const opacity = interpolate(
+      scroll.value,
+      [index - 0.6, index, index + 0.6],
+      [0, 1, 0],
+      Extrapolation.CLAMP,
+    );
+    if (reduceMotion) return { opacity };
+    return {
+      opacity,
+      transform: [
+        {
+          translateX: interpolate(
+            scroll.value,
+            range,
+            [-width * 0.12, 0, width * 0.12],
+            Extrapolation.CLAMP,
+          ),
+        },
+        {
+          translateY: interpolate(scroll.value, range, [16, 0, 16], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+
+  return (
+    <View className="items-center justify-center px-8">
+      <Animated.View style={imageStyle}>
+        <Image
+          source={onboardingImages[item.image as keyof typeof onboardingImages]}
+          style={{ width: 400, height: 400 }}
+          resizeMode="contain"
+        />
+      </Animated.View>
+      <Animated.View style={titleStyle}>
+        <Text
+          className="text-[28px] font-bold text-center mt-2"
+          style={{ color: "#10241A" }}
+        >
+          {item.title}
+        </Text>
+      </Animated.View>
+      <Animated.View style={descriptionStyle}>
+        <Text
+          className="mt-3 text-center text-[15px] leading-6"
+          style={{ color: "#6B7280" }}
+        >
+          {item.description}
+        </Text>
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Page indicator dot that stretches into a pill as its page comes into focus. */
+function PageDot({ index, scroll }: { index: number; scroll: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => {
+    const range = [index - 1, index, index + 1];
+    return {
+      width: interpolate(scroll.value, range, [6, 24, 6], Extrapolation.CLAMP),
+      backgroundColor: interpolateColor(
+        Math.min(Math.abs(scroll.value - index), 1),
+        [0, 1],
+        ["#14532D", "#E5E7EB"],
+      ),
+    };
+  });
+  return <Animated.View className="h-1.5 rounded-full" style={style} />;
+}
+
 export default function Onboarding() {
   const pagerRef = useRef<PagerView>(null);
   const [page, setPage] = useState(0);
@@ -46,6 +191,12 @@ export default function Onboarding() {
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
   const downloadingRef = useRef(false);
+  const { width } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
+
+  // Continuous pager position (e.g. 1.35 = 35% of the way from page 1 to 2).
+  // Drives every slide/indicator animation so swipe and "Next" stay in sync.
+  const scroll = useSharedValue(0);
 
   // Gentle looping bounce for the mascot on the download screen.
   const bounceY = useSharedValue(0);
@@ -165,18 +316,16 @@ export default function Onboarding() {
       {!downloading && (
         <View className="mb-6 flex-row items-center justify-center gap-1.5 px-6 mt-2">
           {onboardingPage.map((_, index) => (
-            <View
-              key={index}
-              className={`h-1.5 rounded-full ${
-                page === index ? "w-6 bg-[#14532D]" : "w-1.5 bg-gray-200"
-              }`}
-            />
+            <PageDot key={index} index={index} scroll={scroll} />
           ))}
         </View>
       )}
 
       {downloading ? (
-        <View className="flex-1 items-center justify-center px-6 gap-4">
+        <Animated.View
+          entering={FadeIn.duration(400)}
+          className="flex-1 items-center justify-center px-6 gap-4"
+        >
           <Animated.View style={bounceStyle}>
             <Image
               source={downloadingImage}
@@ -200,7 +349,7 @@ export default function Onboarding() {
               <InlineProgress
                 progress={progress}
                 height={8}
-                color="#15803D"
+                color="#214E36"
                 trackColor="#EAF6EE"
               />
               <Text
@@ -225,40 +374,31 @@ export default function Onboarding() {
               </View>
             </View>
           )}
-        </View>
+        </Animated.View>
       ) : (
         <>
           <PagerView
             style={{ flex: 1 }}
             ref={pagerRef}
             initialPage={0}
+            onPageScroll={(event) => {
+              const { position, offset } = event.nativeEvent;
+              scroll.value = position + offset;
+            }}
             onPageSelected={(event) => {
               setPage(event.nativeEvent.position);
             }}
           >
-            {onboardingPage.map((item, index) => {
-              return (
-                <View key={index} className="items-center justify-center px-8">
-                  <Image
-                    source={onboardingImages[item.image as keyof typeof onboardingImages]}
-                    style={{ width: 400, height: 400 }}
-                    resizeMode="contain"
-                  />
-                  <Text
-                    className="text-[28px] font-bold text-center mt-2"
-                    style={{ color: "#10241A" }}
-                  >
-                    {item.title}
-                  </Text>
-                  <Text
-                    className="mt-3 text-center text-[15px] leading-6"
-                    style={{ color: "#6B7280" }}
-                  >
-                    {item.description}
-                  </Text>
-                </View>
-              );
-            })}
+            {onboardingPage.map((item, index) => (
+              <OnboardingSlide
+                key={index}
+                item={item}
+                index={index}
+                scroll={scroll}
+                width={width}
+                reduceMotion={reduceMotion}
+              />
+            ))}
           </PagerView>
           <View className="mx-6 mb-8">
             <PrimaryButton
@@ -266,7 +406,6 @@ export default function Onboarding() {
                 page === onboardingPage.length - 1 ? "Get Started" : "Next"
               }
               onPress={handleNext}
-              icon={page !== onboardingPage.length - 1 ? ArrowRight : undefined}
             />
           </View>
         </>

@@ -1,26 +1,30 @@
 import { useCallback, useState } from "react";
 import {
+  Linking,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
+  Switch,
   TextInput,
   ToastAndroid,
   View,
 } from "react-native";
 import { Text } from "@/components/Text";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { Camera, Map, Marker } from "@maplibre/maplibre-react-native";
 import {
-  Building2,
+  Cross,
+  ExternalLink,
+  Pencil,
   LogOut,
-  Mail,
-  RefreshCcw,
+  MapPin,
   ShieldCheck,
-  Ticket,
-  Users,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { FadeItem } from "@/components/FadeItem";
+import { InfoCard } from "@/components/Info";
 import LogoutModal from "@/components/LogoutModal";
 import DeleteAccountModal from "@/components/DeleteAccountModal";
 import {
@@ -33,7 +37,7 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { ScreenGradient } from "@/components/ScreenGradient";
 import {
   ClinicalCard,
-  IconBadge,
+  Pill,
   PrimaryButton,
   ScreenHeader,
   SectionTitle,
@@ -47,13 +51,21 @@ import {
   redeemInviteCode,
   type DoctorProfile,
 } from "@/lib/db/appointments";
+import { useNotifications } from "@/hooks/useNotifications";
+import { requestNotificationPermissions } from "@/lib/push-notifications";
 import { supabase } from "@/utils/supabase";
+
+const MAP_STYLE_URL = `https://maps.geoapify.com/v1/styles/osm-bright/style.json?apiKey=${
+  process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? ""
+}`;
 
 function initialOf(name: string): string {
   return (name.trim().charAt(0) || "D").toUpperCase();
 }
 
 export default function DoctorProfileScreen() {
+  const router = useRouter();
+  const { settings, updateSettings, refresh: refreshNotifications } = useNotifications();
   const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
   const [email, setEmail] = useState<string>("");
   const [waiting, setWaiting] = useState(0);
@@ -130,6 +142,39 @@ export default function DoctorProfileScreen() {
     }
   }, [linkCode, linkName, doctor, load]);
 
+  const toggleRequestNotifications = useCallback(
+    async (enabled: boolean) => {
+      await updateSettings({ appointmentRequests: enabled });
+      if (!enabled) return;
+      // Phone banners need OS permission; in-app notifications work regardless.
+      const granted = await requestNotificationPermissions().catch(() => false);
+      if (!granted) {
+        ToastAndroid.show(
+          "Allow notifications in system settings to get phone alerts.",
+          ToastAndroid.LONG,
+        );
+      }
+      void refreshNotifications();
+    },
+    [updateSettings, refreshNotifications],
+  );
+
+  const hasCoords = doctor?.clinicLatitude != null && doctor?.clinicLongitude != null;
+
+  const openClinicMap = useCallback(() => {
+    if (!doctor || doctor.clinicLatitude == null || doctor.clinicLongitude == null) return;
+    const lat = doctor.clinicLatitude;
+    const lng = doctor.clinicLongitude;
+    const label = encodeURIComponent(doctor.clinicName);
+    const url =
+      Platform.OS === "android"
+        ? `geo:${lat},${lng}?q=${lat},${lng}(${label})`
+        : `https://maps.apple.com/?ll=${lat},${lng}&q=${label}`;
+    Linking.openURL(url).catch(() => {
+      ToastAndroid.show("Couldn't open the map app on this device.", ToastAndroid.SHORT);
+    });
+  }, [doctor]);
+
   return (
     <>
       <LogoutModal isVisible={logoutModal} setVisible={setLogoutModal} />
@@ -142,8 +187,6 @@ export default function DoctorProfileScreen() {
         }}
         title="Link a different hospital"
         message="Each doctor account belongs to one hospital. Enter a new invite code to move it."
-        icon={Ticket}
-        tone="soft"
         actions={[
           { label: "Link Hospital", loading: linkLoading, onPress: () => void handleLink() },
           {
@@ -187,81 +230,87 @@ export default function DoctorProfileScreen() {
             />
           }
         >
+          {/* Header + identity hero (mirrors the patient "My Profile" tab) */}
           <FadeItem index={0}>
-            <View className="mt-2">
-              <ScreenHeader title="Account" subtitle="Your doctor profile" />
-            </View>
-          </FadeItem>
-
-          {/* Identity hero */}
-          <FadeItem index={1}>
             {loading ? (
-              <HeroTextSkeleton className="mt-4" />
+              <HeroTextSkeleton />
             ) : (
-              <LinearGradient
-                colors={[...theme.gradients.dark]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                className="mt-4 px-4 py-5"
-                style={{ borderRadius: theme.radius.card, ...cardShadow }}
-              >
-                <View className="flex-row items-center gap-4">
-                  <LinearGradient
-                    colors={[...theme.gradients.icon]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={{
-                      height: 68,
-                      width: 68,
-                      borderRadius: 999,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text className="text-2xl font-bold text-white">
-                      {initialOf(doctor?.displayName ?? email)}
-                    </Text>
-                  </LinearGradient>
-                  <View className="flex-1">
-                    <Text className="font-bold text-xl" style={{ color: "#FFFFFF" }} numberOfLines={1}>
-                      {doctor?.displayName ?? "Doctor"}
-                    </Text>
-                    <Text className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.8)" }} numberOfLines={1}>
-                      {doctor?.specialty ?? "Dermatology"}
-                    </Text>
-                    {email ? (
-                      <View className="flex-row items-center gap-1.5 mt-1.5">
-                        <Mail size={12} color="rgba(255,255,255,0.7)" />
-                        <Text className="text-xs flex-1" style={{ color: "rgba(255,255,255,0.7)" }} numberOfLines={1}>
+              <View className="mt-2">
+                <View className="flex-row items-start justify-between">
+                  <ScreenHeader title="My Profile" subtitle="Your doctor profile" />
+                  {doctor ? (
+                    <Pressable
+                      onPress={() => router.push("/(modules)/doctor-edit-profile")}
+                      accessibilityRole="button"
+                      accessibilityLabel="Edit profile"
+                      className="flex-row items-center gap-1.5 bg-white rounded-full px-3.5 py-2 active:opacity-70"
+                      style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                    >
+                      <Pencil size={14} color={theme.colors.primary} />
+                      <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>Edit</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                <LinearGradient
+                  colors={[...theme.gradients.dark]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  className="flex-col mt-4 px-4 py-4"
+                  style={{ borderRadius: theme.radius.card, ...cardShadow }}
+                >
+                  <View className="flex-row items-center gap-4">
+                    <LinearGradient
+                      colors={[...theme.gradients.icon]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{
+                        height: 80,
+                        width: 80,
+                        borderRadius: 999,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text className="text-3xl font-bold text-white">
+                        {initialOf(doctor?.displayName ?? email)}
+                      </Text>
+                    </LinearGradient>
+                    <View className="flex-1">
+                      <Text className="font-semibold mt-0.5 text-xl" style={{ color: "#FFFFFF" }} numberOfLines={1}>
+                        {doctor?.displayName ?? "Doctor"}
+                      </Text>
+                      {email ? (
+                        <Text className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.8)" }} numberOfLines={1}>
                           {email}
                         </Text>
-                      </View>
-                    ) : null}
-                    <View className="flex-row items-center gap-1.5 mt-1.5">
-                      <Users size={12} color="rgba(255,255,255,0.6)" />
-                      <Text className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
-                        {waiting} waiting · {scheduled} scheduled
-                      </Text>
+                      ) : null}
                     </View>
                   </View>
-                </View>
-                
-              </LinearGradient>
+                  <View className="mt-2 self-start">
+                    <Pill label={doctor?.specialty ?? "Dermatology"} />
+                  </View>
+                  {doctor ? (
+                    <View className="flex-row gap-3 mt-3">
+                      <InfoCard label="Waiting" value={String(waiting)} />
+                      <InfoCard label="Scheduled" value={String(scheduled)} />
+                    </View>
+                  ) : null}
+                </LinearGradient>
+              </View>
             )}
           </FadeItem>
 
           {/* Clinic */}
-          <FadeItem index={2}>
+          <FadeItem index={1}>
             {loading ? (
               <ClinicalCard className="flex-col gap-3 mt-5">
                 <CardTitleSkeleton />
-                <IconRowsSkeleton rows={1} />
+                <IconRowsSkeleton rows={2} />
                 <Skeleton className="h-12 w-full rounded-full" />
               </ClinicalCard>
             ) : !doctor ? (
               <ClinicalCard className="flex-col gap-3 mt-5">
                 <View className="flex-row items-center gap-3">
-                  <IconBadge icon={Ticket} size="lg" tone="soft" />
                   <View className="flex-1">
                     <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
                       Link your hospital
@@ -303,7 +352,6 @@ export default function DoctorProfileScreen() {
               <ClinicalCard className="flex-col gap-3 mt-5">
               <SectionTitle title="Hospital" meta="Verified clinic" />
               <View className="flex-row items-center gap-3">
-                <IconBadge icon={Building2} size="md" tone="soft" />
                 <View className="flex-1">
                   <Text className="text-base font-bold" style={{ color: theme.colors.ink }} numberOfLines={1}>
                     {doctor?.clinicName ?? "Not linked yet"}
@@ -314,17 +362,104 @@ export default function DoctorProfileScreen() {
                 </View>
                 <ShieldCheck size={18} color={theme.colors.primary} />
               </View>
+              <Pressable
+                className="flex-row items-center gap-3 rounded-2xl px-3 py-3 active:opacity-70"
+                style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                disabled={!hasCoords}
+                onPress={openClinicMap}
+                accessibilityRole={hasCoords ? "button" : undefined}
+                accessibilityLabel={`Hospital location: ${doctor.clinicAddress || "Address not set"}`}
+              >
+                <MapPin size={18} color={theme.colors.primary} />
+                <View className="flex-1">
+                  <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                    Location
+                  </Text>
+                  <Text className="text-sm font-semibold" style={{ color: theme.colors.ink }} numberOfLines={2}>
+                    {doctor.clinicAddress || "Address not set"}
+                  </Text>
+                </View>
+                {hasCoords ? <ExternalLink size={16} color={theme.colors.muted} /> : null}
+              </Pressable>
+              {hasCoords ? (
+                <View
+                  className="overflow-hidden h-44"
+                  style={{
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: theme.colors.cardBorder,
+                    backgroundColor: theme.colors.primarySoft,
+                  }}
+                >
+                  {/* Static preview: gestures off so it doesn't fight the
+                      ScrollView; tapping opens the full maps app. */}
+                  <Map
+                    mapStyle={MAP_STYLE_URL}
+                    logo={false}
+                    compass={false}
+                    dragPan={false}
+                    touchZoom={false}
+                    doubleTapZoom={false}
+                    touchRotate={false}
+                    touchPitch={false}
+                    onPress={openClinicMap}
+                  >
+                    <Camera
+                      initialViewState={{
+                        center: [doctor.clinicLongitude!, doctor.clinicLatitude!],
+                        zoom: 15,
+                      }}
+                    />
+                    <Marker
+                      id="clinic-location"
+                      lngLat={[doctor.clinicLongitude!, doctor.clinicLatitude!]}
+                    >
+                      <View
+                        className="h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-sm"
+                        style={{ backgroundColor: theme.colors.primary }}
+                      >
+                        <Cross size={13} color="white" />
+                      </View>
+                    </Marker>
+                  </Map>
+                </View>
+              ) : null}
               <View className="flex-row items-center gap-2 pt-1">
                 <View className="flex-1">
-                  <PrimaryButton label="Switch hospital" onPress={() => setLinkOpen(true)} icon={RefreshCcw} />
+                  <PrimaryButton label="Switch hospital" onPress={() => setLinkOpen(true)} />
                 </View>
               </View>
             </ClinicalCard>
             )}
           </FadeItem>
 
+          {/* Notifications */}
+          {doctor ? (
+            <FadeItem index={2}>
+              <ClinicalCard className="flex-col gap-3 mt-4">
+                <SectionTitle title="Notifications" />
+                <View className="flex-row items-center justify-between py-3">
+                  <View className="flex-col flex-1 pr-3">
+                    <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
+                      Appointment Requests
+                    </Text>
+                    <Text className="text-sm" style={{ color: theme.colors.faint }}>
+                      Alerts when a patient books a visit
+                    </Text>
+                  </View>
+                  <Switch
+                    value={settings.appointmentRequests}
+                    onValueChange={(val) => void toggleRequestNotifications(val)}
+                    trackColor={{ false: theme.colors.cardBorder, true: theme.colors.primary }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              </ClinicalCard>
+            </FadeItem>
+          ) : null}
+
           {/* Session */}
-          <FadeItem index={4}>
+          <FadeItem index={3}>
             <Pressable
               className="active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
               style={{ backgroundColor: theme.colors.danger }}
@@ -332,8 +467,8 @@ export default function DoctorProfileScreen() {
               accessibilityLabel="Logout"
               onPress={() => setLogoutModal(true)}
             >
-              <LogOut size={18} color="#FFFFFF" />
-              <Text className="font-bold text-white">Logout</Text>
+              <LogOut size={18} color={theme.colors.card} />
+              <Text className="font-bold" style={{ color: theme.colors.card }}>Logout</Text>
             </Pressable>
             <Pressable
               className="active:opacity-60 py-3 mt-2 items-center"

@@ -152,6 +152,6 @@ export async function generateWeeklySummary(
 
   return (
     summary ||
-    `This week: ${results.length} scans, average score ${avg}%, latest score ${latestScore}%.`
+    `This week: ${results.length} scans, average score ${avg}/100, latest score ${latestScore}/100.`
   );
 }

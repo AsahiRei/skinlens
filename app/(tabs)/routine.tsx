@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/Text";
-import { Sun, CloudSun, Moon, Check, List, AlertCircle } from "lucide-react-native";
+import { Sun, CloudSun, Moon, Check } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { FadeItem } from "@/components/FadeItem";
@@ -131,9 +131,19 @@ export default function Routines() {
     ];
   }, [routine]);
   const totalSteps = allSteps.length;
-  const doneCount = completedSteps.size;
+  // Only count completions that map to a step in the current routine, so a
+  // stale key can never push the count past the total.
+  const doneCount = allSteps.filter((s) =>
+    completedSteps.has(`${s.period}-${s.step}`),
+  ).length;
+  // The headline count follows the selected tab (what's on screen); the
+  // whole-day total is shown as secondary context.
+  const periodTotal = activeSteps.length;
+  const periodDone = activeSteps.filter((s) =>
+    completedSteps.has(`${activePeriod}-${s.step}`),
+  ).length;
   const progressPct =
-    totalSteps > 0 ? Math.round((doneCount / totalSteps) * 100) : 0;
+    periodTotal > 0 ? Math.round((periodDone / periodTotal) * 100) : 0;
   const handleToggleStep = async (period: Period, step: number) => {
     const key = `${period}-${step}`;
     if (pendingSteps.has(key)) return;
@@ -255,13 +265,15 @@ export default function Routines() {
 
             {/* Progress */}
             <FadeItem index={2}>
-              {routine && totalSteps > 0 && (
+              {routine && periodTotal > 0 && (
                 <ClinicalCard className="mt-4">
                   <View className="flex-row justify-between items-center">
                     <Text className="font-bold" style={{ color: theme.colors.ink }}>
-                      {doneCount}/{totalSteps} completed
+                      {periodDone}/{periodTotal} {PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps done
                     </Text>
-                    <Text className="text-xs" style={{ color: theme.colors.muted }}>{progressPct}%</Text>
+                    <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                      {doneCount}/{totalSteps} today
+                    </Text>
                   </View>
                   <View className="mt-2">
                     <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
@@ -274,18 +286,15 @@ export default function Routines() {
             <View className="flex-col gap-3 mt-4">
               {loadError ? (
                 <ClinicalCard>
-                  <EmptyState icon={AlertCircle} title="Couldn't load routine" copy="Check your connection and try again." />
+                  <EmptyState title="Couldn't load routine" copy="Check your connection and try again." />
                 </ClinicalCard>
               ) : !routine ? (
                 <ClinicalCard>
-                  <EmptyState icon={List} title="No routine yet" copy="No routine saved yet." />
+                  <EmptyState title="No routine yet" copy="No routine saved yet." />
                 </ClinicalCard>
               ) : activeSteps.length === 0 ? (
                 <ClinicalCard>
-                  {(() => {
-                    const Icon = PERIOD_CONFIG[activePeriod].icon;
-                    return <EmptyState icon={Icon} copy={`No ${PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps in this routine.`} />;
-                  })()}
+                  <EmptyState copy={`No ${PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps in this routine.`} />
                 </ClinicalCard>
               ) : (
                 activeSteps.map((item, stepIdx) => {

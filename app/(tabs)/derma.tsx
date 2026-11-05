@@ -15,13 +15,10 @@ import type { CameraRef, MapRef } from "@maplibre/maplibre-react-native";
 import {
   Search,
   XCircle,
-  Locate,
-  Navigation,
   ArrowRight,
   Building,
   MapPin,
   Star,
-  Stethoscope,
   Cross,
 } from "lucide-react-native";
 
@@ -35,7 +32,6 @@ import {
   ClinicalCard,
   EmptyState,
   GradientHeroCta,
-  IconBadge,
   Pill,
   ScreenHeader,
   SectionTitle,
@@ -45,6 +41,7 @@ import { theme } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import { getVerifiedClinics, type VerifiedClinic } from "@/lib/db/clinics";
+import { searchLiveClinics } from "@/utils/clinic-search";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
 
@@ -72,6 +69,7 @@ export default function Derma() {
   const [hasSearched, setHasSearched] = useState(false);
   const [userLocation, setUserLocation] = useState<Coords | null>(null);
   const [clinicCoords, setClinicCoords] = useState<Record<string, Coords>>({});
+  const [widenedKm, setWidenedKm] = useState<number | null>(null);
   const [verified, setVerified] = useState<VerifiedClinic[]>([]);
   const [verifiedLoading, setVerifiedLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -143,7 +141,10 @@ export default function Derma() {
       .includes(query.toLowerCase()),
   );
 
-  const paginatedFiltered = filtered.slice(
+  const dermaFiltered = filtered.filter((d) => d.specialty === "Dermatology");
+  const otherFiltered = filtered.filter((d) => d.specialty !== "Dermatology");
+  const pageCount = Math.ceil(otherFiltered.length / ITEMS_PER_PAGE);
+  const paginatedOther = otherFiltered.slice(
     currentPage * ITEMS_PER_PAGE,
     (currentPage + 1) * ITEMS_PER_PAGE,
   );
@@ -182,62 +183,32 @@ export default function Derma() {
     locating || hasSearched || filteredCustom.length > 0;
 
   const fetchNearbyAt = useCallback(async (latitude: number, longitude: number) => {
-    const url =
-      `https://api.geoapify.com/v2/places` +
-      `?categories=healthcare.clinic_or_praxis,healthcare.hospital` +
-      `&filter=circle:${longitude},${latitude},5000` +
-      `&bias=proximity:${longitude},${latitude}` +
-      `&limit=20&apiKey=${GEOAPIFY_API_KEY}`;
+    // Shared with the chatbot: category-aware classification, irrelevant
+    // clinics (dental, pediatric, eye, OB…) dropped, and a wider
+    // dermatology-only search when none are within the nearby radius.
+    const { clinics, widenedRadiusM } = await searchLiveClinics(
+      { latitude, longitude },
+      GEOAPIFY_API_KEY,
+    );
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Geoapify request failed: ${res.status}`);
-    const data = await res.json();
-
-    type GeoapifyFeature = {
-      properties: {
-        place_id?: string;
-        name?: string;
-        formatted?: string;
-        distance?: number;
-      };
-      geometry?: { coordinates?: [number, number] };
-    };
-    const features: GeoapifyFeature[] = data.features ?? [];
-
-    const mapped: Dermatologist[] = features.map((f, idx: number) => {
-      const name = f.properties.name ?? "Unnamed Clinic";
-      const isDerma = /derma|skin/i.test(name);
+    const coordLookup: Record<string, Coords> = {};
+    const mapped: Dermatologist[] = clinics.map((c) => {
+      if (c.latitude != null && c.longitude != null) {
+        coordLookup[c.id] = { latitude: c.latitude, longitude: c.longitude };
+      }
       return {
-        id: f.properties.place_id ?? String(idx),
-        name,
-        specialty: isDerma ? "Dermatology" : "General Clinic",
-        clinic: name,
-        address: f.properties.formatted ?? "Address unavailable",
-        distanceKm: f.properties.distance ? f.properties.distance / 1000 : 0,
+        id: c.id,
+        name: c.name,
+        specialty: c.specialty,
+        clinic: c.name,
+        address: c.address,
+        distanceKm: c.distanceKm,
         rating: 0,
         availableToday: false,
       };
     });
-
-    // Keep a lookup of coordinates per result id so the map can pin them.
-    const coordLookup: Record<string, Coords> = {};
-    features.forEach((f, idx: number) => {
-      const id = f.properties.place_id ?? String(idx);
-      const [lon, lat] = f.geometry?.coordinates ?? [null, null];
-      if (lat != null && lon != null) {
-        coordLookup[id] = { latitude: lat, longitude: lon };
-      }
-    });
     setClinicCoords(coordLookup);
-
-    // Dermatologists first, then nearest first.
-    mapped.sort((a, b) => {
-      const aDerm = a.specialty === "Dermatology" ? 0 : 1;
-      const bDerm = b.specialty === "Dermatology" ? 0 : 1;
-      if (aDerm !== bDerm) return aDerm - bDerm;
-      return a.distanceKm - b.distanceKm;
-    });
-
+    setWidenedKm(widenedRadiusM != null ? widenedRadiusM / 1000 : null);
     setResults(mapped);
   }, []);
 
@@ -316,7 +287,6 @@ export default function Derma() {
       <FadeItem key={d.id} index={Math.min(4 + idx, 8)}>
         <ClinicalCard key={d.id} className="flex-col gap-3">
           <View className="flex-row items-center gap-3">
-            <IconBadge icon={Stethoscope} size="lg" tone="soft" />
             <View className="flex-col flex-1">
               <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
                 {d.name}
@@ -417,6 +387,95 @@ export default function Derma() {
     );
   };
 
+  // Live (unverified) result card. The clinic name is the title, so the
+  // address row no longer repeats it.
+  const renderLiveCard = (d: Dermatologist, idx: number) => (
+    <FadeItem key={d.id} index={Math.min(4 + idx, 8)}>
+      <ClinicalCard key={d.id} className="flex-col gap-3">
+        <View className="flex-row items-center gap-3">
+          <View className="flex-col flex-1">
+            <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
+              {d.name}
+            </Text>
+            <Text className="text-xs mt-0.5" style={{ color: theme.colors.muted }}>
+              {d.specialty}
+            </Text>
+          </View>
+          {d.availableToday && (
+            <Pill label="Available today" />
+          )}
+        </View>
+
+        <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}>
+          <View className="flex-row items-center gap-2">
+            <MapPin
+              size={14}
+              color={theme.colors.faint}
+            />
+            <Text
+              className="text-xs flex-1"
+              style={{ color: theme.colors.body }}
+              numberOfLines={2}
+            >
+              {d.address}
+            </Text>
+          </View>
+        </View>
+
+        <View className="flex-row items-center justify-between pt-1">
+          <View className="flex-row items-center gap-3">
+            {d.rating > 0 && (
+              <View className="flex-row items-center gap-1">
+                <Star size={14} color={theme.colors.star} />
+                <Text className="text-xs font-semibold" style={{ color: theme.colors.ink }}>
+                  {d.rating.toFixed(1)}
+                </Text>
+              </View>
+            )}
+            <Text className="text-xs" style={{ color: theme.colors.faint }}>
+              {d.distanceKm > 0 ? `${d.distanceKm.toFixed(1)} km away` : "Nearby"}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: "/derma-info/[id]",
+                params: {
+                  id: d.id, // this IS the Geoapify place_id already
+                  name: d.name,
+                  specialty: d.specialty,
+                  clinic: d.clinic,
+                  address: d.address,
+                  distanceKm: String(d.distanceKm),
+                  rating: String(d.rating),
+                  availableToday: String(d.availableToday),
+                  // Unverified pins are view-on-map only — pass
+                  // coordinates so the detail screen can open the
+                  // full map at this exact place.
+                  lat: String(clinicCoords[d.id]?.latitude ?? ""),
+                  lng: String(clinicCoords[d.id]?.longitude ?? ""),
+                },
+              })
+            }
+            className="rounded-full active:opacity-80"
+            style={{ borderRadius: 999, overflow: "hidden" }}
+          >
+            <LinearGradient
+              colors={[...theme.gradients.dark]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              className="px-4 py-1.5"
+            >
+              <Text className="text-xs text-white font-bold">
+                View more
+              </Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      </ClinicalCard>
+    </FadeItem>
+  );
+
   return (
     <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
@@ -467,9 +526,8 @@ export default function Derma() {
         <FadeItem index={2}>
           <CoachTarget id="derma.find" scrollIntoView={scrollIntoView}>
           <GradientHeroCta
-            icon={locating ? Locate : Navigation}
             title={locating ? "Locating..." : "Find Nearby"}
-            subtitle="Uses your current location · 5 km radius"
+            subtitle="Uses your current location"
             onPress={handleFindNearby}
             disabled={locating}
             accessibilityLabel="Find nearby dermatologists"
@@ -552,7 +610,7 @@ export default function Derma() {
             filteredCustom.length === 0 && (
               <View className="mt-6 mb-2">
                 <SectionTitle
-                  title="Nearby clinics"
+                  title="Search results"
                   meta={!locating ? `${filtered.length} found` : undefined}
                 />
               </View>
@@ -582,13 +640,11 @@ export default function Derma() {
               <ClinicalCard className="mt-2">
                 {customResults.length === 0 ? (
                   <EmptyState
-                    icon={Navigation}
                     title="Search nearby"
                     copy="Tap Find Nearby to search clinics around you."
                   />
                 ) : (
                   <EmptyState
-                    icon={Cross}
                     title="No matches"
                     copy="No recommended clinics match your search."
                   />
@@ -604,9 +660,8 @@ export default function Derma() {
           <FadeItem index={4}>
             <ClinicalCard className="mt-2">
               <EmptyState
-                icon={Cross}
                 title="No matches"
-                copy="No dermatologists match your search."
+                copy="No clinics match your search. Try clearing the search box."
               />
             </ClinicalCard>
           </FadeItem>
@@ -624,109 +679,37 @@ export default function Derma() {
                 {filteredCustom.map(renderCustomCard)}
               </View>
             )}
-            {filtered.length > 0 && filteredCustom.length > 0 && (
+            {dermaFiltered.length > 0 && (
               <View className="mt-4 mb-[-4]">
                 <SectionTitle
-                  title="Nearby clinics"
-                  meta={`${filtered.length} found`}
+                  title="Dermatology clinics"
+                  meta={`${dermaFiltered.length} found`}
                 />
               </View>
             )}
-            {paginatedFiltered.map((d, idx) => (
-              <FadeItem key={d.id} index={Math.min(4 + idx, 8)}>
-                <ClinicalCard key={d.id} className="flex-col gap-3">
-                  <View className="flex-row items-center gap-3">
-                    <IconBadge icon={Stethoscope} size="lg" tone="soft" />
-                    <View className="flex-col flex-1">
-                      <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
-                        {d.name}
-                      </Text>
-                      <Text className="text-xs mt-0.5" style={{ color: theme.colors.muted }}>
-                        {d.specialty}
-                      </Text>
-                    </View>
-                    {d.availableToday && (
-                      <Pill label="Available today" />
-                    )}
-                  </View>
-
-                  <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}>
-                    <View className="flex-row items-center gap-2">
-                      <Building
-                        size={14}
-                        color={theme.colors.faint}
-                      />
-                      <Text className="text-xs" style={{ color: theme.colors.body }}>{d.clinic}</Text>
-                    </View>
-                    <View className="flex-row items-center gap-2">
-                      <MapPin
-                        size={14}
-                        color={theme.colors.faint}
-                      />
-                      <Text
-                        className="text-xs flex-1"
-                        style={{ color: theme.colors.body }}
-                        numberOfLines={1}
-                      >
-                        {d.address}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View className="flex-row items-center justify-between pt-1">
-                    <View className="flex-row items-center gap-3">
-                      {d.rating > 0 && (
-                        <View className="flex-row items-center gap-1">
-                          <Star size={14} color={theme.colors.star} />
-                          <Text className="text-xs font-semibold" style={{ color: theme.colors.ink }}>
-                            {d.rating.toFixed(1)}
-                          </Text>
-                        </View>
-                      )}
-                      <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                        {d.distanceKm > 0 ? `${d.distanceKm.toFixed(1)} km away` : "Nearby"}
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={() =>
-                        router.push({
-                          pathname: "/derma-info/[id]",
-                          params: {
-                            id: d.id, // this IS the Geoapify place_id already
-                            name: d.name,
-                            specialty: d.specialty,
-                            clinic: d.clinic,
-                            address: d.address,
-                            distanceKm: String(d.distanceKm),
-                            rating: String(d.rating),
-                            availableToday: String(d.availableToday),
-                            // Unverified pins are view-on-map only — pass
-                            // coordinates so the detail screen can open the
-                            // full map at this exact place.
-                            lat: String(clinicCoords[d.id]?.latitude ?? ""),
-                            lng: String(clinicCoords[d.id]?.longitude ?? ""),
-                          },
-                        })
-                      }
-                      className="rounded-full active:opacity-80"
-                      style={{ borderRadius: 999, overflow: "hidden" }}
-                    >
-                      <LinearGradient
-                        colors={[...theme.gradients.dark]}
-                        start={{ x: 0, y: 0.5 }}
-                        end={{ x: 1, y: 0.5 }}
-                        className="px-4 py-1.5"
-                      >
-                        <Text className="text-xs text-white font-bold">
-                          View more
-                        </Text>
-                      </LinearGradient>
-                    </Pressable>
-                  </View>
-                </ClinicalCard>
-              </FadeItem>
-            ))}
-            {filtered.length > ITEMS_PER_PAGE && (
+            {widenedKm != null && dermaFiltered.length > 0 && (
+              <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                {`None within 5 km, so we searched up to ${widenedKm} km for dermatology clinics.`}
+              </Text>
+            )}
+            {dermaFiltered.map(renderLiveCard)}
+            {otherFiltered.length > 0 && (
+              <View className="mt-4 mb-[-4]">
+                <SectionTitle
+                  title="Other clinics & hospitals"
+                  meta={`${otherFiltered.length} nearby`}
+                />
+              </View>
+            )}
+            {otherFiltered.length > 0 && (
+              <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                {dermaFiltered.length === 0
+                  ? "No dermatology clinics found nearby. These may have a dermatologist on call, so call ahead to ask."
+                  : "Not listed as dermatology. Call ahead to ask if a dermatologist is available."}
+              </Text>
+            )}
+            {paginatedOther.map(renderLiveCard)}
+            {otherFiltered.length > ITEMS_PER_PAGE && (
               <View className="flex-row items-center justify-center gap-4 mt-4 mb-6">
                 <Pressable
                   onPress={() => setCurrentPage((p) => Math.max(0, p - 1))}
@@ -738,12 +721,12 @@ export default function Derma() {
                   </Text>
                 </Pressable>
                 <Text className="text-xs font-medium" style={{ color: theme.colors.muted }}>
-                  Page {currentPage + 1} of {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
+                  Page {currentPage + 1} of {pageCount}
                 </Text>
                 <Pressable
                   onPress={() => setCurrentPage((p) => p + 1)}
-                  disabled={currentPage >= Math.ceil(filtered.length / ITEMS_PER_PAGE) - 1}
-                  className={`p-2 rounded-full ${currentPage >= Math.ceil(filtered.length / ITEMS_PER_PAGE) - 1 ? "opacity-30" : "active:opacity-60"}`}
+                  disabled={currentPage >= pageCount - 1}
+                  className={`p-2 rounded-full ${currentPage >= pageCount - 1 ? "opacity-30" : "active:opacity-60"}`}
                 >
                   <Text className="font-bold text-lg" style={{ color: theme.colors.primary }}>
                     →

@@ -171,13 +171,11 @@ export function PrimaryButton({
   onPress,
   disabled,
   loading,
-  icon: Icon,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
-  icon?: LucideIcon;
 }) {
   const isDisabled = disabled || loading;
   return (
@@ -203,10 +201,7 @@ export function PrimaryButton({
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <>
-            {Icon ? <Icon size={16} color="#FFFFFF" /> : null}
-            <Text className="font-bold text-white text-[15px]">{label}</Text>
-          </>
+          <Text className="font-bold text-white text-[15px]">{label}</Text>
         )}
       </LinearGradient>
     </Pressable>
@@ -217,7 +212,6 @@ export function PrimaryButton({
  * Use for "Scan Your Skin" (home) and "Find Nearby" (derma) — the only
  * large dark surfaces in the app. Everything else stays flat clinical white. */
 export function GradientHeroCta({
-  icon: Icon,
   title,
   subtitle,
   onPress,
@@ -226,7 +220,6 @@ export function GradientHeroCta({
   disabled,
   className = "mt-4",
 }: {
-  icon: LucideIcon;
   title: string;
   subtitle: string;
   onPress: () => void;
@@ -257,27 +250,11 @@ export function GradientHeroCta({
           justifyContent: "space-between",
         }}
       >
-        <View className="flex-row items-center gap-3 flex-1">
-          <LinearGradient
-            colors={[...theme.gradients.icon]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              height: 48,
-              width: 48,
-              borderRadius: 16,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon size={22} color="white" />
-          </LinearGradient>
-          <View className="flex-col flex-1">
-            <Text className="font-bold text-white text-[15px]">{title}</Text>
-            <Text className="text-xs mt-0.5" style={{ color: "#A7C4B2" }}>
-              {subtitle}
-            </Text>
-          </View>
+        <View className="flex-col flex-1">
+          <Text className="font-bold text-white text-[15px]">{title}</Text>
+          <Text className="text-xs mt-0.5" style={{ color: "#A7C4B2" }}>
+            {subtitle}
+          </Text>
         </View>
         {accessory ?? null}
       </LinearGradient>
@@ -288,11 +265,9 @@ export function GradientHeroCta({
 export function SecondaryButton({
   label,
   onPress,
-  icon: Icon,
 }: {
   label: string;
   onPress: () => void;
-  icon?: LucideIcon;
 }) {
   return (
     <Pressable
@@ -302,7 +277,6 @@ export function SecondaryButton({
       className="rounded-full py-4 px-5 flex-row items-center justify-center gap-2 active:opacity-80 bg-white"
       style={{ borderWidth: 1.5, borderColor: theme.colors.primary }}
     >
-      {Icon ? <Icon size={16} color={theme.colors.primary} /> : null}
       <Text
         className="font-bold text-[15px]"
         style={{ color: theme.colors.primary }}
@@ -371,27 +345,19 @@ export function SectionTitle({
   );
 }
 
-/* ---------- Empty state: one icon + title + copy language ---------- */
+/* ---------- Empty state: title + copy ---------- */
 export function EmptyState({
-  icon: Icon,
   title,
   copy,
 }: {
-  icon: LucideIcon;
   title?: string;
   copy: string;
 }) {
   return (
     <View className="items-center py-8 px-4">
-      <View
-        className="h-12 w-12 rounded-2xl items-center justify-center"
-        style={{ backgroundColor: theme.colors.primarySoft }}
-      >
-        <Icon size={22} color={theme.colors.primary} />
-      </View>
       {title ? (
         <Text
-          className="font-bold text-[14px] mt-3"
+          className="font-bold text-[14px]"
           style={{ color: theme.colors.ink }}
         >
           {title}
@@ -462,8 +428,6 @@ export function UiModal({
   onDismiss,
   title,
   message,
-  icon: Icon,
-  tone = "primary",
   actions = [],
   children,
   dismissOnBackdrop = true,
@@ -472,29 +436,10 @@ export function UiModal({
   onDismiss: () => void;
   title: string;
   message?: string;
-  icon?: LucideIcon;
-  tone?: "primary" | "soft" | "warning" | "danger";
   actions?: UiModalAction[];
   children?: React.ReactNode;
   dismissOnBackdrop?: boolean;
 }) {
-  const badgeBg =
-    tone === "danger"
-      ? "#FEF2F2"
-      : tone === "warning"
-        ? theme.colors.warningBg
-        : tone === "soft"
-          ? theme.colors.primarySoft
-          : theme.colors.primary;
-  const badgeFg =
-    tone === "danger"
-      ? theme.colors.danger
-      : tone === "warning"
-        ? "#B45309"
-        : tone === "soft"
-          ? theme.colors.primary
-          : "#FFFFFF";
-
   return (
     <Modal
       visible={visible}
@@ -520,32 +465,6 @@ export function UiModal({
               ...cardShadow,
             }}
           >
-            {Icon ? (
-              tone === "primary" ? (
-                <LinearGradient
-                  colors={[...theme.gradients.icon]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{
-                    height: 48,
-                    width: 48,
-                    borderRadius: 16,
-                    marginBottom: 12,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Icon size={22} color="#FFFFFF" />
-                </LinearGradient>
-              ) : (
-                <View
-                  className="h-12 w-12 rounded-2xl items-center justify-center mb-3"
-                  style={{ backgroundColor: badgeBg }}
-                >
-                  <Icon size={22} color={badgeFg} />
-                </View>
-              )
-            ) : null}
             <Text
               className="font-bold text-[18px] text-center"
               style={{ color: theme.colors.ink }}

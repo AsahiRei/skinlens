@@ -15,6 +15,7 @@ import {
   formatClinicsReply,
   isNearbyClinicIntent,
 } from "./nearby-derma";
+import { detectRedFlag } from "./red-flags";
 import {
   extractIngredientNames,
   findPhProducts,
@@ -441,6 +442,11 @@ export async function generateChatReply(
   // Fast path: answer "about me" questions deterministically without
   // loading the model — guarantees correct recall on the tiny on-device LLM.
   const lastUserMessage = [...history].reverse().find((t) => t.role === "user");
+
+  // Safety first: emergencies, skin-cancer/infection warning signs and
+  // self-harm get a fixed, reviewed reply. Never left to the small LLM.
+  const redFlag = lastUserMessage ? detectRedFlag(lastUserMessage.content) : null;
+  if (redFlag) return { text: redFlag.reply };
 
   // Nearby dermatologist: location + places lookup, no LLM needed.
   if (lastUserMessage && isNearbyClinicIntent(lastUserMessage.content)) {

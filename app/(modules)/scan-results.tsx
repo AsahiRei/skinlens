@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { AlertCircle, FileText, Info, RefreshCw } from "lucide-react-native";
+import { AlertCircle, FileText, Info } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -29,23 +29,16 @@ import { getHealthScoreResponse } from "@/utils/healthscore";
 import { ingredientsAvoidedBySensitivity } from "@/utils/knowledge";
 import { generateRoutine } from "@/utils/routine-generator";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { assessDetection, computeOverallScore, prettyLabel } from "@/utils/detection-score";
 
 const detectionDescriptions: Record<string, string> = {
-  acne: "Our AI detected signs of acne on your skin. Acne is a common skin condition caused by clogged pores, excess oil, and bacteria. With the right routine, it can be managed effectively.",
+  acne: "Our AI found signs consistent with acne on your skin. Acne is a common skin condition caused by clogged pores, excess oil, and bacteria. With the right routine, it can be managed effectively.",
   dry: "Our AI detected that your skin tends to be dry. Dry skin lacks moisture and can feel tight, rough, or flaky. A hydrating routine can help restore your skin's moisture barrier.",
   eczema:
-    "Our AI detected signs of eczema on your skin. Eczema is a condition that causes dry, itchy, and inflamed patches of skin. A gentle skincare routine can help manage flare-ups.",
+    "Our AI found signs consistent with eczema. Eczema is a condition that causes dry, itchy, and inflamed patches of skin. Only a doctor can confirm it, so please have a dermatologist check it, especially if it itches, cracks or spreads. A gentle routine can help in the meantime.",
   oily: "Our AI detected that your skin tends to be oily. Excess oil production can lead to shine and clogged pores. A balanced routine can help control oil without over-drying.",
   normal:
     "No significant skin conditions were detected. Your skin appears healthy. A good maintenance routine will help keep it that way.",
-};
-
-const detectionSeverityMap: Record<string, number> = {
-  normal: 85,
-  dry: 60,
-  oily: 55,
-  acne: 55,
-  eczema: 40,
 };
 
 export default function ScanResults() {
@@ -72,32 +65,31 @@ export default function ScanResults() {
   const surveyScore = Number(severityScore) || 50;
   const conf = Number(confidence) || 0;
   // probabilities comes from analyzing via survey — never trust it blindly.
-  const topPredictions: { label: string; confidence: number }[] = useMemo(() => {
-    if (probabilities) {
-      try {
-        const parsed: unknown = JSON.parse(probabilities);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          const entries = Object.entries(parsed as Record<string, unknown>)
-            .filter(
-              (entry): entry is [string, number] =>
-                typeof entry[1] === "number" && Number.isFinite(entry[1]),
-            )
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3)
-            .map(([predLabel, predConf]) => ({
-              label: predLabel,
-              confidence: predConf,
-            }));
-          if (entries.length > 0) return entries;
-        }
-      } catch {
-        // fall through to fallback below
+  const probabilityMap: Record<string, number> | null = useMemo(() => {
+    if (!probabilities) return null;
+    try {
+      const parsed: unknown = JSON.parse(probabilities);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+      const clean: Record<string, number> = {};
+      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof v === "number" && Number.isFinite(v)) clean[k] = v;
       }
+      return Object.keys(clean).length > 0 ? clean : null;
+    } catch {
+      return null;
+    }
+  }, [probabilities]);
+  const topPredictions: { label: string; confidence: number }[] = useMemo(() => {
+    if (probabilityMap) {
+      return Object.entries(probabilityMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([predLabel, predConf]) => ({ label: predLabel, confidence: predConf }));
     }
     // Fallback when probabilities are missing/malformed: show top detection only.
     return [{ label: detectionLabel, confidence: conf }];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [probabilities]);
+  }, [probabilityMap, detectionLabel, conf]);
+  const assessment = assessDetection(conf, probabilityMap);
   // surveyAnswers comes from navigation params — never trust it blindly.
   const parsedSurveyAnswers: Record<string, string> = useMemo(() => {
     if (!surveyAnswers) return {};
@@ -112,9 +104,9 @@ export default function ScanResults() {
     }
   }, [surveyAnswers]);
 
-  // Calculate overall health score: blend detection baseline with survey severity
-  const detectionBaseline = detectionSeverityMap[detectionLabel] ?? 50;
-  const overallScore = Math.round(detectionBaseline * 0.6 + surveyScore * 0.4);
+  // Overall health score: probability-weighted detection baseline blended
+  // with the survey severity (see utils/detection-score.ts).
+  const overallScore = computeOverallScore(detectionLabel, probabilityMap, surveyScore);
 
   const [skinType, setSkinType] = useState("normal");
   const [loading, setLoading] = useState(false);
@@ -264,8 +256,6 @@ export default function ScanResults() {
           onDismiss={() => setNotice(null)}
           title={notice?.title ?? ""}
           message={notice?.message}
-          icon={Info}
-          tone="soft"
           actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
         />
         <View className="flex-1 px-5 items-center justify-center">
@@ -303,8 +293,6 @@ export default function ScanResults() {
         onDismiss={() => setNotice(null)}
         title={notice?.title ?? ""}
         message={notice?.message}
-        icon={Info}
-        tone="soft"
         actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
       />
       <ScrollView
@@ -338,7 +326,7 @@ export default function ScanResults() {
           {/* Detection class & confidence */}
           <View className="items-center gap-2">
             <Text className="text-xl font-bold text-gray-800 capitalize">
-              {detectionLabel}
+              {prettyLabel(detectionLabel)}
             </Text>
             {conf > 0 && (
               <Text className="text-sm" style={{ color: theme.colors.muted }}>
@@ -357,7 +345,8 @@ export default function ScanResults() {
               trackColor={trackColor}
             >
               <Text className="text-3xl font-semibold text-gray-700">
-                {overallScore}%
+                {overallScore}
+                <Text className="text-base" style={{ color: theme.colors.muted }}>/100</Text>
               </Text>
             </CircularProgress>
             <View className="flex-row items-center gap-1.5">
@@ -370,6 +359,14 @@ export default function ScanResults() {
               </Text>
             </View>
           </View>
+
+          {assessment.inconclusive && (
+            <Notice
+              icon={AlertCircle}
+              tone="warning"
+              copy="Low-confidence result: the AI wasn't sure about this photo, so treat this score as a rough estimate. A retake in even, natural light gives a more reliable result."
+            />
+          )}
 
           {/* Top 3 classifications */}
           <ClinicalCard className="gap-3">
@@ -472,7 +469,7 @@ export default function ScanResults() {
                         </View>
                       ))}
                     </View>
-                    <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
+                    <Text className="text-xs mt-1" style={{ color: theme.colors.muted }}>
                       {product.reason}
                     </Text>
                   </View>
@@ -500,7 +497,6 @@ export default function ScanResults() {
         <SecondaryButton
           label="Scan Again"
           onPress={() => router.replace("/(tabs)/scan")}
-          icon={RefreshCw}
         />
       </View>
     </SafeAreaView>

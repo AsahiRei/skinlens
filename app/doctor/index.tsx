@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
-import { CalendarClock, CheckCheck, CircleAlert, Inbox } from "lucide-react-native";
+import { Bell, CalendarClock, CheckCheck, CircleAlert, Inbox } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { DoctorAppointmentCard } from "@/components/DoctorAppointmentCard";
@@ -13,10 +14,10 @@ import {
   ClinicalCard,
   EmptyState,
   Notice,
-  ScreenHeader,
   SectionTitle,
 } from "@/components/ui";
 import { useDoctorQueue } from "@/hooks/useDoctorQueue";
+import { useNotifications } from "@/hooks/useNotifications";
 import { theme } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import {
@@ -61,6 +62,19 @@ export default function DoctorHome() {
     refresh,
     applyStatus,
   } = useDoctorQueue();
+  const router = useRouter();
+  const { unreadCount, refresh: refreshNotifications } = useNotifications();
+
+  // Check for new patient bookings whenever Home is shown.
+  useFocusEffect(
+    useCallback(() => {
+      void refreshNotifications();
+    }, [refreshNotifications]),
+  );
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([refresh(), refreshNotifications()]);
+  }, [refresh, refreshNotifications]);
 
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
@@ -166,7 +180,7 @@ export default function DoctorHome() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={refresh}
+            onRefresh={handleRefresh}
             tintColor={theme.colors.primary}
             colors={[theme.colors.primary]}
           />
@@ -174,10 +188,39 @@ export default function DoctorHome() {
       >
         {/* Header */}
         <FadeItem index={0}>
-          <View className="mt-2">
-            <ScreenHeader
-              title={doctor ? `${greetingFor()}, ${doctor.displayName}` : greetingFor()}
-            />
+          <View className="flex-row items-center justify-between mt-2">
+            <View className="flex-col flex-1 pr-3">
+              <Text className="font-semibold text-[13px]" style={{ color: theme.colors.muted }}>
+                {greetingFor()}
+              </Text>
+              {loading && !doctor ? (
+                <Skeleton className="h-7 w-40 mt-1 rounded-lg" />
+              ) : (
+                <Text
+                  className="font-bold text-[24px] mt-0.5"
+                  style={{ color: theme.colors.ink }}
+                  numberOfLines={1}
+                >
+                  {doctor?.displayName ?? "Doctor"}
+                </Text>
+              )}
+            </View>
+            <Pressable
+              className="h-11 w-11 items-center justify-center rounded-full bg-white active:opacity-80"
+              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+              onPress={() => router.push("/(modules)/notifications?scope=doctor")}
+              accessibilityRole="button"
+              accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+              hitSlop={8}
+            >
+              <Bell size={20} color={theme.colors.primary} />
+              {unreadCount > 0 && (
+                <View
+                  className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full border border-white"
+                  style={{ backgroundColor: theme.colors.danger }}
+                />
+              )}
+            </Pressable>
           </View>
         </FadeItem>
 
@@ -281,7 +324,7 @@ export default function DoctorHome() {
         ) : error ? (
           <FadeItem index={3}>
             <ClinicalCard className="mt-4">
-              <EmptyState icon={CircleAlert} title="Couldn't load" copy={error} />
+              <EmptyState title="Couldn't load" copy={error} />
             </ClinicalCard>
           </FadeItem>
         ) : (
@@ -299,7 +342,6 @@ export default function DoctorHome() {
               <FadeItem index={4}>
                 <ClinicalCard className="mt-3">
                   <EmptyState
-                    icon={Inbox}
                     title={selectedDay ? `Nothing on ${selectedLabel}` : "Inbox zero"}
                     copy={
                       selectedDay

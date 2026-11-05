@@ -177,14 +177,13 @@ export default function AppointmentsScreen() {
           ) : error ? (
             <FadeItem index={1}>
               <ClinicalCard className="mt-4">
-                <EmptyState icon={CalendarCheck} title="Couldn't load" copy={error} />
+                <EmptyState title="Couldn't load" copy={error} />
               </ClinicalCard>
             </FadeItem>
           ) : rows.length === 0 ? (
             <FadeItem index={1}>
               <ClinicalCard className="mt-4">
                 <EmptyState
-                  icon={CalendarCheck}
                   title="No appointments yet"
                   copy="Find a clinic and book your first visit to get started."
                 />
@@ -346,8 +345,6 @@ export default function AppointmentsScreen() {
           }}
           title="Cancel appointment?"
           message="This will cancel your visit request. You can re-book from the clinic page anytime."
-          icon={CalendarCheck}
-          tone="warning"
           actions={[
             {
               label: "Cancel Visit",

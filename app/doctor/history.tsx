@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
-import { CalendarCheck2, CircleAlert, Search } from "lucide-react-native";
+import { CircleAlert, Search } from "lucide-react-native";
 import { FadeItem } from "@/components/FadeItem";
 import { DoctorAppointmentCard } from "@/components/DoctorAppointmentCard";
 import Skeleton from "@/components/Skeleton";
@@ -192,14 +192,13 @@ export default function DoctorHistory() {
         ) : error ? (
           <FadeItem index={4}>
             <ClinicalCard className="mt-4">
-              <EmptyState icon={CircleAlert} title="Couldn't load" copy={error} />
+              <EmptyState title="Couldn't load" copy={error} />
             </ClinicalCard>
           </FadeItem>
         ) : filteredHistory.length === 0 ? (
           <FadeItem index={4}>
             <ClinicalCard className="mt-6">
               <EmptyState
-                icon={CalendarCheck2}
                 title="No history found"
                 copy={
                   quickFilter !== "all"

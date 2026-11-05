@@ -25,7 +25,7 @@
   },
   "normal": {
     "icon": "checkmark-circle-outline",
-    "color": "#15803D",
+    "color": "#214E36",
     "bg": "#DCFCE7",
     "description": "No significant conditions detected"
   }

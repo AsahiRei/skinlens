@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ToastAndroid } from "react-native";
 import { useRouter } from "expo-router";
-import { LogOut } from "lucide-react-native";
 
 import { UiModal } from "@/components/ui";
 import { supabase } from "@/utils/supabase";
@@ -57,8 +56,6 @@ export default function LogoutModal({
       onDismiss={close}
       title="Log out?"
       message="Are you sure you want to log out of SkinLens?"
-      icon={LogOut}
-      tone="soft"
       dismissOnBackdrop={!loading}
       actions={[
         {

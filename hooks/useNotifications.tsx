@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { Notification, NotificationSettings } from "@/types/schema";
-import { generateScanReminder, generateDailyTip, syncAppointmentReplies } from "@/lib/notifications";
+import {
+  generateScanReminder,
+  generateDailyTip,
+  syncAppointmentReplies,
+  syncDoctorAppointmentRequests,
+} from "@/lib/notifications";
 import {
   scheduleWeeklyScanReminder,
   scheduleDailySkincareTip,
@@ -17,6 +22,10 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const NOTIFICATION_SETTINGS_KEY = "notification_settings";
+// The doctor-only toggle lives under its own key: saving it into the main
+// blob would persist the default scanReminders=true, and the next launch
+// would then schedule patient scan reminders on a doctor's phone.
+const DOCTOR_NOTIFICATION_SETTINGS_KEY = "doctor_notification_settings";
 
 type NotificationContextType = {
   settings: NotificationSettings;
@@ -34,6 +43,7 @@ type NotificationContextType = {
 const defaultSettings: NotificationSettings = {
   scanReminders: true,
   dailyTips: false,
+  appointmentRequests: true,
 };
 
 function dedupeById(list: Notification[]): Notification[] {
@@ -63,12 +73,25 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       const settingsStr = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
       if (settingsStr) {
-        const saved = JSON.parse(settingsStr);
+        // Older saves predate newer keys — fill them from the defaults.
+        const saved: NotificationSettings = { ...defaultSettings, ...JSON.parse(settingsStr) };
         settingsRef.current = saved;
         setSettings(saved);
         // Schedule push notifications based on saved settings
         if (saved.scanReminders) await scheduleWeeklyScanReminder();
         if (saved.dailyTips) await scheduleDailySkincareTip();
+      }
+      const doctorStr = await AsyncStorage.getItem(DOCTOR_NOTIFICATION_SETTINGS_KEY);
+      if (doctorStr) {
+        const doctorSaved = JSON.parse(doctorStr) as { appointmentRequests?: boolean };
+        if (typeof doctorSaved.appointmentRequests === "boolean") {
+          const merged = {
+            ...settingsRef.current,
+            appointmentRequests: doctorSaved.appointmentRequests,
+          };
+          settingsRef.current = merged;
+          setSettings(merged);
+        }
       }
 
       // Doctor replies (schedule / decline / complete) show up here — checked
@@ -77,6 +100,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         await syncAppointmentReplies();
       } catch (err) {
         console.warn("[notifications] appointment replies check failed:", err);
+      }
+      // New patient bookings (doctor accounts only — no-op for patients).
+      try {
+        await syncDoctorAppointmentRequests({ notify: settingsRef.current.appointmentRequests });
+      } catch (err) {
+        console.warn("[notifications] doctor requests check failed:", err);
       }
 
       const remoteNotifications = await getNotifications();
@@ -110,7 +139,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       settingsRef.current = next;
       setSettings(next);
 
+      // Only the reminder toggles own scheduled OS notifications; flipping
+      // e.g. appointmentRequests must not (re)schedule a doctor's reminders.
+      const touchesSchedule = "scanReminders" in partial || "dailyTips" in partial;
       const apply = async () => {
+        if ("appointmentRequests" in partial) {
+          await AsyncStorage.setItem(
+            DOCTOR_NOTIFICATION_SETTINGS_KEY,
+            JSON.stringify({ appointmentRequests: next.appointmentRequests }),
+          );
+        }
+        if (!touchesSchedule) return;
         await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(next));
         // Apply the new schedule: cancel everything first so toggles that are
         // switched off stop firing, then re-schedule what is still enabled.
@@ -221,7 +260,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const refresh = useCallback(async () => {
     try {
-      await syncAppointmentReplies();
+      await Promise.all([
+        syncAppointmentReplies().catch((err) =>
+          console.warn("[notifications] appointment replies check failed:", err),
+        ),
+        syncDoctorAppointmentRequests({
+          notify: settingsRef.current.appointmentRequests,
+        }).catch((err) =>
+          console.warn("[notifications] doctor requests check failed:", err),
+        ),
+      ]);
       setNotifications(dedupeById(await getNotifications()));
     } catch (err) {
       console.error("Error refreshing notifications:", err);

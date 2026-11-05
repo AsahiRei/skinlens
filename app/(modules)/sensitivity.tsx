@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Plus, ShieldAlert, Trash2, X, TriangleAlert } from "lucide-react-native";
+import { Plus, Trash2, X } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -155,8 +155,6 @@ export default function SensitivityScreen() {
         onDismiss={() => setNotice(null)}
         title={notice?.title ?? ""}
         message={notice?.message}
-        icon={TriangleAlert}
-        tone="warning"
         actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
       />
       <UiModal
@@ -166,8 +164,6 @@ export default function SensitivityScreen() {
         }}
         title="Delete entry?"
         message="Remove this sensitivity episode from your history? This can't be undone."
-        icon={Trash2}
-        tone="danger"
         dismissOnBackdrop={!deleting}
         actions={[
           {
@@ -269,7 +265,6 @@ export default function SensitivityScreen() {
         ) : entries.length === 0 ? (
           <FadeItem index={2}>
             <ClinicalCard className="py-10 px-6 items-center gap-2 mt-4">
-              <IconBadge icon={ShieldAlert} size="lg" tone="soft" />
               <Text className="font-bold" style={{ color: theme.colors.ink }}>
                 No sensitivity history yet
               </Text>

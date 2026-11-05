@@ -2,10 +2,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { Notification } from "@/types/schema";
 import notificationsData from "@/data/notifications.json";
+import * as ExpoNotifications from "expo-notifications";
+
 import {
+  getClinicAppointments,
   getMyAppointments,
+  getMyDoctorProfile,
+  resolveAppointmentNames,
   type AppointmentRow,
 } from "@/lib/db/appointments";
+import { requireUser } from "@/lib/db/auth";
 import { insertNotification } from "@/lib/db/notifications";
 import { supabase } from "@/utils/supabase";
 
@@ -181,4 +187,152 @@ export async function syncAppointmentReplies(): Promise<Notification[]> {
     await insertNotification(n);
   }
   return fresh;
+}
+
+/* ---------- New booking requests (doctor side) ---------- */
+
+// Appointment ids this device has already turned into a notification, per
+// doctor account. Keeps a re-run from re-inserting (INSERT OR REPLACE would
+// reset a notification the doctor already read).
+const DOCTOR_REQUEST_SEEN_KEY = "doctor_request_seen";
+
+/** Request-notification ids are `apptreq-<appointmentId>`. */
+export function doctorRequestNotificationId(appointmentId: string): string {
+  return `apptreq-${appointmentId}`;
+}
+
+async function showSystemBanner(title: string, body: string): Promise<void> {
+  try {
+    const { status } = await ExpoNotifications.getPermissionsAsync();
+    if (status !== "granted") return;
+    await ExpoNotifications.scheduleNotificationAsync({
+      content: { title, body, data: { type: "appointment_request" } },
+      trigger: null,
+    });
+  } catch {
+    /* banner is best-effort — the in-app notification is the record */
+  }
+}
+
+/**
+ * Detects new patient booking requests for the signed-in doctor (rows at
+ * their clinic that are still "requested" and either unassigned or addressed
+ * to them) and turns each into a local notification. No-op for patients.
+ *
+ * The first run on a device lists the currently pending requests in-app
+ * without firing system banners; later runs also show a banner per new one.
+ */
+let doctorSyncInFlight: Promise<Notification[]> | null = null;
+
+/**
+ * `notify: false` (doctor turned the switch off) still records the requests as
+ * seen, so switching it back on doesn't dump everything missed meanwhile.
+ */
+export function syncDoctorAppointmentRequests(
+  opts: { notify?: boolean } = {},
+): Promise<Notification[]> {
+  const notify = opts.notify ?? true;
+  // Mount + focus + pull-to-refresh can overlap; share one run so the seen
+  // set is read once and a banner never fires twice.
+  if (!doctorSyncInFlight) {
+    doctorSyncInFlight = runDoctorRequestSync(notify).finally(() => {
+      doctorSyncInFlight = null;
+    });
+  }
+  return doctorSyncInFlight;
+}
+
+async function runDoctorRequestSync(notify: boolean): Promise<Notification[]> {
+  let userId: string;
+  try {
+    userId = (await requireUser()).id;
+  } catch {
+    return [];
+  }
+  const doctor = await getMyDoctorProfile().catch(() => null);
+  if (!doctor) return [];
+
+  let rows: AppointmentRow[];
+  try {
+    rows = await getClinicAppointments(doctor.clinicId);
+  } catch {
+    return [];
+  }
+
+  const pending = rows.filter(
+    (r) => r.status === "requested" && (!r.doctor_id || r.doctor_id === userId),
+  );
+
+  const storageKey = `${DOCTOR_REQUEST_SEEN_KEY}:${userId}`;
+  let seen: Set<string> | null = null;
+  try {
+    const stored = await AsyncStorage.getItem(storageKey);
+    seen = stored ? new Set(JSON.parse(stored) as string[]) : null;
+  } catch {
+    seen = null;
+  }
+  const firstRun = seen === null;
+  const fresh = pending.filter((r) => !seen?.has(r.id));
+
+  // Remember every row still in the window so ids never fire twice.
+  const visibleIds = new Set(rows.map((r) => r.id));
+  const nextSeen = [
+    ...[...(seen ?? [])].filter((id) => visibleIds.has(id)),
+    ...fresh.map((r) => r.id),
+  ];
+  try {
+    await AsyncStorage.setItem(storageKey, JSON.stringify(nextSeen));
+  } catch {
+    /* best-effort */
+  }
+
+  if (fresh.length === 0 || !notify) return [];
+
+  let patientNames: Record<string, string> = {};
+  try {
+    patientNames = (await resolveAppointmentNames(fresh)).patientNames;
+  } catch {
+    /* fall back to the booking snapshot / "A patient" */
+  }
+
+  const fmtWhen = (iso: string) =>
+    new Date(iso).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+  const created: Notification[] = fresh.map((r) => {
+    const name =
+      patientNames[r.patient_id] && patientNames[r.patient_id] !== "Patient"
+        ? patientNames[r.patient_id]
+        : (r.patient_name ?? "").trim() || "A patient";
+    const when = r.preferred_time ? ` for ${fmtWhen(r.preferred_time)}` : "";
+    const directed = r.doctor_id === userId;
+    return {
+      id: doctorRequestNotificationId(r.id),
+      type: "appointment_request",
+      title: "New appointment request",
+      message: `${name} requested a visit${directed ? " with you" : ` at ${doctor.clinicName}`}${when}.`,
+      read: false,
+      created_at: r.created_at || new Date().toISOString(),
+    };
+  });
+
+  for (const n of created) {
+    await insertNotification(n);
+  }
+
+  if (!firstRun) {
+    if (created.length === 1) {
+      await showSystemBanner(created[0].title, created[0].message);
+    } else {
+      await showSystemBanner(
+        `${created.length} new appointment requests`,
+        "Open SkinLens to review them.",
+      );
+    }
+  }
+  return created;
 }

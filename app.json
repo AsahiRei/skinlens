@@ -39,7 +39,7 @@
           "image": "./assets/images/splash-icon-rounded.png",
           "imageWidth": 128,
           "resizeMode": "contain",
-          "backgroundColor": "#15803d"
+          "backgroundColor": "#214E36"
         }
       ],
       "@react-native-vector-icons/ionicons",
@@ -63,7 +63,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",
-          "color": "#15803d"
+          "color": "#214E36"
         }
       ],
       "expo-sqlite",

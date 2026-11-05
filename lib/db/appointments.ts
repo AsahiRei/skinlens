@@ -41,6 +41,10 @@ export type AppointmentRow = {
 export type DoctorProfile = {
   clinicId: string;
   clinicName: string;
+  /** Hospital street address ("" when the clinic row has none). */
+  clinicAddress: string;
+  clinicLatitude: number | null;
+  clinicLongitude: number | null;
   displayName: string;
   specialty: string;
 };
@@ -96,22 +100,67 @@ export async function getMyDoctorProfile(): Promise<DoctorProfile | null> {
     specialty: string;
   };
   let clinicName = "My clinic";
+  let clinicAddress = "";
+  let clinicLatitude: number | null = null;
+  let clinicLongitude: number | null = null;
   try {
     const { data: c } = await supabase
       .from("clinics")
-      .select("name")
+      .select("name, address, latitude, longitude")
       .eq("id", d.clinic_id)
       .maybeSingle();
-    if (c) clinicName = (c as { name: string }).name;
+    if (c) {
+      const row = c as {
+        name: string;
+        address?: string | null;
+        latitude?: number | null;
+        longitude?: number | null;
+      };
+      clinicName = row.name;
+      clinicAddress = row.address?.trim() ?? "";
+      const lat = Number(row.latitude);
+      const lng = Number(row.longitude);
+      if (row.latitude != null && row.longitude != null && Number.isFinite(lat) && Number.isFinite(lng)) {
+        clinicLatitude = lat;
+        clinicLongitude = lng;
+      }
+    }
   } catch {
-    /* name is best-effort */
+    /* clinic details are best-effort */
   }
   return {
     clinicId: d.clinic_id,
     clinicName,
+    clinicAddress,
+    clinicLatitude,
+    clinicLongitude,
     displayName: d.display_name || "Doctor",
     specialty: d.specialty || "Dermatology",
   };
+}
+
+/**
+ * Doctor edits their own display name / specialty (migration 0011 —
+ * update_my_doctor_profile, which can't touch clinic_id or is_active).
+ */
+export async function updateMyDoctorProfile(input: {
+  displayName: string;
+  specialty: string;
+}): Promise<void> {
+  const displayName = input.displayName.trim();
+  if (displayName.length < 2) throw new Error("Enter your display name.");
+  const { error } = await supabase.rpc("update_my_doctor_profile", {
+    p_display_name: displayName,
+    p_specialty: input.specialty.trim() || null,
+  });
+  if (error) {
+    if (/function .*update_my_doctor_profile/i.test(error.message)) {
+      throw new Error(
+        "Profile editing isn't set up on the server yet (migration 0011).",
+      );
+    }
+    throw new Error(error.message);
+  }
 }
 
 /** Active doctors of one verified clinic (for the booking doctor picker). */

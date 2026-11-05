@@ -5,14 +5,14 @@
  */
 export const theme = {
   colors: {
-    primary: "#15803D",
+    primary: "#214E36",
     primaryDeep: "#14532D",
     primarySoft: "#EAF6EE",
     primaryTint: "#DCFCE7",
     ink: "#10241A",
     body: "#3F4A44",
-    muted: "#6B7280",
-    faint: "#9CA3AF",
+    muted: "#59616D", // ≥5.3:1 on card, canvas and gradient (WCAG AA)
+    faint: "#6B7380", // 4.8:1 on cards; was #9CA3AF (2.5:1, failed AA)
     background: "#F4F7F5",
     card: "#FFFFFF",
     cardBorder: "#E5EDE8",
@@ -40,8 +40,8 @@ export const theme = {
      * (PrimaryButton, modal primary actions, auth submit, onboarding next),
      * large hero banners (Scan Your Skin, Find Nearby) and the tab bar dock. */
     dark: ["#214E36", "#10241A"] as const,
-    /* Icon badge: vivid emerald → base primary (diagonal). */
-    icon: ["#22B358", "#15803D"] as const,
+    /* Icon badge: soft pine → base primary (diagonal). */
+    icon: ["#2F6B4A", "#214E36"] as const,
     disabled: ["#E5E7EB", "#D1D5DB"] as const,
   },
 } as const;

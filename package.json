@@ -64,6 +64,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/react": "~19.2.2",
+    "babel-plugin-transform-remove-console": "^6.9.4",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
     "postcss": "^8.5.26",

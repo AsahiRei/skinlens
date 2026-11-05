@@ -11,6 +11,7 @@ import {
 } from "lucide-react-native";
 
 import { DateTimeField } from "@/components/DateTimeField";
+import { DoctorProfileValidation } from "@/components/DoctorProfileValidation";
 import { DoctorResultValidation } from "@/components/DoctorResultValidation";
 import { ClinicalCard, Pill, PrimaryButton, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
@@ -344,9 +345,12 @@ export function DoctorAppointmentCard({
           </View>
         )}
 
-        {/* AI scan review — open while the visit is still active */}
+        {/* AI scan + profile review — open while the visit is still active */}
         {a.status === "requested" || a.status === "scheduled" ? (
-          <DoctorResultValidation patientId={a.patient_id} />
+          <>
+            <DoctorResultValidation patientId={a.patient_id} />
+            <DoctorProfileValidation patientId={a.patient_id} />
+          </>
         ) : null}
 
         {/* Actions */}
@@ -465,8 +469,6 @@ export function DoctorAppointmentCard({
               ? "This will cancel the scheduled visit. The patient will see it in their Appointments screen."
               : "This will mark the visit as completed. The patient's record will be closed."
         }
-        icon={CalendarClock}
-        tone={confirmKind === "complete" ? "soft" : "warning"}
         actions={[
           {
             label: confirmKind === "complete" ? "Mark Complete" : "Confirm",

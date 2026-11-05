@@ -31,7 +31,7 @@ const INACTIVE = "#7E938A";
 const ACTIVE_BG = "rgba(255, 255, 255, 0.18)";
 const ACTIVE_FG = "#FFFFFF";
 const FAB_BG = "#FFFFFF";
-const FAB_ICON = "#15803D";
+const FAB_ICON = "#214E36";
 
 export const TAB_BAR_TINT = { active: ACTIVE_FG, inactive: INACTIVE } as const;
 

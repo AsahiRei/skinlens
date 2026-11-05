@@ -2,6 +2,7 @@ import type { Href } from "expo-router";
 import {
   Bell,
   CalendarCheck,
+  CalendarPlus,
   CalendarX,
   Camera,
   CircleCheck,
@@ -41,6 +42,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   scan_reminder: "Scan reminder",
   daily_tip: "Skin tip",
   appointment_reply: "Appointment update",
+  appointment_request: "New request",
 };
 
 /** Never returns a raw snake_case key — unknown types are humanised. */
@@ -65,7 +67,7 @@ export function getNotificationMeta(n: Pick<Notification, "id" | "type">): Notif
       return {
         label,
         icon: Camera,
-        color: "#15803D",
+        color: "#214E36",
         tint: "#EAF6EE",
         cta: { label: "Take a scan", href: "/(tabs)/scan" },
         context:
@@ -101,11 +103,21 @@ export function getNotificationMeta(n: Pick<Notification, "id" | "type">): Notif
               : "Your clinic replied to your visit request. Arrive a few minutes early and bring your SkinLens report.",
       };
     }
+    case "appointment_request":
+      return {
+        label,
+        icon: CalendarPlus,
+        color: "#B45309",
+        tint: "#FEF3C7",
+        cta: { label: "Review request", href: "/doctor" },
+        context:
+          "A patient booked a visit at your clinic. Schedule or decline it from your request queue — the patient is notified either way.",
+      };
     default:
       return {
         label,
         icon: Bell,
-        color: "#15803D",
+        color: "#214E36",
         tint: "#EAF6EE",
         cta: { label: "Go to home", href: "/(tabs)" },
         context: "",
@@ -115,7 +127,9 @@ export function getNotificationMeta(n: Pick<Notification, "id" | "type">): Notif
 
 export function matchesFilter(n: Notification, f: NotificationFilter): boolean {
   if (f === "unread") return !n.read;
-  if (f === "appointments") return n.type === "appointment_reply";
+  if (f === "appointments") {
+    return n.type === "appointment_reply" || n.type === "appointment_request";
+  }
   if (f === "skin") return n.type === "scan_reminder" || n.type === "daily_tip";
   return true;
 }

@@ -128,7 +128,7 @@ export async function generateSkinReportHtml(): Promise<string> {
   const assessmentBlock = latest
     ? `
       <div class="score-row">
-        <div class="score" style="color:${health.color};border-color:${health.color}">${score}%</div>
+        <div class="score" style="color:${health.color};border-color:${health.color}">${score}<small>/100</small></div>
         <div class="score-meta">
           <div class="score-label">${escapeHtml(health.label)}</div>
           <div class="score-sub">${fmt(latest.detection_label)} detection${
@@ -139,7 +139,7 @@ export async function generateSkinReportHtml(): Promise<string> {
           <div class="score-sub">Scanned on ${fmtDate(latest.created_at)}</div>
           <div class="score-sub" style="color:${
             latest.validation_status === "confirmed"
-              ? "#15803D"
+              ? "#214E36"
               : latest.validation_status === "needs_review"
                 ? "#B45309"
                 : "#6B7280"
@@ -203,7 +203,7 @@ export async function generateSkinReportHtml(): Promise<string> {
           <td>${fmtDate(r.created_at)}</td>
           <td>${fmt(r.detection_label ?? r.severity)}</td>
           <td>${r.confidence ? `${(r.confidence * 100).toFixed(1)}%` : "—"}</td>
-          <td class="num">${Math.round(r.healthscore)}%</td>
+          <td class="num">${Math.round(r.healthscore)}/100</td>
           <td>${fmt(r.severity)}</td>
           <td>${reviewCell(r)}</td>
         </tr>`,
@@ -238,21 +238,21 @@ export async function generateSkinReportHtml(): Promise<string> {
       margin: 0;
     }
     .header {
-      border-bottom: 3px solid #15803D;
+      border-bottom: 3px solid #214E36;
       padding-bottom: 12px;
       margin-bottom: 18px;
     }
-    .brand { color: #15803D; font-size: 22px; font-weight: 800; margin: 0; }
+    .brand { color: #214E36; font-size: 22px; font-weight: 800; margin: 0; }
     .subtitle { color: #6B7280; font-size: 12px; margin: 4px 0 0; }
     .header-content { display: flex; align-items: center; justify-content: space-between; }
     .assessment-container { display: flex; gap: 20px; align-items: flex-start; }
     .assessment-details { flex: 1; }
-    .profile-img { width: 120px; height: 120px; border-radius: 12px; border: 2px solid #15803D; object-fit: cover; }
+    .profile-img { width: 120px; height: 120px; border-radius: 12px; border: 2px solid #214E36; object-fit: cover; }
     h2 {
       font-size: 14px;
       color: #14532D;
       background: #F0FDF4;
-      border-left: 4px solid #15803D;
+      border-left: 4px solid #214E36;
       padding: 6px 10px;
       margin: 22px 0 10px;
       text-transform: uppercase;
@@ -267,13 +267,14 @@ export async function generateSkinReportHtml(): Promise<string> {
     }
     th { background: #F9FAFB; color: #6B7280; font-size: 11px; text-transform: uppercase; }
     td.k { color: #6B7280; width: 38%; }
-    td.num { font-weight: 700; color: #15803D; }
+    td.num { font-weight: 700; color: #214E36; }
     .score-row { display: flex; align-items: center; gap: 16px; margin: 4px 0 10px; }
     .score {
       width: 76px; height: 76px; border-radius: 50%;
       border: 5px solid; display: flex; align-items: center; justify-content: center;
       font-size: 20px; font-weight: 800;
     }
+    .score small { font-size: 10px; font-weight: 600; opacity: 0.7; }
     .score-label { font-size: 16px; font-weight: 700; }
     .score-sub { color: #6B7280; font-size: 12px; }
     .para { color: #374151; margin: 6px 0; }
@@ -283,7 +284,7 @@ export async function generateSkinReportHtml(): Promise<string> {
     .item-note { color: #6B7280; font-size: 11px; margin-top: 2px; }
     .chips { margin: 4px 0; }
     .chip {
-      display: inline-block; background: #F0FDF4; color: #15803D;
+      display: inline-block; background: #F0FDF4; color: #214E36;
       border-radius: 999px; padding: 2px 8px; font-size: 11px; margin: 2px 4px 0 0;
     }
     .subhead { font-weight: 700; color: #14532D; margin: 12px 0 4px; }

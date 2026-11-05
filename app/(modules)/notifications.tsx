@@ -1,8 +1,8 @@
 import React from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { Text } from "@/components/Text";
-import { useRouter } from "expo-router";
-import { Bell, Check, CheckCheck, ChevronRight, Trash2 } from "lucide-react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Check, CheckCheck, ChevronRight, Trash2 } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { BackHeader, EmptyState, UiModal } from "@/components/ui";
@@ -35,8 +35,24 @@ const EMPTY_COPY: Record<NotificationFilter, { title: string; copy: string }> = 
   },
 };
 
+// Doctor accounts only get booking requests — no skin-care filter.
+const DOCTOR_FILTERS = NOTIFICATION_FILTERS.filter((f) => f.key !== "skin");
+const DOCTOR_EMPTY_COPY: Partial<Record<NotificationFilter, { title: string; copy: string }>> = {
+  all: {
+    title: "You're all caught up",
+    copy: "When a patient books a visit at your clinic, you'll see it here.",
+  },
+  appointments: {
+    title: "No new requests",
+    copy: "New patient booking requests will show up here.",
+  },
+};
+
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { scope } = useLocalSearchParams<{ scope?: string }>();
+  const isDoctor = scope === "doctor";
+  const filters = isDoctor ? DOCTOR_FILTERS : NOTIFICATION_FILTERS;
   const { notifications, markAllAsRead, deleteNotification, refresh } =
     useNotifications();
   const [refreshing, setRefreshing] = React.useState(false);
@@ -60,11 +76,11 @@ export default function NotificationsScreen() {
 
   const counts = React.useMemo(() => {
     const c = {} as Record<NotificationFilter, number>;
-    for (const f of NOTIFICATION_FILTERS) {
+    for (const f of filters) {
       c[f.key] = uniqueNotifications.filter((n) => matchesFilter(n, f.key)).length;
     }
     return c;
-  }, [uniqueNotifications]);
+  }, [uniqueNotifications, filters]);
 
   const visible = React.useMemo(
     () => uniqueNotifications.filter((n) => matchesFilter(n, filter)),
@@ -122,7 +138,7 @@ export default function NotificationsScreen() {
     }
   };
 
-  const empty = EMPTY_COPY[filter];
+  const empty = (isDoctor && DOCTOR_EMPTY_COPY[filter]) || EMPTY_COPY[filter];
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
@@ -186,7 +202,7 @@ export default function NotificationsScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
           >
-            {NOTIFICATION_FILTERS.map((f) => {
+            {filters.map((f) => {
               const active = filter === f.key;
               const count = counts[f.key];
               return (
@@ -238,7 +254,7 @@ export default function NotificationsScreen() {
 
           {sections.length === 0 ? (
             <View className="mt-10">
-              <EmptyState icon={Bell} title={empty.title} copy={empty.copy} />
+              <EmptyState title={empty.title} copy={empty.copy} />
             </View>
           ) : (
             sections.map((section) => (
@@ -325,8 +341,6 @@ export default function NotificationsScreen() {
         onDismiss={() => setConfirmVisible(false)}
         title="Delete notifications?"
         message={`Delete ${selected.size} selected notification${selected.size === 1 ? "" : "s"}? This cannot be undone.`}
-        icon={Trash2}
-        tone="danger"
         actions={[
           { label: "Cancel", onPress: () => setConfirmVisible(false), kind: "ghost" },
           {

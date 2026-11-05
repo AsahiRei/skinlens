@@ -45,6 +45,12 @@ import {
   getAlignmentGuidance,
 } from "@/utils/face-quality";
 
+// Module-level on purpose: usePhotoOutput memoizes on targetResolution by
+// reference. An inline object literal is new every render, which recreated the
+// photo output and re-ran session.configure() on each re-render. A capture in
+// flight then failed with "ImageCaptureException: Camera is closed".
+const PHOTO_TARGET_RESOLUTION = { width: 720, height: 1280 };
+
 const CAMERA_STYLE = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
 
 export default function FaceEnroll() {
@@ -60,7 +66,7 @@ export default function FaceEnroll() {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice("front");
   const photoOutput = usePhotoOutput({
-    targetResolution: { width: 720, height: 1280 },
+    targetResolution: PHOTO_TARGET_RESOLUTION,
     containerFormat: "jpeg",
     quality: 0.85,
     qualityPrioritization: "balanced",
@@ -282,7 +288,6 @@ export default function FaceEnroll() {
           <PrimaryButton
             label={isReenroll ? "Take New Picture" : "Take Profile Picture"}
             onPress={handleStart}
-            icon={CameraIcon}
           />
         </View>
       </SafeAreaView>

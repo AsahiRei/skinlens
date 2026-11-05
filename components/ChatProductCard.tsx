@@ -48,7 +48,7 @@ export default function ChatProductCard({
           style={{ width: 56, height: 56, borderRadius: 10 }}
           className="items-center justify-center bg-green-100"
         >
-          <ShoppingBag size={20} color="#15803D" />
+          <ShoppingBag size={20} color="#214E36" />
         </View>
       )}
       <View className="flex-1 flex-col gap-0.5 min-w-0">
@@ -67,7 +67,7 @@ export default function ChatProductCard({
           </Text>
         )}
         {!product.retailer && product.imageSourceName ? (
-          <Text className="text-[10px] text-gray-400" numberOfLines={1}>
+          <Text className="text-[10px] text-gray-500" numberOfLines={1}>
             Photo: {product.imageSourceName}
           </Text>
         ) : null}
@@ -83,7 +83,7 @@ export default function ChatProductCard({
         accessibilityLabel={`View ${product.product_type} on ${product.retailer || "website"}`}
       >
         {body}
-        <ExternalLink size={14} color="#15803D" />
+        <ExternalLink size={14} color="#214E36" />
       </Pressable>
     );
   }

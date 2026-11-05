@@ -2,11 +2,10 @@ import * as Location from "expo-location";
 
 import { getVerifiedClinics } from "@/lib/db/clinics";
 import type { ChatClinic, ChatUserContext } from "@/types/chat";
+import { searchLiveClinics } from "@/utils/clinic-search";
 
 const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY ?? "";
 
-/** Live (Geoapify) search radius, same as the Derma tab. */
-const LIVE_RADIUS_M = 5000;
 /** Verified (bookable) clinics are worth showing even if a bit farther. */
 const VERIFIED_MAX_KM = 50;
 
@@ -56,38 +55,19 @@ async function getUserLocation(): Promise<Coords | null> {
 }
 
 async function fetchLiveClinics(at: Coords): Promise<ChatClinic[]> {
-  if (!GEOAPIFY_API_KEY) return [];
-  const url =
-    `https://api.geoapify.com/v2/places` +
-    `?categories=healthcare.clinic_or_praxis,healthcare.hospital` +
-    `&filter=circle:${at.longitude},${at.latitude},${LIVE_RADIUS_M}` +
-    `&bias=proximity:${at.longitude},${at.latitude}` +
-    `&limit=20&apiKey=${GEOAPIFY_API_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Geoapify request failed: ${res.status}`);
-  const data = await res.json();
-
-  type GeoapifyFeature = {
-    properties: { place_id?: string; name?: string; formatted?: string; distance?: number };
-    geometry?: { coordinates?: [number, number] };
-  };
-  const features: GeoapifyFeature[] = data.features ?? [];
-  return features.map((f, idx) => {
-    const name = f.properties.name ?? "Unnamed Clinic";
-    const [lon, lat] = f.geometry?.coordinates ?? [undefined, undefined];
-    return {
-      id: f.properties.place_id ?? `live-${idx}`,
-      name,
-      specialty: /derma|skin/i.test(name) ? "Dermatology" : "General Clinic",
-      address: f.properties.formatted ?? "Address unavailable",
-      distanceKm: f.properties.distance ? f.properties.distance / 1000 : 0,
-      verified: false,
-      latitude: lat,
-      longitude: lon,
-      rating: 0,
-      availableToday: false,
-    };
-  });
+  const { clinics } = await searchLiveClinics(at, GEOAPIFY_API_KEY);
+  return clinics.map((c) => ({
+    id: c.id,
+    name: c.name,
+    specialty: c.specialty,
+    address: c.address,
+    distanceKm: c.distanceKm,
+    verified: false,
+    latitude: c.latitude ?? undefined,
+    longitude: c.longitude ?? undefined,
+    rating: 0,
+    availableToday: false,
+  }));
 }
 
 export type NearbyClinicsResult = {
@@ -142,13 +122,7 @@ export async function findNearbyClinicsForChat(limit = 5): Promise<NearbyClinics
       .sort((a, b) => a.distanceKm - b.distanceKm);
   }
 
-  live.sort((a, b) => {
-    const aDerm = a.specialty === "Dermatology" ? 0 : 1;
-    const bDerm = b.specialty === "Dermatology" ? 0 : 1;
-    if (aDerm !== bDerm) return aDerm - bDerm;
-    return a.distanceKm - b.distanceKm;
-  });
-
+  // live is already sorted: dermatology → hospitals → other, then by distance.
   // At most 3 verified so live nearby options still appear.
   const picked = [...verified.slice(0, 3)];
   for (const c of live) {
@@ -173,7 +147,7 @@ export function formatClinicsReply(
     parts.push(
       locationStatus === "denied"
         ? "I need location permission to find dermatologists near you. You can allow it in Settings, or open the Derma tab to search."
-        : "I couldn't find dermatology clinics or hospitals within 5 km of you. Try the Derma tab to search a wider area.",
+        : "I couldn't find dermatology clinics or hospitals near you. Try the Derma tab to search, or ask a nearby clinic for a referral.",
     );
   } else {
     const verifiedCount = clinics.filter((c) => c.verified).length;

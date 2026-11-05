@@ -11,13 +11,13 @@ import {
 import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { TrendingUp, Calendar, FileText, ArrowRight, Check } from "lucide-react-native";
+import { FileText, ArrowRight, Check } from "lucide-react-native";
 import Svg, { Path, Circle, Line as SvgLine } from "react-native-svg";
 
 import { FadeItem } from "@/components/FadeItem";
 import Skeleton from "@/components/Skeleton";
 import TypewriterText from "@/components/TypewriterText";
-import { BackHeader, ClinicalCard, EmptyState, IconBadge, Pill, SectionTitle } from "@/components/ui";
+import { BackHeader, ClinicalCard, EmptyState, Pill, SectionTitle } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
@@ -500,7 +500,6 @@ export default function Progress() {
               </Text>
             </View>
             <View className="items-end gap-2">
-              <IconBadge icon={TrendingUp} size="lg" tone="soft" />
               {isImproving && <Pill label="Improving" />}
             </View>
           </ClinicalCard>
@@ -537,7 +536,7 @@ export default function Progress() {
               Weekly summary
             </Text>
             <Text className="text-xs mt-1" style={{ color: "#A7C4B2" }}>
-              {weekScans} scans · Avg score: {weekAvgScore}%
+              {weekScans} scans · Avg score: {weekAvgScore}/100
             </Text>
             {summaryLoading ? (
               <ActivityIndicator size="small" color="#FFFFFF" style={{ marginTop: 10 }} />
@@ -623,7 +622,6 @@ export default function Progress() {
             <SectionTitle title="Scan History" />
             {allResults.length === 0 ? (
               <EmptyState
-                icon={Calendar}
                 copy="No scans yet."
               />
             ) : (
@@ -674,7 +672,7 @@ export default function Progress() {
                         </View>
                       </View>
                       <Text className="text-xs font-bold" style={{ color: theme.colors.primary }}>
-                        {result.healthscore}%
+                        {Math.round(result.healthscore)}/100
                       </Text>
                     </View>
                   );
@@ -702,7 +700,7 @@ export default function Progress() {
                       </Text>
                       <Text className="text-xs" style={{ color: theme.colors.faint }}>
                         {formatDateFull(result.created_at)} · Score:{" "}
-                        {result.healthscore}%
+                        {Math.round(result.healthscore)}/100
                       </Text>
                     </View>
                     {result.image_url && (

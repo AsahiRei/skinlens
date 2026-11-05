@@ -123,7 +123,8 @@ export type SensitivityEntry = {
 export type NotificationType =
   | "scan_reminder"
   | "daily_tip"
-  | "appointment_reply";
+  | "appointment_reply"
+  | "appointment_request";
 
 export type Notification = {
   id: string;
@@ -137,4 +138,6 @@ export type Notification = {
 export type NotificationSettings = {
   scanReminders: boolean;
   dailyTips: boolean;
+  /** Doctor accounts: notify on new patient booking requests. */
+  appointmentRequests: boolean;
 };

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { AlertCircle, ArrowRight, Check, RefreshCw } from "lucide-react-native";
+import { AlertCircle, Check } from "lucide-react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -27,6 +27,7 @@ import {
 } from "@/utils/face-embeddings";
 import type { ClassificationResult } from "@/types/skin";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { assessDetection, describeDetection, prettyLabel as toPretty } from "@/utils/detection-score";
 
 const steps = stepsData.analyzing;
 
@@ -39,10 +40,14 @@ const detectionMeta: Record<
 
 export default function Analyzing() {
   const router = useRouter();
-  const { imageUri, sourceType, imageUris } = useLocalSearchParams<{
+  // imageUri / imageUris: what the skin model analyzes (camera captures are
+  // already face-cropped). originalUris: the matching full photos, used only
+  // for face verification, which does its own face-aware cropping.
+  const { imageUri, sourceType, imageUris, originalUris } = useLocalSearchParams<{
     imageUri: string;
     sourceType: string;
     imageUris?: string;
+    originalUris?: string;
   }>();
   const [stepIndex, setStepIndex] = useState(0);
   const [progressPct, setProgressPct] = useState(0);
@@ -71,6 +76,17 @@ export default function Analyzing() {
     }
   }, [imageUris]);
   const isMulti = multiAngles.length > 1;
+
+  const originals: string[] = useMemo(() => {
+    if (!originalUris) return [];
+    try {
+      const parsed: unknown = JSON.parse(originalUris);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((v): v is string => typeof v === "string");
+    } catch {
+      return [];
+    }
+  }, [originalUris]);
 
   const scanLineY = useSharedValue(0);
 
@@ -170,7 +186,9 @@ export default function Analyzing() {
           // genuine users. For multi-angle scans every angle from the same
           // live session counts.
           let similarity = 0;
-          const urisToCheck = isMulti ? uris : [uris[0]];
+          const analyzed = isMulti ? uris : [uris[0]];
+          // Prefer the uncropped originals when they line up 1:1.
+          const urisToCheck = originals.length === analyzed.length ? originals : analyzed;
           for (const uri of urisToCheck) {
             const live = await getFaceEmbeddingCandidates(uri);
             if (cancelledRef.current) return;
@@ -272,11 +290,70 @@ export default function Analyzing() {
 
   if (detectedResult) {
     const meta = detectionMeta[detectedResult.label] ?? detectionMeta.normal;
-    const prettyLabel =
-      detectedResult.label.charAt(0).toUpperCase() + detectedResult.label.slice(1);
+    const prettyLabel = toPretty(detectedResult.label);
     const confidencePct = Math.round(detectedResult.confidence * 100);
     const previewUri = displayUris[0] ?? finalUris[0] ?? (imageUri as string | undefined);
     const isNormal = detectedResult.label === "normal";
+    const assessment = assessDetection(detectedResult.confidence, detectedResult.probabilities);
+
+    // Too uncertain to present as a finding: steer the user to retake,
+    // but still let them continue (the result screen flags it as low-confidence).
+    if (assessment.inconclusive) {
+      return (
+        <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+          <ScreenGradient />
+          <ScrollView
+            className="flex-1"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, flexGrow: 1, justifyContent: "center" }}
+          >
+            <View className="items-center">
+              <View
+                className="h-12 w-12 rounded-full items-center justify-center"
+                style={{ backgroundColor: theme.colors.warningBg, borderWidth: 1, borderColor: theme.colors.warningBorder }}
+              >
+                <AlertCircle size={22} color={theme.colors.warningText} />
+              </View>
+              <Text className="font-bold text-[24px] mt-3 text-center" style={{ color: theme.colors.ink }}>
+                {"We couldn't read this clearly"}
+              </Text>
+              <Text className="text-sm mt-1 text-center" style={{ color: theme.colors.muted }}>
+                {assessment.reason === "ambiguous" && assessment.runnerUp
+                  ? `The result is split between ${prettyLabel} and ${toPretty(assessment.runnerUp)}.`
+                  : "The AI isn't confident enough to give you a reliable result."}
+              </Text>
+            </View>
+
+            <ClinicalCard className="mt-5 gap-3 py-6 px-5">
+              {previewUri ? (
+                <View className="self-center w-28 h-28 rounded-3xl overflow-hidden" style={{ aspectRatio: 1, backgroundColor: theme.colors.primarySoft }}>
+                  <Image source={{ uri: previewUri }} className="w-full h-full" resizeMode="cover" />
+                </View>
+              ) : null}
+              <Text className="text-[15px] font-bold" style={{ color: theme.colors.ink }}>
+                For a better scan:
+              </Text>
+              {[
+                "Face a window or soft light; avoid strong overhead or colored light.",
+                "Remove makeup, glasses and hair from your face.",
+                "Hold the phone at arm's length, steady, with your whole face in frame.",
+              ].map((tip) => (
+                <View key={tip} className="flex-row gap-2">
+                  <Text style={{ color: theme.colors.primary }}>•</Text>
+                  <Text className="flex-1 text-sm leading-5" style={{ color: theme.colors.body }}>{tip}</Text>
+                </View>
+              ))}
+            </ClinicalCard>
+
+            <View className="w-full mt-5 gap-2">
+              <PrimaryButton label="Retake Scan" onPress={handleRescan} />
+              <SecondaryButton label="Continue Anyway" onPress={handleProceedToSurvey} />
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      );
+    }
+
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
@@ -298,7 +375,7 @@ export default function Analyzing() {
             <Text className="text-sm mt-1 text-center" style={{ color: theme.colors.muted }}>
               {isNormal
                 ? "We didn't find any major skin issues."
-                : `We detected ${prettyLabel}.`}
+                : `We found ${describeDetection(detectedResult.label)}.`}
             </Text>
           </View>
 
@@ -319,7 +396,7 @@ export default function Analyzing() {
             <Text className="text-[15px] text-center leading-6" style={{ color: theme.colors.ink }}>
               {isNormal
                 ? "Your skin looks healthy. Proceed to a short survey to finalize your result?"
-                : `We detected ${prettyLabel}. Proceed to a short survey to finalize your result?`}
+                : `We found ${describeDetection(detectedResult.label)}. Proceed to a short survey to finalize your result?`}
             </Text>
             <Text className="text-xs text-center leading-5" style={{ color: theme.colors.muted }}>
               A few quick questions help confirm the AI result and personalize your routine.
@@ -330,9 +407,8 @@ export default function Analyzing() {
             <PrimaryButton
               label="Continue to Short Survey"
               onPress={handleProceedToSurvey}
-              icon={ArrowRight}
             />
-            <SecondaryButton label="Scan Again" onPress={handleRescan} icon={RefreshCw} />
+            <SecondaryButton label="Scan Again" onPress={handleRescan} />
           </View>
         </ScrollView>
       </SafeAreaView>

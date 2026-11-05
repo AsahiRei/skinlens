@@ -11,10 +11,7 @@ import {
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  User,
   Building,
-  CalendarCheck,
-  CalendarX,
   MapPin,
   Navigation,
   Star,
@@ -30,7 +27,6 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import {
   BackHeader,
   ClinicalCard,
-  IconBadge,
   Notice,
   Pill,
   PrimaryButton,
@@ -321,7 +317,6 @@ export default function DermatologistDetails() {
         <FadeItem index={1}>
           <ClinicalCard className="mt-5 flex-col gap-4">
             <View className="flex-row items-center gap-3">
-              <IconBadge icon={User} size="lg" tone="soft" />
               <View className="flex-col flex-1">
                 <Text className="font-bold text-lg" style={{ color: theme.colors.ink }}>
                   {params.name}
@@ -533,7 +528,6 @@ export default function DermatologistDetails() {
             ) : (
               <PrimaryButton
                 label="View on Map"
-                icon={Navigation}
                 onPress={openFullMap}
               />
             )}
@@ -546,8 +540,6 @@ export default function DermatologistDetails() {
         onDismiss={() => setShowPastSlot(false)}
         title="Schedule unavailable"
         message="You're not allowed to appoint on that schedule — the time you picked has already passed. Please choose a later date & time."
-        icon={CalendarX}
-        tone="warning"
         actions={[
           {
             label: "Choose a new time",
@@ -563,8 +555,6 @@ export default function DermatologistDetails() {
         dismissOnBackdrop={!sendingReport}
         title="Request sent"
         message={`Your visit request is with ${params.name}${bookedDoctorName ? ` (${bookedDoctorName})` : ""} — the doctor confirms your exact time.${reportAttached ? " Your Skin Report is attached." : ""}${reportError ? `\n\n${reportError}` : ""}`}
-        icon={CalendarCheck}
-        tone="soft"
         actions={[
           ...(reportAttached
             ? []
