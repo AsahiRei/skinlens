@@ -49,6 +49,42 @@ export async function clearLocalUserData(): Promise<void> {
   }
 }
 
+/**
+ * Permanently deletes the signed-in account (Google Play account-deletion
+ * policy). Removes the user's report PDFs through the Storage API, then calls
+ * the delete_my_account RPC (migration 0010) which wipes every owned row and
+ * the auth user, and finally clears this device. Requires a connection.
+ */
+export async function deleteMyAccount(): Promise<void> {
+  const user = await requireUser();
+
+  const { data: files, error: listError } = await supabase.storage
+    .from("reports")
+    .list(user.id, { limit: 1000 });
+  if (listError) {
+    console.warn("[auth] could not list reports for deletion:", listError.message);
+  } else if (files && files.length > 0) {
+    const { error: removeError } = await supabase.storage
+      .from("reports")
+      .remove(files.map((f) => `${user.id}/${f.name}`));
+    if (removeError) {
+      console.warn("[auth] could not remove report files:", removeError.message);
+    }
+  }
+
+  const { error } = await supabase.rpc("delete_my_account");
+  if (error) {
+    throw new Error(
+      /function .*delete_my_account/i.test(error.message)
+        ? "Account deletion isn't available yet. Please contact support."
+        : error.message,
+    );
+  }
+
+  await signOutLocal();
+  await clearLocalUserData();
+}
+
 // Purge everything for an account that no longer exists server-side:
 // AsyncStorage session (local scope — works offline/deleted) + SQLite rows.
 export async function handleInvalidSession(): Promise<void> {

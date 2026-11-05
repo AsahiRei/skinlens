@@ -25,7 +25,7 @@ export default function Login() {
   const router = useRouter();
   //login
   const handleLogin = async () => {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleLogin start email=`, email);
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleLogin start`);
     if (!email || !password) {
       console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleLogin blocked: missing fields`);
       ToastAndroid.show(

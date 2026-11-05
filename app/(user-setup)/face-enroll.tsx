@@ -13,7 +13,7 @@ import {
   usePhotoOutput,
 } from "react-native-vision-camera";
 import type { Photo } from "react-native-vision-camera";
-import { Camera, Face } from "react-native-vision-camera-face-detector";
+import { FaceCamera, type Face } from "@/components/FaceCamera";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Animated, {
   Easing,
@@ -44,6 +44,8 @@ import {
   evaluateAlignment,
   getAlignmentGuidance,
 } from "@/utils/face-quality";
+
+const CAMERA_STYLE = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
 
 export default function FaceEnroll() {
   const router = useRouter();
@@ -79,7 +81,6 @@ export default function FaceEnroll() {
   // Same as camera.tsx — log camera errors once so LogBox never blocks the UI.
   const cameraErrorLoggedRef = useRef(false);
   const canCaptureRef = useRef(false);
-  const lastFrameRef = useRef(0);
   const scoreRef = useRef(0);
 
   const faceX = useSharedValue(0);
@@ -131,9 +132,6 @@ export default function FaceEnroll() {
   const handleFacesDetected = useCallback(
     (faces: Face[]) => {
       if (isCapturingRef.current) return;
-      const now = performance.now();
-      if (now - lastFrameRef.current < 120) return;
-      lastFrameRef.current = now;
 
       if (faces.length > 0) {
         const f = faces[0];
@@ -174,9 +172,12 @@ export default function FaceEnroll() {
           "front",
         );
         const ready = alignment.score >= 50 && alignment.isFacingFront;
-        scoreRef.current = alignment.score;
+        // Bucket the float score so React bails out of re-rendering when
+        // nothing visible changed (only the 50/80 color bands matter).
+        const banded = Math.max(1, Math.round(alignment.score / 5) * 5);
+        scoreRef.current = banded;
         canCaptureRef.current = ready;
-        setScore(alignment.score);
+        setScore(banded);
         setGuidance(msg);
         setCanCapture(ready);
       } else {
@@ -192,6 +193,13 @@ export default function FaceEnroll() {
     },
     [faceX, faceY, faceW, faceH, faceVisible],
   );
+
+  const handleCameraError = useCallback((error: Error) => {
+    if (!cameraErrorLoggedRef.current) {
+      cameraErrorLoggedRef.current = true;
+      console.log("Enroll camera error:", error);
+    }
+  }, []);
 
   const handleCapture = useCallback(async () => {
     if (isCapturingRef.current || !canCaptureRef.current) return;
@@ -312,19 +320,14 @@ export default function FaceEnroll() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-black">
       <View className="flex-1">
-        <Camera
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        <FaceCamera
+          style={CAMERA_STYLE}
           device={device}
           isActive={!isPreview}
           performanceMode="fast"
-          autoMode
+          minFaceSize={0.2}
           onFacesDetected={handleFacesDetected}
-          onError={(error) => {
-            if (!cameraErrorLoggedRef.current) {
-              cameraErrorLoggedRef.current = true;
-              console.log("Enroll camera error:", error);
-            }
-          }}
+          onError={handleCameraError}
           outputs={outputs}
         />
 

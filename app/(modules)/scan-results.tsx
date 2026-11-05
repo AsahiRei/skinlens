@@ -13,7 +13,7 @@ import { AlertCircle, FileText, Info, RefreshCw } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { ClinicalCard, PrimaryButton, SecondaryButton, UiModal } from "@/components/ui";
+import { ClinicalCard, Notice, PrimaryButton, SecondaryButton, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import {
   getLatestResultDetail,
@@ -479,6 +479,12 @@ export default function ScanResults() {
                 ))}
               </ClinicalCard>
             )}
+
+          <Notice
+            icon={Info}
+            tone="info"
+            copy="SkinLens results are AI estimates for information only, not a medical diagnosis. Consult a licensed dermatologist for persistent, severe or worsening skin concerns."
+          />
 
           <View className="h-4" />
         </View>

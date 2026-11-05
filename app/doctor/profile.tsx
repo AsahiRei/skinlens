@@ -4,25 +4,25 @@ import {
   RefreshControl,
   ScrollView,
   TextInput,
+  ToastAndroid,
   View,
 } from "react-native";
 import { Text } from "@/components/Text";
 import { useFocusEffect } from "expo-router";
 import {
   Building2,
-  CalendarClock,
-  ChevronRight,
   LogOut,
   Mail,
   RefreshCcw,
   ShieldCheck,
-  Stethoscope,
   Ticket,
+  Users,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { FadeItem } from "@/components/FadeItem";
 import LogoutModal from "@/components/LogoutModal";
+import DeleteAccountModal from "@/components/DeleteAccountModal";
 import {
   CardTitleSkeleton,
   HeroTextSkeleton,
@@ -34,7 +34,6 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import {
   ClinicalCard,
   IconBadge,
-  Pill,
   PrimaryButton,
   ScreenHeader,
   SectionTitle,
@@ -62,6 +61,7 @@ export default function DoctorProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [logoutModal, setLogoutModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
 
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkCode, setLinkCode] = useState("");
@@ -122,6 +122,7 @@ export default function DoctorProfileScreen() {
       setLinkCode("");
       setLoading(true);
       await load();
+      ToastAndroid.show("Hospital linked successfully", ToastAndroid.SHORT);
     } catch (err) {
       setLinkError(err instanceof Error ? err.message : "Invalid invite code.");
     } finally {
@@ -132,6 +133,7 @@ export default function DoctorProfileScreen() {
   return (
     <>
       <LogoutModal isVisible={logoutModal} setVisible={setLogoutModal} />
+      <DeleteAccountModal isVisible={deleteModal} setVisible={setDeleteModal} />
       <UiModal
         visible={linkOpen}
         onDismiss={() => {
@@ -235,12 +237,15 @@ export default function DoctorProfileScreen() {
                         </Text>
                       </View>
                     ) : null}
+                    <View className="flex-row items-center gap-1.5 mt-1.5">
+                      <Users size={12} color="rgba(255,255,255,0.6)" />
+                      <Text className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
+                        {waiting} waiting · {scheduled} scheduled
+                      </Text>
+                    </View>
                   </View>
                 </View>
-                <View className="flex-row items-center gap-2 mt-4">
-                  <Pill label={doctor?.clinicName ?? "No clinic linked"} />
-                  <Pill label={`${waiting} waiting · ${scheduled} scheduled`} />
-                </View>
+                
               </LinearGradient>
             )}
           </FadeItem>
@@ -248,13 +253,13 @@ export default function DoctorProfileScreen() {
           {/* Clinic */}
           <FadeItem index={2}>
             {loading ? (
-              <ClinicalCard className="flex-col gap-3 mt-4">
+              <ClinicalCard className="flex-col gap-3 mt-5">
                 <CardTitleSkeleton />
                 <IconRowsSkeleton rows={1} />
                 <Skeleton className="h-12 w-full rounded-full" />
               </ClinicalCard>
             ) : !doctor ? (
-              <ClinicalCard className="flex-col gap-3 mt-4">
+              <ClinicalCard className="flex-col gap-3 mt-5">
                 <View className="flex-row items-center gap-3">
                   <IconBadge icon={Ticket} size="lg" tone="soft" />
                   <View className="flex-1">
@@ -295,7 +300,7 @@ export default function DoctorProfileScreen() {
                 />
               </ClinicalCard>
             ) : (
-              <ClinicalCard className="flex-col gap-3 mt-4">
+              <ClinicalCard className="flex-col gap-3 mt-5">
               <SectionTitle title="Hospital" meta="Verified clinic" />
               <View className="flex-row items-center gap-3">
                 <IconBadge icon={Building2} size="md" tone="soft" />
@@ -318,39 +323,6 @@ export default function DoctorProfileScreen() {
             )}
           </FadeItem>
 
-          {/* Practice */}
-          <FadeItem index={3}>
-            {loading ? (
-              <ClinicalCard className="flex-col gap-3 mt-4">
-                <CardTitleSkeleton className="mb-1" />
-                <IconRowsSkeleton rows={2} />
-              </ClinicalCard>
-            ) : (
-            <ClinicalCard className="flex-col gap-3 mt-4">
-              <SectionTitle title="Practice" />
-              <View className="flex-row items-center py-2">
-                <IconBadge icon={Stethoscope} size="md" tone="soft" />
-                <View className="flex-1 ml-3">
-                  <Text className="text-sm" style={{ color: theme.colors.faint }}>Specialty</Text>
-                  <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
-                    {doctor?.specialty ?? "—"}
-                  </Text>
-                </View>
-              </View>
-              <View className="flex-row items-center py-2" style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}>
-                <IconBadge icon={CalendarClock} size="md" tone="soft" />
-                <View className="flex-1 ml-3">
-                  <Text className="text-sm" style={{ color: theme.colors.faint }}>Queue right now</Text>
-                  <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
-                    {waiting} waiting · {scheduled} scheduled
-                  </Text>
-                </View>
-                <ChevronRight size={18} color={theme.colors.faint} />
-              </View>
-            </ClinicalCard>
-            )}
-          </FadeItem>
-
           {/* Session */}
           <FadeItem index={4}>
             <Pressable
@@ -362,6 +334,16 @@ export default function DoctorProfileScreen() {
             >
               <LogOut size={18} color="#FFFFFF" />
               <Text className="font-bold text-white">Logout</Text>
+            </Pressable>
+            <Pressable
+              className="active:opacity-60 py-3 mt-2 items-center"
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+              onPress={() => setDeleteModal(true)}
+            >
+              <Text className="text-sm font-semibold" style={{ color: theme.colors.danger }}>
+                Delete account
+              </Text>
             </Pressable>
           </FadeItem>
         </ScrollView>

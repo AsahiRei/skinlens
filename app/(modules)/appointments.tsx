@@ -88,7 +88,7 @@ export default function AppointmentsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -114,6 +114,7 @@ export default function AppointmentsScreen() {
     try {
       await cancelAppointment(id);
       await load();
+      ToastAndroid.show("Visit cancelled", ToastAndroid.SHORT);
     } catch (err) {
       console.error("[appointments] cancel failed:", err);
       setActionError(
@@ -123,6 +124,10 @@ export default function AppointmentsScreen() {
       setActing(false);
     }
   };
+
+// Group rows by status
+  const activeRows = rows.filter((a) => a.status === "scheduled" || a.status === "requested");
+  const pastRows = rows.filter((a) => a.status !== "scheduled" && a.status !== "requested");
 
   return (
     <>
@@ -152,7 +157,7 @@ export default function AppointmentsScreen() {
               <View className="flex-1">
                 <ScreenHeader
                   title="My Appointments"
-                  subtitle="Requests you sent from clinic pages"
+                  subtitle="Manage your clinic visits"
                 />
               </View>
             </View>
@@ -180,133 +185,158 @@ export default function AppointmentsScreen() {
               <ClinicalCard className="mt-4">
                 <EmptyState
                   icon={CalendarCheck}
-                  title="No appointments"
-                  copy="Book a visit from any verified clinic page."
+                  title="No appointments yet"
+                  copy="Find a clinic and book your first visit to get started."
                 />
               </ClinicalCard>
             </FadeItem>
           ) : (
-            <View className="flex-col gap-3 mt-4">
-              <FadeItem index={1}>
-                <SectionTitle title="Requests" meta={`${rows.length} total`} />
-              </FadeItem>
+            <View className="flex-col gap-6 mt-4">
+              {activeRows.length > 0 && (
+                <View className="flex-col gap-3">
+                  <FadeItem index={1}>
+                    <SectionTitle title="Upcoming" meta={`${activeRows.length} active`} />
+                  </FadeItem>
+                  {activeRows.map((a) => (
+                    <FadeItem key={a.id} index={2}>
+                      <ClinicalCard className="flex-col gap-3">
+                        <View className="flex-row items-center gap-3">
+                          <View className="h-10 w-10 rounded-2xl items-center justify-center" style={{ backgroundColor: theme.colors.primarySoft }}>
+                            <CalendarCheck size={18} color={theme.colors.primary} />
+                          </View>
+                          <View className="flex-1">
+                            <Text
+                              className="font-bold text-[15px]"
+                              style={{ color: theme.colors.ink }}
+                            >
+                              {clinicNames[a.clinic_id] ?? "Clinic"}
+                            </Text>
+                            <Text
+                              className="text-xs mt-0.5"
+                              style={{ color: theme.colors.muted }}
+                            >
+                              {a.doctor_id
+                                ? `${doctorNames[a.doctor_id] ?? "Doctor"} · Asked ${fmt(a.created_at)}${
+                                    a.preferred_time ? ` · Prefers ${fmt(a.preferred_time)}` : ""
+                                  }`
+                                : `Asked ${fmt(a.created_at)}${
+                                    a.preferred_time ? ` · Prefers ${fmt(a.preferred_time)}` : ""
+                                  }`}
+                            </Text>
+                          </View>
+                          <Pill label={a.status} tone={pillTone(a.status)} />
+                        </View>
 
-              {rows.map((a) => (
-                <FadeItem key={a.id} index={2}>
-                  <ClinicalCard className="flex-col gap-3">
-                    <View className="flex-row items-center gap-3">
-                      <View className="h-10 w-10 rounded-2xl items-center justify-center" style={{ backgroundColor: theme.colors.primarySoft }}>
-                        <CalendarCheck size={18} color={theme.colors.primary} />
-                      </View>
-                      <View className="flex-1">
-                        <Text
-                          className="font-bold text-[15px]"
-                          style={{ color: theme.colors.ink }}
-                        >
-                          {clinicNames[a.clinic_id] ?? "Clinic"}
-                        </Text>
-                        <Text
-                          className="text-xs mt-0.5"
-                          style={{ color: theme.colors.muted }}
-                        >
-                          {a.doctor_id
-                            ? `${doctorNames[a.doctor_id] ?? "Doctor"} · Asked ${fmt(a.created_at)}${
-                                a.preferred_time ? ` · Prefers ${fmt(a.preferred_time)}` : ""
-                              }`
-                            : `Asked ${fmt(a.created_at)}${
-                                a.preferred_time ? ` · Prefers ${fmt(a.preferred_time)}` : ""
-                              }`}
-                        </Text>
-                      </View>
-                      <Pill label={a.status} tone={pillTone(a.status)} />
-                    </View>
-
-                    <View
-                      className="flex-col gap-1 pt-3"
-                      style={{
-                        borderTopWidth: 1,
-                        borderTopColor: theme.colors.divider,
-                      }}
-                    >
-                      {a.preferred_time ? (
-                        <Text className="text-xs" style={{ color: theme.colors.body }}>
-                          Prefers: {fmt(a.preferred_time)}
-                        </Text>
-                      ) : null}
-                      {a.scheduled_at ? (
-                        <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
-                          Visit: {fmt(a.scheduled_at)}
-                        </Text>
-                      ) : null}
-                      {a.report_pdf_path ? (
-                        <Pressable
-                          onPress={() =>
-                            void openAppointmentReport(a.report_pdf_path!).catch(
-                              (err) => {
-                                console.warn(
-                                  "[appointments] open report failed:",
-                                  err,
-                                );
-                                ToastAndroid.show(
-                                  err instanceof Error
-                                    ? err.message
-                                    : "Couldn't open the report PDF.",
-                                  ToastAndroid.LONG,
-                                );
-                              },
-                            )
-                          }
-                          hitSlop={8}
-                          accessibilityRole="button"
-                          accessibilityLabel="Open report PDF"
-                        >
-                          <Text
-                            className="text-xs font-semibold underline"
-                            style={{ color: theme.colors.primary }}
-                          >
-                            Open report PDF
-                          </Text>
-                        </Pressable>
-                      ) : (
-                        <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                          No report attached yet
-                        </Text>
-                      )}
-                    </View>
-
-                    <View className="flex-row items-center justify-between pt-1">
-                      <Text
-                        className="text-xs"
-                        style={{ color: theme.colors.faint }}
-                      >
-                        {statusLabel(a)}
-                      </Text>
-                      {(a.status === "requested" || a.status === "scheduled") && (
-                        <Pressable
-                          onPress={() => {
-                            setCancelId(a.id);
-                            setCancelOpen(true);
+                        <View
+                          className="flex-col gap-1 pt-3"
+                          style={{
+                            borderTopWidth: 1,
+                            borderTopColor: theme.colors.divider,
                           }}
-                          disabled={acting}
-                          hitSlop={8}
-                          accessibilityRole="button"
-                          accessibilityLabel="Cancel appointment"
                         >
+                          {a.preferred_time ? (
+                            <Text className="text-xs" style={{ color: theme.colors.body }}>
+                              Prefers: {fmt(a.preferred_time)}
+                            </Text>
+                          ) : null}
+                          {a.scheduled_at ? (
+                            <Text className="text-xs font-semibold" style={{ color: theme.colors.primary }}>
+                              Visit: {fmt(a.scheduled_at)}
+                            </Text>
+                          ) : null}
+                          {a.report_pdf_path ? (
+                            <Pressable
+                              onPress={() =>
+                                void openAppointmentReport(a.report_pdf_path!).catch(
+                                  (err) => {
+                                    console.warn(
+                                      "[appointments] open report failed:",
+                                      err,
+                                    );
+                                    ToastAndroid.show(
+                                      err instanceof Error
+                                        ? err.message
+                                        : "Couldn't open the report PDF.",
+                                      ToastAndroid.LONG,
+                                    );
+                                  },
+                                )
+                              }
+                              hitSlop={8}
+                              accessibilityRole="button"
+                              accessibilityLabel="Open report PDF"
+                            >
+                              <Text
+                                className="text-xs font-semibold underline"
+                                style={{ color: theme.colors.primary }}
+                              >
+                                Open report PDF
+                              </Text>
+                            </Pressable>
+                          ) : (
+                            <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                              No report attached yet
+                            </Text>
+                          )}
+                        </View>
+
+                        <View className="flex-row items-center justify-between pt-1">
                           <Text
-                            className="text-xs font-bold underline"
-                            style={{ color: theme.colors.danger }}
+                            className="text-xs"
+                            style={{ color: theme.colors.faint }}
                           >
-                            Cancel
+                            {statusLabel(a)}
                           </Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  </ClinicalCard>
-                </FadeItem>
-              ))}
+                          <Pressable
+                            onPress={() => {
+                              setCancelId(a.id);
+                              setCancelOpen(true);
+                            }}
+                            disabled={acting}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Cancel appointment"
+                          >
+                            <Text
+                              className="text-xs font-bold underline"
+                              style={{ color: theme.colors.danger }}
+                            >
+                              Cancel
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </ClinicalCard>
+                    </FadeItem>
+                  ))}
+                </View>
+              )}
+              
+              {pastRows.length > 0 && (
+                <View className="flex-col gap-3">
+                  <FadeItem index={3}>
+                    <SectionTitle title="Past Visits" meta={`${pastRows.length} total`} />
+                  </FadeItem>
+                  {pastRows.map((a) => (
+                    <FadeItem key={a.id} index={4}>
+                      <ClinicalCard className="flex-col gap-2">
+                        <View className="flex-row items-center justify-between">
+                          <Text className="font-bold text-[14px]" style={{ color: theme.colors.ink }}>
+                            {clinicNames[a.clinic_id] ?? "Clinic"}
+                          </Text>
+                          <Pill label={a.status} tone="neutral" />
+                        </View>
+                        <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                          {fmt(a.created_at)}
+                        </Text>
+                      </ClinicalCard>
+                    </FadeItem>
+                  ))}
+                </View>
+              )}
             </View>
           )}
         </KeyboardAwareScroll>
+
 
         <UiModal
           visible={cancelOpen}

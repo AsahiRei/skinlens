@@ -24,7 +24,7 @@ import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { getAllResults, getThisWeekResults } from "@/lib/db";
 import type { Result } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
-import { generateWeeklySummary } from "@/utils/weekly-summary";
+import { generateWeeklySummary, getCachedWeeklySummary } from "@/utils/weekly-summary";
 import { exportSkinReport } from "@/utils/report";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
@@ -41,10 +41,24 @@ function formatDateFull(dateStr: string): string {
   });
 }
 
-function getDayLabel(dateStr: string): string {
+// Numeric M/D label for chart axes — trend points can span more than a week
+// (days without scans are skipped), so weekday names would repeat ambiguously.
+function getAxisLabel(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { weekday: "short" });
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
+
+function isSameDay(dateStr: string, ref: Date): boolean {
+  const d = new Date(dateStr);
+  return (
+    d.getFullYear() === ref.getFullYear() &&
+    d.getMonth() === ref.getMonth() &&
+    d.getDate() === ref.getDate()
+  );
+}
+
+// Trend charts are fixed-size, so cap them to the most recent N scan-days.
+const TREND_DAYS = 7;
 
 // Trends update at most once per calendar day: if the user scans multiple
 // times on the same day, keep only the latest scan for that day so the
@@ -76,7 +90,7 @@ function ConfidenceTrendChart({ results }: { results: Result[] }) {
   }
 
   const values = reversed.map((r) => (r.confidence ?? 0) * 100);
-  const labels = reversed.map((r) => getDayLabel(r.created_at));
+  const labels = reversed.map((r) => getAxisLabel(r.created_at));
   const maxVal = Math.max(...values, 100);
   const minVal = Math.min(...values, 0);
   const range = maxVal - minVal || 1;
@@ -99,10 +113,7 @@ function ConfidenceTrendChart({ results }: { results: Result[] }) {
   // Area fill path
   const areaD = `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding} L ${points[0].x} ${chartHeight - padding} Z`;
 
-  // Show every other label to avoid overlap
-  const visibleLabels = labels.map((l, i) =>
-    i % Math.max(1, Math.floor(labels.length / 5)) === 0 ? l : "",
-  );
+  const labelWidth = 36;
 
   return (
     <View className="items-center">
@@ -136,13 +147,20 @@ function ConfidenceTrendChart({ results }: { results: Result[] }) {
         ))}
       </Svg>
 
-      {/* X-axis labels */}
-      <View
-        style={{ width: chartWidth, paddingHorizontal: padding }}
-        className="flex-row justify-between mt-1"
-      >
-        {visibleLabels.map((label, i) => (
-          <Text key={i} className="text-[10px]" style={{ width: 30, textAlign: "center", color: theme.colors.faint }}>
+      {/* X-axis labels, each centered under its point */}
+      <View style={{ width: chartWidth, height: 14 }} className="mt-1">
+        {labels.map((label, i) => (
+          <Text
+            key={i}
+            className="text-[10px]"
+            style={{
+              position: "absolute",
+              left: points[i].x - labelWidth / 2,
+              width: labelWidth,
+              textAlign: "center",
+              color: theme.colors.faint,
+            }}
+          >
             {label}
           </Text>
         ))}
@@ -162,10 +180,9 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
     );
   }
 
-  const labels = reversed.map((r) => getDayLabel(r.created_at));
+  const labels = reversed.map((r) => getAxisLabel(r.created_at));
   const maxBarHeight = 80;
   const barWidth = reversed.length > 5 ? 14 : 20;
-  const groupWidth = barWidth * 2 + 4;
 
   const metricLabels = ["Severity", "Duration"];
 
@@ -262,7 +279,7 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
       {/* Bars */}
       <View className="flex-row items-end justify-between" style={{ height: maxBarHeight + 20 }}>
         {metricData.map((data, dayIndex) => (
-          <View key={dayIndex} className="items-center" style={{ width: groupWidth + 8 }}>
+          <View key={dayIndex} className="flex-1 items-center">
             <View className="flex-row items-end" style={{ height: maxBarHeight }}>
               {[data.severity, data.duration].map((val, symIndex) => {
                 const barH = Math.max(val * maxBarHeight, 2);
@@ -340,7 +357,12 @@ export default function Progress() {
   }, [focusTrigger]);
 
   useEffect(() => {
-    if (weekResults.length === 0) return;
+    // Clear a stale summary when the week empties out, and skip re-running the
+    // on-device model when the week's scans haven't changed since last time.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (weekResults.length === 0) { setAiSummary(""); setSummaryLoading(false); return; }
+    const cached = getCachedWeeklySummary(weekResults);
+    if (cached) { setAiSummary(cached); setSummaryLoading(false); return; }
     let cancelled = false;
     const run = async () => {
       setSummaryLoading(true);
@@ -363,7 +385,8 @@ export default function Progress() {
     setRefreshing(false);
   };
 
-  // Calculate overall improvement
+  // Overall improvement: health-score change (in points) from the first scan
+  // ever to the latest one.
   const sortedByDate = [...allResults].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
@@ -374,6 +397,8 @@ export default function Progress() {
       ? Math.round((latestScore - firstScore) * 10) / 10
       : 0;
   const isImproving = improvement > 0;
+  const formatDelta = (delta: number) =>
+    `${delta > 0 ? "+" : ""}${delta.toFixed(1)} pts`;
 
   // Weekly summary
   const weekScans = weekResults.length;
@@ -385,24 +410,22 @@ export default function Progress() {
         )
       : 0;
 
-  // Get first day of current week (Monday)
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + mondayOffset);
-  const mondayStr = monday.toLocaleDateString("en-US", { weekday: "long" });
-
   // Before vs Today
   const firstResult = sortedByDate[0] ?? null;
   const latestResult = sortedByDate[sortedByDate.length - 1] ?? null;
-  // Use the oldest scan that has an image (not just the first scan with an image,
-  // which could be the latest scan if earlier scans lack images).
-  const firstResultWithImage =
+  // Oldest scan (other than the latest) that has an image; falls back to the
+  // first scan so the card still renders with a "No image" placeholder.
+  const beforeResult =
     sortedByDate.find((r) => r.image_url && r.id !== latestResult?.id) ?? firstResult;
+  const beforeDelta =
+    beforeResult && latestResult
+      ? Math.round((latestResult.healthscore - beforeResult.healthscore) * 10) / 10
+      : 0;
+  const latestIsToday = latestResult ? isSameDay(latestResult.created_at, new Date()) : false;
 
-  // One point per day for the trend charts (latest scan wins intraday).
-  const trendResults = dedupeDailyResults(allResults);
+  // One point per day for the trend charts (latest scan wins intraday),
+  // limited to the most recent days so the fixed-size charts don't overflow.
+  const trendResults = dedupeDailyResults(allResults).slice(0, TREND_DAYS);
 
   if (loading) {
     return (
@@ -468,11 +491,12 @@ export default function Progress() {
             <View className="flex-col">
               <Text className="text-sm" style={{ color: theme.colors.muted }}>Overall Improvement</Text>
               <Text className="font-bold text-3xl mt-1" style={{ color: theme.colors.ink }}>
-                {isImproving ? "+" : ""}
-                {improvement.toFixed(1)}%
+                {formatDelta(improvement)}
               </Text>
               <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
-                Since {mondayStr} · {weekScans} scans
+                {firstResult && sortedByDate.length >= 2
+                  ? `Since ${formatDateFull(firstResult.created_at)} · ${allResults.length} scans`
+                  : "Scan at least twice to track change"}
               </Text>
             </View>
             <View className="items-end gap-2">
@@ -527,17 +551,17 @@ export default function Progress() {
         </FadeItem>
 
         {/* Before vs. Today */}
-        <FadeItem index={5}>
-          {firstResult && latestResult && firstResult.id !== latestResult.id && (
+        {beforeResult && latestResult && beforeResult.id !== latestResult.id && (
+          <FadeItem index={5}>
             <ClinicalCard className="mt-4">
               <SectionTitle title="Before vs. Today" />
               <View className="flex-row items-center justify-between">
                 {/* Before */}
                 <View className="items-center flex-1">
                   <View className="w-28 h-28 rounded-2xl overflow-hidden" style={{ backgroundColor: theme.colors.background }}>
-                    {firstResultWithImage.image_url ? (
+                    {beforeResult.image_url ? (
                       <Image
-                        source={{ uri: firstResultWithImage.image_url }}
+                        source={{ uri: beforeResult.image_url }}
                         className="w-full h-full"
                         resizeMode="cover"
                       />
@@ -548,7 +572,7 @@ export default function Progress() {
                     )}
                   </View>
                   <Text className="text-xs" style={{ color: theme.colors.faint, marginTop: 2 }}>
-                    {formatDateFull(firstResult.created_at)}
+                    {formatDateFull(beforeResult.created_at)}
                   </Text>
                 </View>
 
@@ -558,8 +582,7 @@ export default function Progress() {
                     className="font-bold text-lg"
                     style={{ color: theme.colors.primary }}
                   >
-                    {improvement > 0 ? "+" : ""}
-                    {improvement.toFixed(1)}%
+                    {formatDelta(beforeDelta)}
                   </Text>
                   <ArrowRight size={18} color={theme.colors.faint} />
                 </View>
@@ -584,15 +607,15 @@ export default function Progress() {
                       className="text-xs font-bold"
                       style={{ color: theme.colors.primary }}
                     >
-                      Today
+                      {latestIsToday ? "Today" : formatDateFull(latestResult.created_at)}
                     </Text>
-                    <Check size={12} color={theme.colors.primary} />
+                    {latestIsToday && <Check size={12} color={theme.colors.primary} />}
                   </View>
                 </View>
               </View>
             </ClinicalCard>
-          )}
-        </FadeItem>
+          </FadeItem>
+        )}
 
         {/* Scan History */}
         <FadeItem index={6}>

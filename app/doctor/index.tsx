@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
-import { CalendarCheck2, CalendarClock, CheckCheck, CircleAlert, Inbox } from "lucide-react-native";
+import { CalendarClock, CheckCheck, CircleAlert, Inbox } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { DoctorAppointmentCard } from "@/components/DoctorAppointmentCard";
@@ -22,6 +22,7 @@ import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import {
   patientAvatarFor,
   patientDisplayFor,
+  type AppointmentRow,
   type AppointmentStatus,
 } from "@/lib/db/appointments";
 
@@ -30,6 +31,21 @@ function greetingFor(date = new Date()): string {
   if (h >= 5 && h < 12) return "Good morning";
   if (h >= 12 && h < 18) return "Good afternoon";
   return "Good evening";
+}
+
+function isToday(d: Date): boolean {
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+function startOfWeekMonday(base: Date): Date {
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
 }
 
 export default function DoctorHome() {
@@ -48,6 +64,9 @@ export default function DoctorHome() {
 
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  // Quick-filter chips (All / Today / This week) — independent of the
+  // calendar day filter; tap a chip to scope the request queue.
+  const [quickFilter, setQuickFilter] = useState<"all" | "today" | "week">("all");
   // Action failures (e.g. slot already booked) surface via the card's
   // confirmation dialog; keep a top-level banner for anything else.
   const [actionError, setActionError] = useState<string | null>(null);
@@ -55,6 +74,13 @@ export default function DoctorHome() {
   const handleAction = async (id: string, status: AppointmentStatus, scheduledAt?: string) => {
     try {
       await applyStatus(id, status, scheduledAt);
+      const label =
+        status === "scheduled" ? "Visit scheduled"
+        : status === "completed" ? "Visit marked complete"
+        : status === "declined" ? "Request declined"
+        : status === "cancelled" ? "Visit cancelled"
+        : "Status updated";
+      ToastAndroid.show(label, ToastAndroid.SHORT);
     } catch (err) {
       console.error("[doctor/home] action failed:", err);
       setActionError(
@@ -91,8 +117,23 @@ export default function DoctorHome() {
     return !Number.isNaN(d.getTime()) && sameDay(d, selectedDay);
   };
 
-  const visibleFresh = fresh.filter((r) => matchesDay(r.scheduled_at ?? r.preferred_time));
-  const visibleHistory = history.filter((r) => matchesDay(r.scheduled_at ?? r.preferred_time));
+  // Quick-filter scope: matches on the visit date, falling back to the
+  // patient's preferred time when the visit hasn't been scheduled yet.
+  const matchesQuickFilter = (r: AppointmentRow) => {
+    const iso = r.scheduled_at ?? r.preferred_time;
+    if (!iso) return quickFilter === "all";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return quickFilter === "all";
+    if (quickFilter === "today") return isToday(d);
+    if (quickFilter === "week") {
+      const monday = startOfWeekMonday(new Date());
+      return d >= monday && d.getTime() < monday.getTime() + 7 * 24 * 60 * 60 * 1000;
+    }
+    return true;
+  };
+
+  const visibleFresh = fresh.filter((r) => matchesDay(r.scheduled_at ?? r.preferred_time) && matchesQuickFilter(r));
+  const visibleHistory = history.filter((r) => matchesDay(r.scheduled_at ?? r.preferred_time) && matchesQuickFilter(r));
   const shownHistory = showAllHistory ? visibleHistory : visibleHistory.slice(0, 3);
 
   const skeleton = (
@@ -201,6 +242,38 @@ export default function DoctorHome() {
           />
         </FadeItem>
 
+        {/* Quick-filter chips for the request queue */}
+        <FadeItem index={2.5}>
+          <View className="flex-row gap-2 mt-3">
+            {(["all", "today", "week"] as const).map((f) => {
+              const active = quickFilter === f;
+              const label = f === "all" ? "All" : f === "today" ? "Today" : "This week";
+              return (
+                <Pressable
+                  key={f}
+                  onPress={() => setQuickFilter(f)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filter by ${label}`}
+                  accessibilityState={active ? { selected: true } : {}}
+                  className="rounded-full px-3 py-1.5 active:opacity-70"
+                  style={{
+                    backgroundColor: active ? theme.colors.primarySoft : theme.colors.card,
+                    borderWidth: 1,
+                    borderColor: active ? theme.colors.primary : theme.colors.cardBorder,
+                  }}
+                >
+                  <Text
+                    className="text-xs font-bold"
+                    style={{ color: active ? theme.colors.primaryDeep : theme.colors.muted }}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </FadeItem>
+
         {loading ? (
           skeleton
         ) : error ? (
@@ -214,7 +287,10 @@ export default function DoctorHome() {
             {/* New requests */}
             <FadeItem index={3}>
               <View className="mt-5">
-                <SectionTitle title="New requests" meta={`${visibleFresh.length} waiting`} />
+                <SectionTitle
+                  title="New requests"
+                  meta={`${visibleFresh.length} ${quickFilter === "all" ? "waiting" : quickFilter === "today" ? "today" : "this week"}`}
+                />
               </View>
             </FadeItem>
             {visibleFresh.length === 0 ? (
@@ -226,7 +302,9 @@ export default function DoctorHome() {
                     copy={
                       selectedDay
                         ? "No requests match this day. Tap it again to clear the date filter."
-                        : "New patient requests for your clinic will appear here."
+                        : quickFilter !== "all"
+                          ? "No new requests match this filter. Tap 'All' to see everything."
+                          : "New patient requests for your clinic will appear here."
                     }
                   />
                 </ClinicalCard>
@@ -245,58 +323,6 @@ export default function DoctorHome() {
                   </FadeItem>
                 ))}
               </View>
-            )}
-
-            {/* History */}
-            <FadeItem index={5}>
-              <View className="mt-6">
-                <SectionTitle title="History" meta={`${visibleHistory.length} past`} />
-              </View>
-            </FadeItem>
-            {visibleHistory.length === 0 ? (
-              <FadeItem index={6}>
-                <ClinicalCard className="mt-3">
-                  <EmptyState
-                    icon={CalendarCheck2}
-                    title={selectedDay ? `Nothing on ${selectedLabel}` : "No history yet"}
-                    copy={
-                      selectedDay
-                        ? "No past visits match this day. Tap it again to clear the date filter."
-                        : "Completed, cancelled, and declined visits will appear here."
-                    }
-                  />
-                </ClinicalCard>
-              </FadeItem>
-            ) : (
-              <>
-                <View className="flex-col gap-3 mt-3">
-                  {shownHistory.map((a, idx) => (
-                    <FadeItem key={a.id} index={Math.min(6 + idx, 9)}>
-                      <DoctorAppointmentCard
-                        appointment={a}
-                        patientName={patientDisplayFor(a, patientNames)}
-                        patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
-                        compact
-                        onAction={() => {}}
-                      />
-                    </FadeItem>
-                  ))}
-                </View>
-                {visibleHistory.length > 3 ? (
-                  <FadeItem index={7}>
-                    <Pressable
-                      onPress={() => setShowAllHistory(!showAllHistory)}
-                      accessibilityRole="button"
-                      accessibilityLabel={showAllHistory ? "Show less history" : "Show all history"}
-                      className="items-center py-3 active:opacity-70"
-                    >
-                      <Text className="text-[13px] font-bold underline" style={{ color: theme.colors.primary }}>
-                        {showAllHistory ? "Show less" : `Show all (${visibleHistory.length})`}
-                      </Text>
-                    </Pressable>
-                  </FadeItem>
-                ) : null}
-              </>
             )}
           </>
         )}

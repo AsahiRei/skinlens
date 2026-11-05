@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getDatabase } from "@/lib/db/database";
 import { requireUser } from "@/lib/db/auth";
 import type { ChatUserContext } from "@/types/chat";
+import { ingredientsAvoidedBySensitivity } from "@/utils/knowledge";
 
 function summarizeRoutine(routineJson: string | null): string | null {
   if (!routineJson) return null;
@@ -71,6 +72,63 @@ function summarizeSensitivityTriggers(
   return parts.length > 0 ? parts.join("; ") : null;
 }
 
+type ScanPoint = { healthscore: number; created_at: string };
+
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** Local YYYY-MM-DD for `daysAgo` days before today (matches routine_progress.completed_date). */
+function localDateStr(daysAgo: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Progress facts across the user's scans (oldest -> newest) plus routine
+ * adherence. Trend compares the latest score with the average of the
+ * previous ones so a single noisy scan doesn't flip it.
+ */
+function summarizeProgress(
+  scansNewestFirst: ScanPoint[],
+  routineDays: number | null,
+): { summary: string | null; trend: ChatUserContext["score_trend"] } {
+  const scans = scansNewestFirst
+    .filter((s) => typeof s.healthscore === "number")
+    .reverse();
+  const parts: string[] = [];
+  let trend: ChatUserContext["score_trend"] = null;
+
+  if (scans.length > 0) {
+    const first = scans[0];
+    const latest = scans[scans.length - 1];
+    const since = shortDate(first.created_at);
+    parts.push(`${scans.length} scan${scans.length === 1 ? "" : "s"}${since ? ` since ${since}` : ""}`);
+    if (scans.length >= 2) {
+      const prev = scans.slice(0, -1);
+      const prevAvg = prev.reduce((sum, s) => sum + s.healthscore, 0) / prev.length;
+      const diff = latest.healthscore - prevAvg;
+      trend = diff >= 3 ? "improving" : diff <= -3 ? "declining" : "steady";
+      const total = Math.round(latest.healthscore - first.healthscore);
+      parts.push(
+        `score went from ${Math.round(first.healthscore)} to ${Math.round(latest.healthscore)} (${total >= 0 ? "+" : ""}${total} points, ${trend})`,
+      );
+      const before = scans[scans.length - 2];
+      const step = Math.round(latest.healthscore - before.healthscore);
+      parts.push(`change since the previous scan: ${step >= 0 ? "+" : ""}${step}`);
+    }
+    const lastDate = shortDate(latest.created_at);
+    if (lastDate) parts.push(`last scan on ${lastDate}`);
+  }
+  if (routineDays != null) {
+    parts.push(`routine done on ${routineDays} of the last 7 days`);
+  }
+  return { summary: parts.length > 0 ? parts.join("; ") : null, trend };
+}
+
 export function useChatUserContext() {
   const [userContext, setUserContext] = useState<ChatUserContext | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +138,16 @@ export function useChatUserContext() {
       const user = await requireUser();
       const db = await getDatabase();
 
-      const [userRow, skinRow, lifestyleRow, routineRow, resultRow, sensitivityRows] =
+      const [
+        userRow,
+        skinRow,
+        lifestyleRow,
+        routineRow,
+        resultRow,
+        sensitivityRows,
+        scanRows,
+        routineDaysRow,
+      ] =
         await Promise.all([
           db.getFirstAsync<{ first_name: string; age: string; gender: string }>(
             `SELECT first_name, age, gender FROM user_profile WHERE id = ?`,
@@ -108,15 +175,31 @@ export function useChatUserContext() {
             description: string;
             detection_label: string;
             recommendations: string;
+            validation_status: string | null;
+            doctor_notes: string | null;
           }>(
-            `SELECT healthscore, severity, description, detection_label, recommendations FROM results WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
+            `SELECT healthscore, severity, description, detection_label, recommendations, validation_status, doctor_notes FROM results WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
             [user.id],
           ),
-          db.getAllAsync<{ trigger_cause: string; severity: string }>(
-            `SELECT trigger_cause, severity FROM sensitivity_history WHERE user_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 6`,
+          db.getAllAsync<{ trigger_cause: string; severity: string; notes: string | null }>(
+            `SELECT trigger_cause, severity, notes FROM sensitivity_history WHERE user_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 20`,
             [user.id],
+          ),
+          db.getAllAsync<ScanPoint>(
+            `SELECT healthscore, created_at FROM results WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 30`,
+            [user.id],
+          ),
+          db.getFirstAsync<{ days: number }>(
+            `SELECT COUNT(DISTINCT completed_date) AS days FROM routine_progress WHERE user_id = ? AND completed_date >= ?`,
+            [user.id, localDateStr(6)],
           ),
         ]);
+
+      const progress = summarizeProgress(
+        scanRows ?? [],
+        // Only meaningful once the user has a routine.
+        routineRow ? (routineDaysRow?.days ?? 0) : null,
+      );
 
       setUserContext({
         first_name: userRow?.first_name,
@@ -136,6 +219,13 @@ export function useChatUserContext() {
           resultRow?.recommendations ?? null,
         ),
         sensitivity_triggers: summarizeSensitivityTriggers(sensitivityRows ?? []),
+        progress_summary: progress.summary,
+        score_trend: progress.trend,
+        scan_count: scanRows?.length ?? 0,
+        routine_days_last_week: routineRow ? (routineDaysRow?.days ?? 0) : null,
+        doctor_review: resultRow?.validation_status ?? null,
+        doctor_notes: resultRow?.doctor_notes ?? null,
+        avoid_ingredients: ingredientsAvoidedBySensitivity(sensitivityRows ?? []),
       });
     } catch (err) {
       console.error("Error building chat user context:", err);

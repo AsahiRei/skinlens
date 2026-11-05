@@ -22,6 +22,17 @@ import "../global.css";
 // the effect below; on web this is a no-op.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+// Release builds: drop verbose logging. The codebase logs user ids, auth
+// events and timings on almost every step, which costs JS-thread time and
+// ends up in device logs (logcat) that other tooling can read. Warnings and
+// errors are kept so crash reporters still see them.
+if (!__DEV__) {
+  const noop = () => {};
+  console.log = noop;
+  console.info = noop;
+  console.debug = noop;
+}
+
 export default function RootLayout() {
   const router = useRouter();
   // Coalesces rapid duplicate SIGNED_OUT events (logout fires one per
@@ -47,7 +58,7 @@ export default function RootLayout() {
   useEffect(() => {
     console.log(`[SkinLens][Boot] ${new Date().toISOString()} RootLayout mount`);
     const sub = Linking.addEventListener("url", ({ url }) => {
-      console.log(`[SkinLens][Auth] ${new Date().toISOString()} deep link url=`, url?.slice(0, 120));
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} deep link received`);
       createSessionFromUrl(url).catch((err) => {
         console.log(`[SkinLens][Auth] ${new Date().toISOString()} deep link session failed:`, err);
         console.warn("Failed to create session from URL:", err);
@@ -56,7 +67,7 @@ export default function RootLayout() {
     Linking.getInitialURL()
       .then((url) => {
         if (url) {
-          console.log(`[SkinLens][Auth] ${new Date().toISOString()} initial URL=`, url.slice(0, 120));
+          console.log(`[SkinLens][Auth] ${new Date().toISOString()} initial URL received`);
           createSessionFromUrl(url).catch((err) => {
             console.log(`[SkinLens][Auth] ${new Date().toISOString()} initial URL session failed:`, err);
             console.warn("Failed to create session from URL:", err);

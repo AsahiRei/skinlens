@@ -3,7 +3,7 @@ import { Text } from "@/components/Text";
 import { Tabs } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CalendarCheck2, House, UserRound } from "lucide-react-native";
+import { CalendarCheck2, House, UserRound, History } from "lucide-react-native";
 
 import { TAB_BAR_VARIANT } from "@/lib/tabs-config";
 import { theme } from "@/lib/theme";
@@ -22,6 +22,7 @@ type DoctorTabBarProps = {
 
 const TABS = [
   { name: "index", label: "Home", Icon: House },
+  { name: "history", label: "History", Icon: History },
   { name: "schedule", label: "Schedule", Icon: CalendarCheck2 },
   { name: "profile", label: "Account", Icon: UserRound },
 ] as const;
@@ -119,6 +120,7 @@ export default function DoctorLayout() {
         )}
       >
         <Tabs.Screen name="index" options={{ title: "Home" }} />
+        <Tabs.Screen name="history" options={{ title: "History" }} />
         <Tabs.Screen name="schedule" options={{ title: "Schedule" }} />
         <Tabs.Screen name="profile" options={{ title: "Account" }} />
       </Tabs>

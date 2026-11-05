@@ -24,6 +24,7 @@ import { FadeItem } from "@/components/FadeItem";
 import { LinearGradient } from "expo-linear-gradient";
 import { InfoCard, InfoCardSkeleton } from "@/components/Info";
 import LogoutModal from "@/components/LogoutModal";
+import DeleteAccountModal from "@/components/DeleteAccountModal";
 import {
   CardTitleSkeleton,
   HeroTextSkeleton,
@@ -58,6 +59,7 @@ export default function Profile() {
   const [loadingSkin, setLoadingSkin] = useState(true);
   const [loadingLifestyle, setLoadingLifestyle] = useState(true);
   const [logoutModal, setLogoutModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const focusTrigger = useFocusTrigger();
@@ -118,6 +120,7 @@ export default function Profile() {
   return (
     <>
       <LogoutModal isVisible={logoutModal} setVisible={setLogoutModal} />
+      <DeleteAccountModal isVisible={deleteModal} setVisible={setDeleteModal} />
       <UiModal
         visible={pickerVisible}
         onDismiss={() => setPickerVisible(false)}
@@ -443,6 +446,16 @@ export default function Profile() {
             >
               <LogOut size={18} color={theme.colors.card} />
               <Text className="font-bold" style={{ color: theme.colors.card }}>Logout</Text>
+            </Pressable>
+            <Pressable
+              className="active:opacity-60 py-3 mt-2 items-center"
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+              onPress={() => setDeleteModal(true)}
+            >
+              <Text className="text-sm font-semibold" style={{ color: theme.colors.danger }}>
+                Delete account
+              </Text>
             </Pressable>
           </FadeItem>
         </ScrollView>

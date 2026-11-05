@@ -13,7 +13,7 @@ import {
   usePhotoOutput,
 } from "react-native-vision-camera";
 import type { Photo } from "react-native-vision-camera";
-import { Camera, Face } from "react-native-vision-camera-face-detector";
+import { FaceCamera, type Face } from "@/components/FaceCamera";
 import { useRouter } from "expo-router";
 import Animated, {
   Easing,
@@ -50,6 +50,9 @@ import {
 import { theme } from "@/lib/theme";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const CAMERA_STYLE = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
+const FACE_BOX_TIMING = { duration: 100, easing: Easing.linear };
 
 const INITIAL_QS: QualityStatus = {
   lighting: { quality: "good", message: "", icon: "sun" },
@@ -276,7 +279,6 @@ export default function FaceDetectionScreen() {
   const capturedAnglesRef = useRef<Record<ScanAngle, string | null>>({ front: null, left: null, right: null });
   const cameraPositionRef = useRef<"front" | "back">("front");
   const qsRef = useRef<QualityStatus>(INITIAL_QS);
-  const lastFrameRef = useRef(0);
 
   const faceX = useSharedValue(0);
   const faceY = useSharedValue(0);
@@ -325,25 +327,36 @@ export default function FaceDetectionScreen() {
     return Math.min(255, Math.max(0, 60 + (sizeScore * 40) + (exposureScore * 60)));
   }, []);
 
+  // Throttling now lives in <FaceCamera> (before the native coordinate
+  // transform), so this only runs ~10x/s instead of every camera frame.
   const handleFacesDetected = useCallback((faces: Face[]) => {
     if (isCapturingRef.current) return;
-
-    const now = performance.now();
-    if (now - lastFrameRef.current < 120) return;
-    lastFrameRef.current = now;
 
     if (faces.length > 0) {
       const f = faces[0];
       // Reanimated shared values are mutable by design; the react-compiler
       // immutability rule can't see that, hence the disables below.
-      // eslint-disable-next-line react-hooks/immutability
-      faceX.value = f.bounds.x;
-      // eslint-disable-next-line react-hooks/immutability
-      faceY.value = f.bounds.y;
-      // eslint-disable-next-line react-hooks/immutability
-      faceW.value = f.bounds.width;
-      // eslint-disable-next-line react-hooks/immutability
-      faceH.value = f.bounds.height;
+      // Detections arrive ~every 100ms: glide between them on the UI thread
+      // instead of jumping, but snap into place when the face first appears.
+      if (faceVisible.value === 0) {
+        // eslint-disable-next-line react-hooks/immutability
+        faceX.value = f.bounds.x;
+        // eslint-disable-next-line react-hooks/immutability
+        faceY.value = f.bounds.y;
+        // eslint-disable-next-line react-hooks/immutability
+        faceW.value = f.bounds.width;
+        // eslint-disable-next-line react-hooks/immutability
+        faceH.value = f.bounds.height;
+      } else {
+         
+        faceX.value = withTiming(f.bounds.x, FACE_BOX_TIMING);
+         
+        faceY.value = withTiming(f.bounds.y, FACE_BOX_TIMING);
+         
+        faceW.value = withTiming(f.bounds.width, FACE_BOX_TIMING);
+         
+        faceH.value = withTiming(f.bounds.height, FACE_BOX_TIMING);
+      }
       // eslint-disable-next-line react-hooks/immutability
       faceVisible.value = 1;
 
@@ -371,7 +384,11 @@ export default function FaceDetectionScreen() {
 
       const next: QualityStatus = {
         lighting,
-        alignmentScore: alignment.score,
+        // The raw score is a float that changes on nearly every detection,
+        // which re-rendered the whole screen ~10x/s. The UI only needs bands
+        // (color thresholds at 50/80), so bucket it to steps of 5; keep >= 1
+        // so "face present" (score > 0) stays true.
+        alignmentScore: Math.max(1, Math.round(alignment.score / 5) * 5),
         alignmentMessage: msg,
         // Belt-and-suspenders: score is already hard-gated to <=45 when the
         // yaw is outside the target window, but also require the yaw flag
@@ -493,7 +510,6 @@ export default function FaceDetectionScreen() {
         capturedAnglesRef.current = allCaptures;
         setCapturedAngles(allCaptures);
         setCurrentAngle(next);
-        lastFrameRef.current = 0;
         const resetQs: QualityStatus = { ...INITIAL_QS };
         qsRef.current = resetQs;
         setQs(resetQs);
@@ -512,6 +528,13 @@ export default function FaceDetectionScreen() {
       });
     }
   }, [router]);
+
+  const handleCameraError = useCallback((error: Error) => {
+    if (!cameraErrorLoggedRef.current) {
+      cameraErrorLoggedRef.current = true;
+      console.log("Camera error:", error);
+    }
+  }, []);
 
   useEffect(() => {
     console.log(`[SkinLens][Camera] ${new Date().toISOString()} permission check hasPermission=`, hasPermission);
@@ -553,20 +576,17 @@ export default function FaceDetectionScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <Camera
-        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      <FaceCamera
+        style={CAMERA_STYLE}
         device={device}
         isActive={!isPreview}
         performanceMode="fast"
-        autoMode
+        // The UI asks users to fill the frame; skipping tiny faces makes each
+        // ML Kit pass cheaper.
+        minFaceSize={0.2}
         cameraFacing={cameraPosition}
         onFacesDetected={handleFacesDetected}
-        onError={(error) => {
-          if (!cameraErrorLoggedRef.current) {
-            cameraErrorLoggedRef.current = true;
-            console.log("Camera error:", error);
-          }
-        }}
+        onError={handleCameraError}
         outputs={outputs}
       />
 

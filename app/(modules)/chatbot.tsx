@@ -19,13 +19,34 @@ import TypingDots from "@/components/TypingDots";
 import { KeyboardAvoidingWrapper } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { BackChip, BackHeader, UiModal } from "@/components/ui";
+import ChatProductCard from "@/components/ChatProductCard";
+import ChatPhProductCard from "@/components/ChatPhProductCard";
+import ChatClinicCard from "@/components/ChatClinicCard";
 import { theme } from "@/lib/theme";
 import { useChatUserContext } from "@/hooks/useChatUserContext";
-import type { ChatMessage, ChatTurn } from "@/types/chat";
-import { CHAT_ERROR_REPLY, generateChatReply } from "@/utils/chat-assistant";
+import type { ChatMessage, ChatTurn, ChatUserContext } from "@/types/chat";
+import type { ProductWithImage } from "@/types/knowledge";
+import { CHAT_ERROR_REPLY, generateChatReply, type ChatReply } from "@/utils/chat-assistant";
+import { isNearbyClinicIntent } from "@/utils/nearby-derma";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
 const INITIAL_MESSAGES: ChatMessage[] = [];
+
+/** Starter questions tailored to what we know about the user. */
+function buildSuggestions(ctx: ChatUserContext | null): string[] {
+  const out: string[] = [];
+  if (ctx?.scan_count && ctx.scan_count >= 2) out.push("How is my skin progress?");
+  else if (ctx?.scan_count === 1) out.push("What did my last scan show?");
+  if (ctx?.recommendations_summary) {
+    out.push("Recommend products for me available in the Philippines");
+  } else if (ctx?.main_concerns) {
+    out.push(`Best products in the Philippines for ${ctx.main_concerns.split(",")[0].trim().toLowerCase()}`);
+  } else {
+    out.push("Best niacinamide serum in the Philippines?");
+  }
+  out.push("Find a dermatologist near me");
+  return out.slice(0, 3);
+}
 
 export default function Chatbot() {
   const router = useRouter();
@@ -55,6 +76,7 @@ export default function Chatbot() {
     }
   };
   const hasStarted = messages.length > 0;
+  const suggestions = buildSuggestions(userContext);
   // Only auto-scroll when a NEW message arrives. Scrolling on every
   // isThinking/animate flag change yanks the list back while the user is
   // trying to scroll (felt like a scroll lock).
@@ -78,10 +100,11 @@ export default function Chatbot() {
     });
     return () => sub.remove();
   }, []);
-  const sendMessage = async () => {
-    const trimmed = input.trim();
+  const sendMessage = async (preset?: string) => {
+    const trimmed = (preset ?? input).trim();
     if (!trimmed || isThinking) return;
     setInput("");
+    setThinkingLabel(isNearbyClinicIntent(trimmed) ? "Finding clinics near you" : "Thinking");
     const userMessage: ChatMessage = {
       id: `${Date.now()}-user`,
       role: "user",
@@ -95,7 +118,7 @@ export default function Chatbot() {
         role: m.role,
         content: m.content,
       }));
-      const reply = await generateChatReply(history, userContext ?? undefined, (fraction) => {
+      const reply: ChatReply = await generateChatReply(history, userContext ?? undefined, (fraction) => {
         if (fraction < 0.1 && !downloadToastShown.current) {
           downloadToastShown.current = true;
           showDownloadNotice(
@@ -104,15 +127,16 @@ export default function Chatbot() {
         }
       });
       setThinkingLabel("Thinking");
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-assistant`,
-          role: "assistant",
-          content: reply,
-          animate: true,
-        },
-      ]);
+      const assistantMessage: ChatMessage = {
+        id: `${Date.now()}-assistant`,
+        role: "assistant",
+        content: reply.text,
+        animate: true,
+        relatedProducts: reply.productCards as ProductWithImage[] | undefined,
+        phProducts: reply.phProducts,
+        clinics: reply.clinics,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Chat generation failed:", error);
       setMessages((prev) => [
@@ -149,10 +173,10 @@ export default function Chatbot() {
         style={{ color: theme.colors.ink }}
         multiline
         editable={!isThinking}
-        onSubmitEditing={sendMessage}
+        onSubmitEditing={() => sendMessage()}
       />
       <Pressable
-        onPress={sendMessage}
+        onPress={() => sendMessage()}
         disabled={!input.trim() || isThinking}
         className="h-10 w-10 rounded-full items-center justify-center overflow-hidden active:opacity-80"
       >
@@ -216,6 +240,36 @@ export default function Chatbot() {
             {message.content}
           </Text>
         )}
+        {message.relatedProducts && message.relatedProducts.length > 0 && (
+          <View className="flex-row flex-wrap gap-2 mt-1">
+            {message.relatedProducts.map((product, idx) => (
+              <ChatProductCard key={`${message.id}-product-${idx}`} product={product} />
+            ))}
+          </View>
+        )}
+        {message.phProducts && message.phProducts.length > 0 && (
+          <View className="flex-col gap-2 mt-1">
+            {message.phProducts.map((product) => (
+              <ChatPhProductCard key={`${message.id}-ph-${product.id}`} product={product} />
+            ))}
+          </View>
+        )}
+        {message.clinics && message.clinics.length > 0 && (
+          <View className="flex-col gap-2 mt-1">
+            {message.clinics.map((clinic) => (
+              <ChatClinicCard key={`${message.id}-clinic-${clinic.id}`} clinic={clinic} />
+            ))}
+            <Pressable
+              onPress={() => router.push("/(tabs)/derma")}
+              className="self-start py-1 active:opacity-70"
+              accessibilityRole="link"
+            >
+              <Text className="text-[12px] font-semibold" style={{ color: theme.colors.primary }}>
+                Open the full map in the Derma tab
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     );
   };
@@ -247,6 +301,21 @@ export default function Chatbot() {
               <Text className="text-center" style={{ color: theme.colors.muted }}>
                 Ask about your skin and routine
               </Text>
+            </View>
+            <View className="w-full gap-2">
+              {suggestions.map((s) => (
+                <Pressable
+                  key={s}
+                  onPress={() => sendMessage(s)}
+                  className="self-center rounded-full px-4 py-2 bg-white active:opacity-70"
+                  style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                  accessibilityRole="button"
+                >
+                  <Text className="text-[13px]" style={{ color: theme.colors.body }}>
+                    {s}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
             <View className="w-full">{InputBar}</View>
           </View>

@@ -300,9 +300,13 @@ export default function Derma() {
     userLocation,
   ]);
 
-  useEffect(() => {
+  // Back to page 1 whenever the search changes. Adjusting state during render
+  // (instead of in an effect) avoids an extra render with a stale page.
+  const [pageKey, setPageKey] = useState({ query, results });
+  if (pageKey.query !== query || pageKey.results !== results) {
+    setPageKey({ query, results });
     setCurrentPage(0);
-  }, [query, results]);
+  }
 
   // Pinned/validated verified card (from the Supabase `clinics` table).
   // Shared by the pre-search list and the pinned section after a live search.

@@ -8,7 +8,6 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/Text";
-import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   User,

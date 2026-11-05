@@ -6,8 +6,7 @@ import { formatter } from "./formatter";
 const SYSTEM_PROMPT = `You are a friendly skincare assistant. Your goal is to summarize the user's skin progress for the week based on their scan data.
 
 Guidelines:
-- Be warm, encouraging, and supportive.
-- If the score has improved, acknowledge the progress positively.
+- Be friendly but factual: describe what the data shows, without advice, encouragement, or predictions.
 - Keep it concise (1-2 sentences).
 - Use plain text only — no Markdown, no bullet points, no emoji.
 - State the facts clearly (scores, changes, and findings) but weave them into a natural, friendly summary.
@@ -84,45 +83,42 @@ function splitSentences(text: string): string[] {
   return sentences;
 }
 
-const ADVISORY_PATTERNS = [
-  /suggest/i,
-  /recommend/i,
-  /try/i,
-  /should/i,
-  /could/i,
-  /consider/i,
-  /please/i,
-  /drink/i,
-  /eat/i,
-  /sleep/i,
-  /exercise/i,
-  /visit/i,
-  /doctor/i,
-  /dermatologist/i,
-  /consult/i,
-  /cream/i,
-  /ointment/i,
-  /lotion/i,
-  /serum/i,
-  /wash/i,
-  /cleanse/i,
-];
+// Word-bounded so e.g. "great" doesn't match "eat" or "entry" match "try".
+const ADVISORY_PATTERN =
+  /\b(suggest\w*|recommend\w*|try|trying|should|could|consider\w*|please|drink\w*|eat|eating|sleep\w*|exercis\w*|visit\w*|doctors?|dermatologists?|consult\w*|creams?|ointments?|lotions?|serums?|wash\w*|cleans\w*)\b/i;
 
 function isAdvisory(sentence: string): boolean {
   if (sentence.trim().endsWith("?")) return true;
-  return ADVISORY_PATTERNS.some((pattern) => pattern.test(sentence));
+  return ADVISORY_PATTERN.test(sentence);
 }
 
+// Keep at most two factual sentences; drop questions and advice-like ones.
 function buildSummaryText(raw: string): string {
   const cleaned = cleanText(stripThinkTags(raw));
   if (!cleaned) return "";
 
-  return cleaned
-    .split("\n")
-    .filter((s) => s.trim())
+  return splitSentences(cleaned)
+    .map((s) => s.trim())
+    .filter((s) => s && !isAdvisory(s))
     .slice(0, 2)
     .join(" ")
     .trim();
+}
+
+// Single-entry cache so revisiting the Progress screen doesn't re-run the
+// on-device model when the week's scans are unchanged.
+let cache: { key: string; summary: string } | null = null;
+
+function cacheKey(results: Result[]): string {
+  return results
+    .map((r) => `${r.id}:${r.healthscore}:${r.detection_label ?? r.severity ?? ""}`)
+    .sort()
+    .join("|");
+}
+
+export function getCachedWeeklySummary(results: Result[]): string | null {
+  if (results.length === 0 || !cache) return null;
+  return cache.key === cacheKey(results) ? cache.summary : null;
 }
 
 export async function generateWeeklySummary(
@@ -151,8 +147,11 @@ export async function generateWeeklySummary(
     }),
   );
 
+  const summary = buildSummaryText(text);
+  if (summary) cache = { key: cacheKey(results), summary };
+
   return (
-    buildSummaryText(text) ||
+    summary ||
     `This week: ${results.length} scans, average score ${avg}%, latest score ${latestScore}%.`
   );
 }

@@ -8,7 +8,8 @@
     "scheme": "skinlens",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.asahirei.skinlens"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,11 +19,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ],
       "predictiveBackGestureEnabled": false,
-      "package": "com.asahirei.skinlens"
+      "package": "com.asahirei.skinlens",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -43,6 +46,20 @@
       "@react-native-vector-icons/ionicons",
       "react-native-fast-tflite",
       "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SkinLens uses your location to show dermatologists and clinics near you."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SkinLens needs access to your photos so you can analyze an existing photo of your skin.",
+          "cameraPermission": "SkinLens uses the camera to scan your facial skin and verify your face.",
+          "microphonePermission": false
+        }
+      ],
       "expo-sqlite",
       "expo-asset",
       [

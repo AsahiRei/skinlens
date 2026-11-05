@@ -1,5 +1,25 @@
 import type { Dermatologist } from "./schema";
-import type { ProductWithImage } from "./knowledge";
+import type { PhProduct, ProductWithImage } from "./knowledge";
+
+/** A clinic/hospital shown as a card inside the chat. */
+export type ChatClinic = {
+  id: string;
+  name: string;
+  specialty: string;
+  address: string;
+  /** 0 when the user's location is unknown. */
+  distanceKm: number;
+  /** From the Supabase `clinics` table (bookable in-app). */
+  verified: boolean;
+  latitude?: number;
+  longitude?: number;
+  rating: number;
+  availableToday: boolean;
+  phone?: string;
+  website?: string;
+  hours?: string;
+  description?: string;
+};
 
 export type ChatTurn = {
   role: "user" | "assistant";
@@ -22,6 +42,18 @@ export type ChatUserContext = {
   routine_summary?: string | null;
   recommendations_summary?: string | null;
   sensitivity_triggers?: string | null;
+  /** "6 scans since Oct 2; score 62 -> 74 (+12, improving); ..." */
+  progress_summary?: string | null;
+  /** Direction of the health score across recent scans. */
+  score_trend?: "improving" | "declining" | "steady" | null;
+  scan_count?: number | null;
+  /** Days (0-7) in the last week with at least one routine step done. */
+  routine_days_last_week?: number | null;
+  /** Dermatologist review of the latest scan, e.g. "confirmed". */
+  doctor_review?: string | null;
+  doctor_notes?: string | null;
+  /** Knowledge-base ingredients that appear in the sensitivity log. */
+  avoid_ingredients?: string[] | null;
 };
 
 export type ChatRole = "user" | "assistant";
@@ -41,4 +73,6 @@ export type ChatMessage = {
   animate?: boolean;
   images?: ChatImage[];
   relatedProducts?: ProductWithImage[];
+  phProducts?: PhProduct[];
+  clinics?: ChatClinic[];
 };

@@ -4,7 +4,7 @@ import { ScrollText, ShieldCheck } from "lucide-react-native";
 
 import { UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
-import { TERMS_SECTIONS, PRIVACY_SECTIONS, LegalSection } from "@/constants/legal";
+import { TERMS_SECTIONS, PRIVACY_SECTIONS } from "@/constants/legal";
 
 type LegalType = "terms" | "privacy";
 

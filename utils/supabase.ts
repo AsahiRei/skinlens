@@ -46,7 +46,7 @@ WebBrowser.maybeCompleteAuthSession();
 const redirectTo = makeRedirectUri({ path: "auth-callback" });
 
 export const createSessionFromUrl = async (url: string) => {
-  console.log(`[SkinLens][Supabase] ${new Date().toISOString()} createSessionFromUrl start url=`, url?.slice(0, 120));
+  console.log(`[SkinLens][Supabase] ${new Date().toISOString()} createSessionFromUrl start`);
   const { params, errorCode } = QueryParams.getQueryParams(url);
   if (errorCode) {
     console.log(`[SkinLens][Supabase] ${new Date().toISOString()} createSessionFromUrl errorCode=`, errorCode);
@@ -147,7 +147,7 @@ export async function signInWithGoogle() {
 }
 
 export async function sendResetEmail(email: string) {
-  console.log(`[SkinLens][Auth] ${new Date().toISOString()} sendResetEmail start email=`, email);
+  console.log(`[SkinLens][Auth] ${new Date().toISOString()} sendResetEmail start`);
   const resetRedirect = makeRedirectUri({ path: "create-new-password" });
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: resetRedirect,

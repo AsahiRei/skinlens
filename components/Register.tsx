@@ -31,7 +31,7 @@ export default function Register() {
   const router = useRouter();
   //register
   const handleRegister = async () => {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleRegister start email=`, email);
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleRegister start`);
 
     // Validate before loading
     if (!agreed) {
