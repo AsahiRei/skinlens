@@ -5,6 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import type { LucideIcon } from "lucide-react-native";
 import { ArrowLeft } from "lucide-react-native";
 
+import { DialogCard, PressableScale } from "@/components/motion";
 import { cardShadow, theme } from "@/lib/theme";
 
 /* ---------- Screen header: title + subtitle, one style everywhere ---------- */
@@ -43,16 +44,17 @@ export function BackChip({
   label?: string;
 }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       hitSlop={8}
-      className="h-9 w-9 items-center justify-center rounded-full bg-white active:opacity-70"
+      activeScale={0.9}
+      className="h-9 w-9 items-center justify-center rounded-full bg-white"
       style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
       <ArrowLeft size={18} color={theme.colors.primary} />
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -179,13 +181,13 @@ export function PrimaryButton({
 }) {
   const isDisabled = disabled || loading;
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={isDisabled}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
-      className="rounded-full active:opacity-80"
+      className="rounded-full"
       style={{ borderRadius: theme.radius.pill, overflow: "hidden" }}
     >
       <LinearGradient
@@ -204,7 +206,7 @@ export function PrimaryButton({
           <Text className="font-bold text-white text-[15px]">{label}</Text>
         )}
       </LinearGradient>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -229,12 +231,13 @@ export function GradientHeroCta({
   className?: string;
 }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={disabled}
+      activeScale={0.98}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
-      className={`${className} active:opacity-90`}
+      className={className}
       style={{ borderRadius: 20, overflow: "hidden", opacity: disabled ? 0.7 : 1 }}
     >
       <LinearGradient
@@ -258,7 +261,7 @@ export function GradientHeroCta({
         </View>
         {accessory ?? null}
       </LinearGradient>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -270,11 +273,11 @@ export function SecondaryButton({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="rounded-full py-4 px-5 flex-row items-center justify-center gap-2 active:opacity-80 bg-white"
+      className="rounded-full py-4 px-5 flex-row items-center justify-center gap-2 bg-white"
       style={{ borderWidth: 1.5, borderColor: theme.colors.primary }}
     >
       <Text
@@ -283,7 +286,7 @@ export function SecondaryButton({
       >
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -455,6 +458,7 @@ export function UiModal({
       >
         {/* Inner pressable swallows taps so tapping the card doesn't dismiss */}
         <Pressable onPress={() => {}} className="w-full">
+          <DialogCard visible={visible}>
           <View
             className="w-full px-5 py-6 items-center"
             style={{
@@ -514,13 +518,13 @@ export function UiModal({
                   const isDisabled = action.disabled || action.loading;
                   if (isDanger) {
                     return (
-                      <Pressable
+                      <PressableScale
                         key={action.label}
                         onPress={action.onPress}
                         disabled={isDisabled}
                         accessibilityRole="button"
                         accessibilityLabel={action.label}
-                        className="rounded-full py-4 px-5 flex-row items-center justify-center gap-2 active:opacity-80"
+                        className="rounded-full py-4 px-5 flex-row items-center justify-center gap-2"
                         style={{
                           backgroundColor: isDisabled
                             ? "#D1D5DB"
@@ -531,17 +535,17 @@ export function UiModal({
                         <Text className="font-bold text-white text-[15px]">
                           {action.loading ? "Please wait…" : action.label}
                         </Text>
-                      </Pressable>
+                      </PressableScale>
                     );
                   }
                   return (
-                    <Pressable
+                    <PressableScale
                       key={action.label}
                       onPress={action.onPress}
                       disabled={isDisabled}
                       accessibilityRole="button"
                       accessibilityLabel={action.label}
-                      className="rounded-full active:opacity-80"
+                      className="rounded-full"
                       style={{
                         borderRadius: theme.radius.pill,
                         overflow: "hidden",
@@ -562,12 +566,13 @@ export function UiModal({
                           {action.loading ? "Please wait…" : action.label}
                         </Text>
                       </LinearGradient>
-                    </Pressable>
+                    </PressableScale>
                   );
                 })}
               </View>
             ) : null}
           </View>
+          </DialogCard>
         </Pressable>
       </Pressable>
     </Modal>

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import PagerView from "react-native-pager-view";
@@ -16,6 +16,9 @@ import InlineProgress from "@/components/InlineProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import { FadeItem } from "@/components/FadeItem";
+import { fadeIn, fadeOut, popIn, PressableScale } from "@/components/motion";
 import detectionMetaJson from "@/data/detection-meta.json";
 import detectionQuestionsJson from "@/data/survey-questions.json";
 import { ScreenGradient } from "@/components/ScreenGradient";
@@ -122,7 +125,7 @@ export default function Survey() {
       </View>
 
       {/* Detection badge */}
-      <View className="px-6 pt-4">
+      <FadeItem index={1} className="px-6 pt-4">
         <View
           className="flex-row items-center gap-3 rounded-2xl py-3 px-4"
           style={{ backgroundColor: meta.bg }}
@@ -143,7 +146,7 @@ export default function Survey() {
             </Text>
           </View>
         </View>
-      </View>
+      </FadeItem>
 
       <PagerView
         ref={pagerRef}
@@ -161,10 +164,13 @@ export default function Survey() {
               {item.options.map((option, optIndex) => {
                 const isSelected = answers[item.id] === option.value;
                 return (
-                  <Pressable
+                  <PressableScale
                     key={optIndex}
                     onPress={() => handleSelect(item.id, option.value)}
-                    className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border active:opacity-90"
+                    activeScale={0.98}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: isSelected }}
+                    className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border"
                     style={
                       isSelected
                         ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
@@ -191,12 +197,11 @@ export default function Survey() {
                       {option.label}
                     </Text>
                     {isSelected && (
-                      <Check
-                        size={20}
-                        color="white"
-                      />
+                      <Animated.View entering={popIn}>
+                        <Check size={20} color="white" />
+                      </Animated.View>
                     )}
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </ClinicalCard>
@@ -211,7 +216,9 @@ export default function Survey() {
           disabled={!isAnswered}
         />
         {page !== 0 && (
-          <SecondaryButton label="Back" onPress={handleBack} />
+          <Animated.View entering={fadeIn} exiting={fadeOut}>
+            <SecondaryButton label="Back" onPress={handleBack} />
+          </Animated.View>
         )}
       </View>
     </SafeAreaView>

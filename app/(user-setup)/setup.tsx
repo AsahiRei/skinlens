@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Platform, Pressable, TextInput, View } from "react-native";
+import { Platform, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import PagerView from "react-native-pager-view";
@@ -14,6 +14,8 @@ import { KeyboardAvoidingWrapper } from "@/components/KeyboardAwareView";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { PrimaryButton, ClinicalCard, SecondaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import { fadeIn, fadeOut, popIn, PressableScale } from "@/components/motion";
 import profileOptions from "@/data/profile-options.json";
 import questionPage from "@/data/user-setup-questions.json";
 import { ScreenGradient } from "@/components/ScreenGradient";
@@ -138,10 +140,13 @@ export default function Setup() {
                 {item.options?.map((option: any, optIndex: number) => {
                   const isSelected = answers[item.id] === option.value;
                   return (
-                    <Pressable
+                    <PressableScale
                       key={optIndex}
                       onPress={() => handleSelect(item.id, option.value)}
-                      className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border active:opacity-90"
+                      activeScale={0.98}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
+                      className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border"
                       style={
                         isSelected
                           ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
@@ -168,16 +173,15 @@ export default function Setup() {
                         {option.label}
                       </Text>
                       {isSelected && (
-                        <Check
-                          size={20}
-                          color="white"
-                        />
+                        <Animated.View entering={popIn}>
+                          <Check size={20} color="white" />
+                        </Animated.View>
                       )}
-                    </Pressable>
+                    </PressableScale>
                   );
                 })}
                 {answers[item.id] === "combination" && (
-                  <View className="mt-2 gap-2 px-2">
+                  <Animated.View entering={fadeIn} exiting={fadeOut} className="mt-2 gap-2 px-2">
                     <Text className="text-xs font-medium" style={{ color: theme.colors.muted }}>
                       Specify combination details:
                     </Text>
@@ -186,8 +190,9 @@ export default function Setup() {
                         const detailId = `${item.id}_${detail.toLowerCase()}`;
                         const isDetailSelected = answers[detailId] === "true";
                         return (
-                          <Pressable
+                          <PressableScale
                             key={detail}
+                            activeScale={0.94}
                             onPress={() => {
                               setAnswers((prev) => ({
                                 ...prev,
@@ -206,11 +211,11 @@ export default function Setup() {
                             >
                               {detail}
                             </Text>
-                          </Pressable>
+                          </PressableScale>
                         );
                       })}
                     </View>
-                  </View>
+                  </Animated.View>
                 )}
               </ClinicalCard>
             )}
@@ -244,9 +249,10 @@ export default function Setup() {
                   />
                 ) : (
                   <>
-                    <Pressable
+                    <PressableScale
                       onPress={() => setShowPicker(true)}
-                      className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border active:opacity-90"
+                      activeScale={0.98}
+                      className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border"
                       style={{ backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }}
                     >
                       <View
@@ -261,7 +267,7 @@ export default function Setup() {
                       >
                         {dob ? formatDob(dob) : "Select your date of birth"}
                       </Text>
-                    </Pressable>
+                    </PressableScale>
                     {showPicker && (
                       <DateTimePicker
                         value={dob ?? DOB_FALLBACK}
@@ -312,7 +318,9 @@ export default function Setup() {
           disabled={!isAnswered}
         />
         {page !== 0 && (
-          <SecondaryButton label="Back" onPress={handleBack} />
+          <Animated.View entering={fadeIn} exiting={fadeOut}>
+            <SecondaryButton label="Back" onPress={handleBack} />
+          </Animated.View>
         )}
       </View>
       </KeyboardAvoidingWrapper>

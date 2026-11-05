@@ -4,6 +4,7 @@ import type { ViewProps } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
   withTiming,
@@ -43,15 +44,21 @@ export const FadeItem = memo(function FadeItem({
   ...rest
 }: FadeItemProps) {
   const trigger = useRevealTrigger();
-  const progress = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
+  const progress = useSharedValue(reduceMotion ? 1 : 0);
 
   useEffect(() => {
+    // OS "Reduce motion": show content immediately, no fade/rise.
+    if (reduceMotion) {
+      progress.value = 1;
+      return;
+    }
     progress.value = 0;
     progress.value = withDelay(
       index * step,
       withTiming(1, { duration, easing: Easing.out(Easing.cubic) }),
     );
-  }, [trigger, index, step, duration, progress]);
+  }, [trigger, index, step, duration, progress, reduceMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,

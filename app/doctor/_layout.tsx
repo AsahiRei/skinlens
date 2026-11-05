@@ -5,11 +5,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CalendarCheck2, House, UserRound, History } from "lucide-react-native";
 
+import Animated from "react-native-reanimated";
+import { useTabFocusStyle } from "@/components/motion";
 import { TAB_BAR_VARIANT } from "@/lib/tabs-config";
 import { theme } from "@/lib/theme";
 
 const ACTIVE_FG = "#FFFFFF";
 const INACTIVE = "#7E938A";
+const ACTIVE_BG = "rgba(255, 255, 255, 0.18)";
 
 type DoctorTabBarProps = {
   state: { index: number; routes: { key: string; name: string }[] };
@@ -66,42 +69,62 @@ function DoctorTabBar({ state, descriptors, navigation }: DoctorTabBarProps) {
           };
 
           return (
-            <Pressable
+            <DoctorTab
               key={route.key}
-              accessibilityRole="button"
-              accessibilityLabel={label}
-              accessibilityState={focused ? { selected: true } : {}}
-              android_ripple={{ color: "transparent" }}
+              focused={focused}
+              label={label}
+              Icon={Icon}
               onPress={onPress}
-              hitSlop={6}
-              style={styles.tabWrap}
-            >
-              {({ pressed }) => (
-                <View
-                  style={[
-                    styles.tabCol,
-                    focused && styles.tabColActive,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <Icon
-                    size={20}
-                    color={focused ? ACTIVE_FG : INACTIVE}
-                    strokeWidth={focused ? 2.2 : 1.9}
-                  />
-                  <Text
-                    style={[styles.tabLabel, focused && styles.tabLabelActive]}
-                    numberOfLines={1}
-                  >
-                    {label}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
+            />
           );
         })}
       </LinearGradient>
     </View>
+  );
+}
+
+function DoctorTab({
+  focused,
+  label,
+  Icon,
+  onPress,
+}: {
+  focused: boolean;
+  label: string;
+  Icon: typeof CalendarCheck2;
+  onPress: () => void;
+}) {
+  const { pillStyle, iconStyle } = useTabFocusStyle(focused, ACTIVE_BG);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={focused ? { selected: true } : {}}
+      android_ripple={{ color: "transparent" }}
+      onPress={onPress}
+      hitSlop={6}
+      style={styles.tabWrap}
+    >
+      {({ pressed }) => (
+        <Animated.View
+          style={[styles.tabCol, pillStyle, pressed && { opacity: 0.7 }]}
+        >
+          <Animated.View style={iconStyle}>
+            <Icon
+              size={20}
+              color={focused ? ACTIVE_FG : INACTIVE}
+              strokeWidth={focused ? 2.2 : 1.9}
+            />
+          </Animated.View>
+          <Text
+            style={[styles.tabLabel, focused && styles.tabLabelActive]}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+        </Animated.View>
+      )}
+    </Pressable>
   );
 }
 
@@ -114,6 +137,9 @@ export default function DoctorLayout() {
           tabBarHideOnKeyboard: true,
           tabBarActiveTintColor: ACTIVE_FG,
           tabBarInactiveTintColor: INACTIVE,
+          // Cross-fade between tabs; each screen's FadeItem stagger replays
+          // on focus, so the content settles in after the fade.
+          animation: "fade",
         }}
         tabBar={(props: unknown) => (
           <DoctorTabBar {...(props as DoctorTabBarProps)} />
@@ -175,11 +201,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     minWidth: 76,
-  },
-  tabColActive: {
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
-    borderRadius: 20,
-    overflow: "hidden",
   },
   tabLabel: {
     fontSize: 11,

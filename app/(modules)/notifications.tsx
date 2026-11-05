@@ -7,6 +7,19 @@ import { Check, CheckCheck, ChevronRight, Trash2 } from "lucide-react-native";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { BackHeader, EmptyState, UiModal } from "@/components/ui";
 import { cardShadow, theme } from "@/lib/theme";
+import Animated, {
+  ReduceMotion,
+  SlideInDown,
+  SlideOutDown,
+} from "react-native-reanimated";
+import {
+  enterUp,
+  fadeIn,
+  fadeOut,
+  listLayout,
+  popIn,
+  PressableScale,
+} from "@/components/motion";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import {
@@ -206,12 +219,13 @@ export default function NotificationsScreen() {
               const active = filter === f.key;
               const count = counts[f.key];
               return (
-                <Pressable
+                <PressableScale
                   key={f.key}
                   onPress={() => setFilter(f.key)}
+                  activeScale={0.94}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
-                  className="flex-row items-center rounded-full px-4 h-9 active:opacity-80"
+                  className="flex-row items-center rounded-full px-4 h-9"
                   style={{
                     backgroundColor: active ? theme.colors.ink : theme.colors.card,
                     borderWidth: 1,
@@ -232,7 +246,7 @@ export default function NotificationsScreen() {
                       {count}
                     </Text>
                   )}
-                </Pressable>
+                </PressableScale>
               );
             })}
           </ScrollView>
@@ -253,12 +267,18 @@ export default function NotificationsScreen() {
           )}
 
           {sections.length === 0 ? (
-            <View className="mt-10">
+            <Animated.View key={`empty-${filter}`} entering={fadeIn} className="mt-10">
               <EmptyState title={empty.title} copy={empty.copy} />
-            </View>
+            </Animated.View>
           ) : (
-            sections.map((section) => (
-              <View key={section.title} className="mt-4">
+            sections.map((section, sectionIdx) => (
+              <Animated.View
+                key={`${filter}-${section.title}`}
+                entering={enterUp(sectionIdx * 2)}
+                exiting={fadeOut}
+                layout={listLayout}
+                className="mt-4"
+              >
                 <Text
                   className="text-[12px] font-bold uppercase mb-2 ml-1"
                   style={{ color: theme.colors.muted, letterSpacing: 0.8 }}
@@ -275,18 +295,24 @@ export default function NotificationsScreen() {
                   }}
                 >
                   {section.items.map((n, i) => (
-                    <NotificationRow
+                    <Animated.View
                       key={n.id}
-                      notification={n}
-                      first={i === 0}
-                      selecting={selecting}
-                      selected={selected.has(n.id)}
-                      onPress={() => (selecting ? toggleOne(n.id) : openNotification(n.id))}
-                      onLongPress={() => !selecting && startSelection(n.id)}
-                    />
+                      entering={enterUp(sectionIdx * 2 + i + 1)}
+                      exiting={fadeOut}
+                      layout={listLayout}
+                    >
+                      <NotificationRow
+                        notification={n}
+                        first={i === 0}
+                        selecting={selecting}
+                        selected={selected.has(n.id)}
+                        onPress={() => (selecting ? toggleOne(n.id) : openNotification(n.id))}
+                        onLongPress={() => !selecting && startSelection(n.id)}
+                      />
+                    </Animated.View>
                   ))}
                 </View>
-              </View>
+              </Animated.View>
             ))
           )}
 
@@ -300,7 +326,12 @@ export default function NotificationsScreen() {
 
       {/* Bottom action bar while selecting */}
       {selecting && (
-        <View
+        <Animated.View
+          entering={SlideInDown.springify()
+            .damping(20)
+            .stiffness(220)
+            .reduceMotion(ReduceMotion.System)}
+          exiting={SlideOutDown.duration(200).reduceMotion(ReduceMotion.System)}
           className="absolute left-0 right-0 bottom-0 px-5 pt-3 pb-8 flex-row gap-3"
           style={{
             backgroundColor: theme.colors.card,
@@ -308,22 +339,22 @@ export default function NotificationsScreen() {
             borderTopColor: theme.colors.cardBorder,
           }}
         >
-          <Pressable
+          <PressableScale
             onPress={exitSelection}
             accessibilityRole="button"
-            className="flex-1 h-12 rounded-full items-center justify-center active:opacity-80"
+            className="flex-1 h-12 rounded-full items-center justify-center"
             style={{ borderWidth: 1.5, borderColor: theme.colors.cardBorder }}
           >
             <Text className="font-semibold text-[15px]" style={{ color: theme.colors.body }}>
               Cancel
             </Text>
-          </Pressable>
-          <Pressable
+          </PressableScale>
+          <PressableScale
             onPress={() => setConfirmVisible(true)}
             disabled={selected.size === 0}
             accessibilityRole="button"
             accessibilityLabel={`Delete ${selected.size} selected notifications`}
-            className="flex-1 h-12 rounded-full flex-row gap-2 items-center justify-center active:opacity-80"
+            className="flex-1 h-12 rounded-full flex-row gap-2 items-center justify-center"
             style={{
               backgroundColor: selected.size > 0 ? theme.colors.danger : theme.colors.cardBorder,
             }}
@@ -332,8 +363,8 @@ export default function NotificationsScreen() {
             <Text className="font-semibold text-[15px]" style={{ color: "#FFFFFF" }}>
               {selected.size > 0 ? `Delete (${selected.size})` : "Delete"}
             </Text>
-          </Pressable>
-        </View>
+          </PressableScale>
+        </Animated.View>
       )}
 
       <UiModal
@@ -388,7 +419,9 @@ function NotificationRow({
       }}
     >
       {selecting && (
-        <View
+        <Animated.View
+          entering={popIn}
+          exiting={fadeOut}
           className="h-6 w-6 rounded-full items-center justify-center mr-3 self-center"
           style={
             selected
@@ -396,8 +429,12 @@ function NotificationRow({
               : { borderWidth: 1.5, borderColor: theme.colors.faint }
           }
         >
-          {selected && <Check size={14} color="#FFFFFF" />}
-        </View>
+          {selected && (
+            <Animated.View entering={popIn}>
+              <Check size={14} color="#FFFFFF" />
+            </Animated.View>
+          )}
+        </Animated.View>
       )}
 
       <View

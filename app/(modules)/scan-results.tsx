@@ -15,6 +15,15 @@ import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ClinicalCard, Notice, PrimaryButton, SecondaryButton, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import {
+  AnimatedBarFill,
+  enterUp,
+  fadeIn,
+  fadeOut,
+  listLayout,
+  popIn,
+} from "@/components/motion";
 import {
   getLatestResultDetail,
   getLifestyleProfile,
@@ -259,6 +268,7 @@ export default function ScanResults() {
           actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
         />
         <View className="flex-1 px-5 items-center justify-center">
+          <Animated.View entering={popIn} className="w-full">
           <ClinicalCard className="py-10 px-6 items-center gap-2 w-full">
             <AlertCircle size={28} color={theme.colors.danger} />
             <Text className="font-bold" style={{ color: theme.colors.ink }}>
@@ -280,6 +290,7 @@ export default function ScanResults() {
               <SecondaryButton label="Go Back" onPress={() => router.back()} />
             </View>
           </ClinicalCard>
+          </Animated.View>
         </View>
       </SafeAreaView>
     );
@@ -300,16 +311,16 @@ export default function ScanResults() {
         showsVerticalScrollIndicator={false}
       >
         <View className="flex-1 px-5 gap-5">
-          <View className="pt-4 items-center">
+          <Animated.View entering={enterUp(0)} className="pt-4 items-center">
             <Text className="font-bold text-[24px] mt-1" style={{ color: theme.colors.ink }}>
               Scan Results
             </Text>
             <Text style={{ color: theme.colors.muted }}>Your skin analysis</Text>
-          </View>
+          </Animated.View>
 
           {/* Scanned image */}
           {imageUri && (
-            <View className="items-center">
+            <Animated.View entering={popIn.delay(80)} className="items-center">
               <View
                 className="w-40 h-40 rounded-3xl overflow-hidden bg-gray-200 shadow-sm"
                 style={{ aspectRatio: 1 }}
@@ -320,11 +331,11 @@ export default function ScanResults() {
                   resizeMode="cover"
                 />
               </View>
-            </View>
+            </Animated.View>
           )}
 
           {/* Detection class & confidence */}
-          <View className="items-center gap-2">
+          <Animated.View entering={enterUp(2)} className="items-center gap-2">
             <Text className="text-xl font-bold text-gray-800 capitalize">
               {prettyLabel(detectionLabel)}
             </Text>
@@ -333,10 +344,10 @@ export default function ScanResults() {
                 Confidence: {(conf * 100).toFixed(1)}%
               </Text>
             )}
-          </View>
+          </Animated.View>
 
           {/* Health score */}
-          <View className="items-center gap-2">
+          <Animated.View entering={enterUp(3)} className="items-center gap-2">
             <CircularProgress
               progress={overallScore}
               size={140}
@@ -358,17 +369,20 @@ export default function ScanResults() {
                 {severityLabel}
               </Text>
             </View>
-          </View>
+          </Animated.View>
 
           {assessment.inconclusive && (
+            <Animated.View entering={enterUp(4)}>
             <Notice
               icon={AlertCircle}
               tone="warning"
               copy="Low-confidence result: the AI wasn't sure about this photo, so treat this score as a rough estimate. A retake in even, natural light gives a more reliable result."
             />
+            </Animated.View>
           )}
 
           {/* Top 3 classifications */}
+          <Animated.View entering={enterUp(5)}>
           <ClinicalCard className="gap-3">
             <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
               Top 3 Predictions
@@ -400,17 +414,20 @@ export default function ScanResults() {
                     </Text>
                   </View>
                   <View className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: theme.colors.background }}>
-                    <View
-                      className="h-full rounded-full"
-                      style={{ width: `${pct}%`, backgroundColor: isTop ? theme.colors.primary : theme.colors.primaryTint }}
+                    <AnimatedBarFill
+                      percent={pct}
+                      delay={350 + index * 120}
+                      color={isTop ? theme.colors.primary : theme.colors.primaryTint}
                     />
                   </View>
                 </View>
               );
             })}
           </ClinicalCard>
+          </Animated.View>
 
           {/* Detection explanation */}
+          <Animated.View entering={enterUp(6)}>
           <ClinicalCard className="gap-3">
             <View className="flex-row items-center gap-3">
               <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: theme.colors.primarySoft }}>
@@ -428,21 +445,25 @@ export default function ScanResults() {
             </Text>
             <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>{message}</Text>
           </ClinicalCard>
+          </Animated.View>
 
           {/* Generating indicator */}
           {generating && (
+            <Animated.View entering={fadeIn} exiting={fadeOut}>
             <ClinicalCard className="py-10 px-6 items-center gap-3">
               <ActivityIndicator color={theme.colors.primary} size="small" />
               <Text className="text-sm" style={{ color: theme.colors.muted }}>
                 Generating your routine...
               </Text>
             </ClinicalCard>
+            </Animated.View>
           )}
 
           {/* Recommended products */}
           {!generating &&
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
+              <Animated.View entering={enterUp(1)} layout={listLayout}>
               <ClinicalCard className="gap-4">
                 <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
                   Recommended Products
@@ -475,13 +496,16 @@ export default function ScanResults() {
                   </View>
                 ))}
               </ClinicalCard>
+              </Animated.View>
             )}
 
+          <Animated.View entering={enterUp(7)} layout={listLayout}>
           <Notice
             icon={Info}
             tone="info"
             copy="SkinLens results are AI estimates for information only, not a medical diagnosis. Consult a licensed dermatologist for persistent, severe or worsening skin concerns."
           />
+          </Animated.View>
 
           <View className="h-4" />
         </View>

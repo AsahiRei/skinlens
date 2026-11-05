@@ -12,6 +12,9 @@ export default function Layout() {
         screenOptions={{
           headerShown: false,
           tabBarHideOnKeyboard: true,
+          // Cross-fade between tabs; each screen's FadeItem stagger replays
+          // on focus, so the content settles in after the fade.
+          animation: "fade",
           // Rendered by AppTabBar (dark dock); keeps labels in sync for a11y.
           tabBarActiveTintColor: TAB_BAR_TINT.active,
           tabBarInactiveTintColor: TAB_BAR_TINT.inactive,

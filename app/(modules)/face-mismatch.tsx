@@ -6,6 +6,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import { popIn } from "@/components/motion";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
 export default function FaceMismatch() {
@@ -20,6 +22,7 @@ export default function FaceMismatch() {
     <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <View className="flex-1 px-5 items-center justify-center">
+        <Animated.View entering={popIn} className="w-full">
         <ClinicalCard className="py-10 px-6 items-center gap-3 w-full">
           <Text className="font-bold text-2xl text-center" style={{ color: theme.colors.ink }}>
             Face Not Matched
@@ -57,6 +60,7 @@ export default function FaceMismatch() {
             <Text className="text-sm font-semibold" style={{ color: theme.colors.faint }}>Go Back</Text>
           </Pressable>
         </ClinicalCard>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );

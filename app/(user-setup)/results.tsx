@@ -13,6 +13,8 @@ import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import { enterUp, fadeIn, listLayout, popIn } from "@/components/motion";
 import { getLatestResultDetail, requireUser, updateUserProfile } from "@/lib/db";
 import { useTutorial } from "@/components/TutorialCoach";
 import { setTutorialPending } from "@/lib/tutorial";
@@ -115,16 +117,16 @@ export default function Results() {
         showsVerticalScrollIndicator={false}
       >
         <View className="flex-1 px-5 gap-5">
-          <View className="pt-4 items-center">
+          <Animated.View entering={enterUp(0)} className="pt-4 items-center">
             <Text className="font-bold text-[24px]" style={{ color: theme.colors.ink }}>
               Skin Results
             </Text>
             <Text style={{ color: theme.colors.muted }}>
               Your skin analysis
             </Text>
-          </View>
+          </Animated.View>
 
-          <View className="items-center gap-2">
+          <Animated.View entering={enterUp(1)} className="items-center gap-2">
             <CircularProgress
               progress={score}
               size={140}
@@ -143,12 +145,15 @@ export default function Results() {
               />
               <Text className="text-sm font-medium text-gray-500">{label}</Text>
             </View>
-          </View>
+          </Animated.View>
 
+          <Animated.View entering={enterUp(2)}>
           <ClinicalCard className="gap-3">
             <View className="flex-row items-center gap-3">
               <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: theme.colors.primarySoft }}>
-                <Check size={20} color={theme.colors.primary} />
+                <Animated.View entering={popIn.delay(450)}>
+                  <Check size={20} color={theme.colors.primary} />
+                </Animated.View>
               </View>
               <Text className="flex-1 text-base font-bold" style={{ color: theme.colors.ink }}>
                 Your routine is ready
@@ -156,17 +161,21 @@ export default function Results() {
             </View>
             <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>{message}</Text>
           </ClinicalCard>
+          </Animated.View>
 
           {resultLoading ? (
+            <Animated.View key="loading" entering={enterUp(3)}>
             <ClinicalCard className="items-center gap-3" style={{ paddingVertical: 40, paddingHorizontal: 24 }}>
               <ActivityIndicator color={theme.colors.primary} size="small" />
               <Text className="text-sm" style={{ color: theme.colors.muted }}>
                 Loading your recommended products...
               </Text>
             </ClinicalCard>
+            </Animated.View>
           ) : (
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
+              <Animated.View key="products" entering={fadeIn} layout={listLayout}>
               <ClinicalCard className="gap-4">
                 <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
                   Recommended Products
@@ -202,10 +211,12 @@ export default function Results() {
                   </View>
                 ))}
               </ClinicalCard>
+              </Animated.View>
             )
           )}
 
           {Object.keys(parsedAnswers).length > 0 && (
+            <Animated.View entering={enterUp(4)} layout={listLayout}>
             <ClinicalCard className="gap-3">
               <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
                 Your Answers
@@ -225,6 +236,7 @@ export default function Results() {
                 </View>
               ))}
             </ClinicalCard>
+            </Animated.View>
           )}
 
           <View className="h-4" />

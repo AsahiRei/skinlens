@@ -141,12 +141,38 @@ function RootLayout() {
           {/* Wraps the whole app so the tour overlay can dim/spotlight any
            * screen, including the tab bar. */}
           <TutorialCoachProvider>
+          {/* Transition language:
+           *  - push (default): iOS-style slide for drilling into detail.
+           *  - fade: context switches (auth ↔ app, boot, camera/analyzing),
+           *    where a lateral slide would imply a "back" that isn't there.
+           *  - fade_from_bottom: results that are "presented" to the user. */}
           <Stack
             screenOptions={{
               animation: "ios_from_right",
               headerShown: false,
             }}
-          />
+          >
+            <Stack.Screen name="index" options={{ animation: "fade" }} />
+            <Stack.Screen name="welcome" options={{ animation: "fade" }} />
+            <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
+            <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
+            <Stack.Screen name="doctor" options={{ animation: "fade" }} />
+            <Stack.Screen name="(modules)/camera" options={{ animation: "fade" }} />
+            <Stack.Screen name="(modules)/analyzing" options={{ animation: "fade" }} />
+            <Stack.Screen
+              name="(modules)/scan-results"
+              options={{ animation: "fade_from_bottom" }}
+            />
+            <Stack.Screen
+              name="(modules)/face-mismatch"
+              options={{ animation: "fade_from_bottom" }}
+            />
+            <Stack.Screen name="(user-setup)/loading" options={{ animation: "fade" }} />
+            <Stack.Screen
+              name="(user-setup)/results"
+              options={{ animation: "fade_from_bottom" }}
+            />
+          </Stack>
           </TutorialCoachProvider>
           </KeyboardProvider>
         </NotificationProvider>

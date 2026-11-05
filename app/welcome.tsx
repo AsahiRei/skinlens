@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, View, Image } from "react-native";
+import { View, Image } from "react-native";
 import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -9,6 +9,8 @@ import { KeyboardAvoidingWrapper } from "@/components/KeyboardAwareView";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import { enterUp, fadeIn, popIn, PressableScale } from "@/components/motion";
 
 function AuthTab({
   label,
@@ -21,11 +23,11 @@ function AuthTab({
 }) {
   if (active) {
     return (
-      <Pressable
+      <PressableScale
         onPress={onPress}
         accessibilityRole="tab"
         accessibilityState={{ selected: true }}
-        className="flex-1 rounded-full active:opacity-80"
+        className="flex-1 rounded-full"
         style={{ borderRadius: 999, overflow: "hidden" }}
       >
         <LinearGradient
@@ -38,15 +40,15 @@ function AuthTab({
             {label}
           </Text>
         </LinearGradient>
-      </Pressable>
+      </PressableScale>
     );
   }
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="tab"
       accessibilityState={{ selected: false }}
-      className="flex-1 py-3 rounded-full active:opacity-80"
+      className="flex-1 py-3 rounded-full"
       style={{ backgroundColor: theme.colors.background }}
     >
       <Text
@@ -55,7 +57,7 @@ function AuthTab({
       >
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -64,6 +66,7 @@ export default function Welcome() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.card }}>
       <View className="items-center">
+        <Animated.View entering={popIn}>
         <LinearGradient
           colors={[...theme.gradients.dark]}
           start={{ x: 0, y: 0.5 }}
@@ -76,15 +79,18 @@ export default function Welcome() {
             className="w-20 h-20"
           />
         </LinearGradient>
-        <Text className="text-[24px] font-bold text-center mt-5" style={{ color: theme.colors.ink }}>
-          Welcome to SkinLens
-        </Text>
-        <Text className="text-center text-[14px] mt-2 px-8 leading-6" style={{ color: theme.colors.muted }}>
-          Track your skin health and routines
-        </Text>
+        </Animated.View>
+        <Animated.View entering={enterUp(2)} className="items-center">
+          <Text className="text-[24px] font-bold text-center mt-5" style={{ color: theme.colors.ink }}>
+            Welcome to SkinLens
+          </Text>
+          <Text className="text-center text-[14px] mt-2 px-8 leading-6" style={{ color: theme.colors.muted }}>
+            Track your skin health and routines
+          </Text>
+        </Animated.View>
       </View>
       <KeyboardAvoidingWrapper>
-      <View className="flex-row items-center mt-6 px-5 gap-2">
+      <Animated.View entering={enterUp(3)} className="flex-row items-center mt-6 px-5 gap-2">
         <AuthTab
           label="Login"
           active={selected === "login"}
@@ -95,7 +101,7 @@ export default function Welcome() {
           active={selected === "signup"}
           onPress={() => setSelect("signup")}
         />
-      </View>
+      </Animated.View>
       <View
         className="flex-1 mt-4"
         style={{
@@ -106,7 +112,10 @@ export default function Welcome() {
         }}
       >
         <ScreenGradient />
-        {selected === "login" ? <Login /> : <Register />}
+        {/* Keyed so switching Login ↔ Sign Up cross-fades the form. */}
+        <Animated.View key={selected} entering={fadeIn} className="flex-1">
+          {selected === "login" ? <Login /> : <Register />}
+        </Animated.View>
       </View>
       </KeyboardAvoidingWrapper>
     </SafeAreaView>

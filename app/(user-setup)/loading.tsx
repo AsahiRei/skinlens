@@ -9,6 +9,8 @@ import PulsatingIcon from "@/components/PulsatingIcon";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ClinicalCard, PrimaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import { enterUp, fadeIn, popIn } from "@/components/motion";
 import {
   insertResult,
   insertRoutine,
@@ -158,6 +160,7 @@ export default function Loading() {
       <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <View className="flex-1 px-5 items-center justify-center">
+          <Animated.View entering={popIn} className="w-full">
           <ClinicalCard className="items-center gap-2 w-full" style={{ paddingVertical: 40, paddingHorizontal: 24 }}>
             <AlertCircle size={28} color={theme.colors.danger} />
             <Text className="font-bold" style={{ color: theme.colors.ink }}>
@@ -176,6 +179,7 @@ export default function Loading() {
               />
             </View>
           </ClinicalCard>
+          </Animated.View>
         </View>
       </SafeAreaView>
     );
@@ -187,21 +191,25 @@ export default function Loading() {
       <View className="flex-1 px-5">
         <View className="flex-1 items-center justify-center gap-8">
           <PulsatingIcon />
-          <View className="pt-4">
+          <Animated.View entering={enterUp(1)} className="pt-4">
             <Text className="font-bold text-[24px] text-center" style={{ color: theme.colors.ink }}>
               Creating Your Routine
             </Text>
             <Text className="text-center" style={{ color: theme.colors.muted }}>
               Building your routine from your answers
             </Text>
-          </View>
-          <View className="w-full gap-3">
-            <Text className="text-center text-base font-medium" style={{ color: theme.colors.body }}>
-              {steps[stepIndex].label}...
-            </Text>
+          </Animated.View>
+          <Animated.View entering={enterUp(2)} className="w-full gap-3">
+            {/* Keyed on the step so each new label cross-fades in. */}
+            <Animated.View key={stepIndex} entering={fadeIn}>
+              <Text className="text-center text-base font-medium" style={{ color: theme.colors.body }}>
+                {steps[stepIndex].label}...
+              </Text>
+            </Animated.View>
             <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
-          </View>
+          </Animated.View>
 
+          <Animated.View entering={enterUp(3)} className="w-full">
           <ClinicalCard className="w-full gap-3">
             {steps.map((step, i) => {
               const isDone = i < stepIndex;
@@ -219,7 +227,9 @@ export default function Loading() {
                     }}
                   >
                     {isDone ? (
-                      <Check size={14} color="#FFFFFF" />
+                      <Animated.View entering={popIn}>
+                        <Check size={14} color="#FFFFFF" />
+                      </Animated.View>
                     ) : (
                       <Text
                         className="text-xs font-bold"
@@ -243,6 +253,7 @@ export default function Loading() {
               );
             })}
           </ClinicalCard>
+          </Animated.View>
         </View>
       </View>
     </SafeAreaView>

@@ -7,6 +7,8 @@ import { useRouter } from "expo-router";
 import { getDatabase } from "@/lib/db";
 import { handleInvalidSession } from "@/lib/db/auth";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import { enterUp } from "@/components/motion";
 import { isTutorialPending } from "@/lib/tutorial";
 import { useTutorial } from "@/components/TutorialCoach";
 import { ScreenGradient } from "@/components/ScreenGradient";
@@ -277,7 +279,7 @@ export default function Index() {
       <ScreenGradient />
       <ActivityIndicator size="large" color="#214E36" />
       {stuck && (
-        <View className="items-center mt-6 gap-2">
+        <Animated.View entering={enterUp(0)} className="items-center mt-6 gap-2">
           <Text className="text-sm text-center" style={{ color: "#6B7280" }}>
             Taking longer than expected — your offline data is safe.
           </Text>
@@ -293,7 +295,7 @@ export default function Index() {
           >
             <Text className="text-sm font-bold text-white">Retry</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       )}
     </View>
   );

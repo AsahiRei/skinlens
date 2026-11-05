@@ -15,6 +15,7 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import { PrimaryButton, SecondaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
+import { FadeItem } from "@/components/FadeItem";
 import { supabase, updatePassword } from "@/utils/supabase";
 
 export default function CreateNewPassword() {
@@ -63,19 +64,23 @@ export default function CreateNewPassword() {
       <ScreenGradient />
       <KeyboardAwareScroll contentContainerStyle={{ paddingHorizontal: 20 }}>
       <View className="flex-col">
-        <Image
-          source={require("@/assets/images/others/2.png")}
-          style={{ width: 400, height: 400 }}
-          resizeMode="contain"
-          className="self-center"
-        />
-        <Text className="text-[24px] font-bold text-center mt-4" style={{ color: "#10241A" }}>
-          New Password
-        </Text>
-        <Text className="text-center mt-2" style={{ color: "#6B7280" }}>
-          Enter a new password for your account
-        </Text>
-        <View className="flex-col gap-4 mt-6">
+        <FadeItem index={0} distance={8}>
+          <Image
+            source={require("@/assets/images/others/2.png")}
+            style={{ width: 400, height: 400 }}
+            resizeMode="contain"
+            className="self-center"
+          />
+        </FadeItem>
+        <FadeItem index={2}>
+          <Text className="text-[24px] font-bold text-center mt-4" style={{ color: "#10241A" }}>
+            New Password
+          </Text>
+          <Text className="text-center mt-2" style={{ color: "#6B7280" }}>
+            Enter a new password for your account
+          </Text>
+        </FadeItem>
+        <FadeItem index={3} className="flex-col gap-4 mt-6">
           <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: "#E5EDE8" }}>
             <Lock size={22} color={theme.colors.muted} />
             <TextInput
@@ -118,15 +123,15 @@ export default function CreateNewPassword() {
               )}
             </Pressable>
           </View>
-        </View>
-        <View className="mt-4 flex-col gap-2">
+        </FadeItem>
+        <FadeItem index={4} className="mt-4 flex-col gap-2">
           <PrimaryButton
             label="Change Password"
             onPress={handleUpdatePassword}
             loading={loading}
           />
           <SecondaryButton label="Cancel" onPress={() => router.back()} />
-        </View>
+        </FadeItem>
       </View>
       </KeyboardAwareScroll>
     </SafeAreaView>

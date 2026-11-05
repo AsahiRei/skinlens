@@ -23,6 +23,15 @@ import ChatProductCard from "@/components/ChatProductCard";
 import ChatPhProductCard from "@/components/ChatPhProductCard";
 import ChatClinicCard from "@/components/ChatClinicCard";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import {
+  bubbleIn,
+  enterUp,
+  fadeIn,
+  fadeOut,
+  popIn,
+  PressableScale,
+} from "@/components/motion";
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import type { ChatMessage, ChatTurn, ChatUserContext } from "@/types/chat";
 import type { ProductWithImage } from "@/types/knowledge";
@@ -175,10 +184,13 @@ export default function Chatbot() {
         editable={!isThinking}
         onSubmitEditing={() => sendMessage()}
       />
-      <Pressable
+      <PressableScale
         onPress={() => sendMessage()}
         disabled={!input.trim() || isThinking}
-        className="h-10 w-10 rounded-full items-center justify-center overflow-hidden active:opacity-80"
+        activeScale={0.88}
+        accessibilityRole="button"
+        accessibilityLabel="Send message"
+        className="h-10 w-10 rounded-full items-center justify-center overflow-hidden"
       >
         <LinearGradient
           colors={
@@ -195,33 +207,39 @@ export default function Chatbot() {
             color={!input.trim() || isThinking ? theme.colors.primary : "#FFFFFF"}
           />
         </LinearGradient>
-      </Pressable>
+      </PressableScale>
     </View>
   );
   const renderMessage = (message: ChatMessage) => {
     const isUser = message.role === "user";
     if (isUser) {
       return (
-        <LinearGradient
+        <Animated.View
           key={message.id}
+          entering={bubbleIn}
+          className="max-w-[80%] self-end"
+        >
+        <LinearGradient
           colors={[...theme.gradients.dark]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           accessible
           accessibilityRole="text"
           accessibilityLabel={`You: ${message.content}`}
-          className="max-w-[80%] rounded-2xl rounded-br-[6px] px-4 py-3 self-end"
+          className="rounded-2xl rounded-br-[6px] px-4 py-3"
           style={{ borderRadius: theme.radius.card }}
         >
           <Text className="text-[15px] leading-6 text-white">
             {message.content}
           </Text>
         </LinearGradient>
+        </Animated.View>
       );
     }
     return (
-      <View
+      <Animated.View
         key={message.id}
+        entering={bubbleIn}
         accessible
         accessibilityRole="text"
         accessibilityLabel={`Assistant: ${message.content}`}
@@ -270,7 +288,7 @@ export default function Chatbot() {
             </Pressable>
           </View>
         )}
-      </View>
+      </Animated.View>
     );
   };
 
@@ -288,7 +306,7 @@ export default function Chatbot() {
         <View className="px-5 pt-2">{BackButton}</View>
         <KeyboardAvoidingWrapper>
           <View className="flex-1 items-center justify-center px-5 gap-6">
-            <View className="items-center gap-2">
+            <Animated.View entering={popIn} className="items-center gap-2">
               <Image
                 source={require("@/assets/images/others/6.png")}
                 className="h-42 w-42 rounded-2xl"
@@ -299,23 +317,26 @@ export default function Chatbot() {
               <Text className="text-center" style={{ color: theme.colors.muted }}>
                 Ask about your skin and routine
               </Text>
-            </View>
+            </Animated.View>
             <View className="w-full gap-2">
-              {suggestions.map((s) => (
-                <Pressable
-                  key={s}
+              {suggestions.map((s, i) => (
+                <Animated.View key={s} entering={enterUp(i + 2, 70)} className="self-center">
+                <PressableScale
                   onPress={() => sendMessage(s)}
-                  className="self-center rounded-full px-4 py-2 bg-white active:opacity-70"
+                  className="rounded-full px-4 py-2 bg-white"
                   style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
                   accessibilityRole="button"
                 >
                   <Text className="text-[13px]" style={{ color: theme.colors.body }}>
                     {s}
                   </Text>
-                </Pressable>
+                </PressableScale>
+                </Animated.View>
               ))}
             </View>
-            <View className="w-full">{InputBar}</View>
+            <Animated.View entering={enterUp(6)} className="w-full">
+              {InputBar}
+            </Animated.View>
           </View>
         </KeyboardAvoidingWrapper>
       </SafeAreaView>
@@ -351,12 +372,14 @@ export default function Chatbot() {
             {messages.map(renderMessage)}
 
             {isThinking && (
-              <View
+              <Animated.View
+                entering={fadeIn}
+                exiting={fadeOut}
                 className="self-start rounded-2xl rounded-bl-[6px] px-2 py-1 bg-white"
                 style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
               >
                 <TypingDots label={thinkingLabel} />
-              </View>
+              </Animated.View>
             )}
           </View>
         </ScrollView>

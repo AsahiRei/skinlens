@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -21,6 +21,9 @@ import {
   UiModal,
 } from "@/components/ui";
 import { theme } from "@/lib/theme";
+import Animated from "react-native-reanimated";
+import { FadeItem } from "@/components/FadeItem";
+import { fadeIn, PressableScale } from "@/components/motion";
 import { useNotifications } from "@/hooks/useNotifications";
 import {
   fullDateTime,
@@ -130,14 +133,14 @@ export default function NotificationDetailScreen() {
           <View className="mt-2">
             <BackHeader title="Notification" onBack={() => router.back()} />
           </View>
-          <View className="mt-5">
+          <FadeItem index={1} className="mt-5">
             <ClinicalCard>
               <EmptyState
                 title="Not found"
                 copy="This notification was deleted or is no longer available."
               />
             </ClinicalCard>
-          </View>
+          </FadeItem>
         </View>
       </SafeAreaView>
     );
@@ -159,20 +162,22 @@ export default function NotificationDetailScreen() {
             title="Notification"
             onBack={() => router.back()}
             right={
-              <Pressable
+              <PressableScale
                 onPress={() => setConfirmVisible(true)}
+                activeScale={0.9}
                 accessibilityRole="button"
                 accessibilityLabel="Delete notification"
-                className="h-9 w-9 items-center justify-center rounded-full active:opacity-80"
+                className="h-9 w-9 items-center justify-center rounded-full"
                 style={{ backgroundColor: "#FEF2F2" }}
               >
                 <Trash2 size={16} color={theme.colors.danger} />
-              </Pressable>
+              </PressableScale>
             }
           />
         </View>
 
         {/* Hero */}
+        <FadeItem index={1}>
         <ClinicalCard className="mt-5">
           <View className="flex-row items-center">
             <View
@@ -206,9 +211,11 @@ export default function NotificationDetailScreen() {
             {notification.message}
           </Text>
         </ClinicalCard>
+        </FadeItem>
 
         {/* Live appointment details */}
         {appt.isAppointment && (
+          <FadeItem index={2}>
           <ClinicalCard className="mt-3">
             <Text
               className="text-[12px] font-bold uppercase mb-1"
@@ -221,7 +228,9 @@ export default function NotificationDetailScreen() {
                 <ActivityIndicator color={theme.colors.primary} />
               </View>
             ) : appt.details ? (
-              <AppointmentDetailRows details={appt.details} />
+              <Animated.View entering={fadeIn}>
+                <AppointmentDetailRows details={appt.details} />
+              </Animated.View>
             ) : (
               <Text className="text-[13px] mt-1" style={{ color: theme.colors.muted }}>
                 Couldn&apos;t load this appointment. Check your connection or open
@@ -229,11 +238,13 @@ export default function NotificationDetailScreen() {
               </Text>
             )}
           </ClinicalCard>
+          </FadeItem>
         )}
 
         {/* What this means */}
         {meta.context ? (
-          <View
+          <FadeItem
+            index={3}
             className="flex-row mt-3 px-4 py-3 rounded-2xl"
             style={{ backgroundColor: theme.colors.primarySoft }}
           >
@@ -244,12 +255,12 @@ export default function NotificationDetailScreen() {
             >
               {meta.context}
             </Text>
-          </View>
+          </FadeItem>
         ) : null}
 
-        <View className="mt-6">
+        <FadeItem index={4} className="mt-6">
           <PrimaryButton label={meta.cta.label} onPress={() => router.push(meta.cta.href)} />
-        </View>
+        </FadeItem>
       </ScrollView>
 
       <UiModal

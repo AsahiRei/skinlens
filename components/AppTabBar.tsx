@@ -1,8 +1,14 @@
+import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
 import { usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import {
   ClipboardList,
   House,
@@ -12,6 +18,7 @@ import {
 } from "lucide-react-native";
 
 import type { TabBarVariant } from "@/lib/tabs-config";
+import { PRESS_SPRING, useTabFocusStyle } from "@/components/motion";
 import { theme } from "@/lib/theme";
 
 type TabBarProps = {
@@ -78,6 +85,7 @@ function SideTab({
   Icon: typeof House;
   onPress: () => void;
 }) {
+  const { pillStyle, iconStyle } = useTabFocusStyle(focused, ACTIVE_BG);
   return (
     <Pressable
       accessibilityRole="button"
@@ -89,25 +97,23 @@ function SideTab({
       style={styles.sideWrap}
     >
       {({ pressed }) => (
-        <View
-          style={[
-            styles.sideCol,
-            focused && styles.sideColActive,
-            pressed && { opacity: 0.7 },
-          ]}
+        <Animated.View
+          style={[styles.sideCol, pillStyle, pressed && { opacity: 0.7 }]}
         >
-          <Icon
-            size={19}
-            color={focused ? ACTIVE_FG : INACTIVE}
-            strokeWidth={focused ? 2.2 : 1.9}
-          />
+          <Animated.View style={iconStyle}>
+            <Icon
+              size={19}
+              color={focused ? ACTIVE_FG : INACTIVE}
+              strokeWidth={focused ? 2.2 : 1.9}
+            />
+          </Animated.View>
           <Text
             style={[styles.sideLabel, focused && styles.sideLabelActive]}
             numberOfLines={1}
           >
             {label}
           </Text>
-        </View>
+        </Animated.View>
       )}
     </Pressable>
   );
@@ -122,6 +128,16 @@ function ScanTab({
   accessibilityLabel?: string;
   onPress: () => void;
 }) {
+  // The FAB is the primary action: it springs down under the finger and
+  // sits a touch larger while the Scan tab is active.
+  const press = useSharedValue(1);
+  const focus = useSharedValue(focused ? 1 : 0);
+  useEffect(() => {
+    focus.value = withSpring(focused ? 1 : 0, PRESS_SPRING);
+  }, [focused, focus]);
+  const fabStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: press.value * (1 + 0.06 * focus.value) }],
+  }));
   return (
     <Pressable
       accessibilityRole="button"
@@ -129,21 +145,21 @@ function ScanTab({
       accessibilityState={focused ? { selected: true } : {}}
       android_ripple={{ color: "transparent" }}
       onPress={onPress}
+      onPressIn={() => {
+        press.value = withSpring(0.9, PRESS_SPRING);
+      }}
+      onPressOut={() => {
+        press.value = withSpring(1, PRESS_SPRING);
+      }}
       hitSlop={6}
       style={styles.scanWrap}
     >
-      {({ pressed }) => (
-        <>
-          <View
-            style={[styles.fab, pressed && { opacity: 0.85 }]}
-          >
-            <ScanLine size={22} color={FAB_ICON} strokeWidth={2.4} />
-          </View>
-          <Text style={[styles.scanLabel, focused && styles.scanLabelActive]}>
-            Scan
-          </Text>
-        </>
-      )}
+      <Animated.View style={[styles.fab, fabStyle]}>
+        <ScanLine size={22} color={FAB_ICON} strokeWidth={2.4} />
+      </Animated.View>
+      <Text style={[styles.scanLabel, focused && styles.scanLabelActive]}>
+        Scan
+      </Text>
     </Pressable>
   );
 }
@@ -278,11 +294,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     minWidth: 56,
-  },
-  sideColActive: {
-    backgroundColor: ACTIVE_BG,
-    borderRadius: 20,
-    overflow: "hidden",
   },
   sideLabel: {
     fontSize: 9,
