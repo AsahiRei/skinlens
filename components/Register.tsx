@@ -15,6 +15,7 @@ import LegalModal from "@/components/LegalModal";
 import { PrimaryButton } from "@/components/ui";
 import { supabase } from "@/utils/supabase";
 import { redeemInviteCode } from "@/lib/db/appointments";
+import { friendlyError } from "@/lib/db/pg-errors";
 
 export default function Register() {
   const [displayName, setDisplayName] = useState("");
@@ -120,7 +121,10 @@ export default function Register() {
 
       if (insertError) {
         console.log(`[SkinLens][Auth] ${new Date().toISOString()} profile insert failed:`, insertError.message);
-        ToastAndroid.show(insertError.message, ToastAndroid.LONG);
+        ToastAndroid.show(
+          friendlyError(insertError, "Couldn't create your profile. Please try again."),
+          ToastAndroid.LONG,
+        );
         return;
       }
       // 3. Doctor path: tie this account to ONE hospital via invite code.

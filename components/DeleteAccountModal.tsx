@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react-native";
 import { UiModal } from "@/components/ui";
 import { deleteMyAccount } from "@/lib/db/auth";
 import { useNetwork } from "@/hooks/useNetwork";
+import { friendlyError } from "@/lib/db/pg-errors";
 
 type DeleteAccountModalProps = {
   isVisible: boolean;
@@ -47,8 +48,11 @@ export default function DeleteAccountModal({
       ToastAndroid.show("Your account was deleted.", ToastAndroid.LONG);
       router.replace("/welcome");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      ToastAndroid.show(`Couldn't delete account: ${msg}`, ToastAndroid.LONG);
+      console.warn("[account] delete failed:", err);
+      ToastAndroid.show(
+        `Couldn't delete account. ${friendlyError(err)}`,
+        ToastAndroid.LONG,
+      );
     } finally {
       setLoading(false);
     }

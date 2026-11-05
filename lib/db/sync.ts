@@ -3,7 +3,7 @@ import { uploadImageToCloudinary } from "@/utils/cloudinary";
 
 import { handleInvalidSession } from "./auth";
 import { getDatabase } from "./database";
-import { isMissingColumnError } from "./pg-errors";
+import { isMissingColumnError, isTransportSyncError } from "./pg-errors";
 import { claimAnonymousResults } from "./results";
 import { dequeueSync, removeSyncEntry } from "./sync-queue";
 
@@ -90,6 +90,9 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
 
   const db = await getDatabase();
   const syncedTables = new Set<string>();
+  // Read once per pass instead of once per results/routines entry (each
+  // getSession() takes the supabase-js auth lock + an AsyncStorage read).
+  const sessionUserId: string | null = cached.user?.id ?? null;
 
   for (const entry of entries) {
     try {
@@ -172,16 +175,13 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
           // Never sync rows that don't belong to the signed-in user (e.g.
           // queued while the session was missing and attributed to
           // "anonymous") — RLS would reject them on every retry, forever.
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
           if (
             typeof remotePayload.user_id !== "string" ||
-            !session?.user ||
-            remotePayload.user_id !== session.user.id
+            !sessionUserId ||
+            remotePayload.user_id !== sessionUserId
           ) {
             console.warn(
-              `[sync] dropping results entry ${entry.id}: queued for user ${String(remotePayload.user_id)}, signed in as ${session?.user?.id ?? "nobody"}`,
+              `[sync] dropping results entry ${entry.id}: queued for user ${String(remotePayload.user_id)}, signed in as ${sessionUserId ?? "nobody"}`,
             );
             await removeSyncEntry(entry.id);
             continue;
@@ -269,16 +269,13 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
         }
         case "routines": {
           const payload = entry.payload as Record<string, unknown>;
-          const {
-            data: { session: routineSession },
-          } = await supabase.auth.getSession();
           if (
             typeof payload.user_id !== "string" ||
-            !routineSession?.user ||
-            payload.user_id !== routineSession.user.id
+            !sessionUserId ||
+            payload.user_id !== sessionUserId
           ) {
             console.warn(
-              `[sync] dropping routines entry ${entry.id}: queued for user ${String(payload.user_id)}, signed in as ${routineSession?.user?.id ?? "nobody"}`,
+              `[sync] dropping routines entry ${entry.id}: queued for user ${String(payload.user_id)}, signed in as ${sessionUserId ?? "nobody"}`,
             );
             await removeSyncEntry(entry.id);
             continue;
@@ -500,6 +497,16 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
         await removeSyncEntry(entry.id);
         continue;
       }
+      if (isTransportSyncError(err)) {
+        // Connection dropped (or never really came back) mid-pass. Every
+        // remaining entry would wait out the same fetch timeout one by one
+        // while holding the `processing` lock — stop now and let the next
+        // reconnect/foreground trigger resume from this entry.
+        console.warn(
+          `[sync] network error on ${entry.table_name} entry ${entry.id}, pausing sync until next reconnect`,
+        );
+        break;
+      }
       console.error(`Sync failed for ${entry.table_name} entry ${entry.id}:`, err);
       continue;
     }
@@ -507,8 +514,14 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
 
   if (syncedTables.size === 0) return;
 
+  // Only stamp rows that have never been stamped: rewriting every row of
+  // every touched table on each pass grew the WAL with the table size and
+  // blocked the serialized DB queue that the UI reads go through.
   const ts = new Date().toISOString();
   for (const table of syncedTables) {
-    await db.runAsync(`UPDATE ${table} SET synced_at = ?`, [ts]);
+    await db.runAsync(
+      `UPDATE ${table} SET synced_at = ? WHERE synced_at IS NULL`,
+      [ts],
+    );
   }
 }

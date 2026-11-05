@@ -13,9 +13,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#327349",
         "foregroundImage": "./assets/images/skinlens-icon.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
@@ -58,6 +57,13 @@
           "photosPermission": "SkinLens needs access to your photos so you can analyze an existing photo of your skin.",
           "cameraPermission": "SkinLens uses the camera to scan your facial skin and verify your face.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#15803d"
         }
       ],
       "expo-sqlite",

@@ -72,6 +72,7 @@ export default function DoctorHome() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const handleAction = async (id: string, status: AppointmentStatus, scheduledAt?: string) => {
+    setActionError(null);
     try {
       await applyStatus(id, status, scheduledAt);
       const label =
@@ -86,6 +87,7 @@ export default function DoctorHome() {
       setActionError(
         err instanceof Error ? err.message : "Couldn't save that change — try again.",
       );
+      throw err; // let the card keep its scheduler open
     }
   };
 
@@ -318,7 +320,7 @@ export default function DoctorHome() {
                       patientName={patientDisplayFor(a, patientNames)}
                       patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
                       busy={false}
-                      onAction={(id, status, at) => void handleAction(id, status, at)}
+                      onAction={handleAction}
                     />
                   </FadeItem>
                 ))}

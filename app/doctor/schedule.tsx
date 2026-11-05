@@ -58,13 +58,24 @@ function fmtDate(iso: string | null): string {
   });
 }
 
-function groupLabel(r: AppointmentRow): string {
-  const d = new Date(r.scheduled_at ?? "");
-  if (Number.isNaN(d.getTime())) return "Unspecified";
-  if (isToday(d)) return "Today";
-  if (isTomorrow(d)) return "Tomorrow";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
+type GroupKey = "overdue" | "today" | "tomorrow" | "upcoming" | "unspecified";
+
+type ScheduleGroup = {
+  key: GroupKey;
+  label: string;
+  tone: "primary" | "neutral" | "warning";
+  hint?: string;
+  rows: AppointmentRow[];
+};
+
+// Display order of the agenda groups.
+const GROUPS: Omit<ScheduleGroup, "rows">[] = [
+  { key: "overdue", label: "Overdue", tone: "warning", hint: "mark complete or cancel" },
+  { key: "today", label: "Today", tone: "primary" },
+  { key: "tomorrow", label: "Tomorrow", tone: "warning" },
+  { key: "upcoming", label: "Upcoming", tone: "neutral" },
+  { key: "unspecified", label: "Unspecified", tone: "neutral" },
+];
 
 export default function DoctorSchedule() {
   const {
@@ -99,32 +110,43 @@ export default function DoctorSchedule() {
       setActionError(
         err instanceof Error ? err.message : "Couldn't save that change — try again.",
       );
+      throw err; // let the card know the write failed
     } finally {
       setActingId(null);
     }
   };
 
-  const scheduled = rows.filter((r) => r.status === "scheduled");
+  const scheduled = useMemo(
+    () => rows.filter((r) => r.status === "scheduled"),
+    [rows],
+  );
 
-  // Group confirmed visits by date so the day's agenda is scannable.
-  const grouped = useMemo(() => {
-    const today: AppointmentRow[] = [];
-    const tomorrow: AppointmentRow[] = [];
-    const upcoming: AppointmentRow[] = [];
-    const unspecified: AppointmentRow[] = [];
+  // Group confirmed visits into an agenda, each group in visit-time order.
+  // Rows arrive ordered by booking date, so sorting here is required.
+  // Past visits never marked complete go to "Overdue" (not "Upcoming").
+  const groups = useMemo<ScheduleGroup[]>(() => {
+    const buckets: Record<GroupKey, AppointmentRow[]> = {
+      overdue: [],
+      today: [],
+      tomorrow: [],
+      upcoming: [],
+      unspecified: [],
+    };
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
     for (const r of scheduled) {
       const d = new Date(r.scheduled_at ?? "");
-      if (Number.isNaN(d.getTime())) {
-        unspecified.push(r);
-      } else if (isToday(d)) {
-        today.push(r);
-      } else if (isTomorrow(d)) {
-        tomorrow.push(r);
-      } else {
-        upcoming.push(r);
-      }
+      if (Number.isNaN(d.getTime())) buckets.unspecified.push(r);
+      else if (d < startOfToday) buckets.overdue.push(r);
+      else if (isToday(d)) buckets.today.push(r);
+      else if (isTomorrow(d)) buckets.tomorrow.push(r);
+      else buckets.upcoming.push(r);
     }
-    return { today, tomorrow, upcoming, unspecified };
+    const byTime = (x: AppointmentRow, y: AppointmentRow) =>
+      Date.parse(x.scheduled_at ?? "") - Date.parse(y.scheduled_at ?? "");
+    return GROUPS.map((g) => ({ ...g, rows: buckets[g.key].sort(byTime) })).filter(
+      (g) => g.rows.length > 0,
+    );
   }, [scheduled]);
 
   return (
@@ -200,15 +222,16 @@ export default function DoctorSchedule() {
               </FadeItem>
             ) : (
               <View className="flex-col gap-5 mt-3">
-                {grouped.today.length > 0 && (
-                  <View className="flex-col gap-3">
+                {groups.map((g) => (
+                  <View key={g.key} className="flex-col gap-3">
                     <View className="flex-row items-center gap-2">
-                      <Pill label="Today" tone="primary" />
+                      <Pill label={g.label} tone={g.tone} />
                       <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                        {grouped.today.length} visit{grouped.today.length === 1 ? "" : "s"}
+                        {g.rows.length} visit{g.rows.length === 1 ? "" : "s"}
+                        {g.hint ? ` · ${g.hint}` : ""}
                       </Text>
                     </View>
-                    {grouped.today.map((a, idx) => (
+                    {g.rows.map((a, idx) => (
                       <FadeItem key={a.id} index={Math.min(3 + idx, 8)}>
                         <DoctorAppointmentCard
                           appointment={a}
@@ -216,78 +239,12 @@ export default function DoctorSchedule() {
                           patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
                           busy={actingId === a.id}
                           compact
-                          onAction={(id, status) => void handleAction(id, status)}
+                          onAction={handleAction}
                         />
                       </FadeItem>
                     ))}
                   </View>
-                )}
-                {grouped.tomorrow.length > 0 && (
-                  <View className="flex-col gap-3">
-                    <View className="flex-row items-center gap-2">
-                      <Pill label="Tomorrow" tone="warning" />
-                      <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                        {grouped.tomorrow.length} visit{grouped.tomorrow.length === 1 ? "" : "s"}
-                      </Text>
-                    </View>
-                    {grouped.tomorrow.map((a, idx) => (
-                      <FadeItem key={a.id} index={Math.min(3 + idx, 8)}>
-                        <DoctorAppointmentCard
-                          appointment={a}
-                          patientName={patientDisplayFor(a, patientNames)}
-                          patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
-                          busy={actingId === a.id}
-                          compact
-                          onAction={(id, status) => void handleAction(id, status)}
-                        />
-                      </FadeItem>
-                    ))}
-                  </View>
-                )}
-                {grouped.upcoming.length > 0 && (
-                  <View className="flex-col gap-3">
-                    <View className="flex-row items-center gap-2">
-                      <Pill label="Upcoming" tone="neutral" />
-                      <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                        {grouped.upcoming.length} visit{grouped.upcoming.length === 1 ? "" : "s"}
-                      </Text>
-                    </View>
-                    {grouped.upcoming.map((a, idx) => (
-                      <FadeItem key={a.id} index={Math.min(3 + idx, 8)}>
-                        <DoctorAppointmentCard
-                          appointment={a}
-                          patientName={patientDisplayFor(a, patientNames)}
-                          patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
-                          busy={actingId === a.id}
-                          compact
-                          onAction={(id, status) => void handleAction(id, status)}
-                        />
-                      </FadeItem>
-                    ))}
-                  </View>
-                )}
-                {grouped.unspecified.length > 0 && (
-                  <View className="flex-col gap-3">
-                    <View className="flex-row items-center gap-2">
-                      <Pill label="Unspecified" tone="neutral" />
-                      <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                        {grouped.unspecified.length} visit{grouped.unspecified.length === 1 ? "" : "s"}
-                      </Text>
-                    </View>
-                    {grouped.unspecified.map((a, idx) => (
-                      <FadeItem key={a.id} index={Math.min(3 + idx, 8)}>
-                        <DoctorAppointmentCard
-                          appointment={a}
-                          patientName={patientDisplayFor(a, patientNames)}
-                          patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
-                          busy={actingId === a.id}
-                          compact
-                          onAction={(id, status) => void handleAction(id, status)}
-                        />
-                      </FadeItem>
-                    ))}
-                  </View>
-                )}
+                ))}
               </View>
             )}
           </>

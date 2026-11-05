@@ -224,7 +224,7 @@ export default function DoctorHistory() {
                       patientName={patientDisplayFor(a, patientNames)}
                       patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
                       compact
-                      onAction={() => {}}
+                      onAction={async () => {}}
                     />
                   ))}
                 </View>

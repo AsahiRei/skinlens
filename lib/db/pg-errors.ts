@@ -28,6 +28,32 @@ export function isMissingColumnError(error: unknown): boolean {
 }
 
 /** Unique-violation — e.g. the appointments doctor-slot index (0007). */
+// Transport-level failure (no route, DNS, timeout) — as opposed to a server
+// or data error that is specific to one entry. supabase-js reports these
+// either as thrown errors or as returned `{ message: "TypeError: Network
+// request failed" }` objects, so read `.message` off plain objects too.
+// Deliberately message-based only: a bare TypeError from a bug in this file
+// must not be mistaken for "offline" or it would stall the queue forever.
+export function isTransportSyncError(err: unknown): boolean {
+  const message =
+    typeof err === "object" && err !== null && "message" in err
+      ? String((err as { message: unknown }).message)
+      : String(err ?? "");
+  const m = message.toLowerCase();
+  return (
+    m.includes("network request failed") ||
+    m.includes("failed to fetch") ||
+    m.includes("fetch failed") ||
+    m.includes("networkerror") ||
+    m.includes("aborterror") ||
+    m.includes("aborted") ||
+    m.includes("timed out") ||
+    m.includes("timeout") ||
+    m.includes("enotfound") ||
+    m.includes("eai_again")
+  );
+}
+
 export function isDuplicateKeyError(error: unknown): boolean {
   const msg = errorText(error);
   return /23505/.test(msg) || /duplicate key value/i.test(msg);
@@ -41,4 +67,35 @@ export function isMissingFunctionError(error: unknown): boolean {
     /could not find the function/i.test(msg) ||
     /function .* does not exist/i.test(msg)
   );
+}
+
+/**
+ * Turns any thrown/returned error into text that is safe to show a user.
+ * Messages raised on purpose by our SQL functions ("Invalid invite code.")
+ * pass through; raw Postgres/PostgREST/network internals are replaced.
+ */
+export function friendlyError(
+  error: unknown,
+  fallback = "Something went wrong. Please try again.",
+): string {
+  const msg = (
+    error instanceof Error ? error.message : errorText(error)
+  ).trim();
+  if (!msg) return fallback;
+  if (/network request failed|failed to fetch|fetch failed|timeout|aborted/i.test(msg)) {
+    return "Check your internet connection and try again.";
+  }
+  if (/row-level security|permission denied|42501.*policy/i.test(msg)) {
+    return "You don't have permission to do that.";
+  }
+  if (isDuplicateKeyError(error)) return "That already exists.";
+  if (
+    isMissingColumnError(error) ||
+    isMissingFunctionError(error) ||
+    /PGRST\d|relation .* does not exist|violates|syntax error|constraint|jwt/i.test(msg) ||
+    msg.length > 160
+  ) {
+    return fallback;
+  }
+  return msg;
 }

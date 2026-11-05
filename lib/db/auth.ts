@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 
+import { purgeMyCloudinaryImages } from "@/utils/cloudinary";
 import { signOutLocal, supabase } from "@/utils/supabase";
 
 import { getDatabase } from "./database";
@@ -51,7 +52,7 @@ export async function clearLocalUserData(): Promise<void> {
 
 /**
  * Permanently deletes the signed-in account (Google Play account-deletion
- * policy). Removes the user's report PDFs through the Storage API, then calls
+ * policy). Removes the user's report PDFs and Cloudinary photos, then calls
  * the delete_my_account RPC (migration 0010) which wipes every owned row and
  * the auth user, and finally clears this device. Requires a connection.
  */
@@ -71,6 +72,11 @@ export async function deleteMyAccount(): Promise<void> {
       console.warn("[auth] could not remove report files:", removeError.message);
     }
   }
+
+  // Scan + face photos live on Cloudinary. Must run while the JWT is still
+  // valid (before the auth user is deleted). Best effort: a failure is
+  // logged, not fatal — the account rows are still removed.
+  await purgeMyCloudinaryImages();
 
   const { error } = await supabase.rpc("delete_my_account");
   if (error) {

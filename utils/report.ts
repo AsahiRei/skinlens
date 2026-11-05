@@ -2,7 +2,7 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { File, Paths } from "expo-file-system";
 import * as FileSystem from "expo-file-system/legacy";
-import { ToastAndroid } from "react-native";
+import { Platform, ToastAndroid } from "react-native";
 import { Buffer } from "buffer";
 
 import {
@@ -101,8 +101,9 @@ export async function generateSkinReportHtml(): Promise<string> {
   const userImageUrl = userProfile?.face_image_url ?? null;
 
   const profileRows = [
+    // Email intentionally omitted: the report goes to clinics, which don't
+    // need it (data minimisation — see the booking consent toggle).
     ["Name", escapeHtml(name)],
-    ["Email", escapeHtml(userProfile?.email ?? "—")],
     ["Date of Birth", fmtDate(userProfile?.age)],
     ["Gender", fmt(userProfile?.gender)],
     ["Skin Type", fmt(skinProfile?.skin_type)],
@@ -367,11 +368,15 @@ export async function exportSkinReport(): Promise<void> {
 
   const available = await Sharing.isAvailableAsync();
   if (!available) {
-    ToastAndroid.show("Sharing is not available on this device", ToastAndroid.SHORT);
+    if (Platform.OS === "android") {
+      ToastAndroid.show("Sharing is not available on this device", ToastAndroid.SHORT);
+    }
     return;
   }
 
-  ToastAndroid.show("Report generated", ToastAndroid.SHORT);
+  if (Platform.OS === "android") {
+    ToastAndroid.show("Report generated", ToastAndroid.SHORT);
+  }
   await Sharing.shareAsync(uri, {
     mimeType: "application/pdf",
     dialogTitle: "Share Skin Health Report",

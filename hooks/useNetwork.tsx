@@ -19,10 +19,18 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((info: NetInfoState) => {
-      setState({
-        isConnected: info.isConnected ?? false,
-        isInternetReachable: info.isInternetReachable,
-      });
+      const isConnected = info.isConnected ?? false;
+      const isInternetReachable = info.isInternetReachable;
+      // NetInfo fires for every interface/details change (signal strength,
+      // SSID, cellular generation…). Returning the previous object when the
+      // two fields we expose are unchanged keeps every consumer from
+      // re-rendering on each of those events.
+      setState((prev) =>
+        prev.isConnected === isConnected &&
+        prev.isInternetReachable === isInternetReachable
+          ? prev
+          : { isConnected, isInternetReachable },
+      );
     });
     return () => unsubscribe();
   }, []);

@@ -4,6 +4,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   ToastAndroid,
   View,
 } from "react-native";
@@ -38,7 +39,7 @@ import {
 } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { ScreenGradient } from "@/components/ScreenGradient";
-import { exportSkinReport, uploadSkinReportForAppointment } from "@/utils/report";
+import { uploadSkinReportForAppointment } from "@/utils/report";
 import {
   attachReportToAppointment,
   formatPatientDisplayName,
@@ -112,6 +113,15 @@ export default function DermatologistDetails() {
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
   const [bookedDoctorName, setBookedDoctorName] = useState<string | null>(null);
+  // The appointment just created + whether its Skin Report is already linked
+  // (so the "Request sent" modal only offers to send it when it isn't).
+  const [bookedAppointmentId, setBookedAppointmentId] = useState<string | null>(null);
+  const [reportAttached, setReportAttached] = useState(false);
+  const [sendingReport, setSendingReport] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  // Explicit opt-in: the Skin Report holds health data, so it is only
+  // uploaded to the clinic when the patient switches this on.
+  const [shareReport, setShareReport] = useState(false);
 
   const notify = (msg: string) => {
     if (Platform.OS === "android") {
@@ -138,6 +148,40 @@ export default function DermatologistDetails() {
     Linking.openURL(url).catch(() => {
       notify("Couldn't open the map app on this device.");
     });
+  };
+
+  // Upload the Skin Report PDF and link it to the appointment so the clinic's
+  // doctors can open it. Throws on failure (upload or link).
+  const sendReportToClinic = async (appointmentId: string) => {
+    const storagePath = await uploadSkinReportForAppointment(appointmentId);
+    await attachReportToAppointment(appointmentId, storagePath);
+    setReportAttached(true);
+  };
+
+  // "Send Skin Report" from the Request-sent modal: attaches the report to
+  // THIS appointment (it used to only open the OS share sheet, which never
+  // reached the clinic and failed to open on iOS while the modal closed).
+  const handleSendReportFromModal = async () => {
+    if (!bookedAppointmentId || sendingReport) return;
+    setSendingReport(true);
+    setReportError(null);
+    try {
+      await sendReportToClinic(bookedAppointmentId);
+    } catch (err) {
+      console.warn("[book-appointment] modal report send failed:", err);
+      const detail = err instanceof Error ? err.message : "";
+      setReportError(`Couldn't send the Skin Report: ${detail || "please try again."}`);
+    } finally {
+      setSendingReport(false);
+    }
+  };
+
+  // Leaving the Request-sent modal always goes to the appointments list —
+  // staying on this form let the same request be booked twice.
+  const finishBooking = () => {
+    if (sendingReport) return;
+    setShowBooked(false);
+    router.replace("/(modules)/appointments");
   };
 
   const handleBook = async () => {
@@ -186,29 +230,33 @@ export default function DermatologistDetails() {
       });
       const picked = doctors.find((d) => d.user_id === (doctorId ?? row.doctor_id));
       setBookedDoctorName(picked?.display_name ?? null);
-      // 2. Generate the Skin Report PDF, upload it to the private `reports`
-      // bucket (reports/<uid>/<appointment_id>.pdf) and link it to the
-      // appointment row so the doctor can open it from their queue. Sending
-      // the PDF stays a choice — the confirmation modal offers the option.
-      try {
-        const storagePath = await uploadSkinReportForAppointment(row.id);
+      setBookedAppointmentId(row.id);
+      setReportAttached(false);
+      setReportError(null);
+      // 2. Only when the patient opted in: generate the Skin Report PDF,
+      // upload it to the private `reports` bucket
+      // (reports/<uid>/<appointment_id>.pdf) and link it to the appointment
+      // row so the doctor can open it from their queue.
+      let attachError: string | null = null;
+      if (shareReport) {
         try {
-          await attachReportToAppointment(row.id, storagePath);
-        } catch (linkErr) {
-          console.warn("[book-appointment] report link failed:", linkErr);
+          await sendReportToClinic(row.id);
+        } catch (pdfErr) {
+          // Booking already saved — PDF upload is best-effort, but the user
+          // must SEE the failure (else the doctor's Report button is missing
+          // with no clue why). The modal still offers a retry.
+          console.warn("[book-appointment] pdf upload failed:", pdfErr);
+          attachError =
+            pdfErr instanceof Error ? pdfErr.message : String(pdfErr ?? "");
         }
-      } catch (pdfErr) {
-        // Booking already saved — PDF upload is best-effort, but the user
-        // must SEE the failure (else the doctor's Report button is missing
-        // with no clue why).
-        console.warn("[book-appointment] pdf upload failed:", pdfErr);
-        const detail =
-          pdfErr instanceof Error ? pdfErr.message : String(pdfErr ?? "");
-        notify(
-          `Report PDF could not be attached: ${detail || "unknown error"}`,
-        );
       }
-      notify("Request sent — the doctor will confirm your exact time.");
+      // One message (iOS shows a single inline notice, so a second notify
+      // would overwrite the attach failure).
+      notify(
+        attachError !== null
+          ? `Request sent, but the Skin Report couldn't be attached: ${attachError || "unknown error"}`
+          : "Request sent — the doctor will confirm your exact time.",
+      );
       setShowBooked(true);
     } catch (err) {
       console.error("[book-appointment]", err);
@@ -452,6 +500,28 @@ export default function DermatologistDetails() {
                   fallbackDate={PREFERRED_FALLBACK}
                   onClear={() => setPreferredDate(null)}
                 />
+                <View
+                  className="flex-row items-center justify-between pt-3 mt-1"
+                  style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
+                >
+                  <View className="flex-col flex-1 pr-3">
+                    <Text className="text-sm font-semibold" style={{ color: theme.colors.ink }}>
+                      Share my Skin Report with this clinic
+                    </Text>
+                    <Text className="text-xs mt-0.5" style={{ color: theme.colors.muted }}>
+                      Includes your name, birth date, skin &amp; lifestyle answers, latest scan
+                      photo, scan history and sensitivity log. Only this clinic&apos;s doctors
+                      can open it.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={shareReport}
+                    onValueChange={setShareReport}
+                    trackColor={{ false: theme.colors.cardBorder, true: theme.colors.primary }}
+                    thumbColor="#FFFFFF"
+                    accessibilityLabel="Share my Skin Report with this clinic"
+                  />
+                </View>
               </ClinicalCard>
             ) : null}
             {isCustomEntry ? (
@@ -489,29 +559,30 @@ export default function DermatologistDetails() {
 
       <UiModal
         visible={showBooked}
-        onDismiss={() => setShowBooked(false)}
+        onDismiss={finishBooking}
+        dismissOnBackdrop={!sendingReport}
         title="Request sent"
-        message={`Your visit request is with ${params.name}${bookedDoctorName ? ` (${bookedDoctorName})` : ""} — the doctor confirms your exact time.`}
+        message={`Your visit request is with ${params.name}${bookedDoctorName ? ` (${bookedDoctorName})` : ""} — the doctor confirms your exact time.${reportAttached ? " Your Skin Report is attached." : ""}${reportError ? `\n\n${reportError}` : ""}`}
         icon={CalendarCheck}
         tone="soft"
         actions={[
-          {
-            label: "Send Skin Report PDF",
-            kind: "secondary" as const,
-            onPress: () => {
-              setShowBooked(false);
-              void exportSkinReport().catch(() => {
-                notify("Couldn't generate the PDF. Please try again.");
-              });
-            },
-          },
+          ...(reportAttached
+            ? []
+            : [
+                {
+                  label: "Send Skin Report to clinic",
+                  kind: "primary" as const,
+                  loading: sendingReport,
+                  onPress: () => {
+                    void handleSendReportFromModal();
+                  },
+                },
+              ]),
           {
             label: "Done",
             kind: "ghost" as const,
-            onPress: () => {
-              setShowBooked(false);
-              router.push("/(modules)/appointments");
-            },
+            disabled: sendingReport,
+            onPress: finishBooking,
           },
         ]}
       />

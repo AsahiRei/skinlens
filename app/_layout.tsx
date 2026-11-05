@@ -4,6 +4,7 @@ import { Stack, useRouter } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import * as Linking from "expo-linking";
+import * as Sentry from "@sentry/react-native";
 import { SafeKeyboardProvider as KeyboardProvider } from "@/components/keyboard-safe";
 
 import { NetworkProvider } from "@/hooks/useNetwork";
@@ -22,6 +23,19 @@ import "../global.css";
 // the effect below; on web this is a no-op.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+// Crash reporting. Inert until EXPO_PUBLIC_SENTRY_DSN is set, so dev builds
+// and forks without a Sentry project behave exactly as before. No PII:
+// user ids only, never emails / photos / health data.
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    enabled: !__DEV__,
+    sendDefaultPii: false,
+    tracesSampleRate: 0.1,
+  });
+}
+
 // Release builds: drop verbose logging. The codebase logs user ids, auth
 // events and timings on almost every step, which costs JS-thread time and
 // ends up in device logs (logcat) that other tooling can read. Warnings and
@@ -33,7 +47,7 @@ if (!__DEV__) {
   console.debug = noop;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const router = useRouter();
   // Coalesces rapid duplicate SIGNED_OUT events (logout fires one per
   // signOut scope + one from validateSession's purge) into a single
@@ -140,3 +154,5 @@ export default function RootLayout() {
     </>
   );
 }
+
+export default SENTRY_DSN ? Sentry.wrap(RootLayout) : RootLayout;

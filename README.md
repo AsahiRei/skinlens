@@ -28,3 +28,14 @@ SkinLens aims to provide a **simple, friendly, accessible, and free-to-use** mob
 SkinLens is designed for **informational and educational purposes only**. Its AI-generated results and skincare recommendations are **not a medical diagnosis or treatment** and should not replace professional medical advice.
 
 If you have persistent, severe, or worsening skin concerns, please consult a **licensed dermatologist** or healthcare professional.
+## Deployment checklist
+
+1. **Database** — run every file in `supabase/migrations/` in order (SQL Editor or `supabase db push`). `0010_security_hardening.sql` is required before release.
+2. **Image uploads** — deploy the signing function and set its secrets:
+   ```sh
+   supabase secrets set CLOUDINARY_CLOUD_NAME=... CLOUDINARY_API_KEY=... CLOUDINARY_API_SECRET=...
+   supabase functions deploy cloudinary
+   ```
+   Then remove `EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET` from `.env` / EAS env and disable that unsigned preset in the Cloudinary console.
+3. **Crash reporting (optional)** — set `EXPO_PUBLIC_SENTRY_DSN`. For readable stack traces, add the `@sentry/react-native` config plugin with your `organization`/`project` and set `SENTRY_AUTH_TOKEN` as an EAS secret.
+4. **Checks** — `npm run typecheck && npm run lint && npm test`.

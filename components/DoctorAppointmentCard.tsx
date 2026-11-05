@@ -97,11 +97,20 @@ export function DoctorAppointmentCard({
   patientAvatarUrl?: string | null;
   /** Parent-level busy flag (e.g. a different row is mid-action). */
   busy?: boolean;
-  onAction: (id: string, status: AppointmentStatus, scheduledAt?: string) => void;
+  /** Must reject on failure so the card keeps its scheduler open and stops
+   * its spinner only once the write has actually finished. The parent is
+   * responsible for showing the error message. */
+  onAction: (id: string, status: AppointmentStatus, scheduledAt?: string) => Promise<void>;
   compact?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState<Date>(SCHEDULER_FALLBACK);
+  // Start from the patient's preferred slot when it's still ahead; otherwise
+  // ~24h from now (computed per mount, not at module load, so it never goes stale).
+  const [scheduledDate, setScheduledDate] = useState<Date>(() => {
+    const preferred = a.preferred_time ? Date.parse(a.preferred_time) : NaN;
+    if (Number.isFinite(preferred) && preferred > Date.now()) return new Date(preferred);
+    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+  });
   const [acting, setActing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<"decline" | "cancel" | "complete">("decline");
@@ -133,8 +142,9 @@ export function DoctorAppointmentCard({
     try {
       await onAction(a.id, "scheduled", scheduledDate.toISOString());
       setExpanded(false);
-    } catch (err) {
-      console.error("[doctor-card] schedule failed:", err);
+    } catch {
+      // Parent already surfaced the message (e.g. slot taken); keep the
+      // scheduler open so the doctor can pick another time.
     } finally {
       setActing(false);
     }
@@ -145,6 +155,8 @@ export function DoctorAppointmentCard({
     setActing(true);
     try {
       await onAction(a.id, status);
+    } catch {
+      // Parent already surfaced the message.
     } finally {
       setActing(false);
     }
@@ -448,9 +460,9 @@ export function DoctorAppointmentCard({
         }
         message={
           confirmKind === "decline"
-            ? "This will decline the patient's visit request. They will be notified."
+            ? "This will decline the patient's visit request. They'll see the update in their Appointments screen."
             : confirmKind === "cancel"
-              ? "This will cancel the scheduled visit. The patient will be notified."
+              ? "This will cancel the scheduled visit. The patient will see it in their Appointments screen."
               : "This will mark the visit as completed. The patient's record will be closed."
         }
         icon={CalendarClock}

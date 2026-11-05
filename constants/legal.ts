@@ -79,7 +79,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         label: "Third Party Disclosure:",
-        text: "We do not sell, trade, or otherwise transfer your personally identifiable information to outside parties unless required by law.",
+        text: "We do not sell or trade your personal information. We share it only with the service providers needed to run the application (listed below), with a dermatologist you choose to book, or when required by law.",
       },
     ],
   },
@@ -93,7 +93,37 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         label: "Data Deletion:",
-        text: "Users may request the deletion of their account and all associated personal data at any time through the application settings or by contacting support.",
+        text: "You can permanently delete your account at any time from Profile > Delete account. This removes your profile, face enrollment, scan history, photos, routines, appointments and reports from our servers and from your device.",
+      },
+    ],
+  },
+  {
+    key: "data-collected",
+    title: "3. INFORMATION WE COLLECT & HOW IT IS SHARED",
+    blocks: [
+      {
+        label: "Face Recognition Data:",
+        text: "When you enroll your face, the application creates a numeric face template (biometric data) on your device. It is stored with your account and used only to confirm that new scans belong to you. It is never used for any other purpose.",
+      },
+      {
+        label: "Photos:",
+        text: "Your scan and profile photos are stored with Cloudinary, our image hosting provider, in a folder tied to your account. Skin analysis itself runs on your device.",
+      },
+      {
+        label: "Account & Health Records:",
+        text: "Your profile, skin and lifestyle answers, scan results, routines and appointments are stored with Supabase, our database provider. Skin and health information is treated as sensitive personal information under RA 10173.",
+      },
+      {
+        label: "Location:",
+        text: "With your permission, your location is used to find dermatologists near you. It is sent to our map provider (Geoapify) for that search and is not stored in your account.",
+      },
+      {
+        label: "Dermatologists:",
+        text: "When you book an appointment, the clinic you choose can see your name, profile photo, the Skin Report you attach and your latest scan result, so a dermatologist can review it.",
+      },
+      {
+        label: "Chat Assistant:",
+        text: "The chat assistant runs on your device. When you ask about products or places to buy them, your question may be sent to a web search provider (DuckDuckGo) to find results.",
       },
     ],
   },
