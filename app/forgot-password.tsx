@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TextInput, ToastAndroid, View, Image } from "react-native";
 import { Text } from "@/components/Text";
 import { Mail } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ScreenGradient } from "@/components/ScreenGradient";
@@ -17,6 +17,16 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { expired } = useLocalSearchParams<{ expired?: string }>();
+  useEffect(() => {
+    if (expired) {
+      ToastAndroid.show(
+        "That reset link has expired or was already used. Please request a new one.",
+        ToastAndroid.LONG,
+      );
+    }
+  }, [expired]);
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace("/welcome"));
   const handleResetEmail = async () => {
     const parsed = forgotPasswordSchema.safeParse({ email });
     if (!parsed.success) {
@@ -80,7 +90,7 @@ export default function ForgotPassword() {
               onPress={handleResetEmail}
               disabled={loading}
             />
-            <SecondaryButton label="Cancel" onPress={() => router.back()} />
+            <SecondaryButton label="Cancel" onPress={goBack} />
           </FadeItem>
         </View>
       </KeyboardAwareScroll>

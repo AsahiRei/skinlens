@@ -169,7 +169,7 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
                 value={notes}
                 onChangeText={setNotes}
                 multiline
-                placeholder="Notes for the patient chart (optional)"
+                placeholder="Note for the patient — they will see this (optional)"
                 placeholderTextColor={theme.colors.muted}
                 className="rounded-xl px-3 py-2.5 text-xs"
                 style={{

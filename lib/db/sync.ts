@@ -1,3 +1,6 @@
+import * as FileSystem from "expo-file-system/legacy";
+
+import { isOnlineNow } from "@/utils/network";
 import { supabase, validateSession } from "@/utils/supabase";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 
@@ -5,7 +8,7 @@ import { handleInvalidSession } from "./auth";
 import { getDatabase } from "./database";
 import { isMissingColumnError, isTransportSyncError } from "./pg-errors";
 import { claimAnonymousResults } from "./results";
-import { dequeueSync, removeSyncEntry } from "./sync-queue";
+import { dequeueSync, rememberRoutineRemap, removeSyncEntry, resolveRoutineId } from "./sync-queue";
 
 function isAuthSyncError(err: unknown): boolean {
   const status =
@@ -32,23 +35,58 @@ function isAuthSyncError(err: unknown): boolean {
   );
 }
 
-export async function processSyncQueue(opts?: {
+export function processSyncQueue(opts?: {
   // Set by callers that just ran validateSession() themselves: skips the second (identical) network
   // round trip.
   sessionValidated?: boolean;
 }): Promise<void> {
-  // SyncManager (mount) and network transitions can trigger this concurrently; without a guard two
-  // passes would pick up and double-apply the same queue rows.
-  if (processing) return;
-  processing = true;
-  try {
-    await processSyncQueueInner(opts?.sessionValidated === true);
-  } finally {
-    processing = false;
+  // SyncManager (mount) and network transitions can trigger this concurrently; two parallel passes
+  // would pick up and double-apply the same queue rows. A call that arrives mid-pass must still WAIT
+  // for the queue to drain (logout counts what's left right after), and the running pass works on a
+  // snapshot taken before the call, so chain exactly one follow-up pass for all such callers.
+  if (current) {
+    if (!next) {
+      next = current
+        .catch(() => {})
+        .then(() => {
+          next = null;
+          return processSyncQueue(opts);
+        });
+    }
+    return next;
   }
+  current = processSyncQueueInner(opts?.sessionValidated === true).finally(() => {
+    current = null;
+  });
+  return current;
 }
 
-let processing = false;
+let current: Promise<void> | null = null;
+let next: Promise<void> | null = null;
+
+/** Points queued routine_progress writes made against an offline temp routine at its server id. */
+async function remapQueuedRoutineProgress(
+  db: Awaited<ReturnType<typeof getDatabase>>,
+  tempId: number,
+  realId: number,
+): Promise<void> {
+  const rows = await db.getAllAsync<{ id: number; payload: string }>(
+    `SELECT id, payload FROM sync_queue WHERE table_name = 'routine_progress'`,
+  );
+  for (const row of rows) {
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(row.payload);
+    } catch {
+      continue;
+    }
+    if (payload.routine_id !== tempId) continue;
+    await db.runAsync(`UPDATE sync_queue SET payload = ? WHERE id = ?`, [
+      JSON.stringify({ ...payload, routine_id: realId }),
+      row.id,
+    ]);
+  }
+}
 
 async function processSyncQueueInner(sessionValidated = false): Promise<void> {
   // Deleted-user guard: the cached AsyncStorage session may belong to an account that no longer
@@ -137,9 +175,38 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
         }
         case "results": {
           const payload = entry.payload as Record<string, unknown>;
-          if (typeof payload.image_url === "string" && payload.image_url.startsWith("file://")) {
-            const cloudUrl = await uploadImageToCloudinary(payload.image_url);
-            payload.image_url = cloudUrl ?? null;
+          // A device-path image must be uploaded before it means anything server-side. If the
+          // upload fails, the row is still pushed (without touching image_url) but the entry stays
+          // queued so the photo is retried — pushing null used to lose it for good, and logout then
+          // wiped the only local copy.
+          let deferImage = false;
+          let uploadedImage: string | null = null;
+          if (typeof payload.image_url === "string" && !/^https?:\/\//i.test(payload.image_url)) {
+            const localUri = payload.image_url;
+            const exists = localUri.startsWith("file://")
+              ? await FileSystem.getInfoAsync(localUri)
+                  .then((i) => i.exists)
+                  .catch(() => false)
+              : true;
+            if (!exists) {
+              // File is gone (cache cleared) — nothing left to upload.
+              payload.image_url = null;
+            } else {
+              // One retry only: a failed photo stays queued for the next pass anyway, and long
+              // backoffs here hold up every entry behind it.
+              const cloudUrl = await uploadImageToCloudinary(localUri, 1);
+              if (cloudUrl) {
+                payload.image_url = cloudUrl;
+                uploadedImage = cloudUrl;
+              } else if (!(await isOnlineNow())) {
+                // Connection dropped: every remaining entry would fail too. Throwing (not `break`,
+                // which would only leave the switch and dequeue this entry) routes into the
+                // transport-error handler below, which keeps the entry and pauses the pass.
+                throw new Error("Network request failed (offline during image upload)");
+              } else {
+                deferImage = true;
+              }
+            }
           }
           // Validation columns are owned by the validate_ai_result() RPC (migration 0007) — strip
           // them defensively so a patient sync can never overwrite a dermatologist's review.
@@ -204,8 +271,15 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
             }
           };
 
+          let body: Record<string, unknown> = remotePayload;
+          if (deferImage) {
+            const { image_url: _pendingImage, ...rest } = body;
+            body = rest;
+          }
+          let keepQueued = deferImage;
+          let serverId: number | null;
           try {
-            await writeResultsRow(remotePayload);
+            serverId = await writeResultsRow(body);
           } catch (err) {
             if (!isMissingColumnError(err)) throw err;
             // Server predates migration 0007: push the core row now, keep
@@ -219,15 +293,33 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
               detection_label: _detectionLabel,
               survey_answers: _surveyAnswers,
               ...corePayload
-            } = remotePayload;
-            const serverId = await writeResultsRow(corePayload);
-            if (tempId !== null && serverId !== null) {
-              // The temp id was consumed by the insert above (local row remapped). Re-point the
-              // still-queued payload at the real id so the next pass upserts INTO that row instead
-              // of inserting a duplicate with a fresh server id.
+            } = body;
+            serverId = await writeResultsRow(corePayload);
+            keepQueued = true;
+          }
+
+          const rowId = serverId ?? (typeof payloadId === "number" ? payloadId : null);
+          if (uploadedImage && rowId !== null) {
+            // Point the local cache at the cloud copy too, so it survives the device file going away.
+            await db.runAsync(`UPDATE results SET image_url = ? WHERE id = ?`, [
+              uploadedImage,
+              rowId,
+            ]);
+          }
+
+          if (keepQueued) {
+            if (deferImage) {
+              console.warn(
+                `[sync] results entry ${entry.id}: image upload failed, row synced; image stays queued`,
+              );
+            }
+            // Re-point the still-queued payload at the real id (a temp id was consumed by the insert
+            // above, local row remapped) so the next pass upserts INTO that row instead of inserting
+            // a duplicate, and carry over an already-uploaded URL so it isn't uploaded twice.
+            if (rowId !== null) {
               await db.runAsync(`UPDATE sync_queue SET record_id = ?, payload = ? WHERE id = ?`, [
-                String(serverId),
-                JSON.stringify({ ...payload, id: serverId }),
+                String(rowId),
+                JSON.stringify({ ...payload, id: rowId }),
                 entry.id,
               ]);
             }
@@ -276,6 +368,10 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
               data.id,
               tempRoutineId,
             ]);
+            // Progress toggled while offline was queued with the temp id; without this it is sent
+            // with a routine id that doesn't exist server-side and fails on every pass, forever.
+            await remapQueuedRoutineProgress(db, tempRoutineId, data.id);
+            rememberRoutineRemap(tempRoutineId, data.id);
           }
           break;
         }
@@ -287,6 +383,31 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
             step: number;
             completed_date: string;
           };
+          if (payload.routine_id < 0) {
+            const realId = resolveRoutineId(payload.routine_id);
+            if (realId >= 0) {
+              // Toggled from a screen still holding the temp id after the routine synced.
+              await db.runAsync(`UPDATE routine_progress SET routine_id = ? WHERE routine_id = ?`, [
+                realId,
+                payload.routine_id,
+              ]);
+              payload.routine_id = realId;
+            } else {
+              const routinePending = await db.getFirstAsync<{ id: number }>(
+                `SELECT id FROM sync_queue WHERE table_name = 'routines' AND record_id = ? LIMIT 1`,
+                [String(payload.routine_id)],
+              );
+              if (routinePending) {
+                // The routine itself hasn't reached the server yet — keep this queued for later.
+                continue;
+              }
+              console.warn(
+                `[sync] dropping routine_progress entry ${entry.id}: routine ${payload.routine_id} never synced`,
+              );
+              await removeSyncEntry(entry.id);
+              continue;
+            }
+          }
           if (entry.operation === "delete") {
             const { error } = await supabase
               .from("routine_progress")

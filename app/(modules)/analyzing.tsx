@@ -22,7 +22,7 @@ import { getFaceIdentity } from "@/lib/db/profile";
 import {
   cosineSimilarity,
   FACE_MATCH_THRESHOLD,
-  getFaceEmbeddingCandidates,
+  getVerificationEmbedding,
   parseEmbedding,
 } from "@/utils/face-embeddings";
 import type { ClassificationResult } from "@/types/skin";
@@ -202,37 +202,30 @@ export default function Analyzing() {
       );
       if (stored && enrolled) {
         try {
-          // Score every crop candidate (center square + face-aware crop) and pass if ANY of them
-          // matches, so varied framing doesn't lock out genuine users.
-          let similarity = 0;
+          // EVERY photo must contain the enrolled face. Only the detected face region is compared
+          // (no whole-photo crops), and a photo with no detectable face counts as a mismatch.
           const analyzed = isMulti ? uris : [uris[0]];
           // Prefer the uncropped originals when they line up 1:1.
           const urisToCheck = originals.length === analyzed.length ? originals : analyzed;
-          for (const uri of urisToCheck) {
-            const live = await getFaceEmbeddingCandidates(uri);
+          let similarity = 1;
+          for (let i = 0; i < urisToCheck.length; i++) {
+            const live = await getVerificationEmbedding(urisToCheck[i]);
             if (cancelledRef.current) return;
-            for (const cand of live) {
-              similarity = Math.max(similarity, cosineSimilarity(cand, enrolled));
-            }
-          }
-          console.log(
-            `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity(raw)=`,
-            similarity.toFixed(3),
-            `threshold=`,
-            FACE_MATCH_THRESHOLD,
-          );
-          // Rescue attempt: harshly lit/low-quality captures sometimes score below threshold on the
-          // raw image.
-          if (similarity < FACE_MATCH_THRESHOLD && enhancedUris[0]) {
-            const rescued = await getFaceEmbeddingCandidates(enhancedUris[0]);
-            if (cancelledRef.current) return;
-            for (const cand of rescued) {
-              similarity = Math.max(similarity, cosineSimilarity(cand, enrolled));
+            let imageSim = live ? cosineSimilarity(live, enrolled) : 0;
+            // Rescue attempt for the same photo only: harshly lit captures sometimes score below
+            // threshold on the raw image.
+            if (imageSim < FACE_MATCH_THRESHOLD && enhancedUris[i]) {
+              const rescued = await getVerificationEmbedding(enhancedUris[i]);
+              if (cancelledRef.current) return;
+              if (rescued) imageSim = Math.max(imageSim, cosineSimilarity(rescued, enrolled));
             }
             console.log(
-              `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity(enhanced)=`,
-              similarity.toFixed(3),
+              `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity image ${i}=`,
+              imageSim.toFixed(3),
+              `faceFound=`,
+              !!live,
             );
+            similarity = Math.min(similarity, imageSim);
           }
           console.log(
             `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity=`,
@@ -259,11 +252,14 @@ export default function Analyzing() {
           }
           console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face verified`);
         } catch (e) {
+          // Fail closed: an error must never let an unverified face through.
           console.log(
-            `[SkinLens][Analyzing] ${new Date().toISOString()} face verification skipped (fail-open):`,
+            `[SkinLens][Analyzing] ${new Date().toISOString()} face verification failed (blocked):`,
             e,
           );
-          console.warn("[analyzing] face verification skipped:", e);
+          if (cancelledRef.current) return;
+          setError("We couldn't verify your face. Please try again.");
+          return;
         }
       }
       await new Promise((r) => setTimeout(r, 400));

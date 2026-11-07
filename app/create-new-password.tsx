@@ -118,7 +118,10 @@ export default function CreateNewPassword() {
               onPress={handleUpdatePassword}
               loading={loading}
             />
-            <SecondaryButton label="Cancel" onPress={() => router.back()} />
+            <SecondaryButton
+              label="Cancel"
+              onPress={() => (router.canGoBack() ? router.back() : router.replace("/welcome"))}
+            />
           </FadeItem>
         </View>
       </KeyboardAwareScroll>

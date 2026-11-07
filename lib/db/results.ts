@@ -1,4 +1,5 @@
 import type { RecommendedProduct, Result, ResultData } from "@/types/schema";
+import { isOnlineNow } from "@/utils/network";
 import { supabase } from "@/utils/supabase";
 
 import { requireUser } from "./auth";
@@ -311,7 +312,10 @@ export async function getLatestResultDetail(): Promise<ResultData | null> {
   };
 }
 
-export async function getAllResults(): Promise<Result[]> {
+export async function getAllResults(opts?: {
+  /** false when the caller follows up with refreshAllResults() itself (avoids a duplicate pull). */
+  backgroundRefresh?: boolean;
+}): Promise<Result[]> {
   const user = await requireUser();
   const db = await getDatabase();
 
@@ -364,7 +368,9 @@ export async function getAllResults(): Promise<Result[]> {
     }
   }
 
-  // Always try to refresh from server in background
+  if (rows.length === 0 || opts?.backgroundRefresh === false) return rows.map(rowToResult);
+
+  // Refresh from server in background
   swallow(
     (async () => {
       const { data, error } = await supabase
@@ -524,13 +530,24 @@ export async function insertResult(result: {
     console.log("[insertResult] image_url:", result.image_url, "user:", user.id);
   }
 
+  // Only an http(s) URL may reach the server row. A device path (failed Cloudinary upload, or a
+  // baseline face photo that never uploaded) is useless on any other install — and is gone from this
+  // one after logout wipes the cache — so it is kept locally and queued for upload instead.
+  const isRemote = (u: string | null | undefined): u is string =>
+    typeof u === "string" && /^https?:\/\//i.test(u);
+  const cloudImage = isRemote(result.image_url) ? result.image_url : null;
+  const localImage = cloudImage
+    ? null
+    : (result.local_image_uri ??
+      (result.image_url && !isRemote(result.image_url) ? result.image_url : null));
+
   // Full server payload: core columns plus the scan fields that used to be device-only.
   const serverPayload = {
     user_id: user.id,
     severity: result.severity,
     description: result.description,
     healthscore: result.healthscore,
-    image_url: result.image_url ?? null,
+    image_url: cloudImage,
     source_type: sourceType,
     recommendations: result.recommendations,
     confidence: result.confidence ?? null,
@@ -539,7 +556,11 @@ export async function insertResult(result: {
   };
 
   let serverResult: Result;
+  let needsFollowUpSync = false;
+  // Offline: go straight to the queued temp row instead of waiting out the request timeout.
+  const online = user.id !== "anonymous" && (await isOnlineNow());
   try {
+    if (!online) throw new Error("offline");
     let data: Record<string, unknown>;
     try {
       const res = await supabase
@@ -564,14 +585,19 @@ export async function insertResult(result: {
       data = res.data as Record<string, unknown>;
       // Queue the full payload under the real server id so confidence /
       // detection_label / survey_answers flow up on the next sync pass.
-      if (user.id !== "anonymous" && typeof data.id === "number") {
-        swallow(
-          enqueueSync("results", "upsert", String(data.id), {
-            id: data.id,
-            ...serverPayload,
-          }),
-        );
-      }
+      needsFollowUpSync = true;
+    }
+    // The row is on the server but its photo is not: queue it so the sync pass uploads the local
+    // file and patches image_url. Without this the image only ever existed in the local cache.
+    if (localImage) needsFollowUpSync = true;
+    if (needsFollowUpSync && user.id !== "anonymous" && typeof data.id === "number") {
+      // Must not throw: the outer catch would treat it as a failed insert and create a duplicate
+      // temp row for a scan that is already on the server.
+      await enqueueSync("results", "upsert", String(data.id), {
+        id: data.id,
+        ...serverPayload,
+        image_url: cloudImage ?? localImage,
+      }).catch((err) => console.warn("[insertResult] failed to queue follow-up sync:", err));
     }
     if (__DEV__) {
       console.log("[insertResult] Supabase insert success, id:", data.id);
@@ -583,7 +609,7 @@ export async function insertResult(result: {
       survey_answers: result.survey_answers ?? null,
     };
   } catch (err) {
-    console.warn("[insertResult] Supabase insert failed, queuing for sync:", err);
+    if (online) console.warn("[insertResult] Supabase insert failed, queuing for sync:", err);
     const tempId = await getNextTempId();
     serverResult = {
       id: tempId,
@@ -591,7 +617,7 @@ export async function insertResult(result: {
       severity: result.severity,
       description: result.description,
       healthscore: result.healthscore,
-      image_url: result.image_url ?? null,
+      image_url: cloudImage,
       source_type: sourceType,
       recommendations: result.recommendations,
       created_at: now(),
@@ -608,7 +634,7 @@ export async function insertResult(result: {
         severity: result.severity,
         description: result.description,
         healthscore: result.healthscore,
-        image_url: result.image_url ?? result.local_image_uri ?? null,
+        image_url: cloudImage ?? localImage,
         source_type: sourceType,
         recommendations: result.recommendations,
         confidence: result.confidence ?? null,
@@ -618,7 +644,7 @@ export async function insertResult(result: {
     }
   }
 
-  const localImageUrl = serverResult.image_url ?? result.local_image_uri ?? null;
+  const localImageUrl = serverResult.image_url ?? localImage;
 
   await db.runAsync(UPSERT_RESULT_SQL, [
     serverResult.id,

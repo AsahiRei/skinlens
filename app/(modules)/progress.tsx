@@ -21,7 +21,8 @@ import { BackHeader, ClinicalCard, EmptyState, Pill, SectionTitle } from "@/comp
 import { theme } from "@/lib/theme";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
-import { getAllResults, getThisWeekResults, getUserProfile, refreshAllResults } from "@/lib/db";
+import { getAllResults, getUserProfile, refreshAllResults } from "@/lib/db";
+import { isOnlineNow } from "@/utils/network";
 import type { Result } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 import { generateWeeklySummary, getCachedWeeklySummary } from "@/utils/weekly-summary";
@@ -69,6 +70,12 @@ function toTime(dateStr: string): number {
     .replace(/([+-]\d{2})$/, "$1:00");
   const t = new Date(normalized).getTime();
   return Number.isNaN(t) ? 0 : t;
+}
+
+// Same window as getThisWeekResults (last 7 days), computed from rows already loaded.
+function filterThisWeek(results: Result[]): Result[] {
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  return results.filter((r) => toTime(r.created_at) >= weekAgo);
 }
 
 // Trend charts are fixed-size, so cap them to the most recent N scan-days.
@@ -362,22 +369,28 @@ export default function Progress() {
 
   const fetchData = async () => {
     try {
-      // Paint the cached history immediately...
-      const [all, week, profile] = await Promise.all([
-        getAllResults(),
-        getThisWeekResults(),
+      // Paint the cached history immediately. The week list is derived from the same rows rather
+      // than a second query (each of which used to fire its own background server pull).
+      const [all, profile] = await Promise.all([
+        getAllResults({ backgroundRefresh: false }),
         getUserProfile().catch(() => null),
       ]);
       setAllResults(all);
-      setWeekResults(week);
+      setWeekResults(filterThisWeek(all));
       setProfileImage(profile?.face_image_url ?? null);
       setLoading(false);
+      // Offline: the cache is all there is — skip a pull that would only time out.
+      if (!(await isOnlineNow())) return;
       // ...then wait for the server pull. The cache can hold only part of the
       // history (e.g. just today's scan), which hid "Before vs. Today" until
       // the next visit because the background refresh never re-rendered.
       const fresh = await refreshAllResults();
-      if (fresh.length !== all.length || fresh.some((r, i) => r.id !== all[i]?.id)) {
+      if (
+        fresh.length !== all.length ||
+        fresh.some((r, i) => r.id !== all[i]?.id || r.image_url !== all[i]?.image_url)
+      ) {
         setAllResults(fresh);
+        setWeekResults(filterThisWeek(fresh));
       }
     } catch (err) {
       console.error("Error fetching progress data:", err);
@@ -696,7 +709,7 @@ export default function Progress() {
                             {result.confidence ? `${Math.round(result.confidence * 100)}` : "—"}
                           </Text>
                         </View>
-                        <View className="flex-col">
+                        <View className="flex-col flex-1 pr-2">
                           <Text className="font-bold text-sm" style={{ color: theme.colors.ink }}>
                             {label} Detection · {dayLabel}
                           </Text>
@@ -717,6 +730,13 @@ export default function Progress() {
                               {result.validation_status === "confirmed"
                                 ? "Dermatologist confirmed"
                                 : "Flagged for follow-up"}
+                            </Text>
+                          ) : null}
+                          {(result.validation_status === "confirmed" ||
+                            result.validation_status === "needs_review") &&
+                          result.doctor_notes ? (
+                            <Text className="text-xs mt-0.5" style={{ color: theme.colors.body }}>
+                              Dermatologist note: {result.doctor_notes}
                             </Text>
                           ) : null}
                         </View>

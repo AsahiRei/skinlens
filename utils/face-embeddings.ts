@@ -17,7 +17,7 @@ const FACE_SIZE = 112;
 const EMBEDDING_DIM = 192;
 
 // Cosine similarity threshold for "same person".
-export const FACE_MATCH_THRESHOLD = 0.45;
+export const FACE_MATCH_THRESHOLD = 0.65;
 
 let faceModel: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 
@@ -160,25 +160,25 @@ export async function getFaceEmbedding(imageUri: string): Promise<number[]> {
   return embedding;
 }
 
-// Embeddings for every reasonable crop of the image (legacy center square + face-aware crop).
-export async function getFaceEmbeddingCandidates(imageUri: string): Promise<number[][]> {
-  console.log(`[SkinLens][FaceID] ${new Date().toISOString()} getFaceEmbeddingCandidates start`);
+// Embedding of the detected face only, for verification. Returns null when no face is found:
+// a center crop of the whole photo is dominated by background/lighting and lets different
+// people in the same setting score as a match, so it must never be used for verification.
+export async function getVerificationEmbedding(imageUri: string): Promise<number[] | null> {
+  console.log(`[SkinLens][FaceID] ${new Date().toISOString()} getVerificationEmbedding start`);
   const t0 = Date.now();
   await getFaceModel();
   const dims = await tryGetImageSize(imageUri);
   const faceCrop = dims ? detectFaceCropRect(imageUri, dims.width, dims.height) : null;
-  const candidates: number[][] = [];
-  const centerCropped = await decodeToPixels(imageUri, null);
-  candidates.push(await embeddingFromPixels(centerCropped));
-  if (faceCrop) {
-    const faceCropped = await decodeToPixels(imageUri, faceCrop);
-    candidates.push(await embeddingFromPixels(faceCropped));
+  if (!faceCrop) {
+    console.log(`[SkinLens][FaceID] ${new Date().toISOString()} getVerificationEmbedding no face`);
+    return null;
   }
+  const decoded = await decodeToPixels(imageUri, faceCrop);
+  const embedding = await embeddingFromPixels(decoded);
   console.log(
-    `[SkinLens][FaceID] ${new Date().toISOString()} getFaceEmbeddingCandidates done in ${Date.now() - t0}ms count=`,
-    candidates.length,
+    `[SkinLens][FaceID] ${new Date().toISOString()} getVerificationEmbedding done in ${Date.now() - t0}ms`,
   );
-  return candidates;
+  return embedding;
 }
 
 export function cosineSimilarity(a: number[], b: number[]): number {

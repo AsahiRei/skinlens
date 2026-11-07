@@ -32,6 +32,26 @@ export async function hasPendingSync(tableName: string, recordId: string): Promi
   return row != null;
 }
 
+/** Number of writes still waiting to reach the server (logout uses it to warn before wiping). */
+export async function countPendingSync(): Promise<number> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM sync_queue`);
+  return row?.n ?? 0;
+}
+
+// Offline-created routines get a negative temp id that the sync pass swaps for the server id. Screens
+// that loaded the routine before the swap still hold the temp id, so writes made with it are
+// translated here (in-memory is enough: a fresh launch reloads the routine with its real id).
+const routineIdRemap = new Map<number, number>();
+
+export function rememberRoutineRemap(tempId: number, realId: number): void {
+  routineIdRemap.set(tempId, realId);
+}
+
+export function resolveRoutineId(id: number): number {
+  return routineIdRemap.get(id) ?? id;
+}
+
 export async function dequeueSync(): Promise<
   {
     id: number;

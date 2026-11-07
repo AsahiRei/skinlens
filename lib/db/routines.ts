@@ -1,10 +1,11 @@
 import type { Period, Routine } from "@/types/schema";
 import { getTodayStr } from "@/utils/date";
+import { isOnlineNow } from "@/utils/network";
 import { supabase } from "@/utils/supabase";
 
 import { requireUser } from "./auth";
 import { getDatabase } from "./database";
-import { enqueueSync } from "./sync-queue";
+import { enqueueSync, resolveRoutineId } from "./sync-queue";
 
 function now() {
   return new Date().toISOString();
@@ -17,12 +18,12 @@ function swallow(p: PromiseLike<unknown>) {
 // Monotonic negative temp ids for routines created while the server insert fails.
 let nextTempId: number | null = null;
 
-async function getNextTempId(userId: string): Promise<number> {
+// Scoped to the whole table: `id` is the primary key shared by every user's rows.
+async function getNextTempId(): Promise<number> {
   if (nextTempId === null) {
     const db = await getDatabase();
     const row = await db.getFirstAsync<{ min_id: number | null }>(
-      `SELECT MIN(id) as min_id FROM routines WHERE user_id = ?`,
-      [userId],
+      `SELECT MIN(id) as min_id FROM routines`,
     );
     nextTempId = Math.min(row?.min_id ?? 0, 0);
   }
@@ -41,9 +42,12 @@ export async function getLatestRoutine(): Promise<{
     id: number;
     user_id: string;
     routine_json: string;
-  }>(`SELECT id, user_id, routine_json FROM routines WHERE user_id = ? ORDER BY id DESC LIMIT 1`, [
-    user.id,
-  ]);
+  }>(
+    // Not `ORDER BY id`: a routine created offline has a negative temp id and would lose to any
+    // older server row.
+    `SELECT id, user_id, routine_json FROM routines WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [user.id],
+  );
 
   if (local) {
     // Refresh in background
@@ -51,7 +55,7 @@ export async function getLatestRoutine(): Promise<{
       (async () => {
         const { data } = await supabase
           .from("routines")
-          .select("id, routine_json")
+          .select("id, routine_json, created_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -60,7 +64,7 @@ export async function getLatestRoutine(): Promise<{
           await db.runAsync(
             `INSERT OR REPLACE INTO routines (id, user_id, source_type, routine_json, created_at, synced_at)
              VALUES (?, ?, 'rule_based', ?, ?, ?)`,
-            [data.id, user.id, data.routine_json, now(), now()],
+            [data.id, user.id, data.routine_json, data.created_at ?? now(), now()],
           );
         }
       })(),
@@ -71,7 +75,7 @@ export async function getLatestRoutine(): Promise<{
   try {
     const { data, error } = await supabase
       .from("routines")
-      .select("id, routine_json")
+      .select("id, routine_json, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -82,7 +86,7 @@ export async function getLatestRoutine(): Promise<{
     await db.runAsync(
       `INSERT OR REPLACE INTO routines (id, user_id, source_type, routine_json, created_at, synced_at)
        VALUES (?, ?, 'rule_based', ?, ?, ?)`,
-      [data.id, user.id, data.routine_json, now(), now()],
+      [data.id, user.id, data.routine_json, data.created_at ?? now(), now()],
     );
     return { id: data.id, routine: JSON.parse(data.routine_json) };
   } catch {
@@ -96,7 +100,10 @@ export async function insertRoutine(routineJson: string): Promise<void> {
 
   // Try server first to get the real id
   let serverId: number | null = null;
+  let synced = true;
   try {
+    // Offline: go straight to the queued temp row instead of waiting out the request timeout.
+    if (!(await isOnlineNow())) throw new Error("offline");
     const { data, error } = await supabase
       .from("routines")
       .insert({
@@ -110,7 +117,8 @@ export async function insertRoutine(routineJson: string): Promise<void> {
     serverId = data.id;
   } catch {
     // Offline — generate a temp negative id
-    serverId = await getNextTempId(user.id);
+    synced = false;
+    serverId = await getNextTempId();
     await enqueueSync("routines", "insert", String(serverId), {
       user_id: user.id,
       source_type: "rule_based",
@@ -121,11 +129,12 @@ export async function insertRoutine(routineJson: string): Promise<void> {
   await db.runAsync(
     `INSERT OR REPLACE INTO routines (id, user_id, source_type, routine_json, created_at, synced_at)
      VALUES (?, ?, 'rule_based', ?, ?, ?)`,
-    [serverId!, user.id, routineJson, now(), now()],
+    [serverId!, user.id, routineJson, now(), synced ? now() : null],
   );
 }
 
-export async function getTodayProgress(routineId: number): Promise<Set<string>> {
+export async function getTodayProgress(rawRoutineId: number): Promise<Set<string>> {
+  const routineId = resolveRoutineId(rawRoutineId);
   const user = await requireUser();
   const db = await getDatabase();
   const todayStr = getTodayStr();
@@ -138,7 +147,7 @@ export async function getTodayProgress(routineId: number): Promise<Set<string>> 
     [user.id, routineId, todayStr],
   );
 
-  if (local.length === 0) {
+  if (local.length === 0 && routineId > 0) {
     // No local progress — fetch from server and cache it
     swallow(
       (async () => {
@@ -165,7 +174,7 @@ export async function getTodayProgress(routineId: number): Promise<Set<string>> 
 }
 
 export async function toggleStep(
-  routineId: number,
+  rawRoutineId: number,
   period: Period,
   step: number,
   isCurrentlyDone: boolean,
@@ -174,6 +183,10 @@ export async function toggleStep(
   const db = await getDatabase();
   const todayStr = getTodayStr();
   const key = `${period}-${step}`;
+  // The screen may still hold an offline temp id that the sync pass has since replaced.
+  const routineId = resolveRoutineId(rawRoutineId);
+  // A temp routine doesn't exist server-side yet: the queued write goes up after it does.
+  const tryInline = routineId > 0 && (await isOnlineNow());
 
   if (isCurrentlyDone) {
     // Optimistic: remove from local
@@ -190,18 +203,20 @@ export async function toggleStep(
       completed_date: todayStr,
     });
 
-    try {
-      const { error } = await supabase
-        .from("routine_progress")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("routine_id", routineId)
-        .eq("period", period)
-        .eq("step", step)
-        .eq("completed_date", todayStr);
-      if (error) throw error;
-    } catch {
-      // Will be retried
+    if (tryInline) {
+      try {
+        const { error } = await supabase
+          .from("routine_progress")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("routine_id", routineId)
+          .eq("period", period)
+          .eq("step", step)
+          .eq("completed_date", todayStr);
+        if (error) throw error;
+      } catch {
+        // Will be retried
+      }
     }
   } else {
     // Optimistic: add to local
@@ -219,20 +234,22 @@ export async function toggleStep(
       completed_date: todayStr,
     });
 
-    try {
-      const { error } = await supabase.from("routine_progress").upsert(
-        {
-          user_id: user.id,
-          routine_id: routineId,
-          period,
-          step,
-          completed_date: todayStr,
-        },
-        { onConflict: "user_id,routine_id,period,step,completed_date" },
-      );
-      if (error) throw error;
-    } catch {
-      // Will be retried
+    if (tryInline) {
+      try {
+        const { error } = await supabase.from("routine_progress").upsert(
+          {
+            user_id: user.id,
+            routine_id: routineId,
+            period,
+            step,
+            completed_date: todayStr,
+          },
+          { onConflict: "user_id,routine_id,period,step,completed_date" },
+        );
+        if (error) throw error;
+      } catch {
+        // Will be retried
+      }
     }
   }
 }

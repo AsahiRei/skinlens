@@ -5,6 +5,13 @@ import { useRouter } from "expo-router";
 import { UiModal } from "@/components/ui";
 import { supabase } from "@/utils/supabase";
 import { clearLocalUserData } from "@/lib/db/auth";
+import { processSyncQueue } from "@/lib/db/sync";
+import { countPendingSync } from "@/lib/db/sync-queue";
+import { isOnlineNow } from "@/utils/network";
+
+// Upper bound on how long logout waits for pending writes (e.g. scan photos still waiting to
+// upload) to reach the server before the local copy is wiped.
+const LOGOUT_SYNC_TIMEOUT_MS = 15000;
 
 type LogoutModalProps = {
   isVisible: boolean;
@@ -13,12 +20,39 @@ type LogoutModalProps = {
 
 export default function LogoutModal({ isVisible, setVisible }: LogoutModalProps) {
   const [loading, setLoading] = useState(false);
+  // Set once the user has been told that logging out now drops unsynced data.
+  const [unsyncedWarning, setUnsyncedWarning] = useState<string | null>(null);
   const router = useRouter();
   const close = () => {
-    if (!loading) setVisible(false);
+    if (loading) return;
+    setUnsyncedWarning(null);
+    setVisible(false);
   };
   const logout = async () => {
     setLoading(true);
+    // clearLocalUserData deletes the sync queue, so anything not yet pushed (scans saved offline or
+    // whose photo upload failed) would be lost for good. Flush it while the session is still valid.
+    if (!unsyncedWarning) {
+      try {
+        if (await isOnlineNow()) {
+          await Promise.race([
+            processSyncQueue(),
+            new Promise((resolve) => setTimeout(resolve, LOGOUT_SYNC_TIMEOUT_MS)),
+          ]);
+        }
+        const pending = await countPendingSync();
+        if (pending > 0) {
+          // Offline (or the flush failed): ask before throwing those changes away.
+          setUnsyncedWarning(
+            `${pending} change${pending === 1 ? "" : "s"} (like scans and their photos) haven't synced yet and will be lost if you log out now. Connect to the internet and try again to keep them.`,
+          );
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn("[logout] pre-logout sync failed:", err);
+      }
+    }
     try {
       // Global sign-out revokes the server session, but it fails offline (or when the account was
       // already deleted). Fall back to local scope so the user is never stuck logged in.
@@ -40,6 +74,7 @@ export default function LogoutModal({ isVisible, setVisible }: LogoutModalProps)
         ToastAndroid.show("Couldn't log out. Please try again.", ToastAndroid.SHORT);
       }
     } finally {
+      setUnsyncedWarning(null);
       setLoading(false);
     }
   };
@@ -47,12 +82,12 @@ export default function LogoutModal({ isVisible, setVisible }: LogoutModalProps)
     <UiModal
       visible={isVisible}
       onDismiss={close}
-      title="Log out?"
-      message="Are you sure you want to log out of SkinLens?"
+      title={unsyncedWarning ? "Unsynced data" : "Log out?"}
+      message={unsyncedWarning ?? "Are you sure you want to log out of SkinLens?"}
       dismissOnBackdrop={!loading}
       actions={[
         {
-          label: "Log out",
+          label: unsyncedWarning ? "Log out anyway" : "Log out",
           kind: "danger",
           loading,
           onPress: () => void logout(),

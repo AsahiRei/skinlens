@@ -22,7 +22,7 @@ import { theme } from "@/lib/theme";
 import { ReauthGate } from "@/components/ReauthGate";
 import { getFaceIdentity, saveFaceIdentity } from "@/lib/db";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
-import { embeddingToJson, getFaceEmbedding } from "@/utils/face-embeddings";
+import { embeddingToJson, getVerificationEmbedding } from "@/utils/face-embeddings";
 import { evaluateAlignment, getAlignmentGuidance } from "@/utils/face-quality";
 
 // Module-level on purpose: usePhotoOutput memoizes on targetResolution by reference.
@@ -243,7 +243,12 @@ export default function FaceEnroll() {
     setSaving(true);
     try {
       const uri = "file://" + filePath;
-      const embedding = await getFaceEmbedding(uri);
+      // Same face-only crop the scan check compares against: a center-crop fallback here would
+      // enroll an embedding that never matches at verification time.
+      const embedding = await getVerificationEmbedding(uri);
+      if (!embedding) {
+        throw new Error("We couldn't find your face in that photo. Please retake it.");
+      }
       const cloudUrl = await uploadImageToCloudinary(uri, 2, "skinlens/faces");
       await saveFaceIdentity({
         face_image_url: cloudUrl ?? uri,

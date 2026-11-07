@@ -32,7 +32,18 @@ async function getSignature(kind: UploadKind): Promise<SignedParams | null> {
     body: { action: "sign", kind },
   });
   if (error || !data?.signature) {
-    console.warn("[Cloudinary] signing unavailable:", error?.message ?? "no signature");
+    // FunctionsHttpError carries the Response; surface status + body (e.g. 404 = not deployed,
+    // 500 = secrets missing, 401 = no session) instead of the generic "non-2xx" message.
+    let detail = error?.message ?? "no signature";
+    const res = (error as { context?: Response } | null)?.context;
+    if (res && typeof res.text === "function") {
+      try {
+        detail = `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
+      } catch {
+        // keep the generic message
+      }
+    }
+    console.warn("[Cloudinary] signing unavailable:", detail);
     return null;
   }
   return data;

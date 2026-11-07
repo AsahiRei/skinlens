@@ -780,6 +780,17 @@ export default function Home() {
                           : "Flagged for follow-up"}
                       </Text>
                     ) : null}
+                    {(result.validation_status === "confirmed" ||
+                      result.validation_status === "needs_review") &&
+                    result.doctor_notes ? (
+                      <Text
+                        className="text-xs mt-0.5"
+                        style={{ color: theme.colors.body }}
+                        numberOfLines={3}
+                      >
+                        Dermatologist note: {result.doctor_notes}
+                      </Text>
+                    ) : null}
                   </View>
                   <Pressable
                     className="active:opacity-70 p-2 -m-2"

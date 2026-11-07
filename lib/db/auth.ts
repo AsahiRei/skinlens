@@ -90,13 +90,22 @@ export async function deleteMyAccount(): Promise<void> {
 
 export type ReauthMethod = "password" | "google";
 
-export async function getReauthMethod(): Promise<ReauthMethod> {
+/**
+ * Every way this account can prove it's the owner. An account that signed up with email/password
+ * and also signed in with Google using the same address has both identities linked (Supabase links
+ * matching verified emails), so either one is accepted — the user may not remember a password
+ * they no longer use.
+ */
+export async function getReauthMethods(): Promise<ReauthMethod[]> {
   const user = await requireUser();
   const providers =
     (user.app_metadata?.providers as string[] | undefined) ??
     [user.app_metadata?.provider as string | undefined].filter((p): p is string => !!p);
+  const methods: ReauthMethod[] = [];
   // Accounts with an email identity have a password; Google-only accounts don't.
-  return providers.includes("email") || providers.length === 0 ? "password" : "google";
+  if (providers.includes("email") || providers.length === 0) methods.push("password");
+  if (providers.includes("google")) methods.push("google");
+  return methods.length > 0 ? methods : ["password"];
 }
 
 export async function reauthenticateWithPassword(password: string): Promise<void> {

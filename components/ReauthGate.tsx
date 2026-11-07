@@ -10,7 +10,7 @@ import { PrimaryButton } from "@/components/ui";
 import { useNetwork } from "@/hooks/useNetwork";
 import { theme } from "@/lib/theme";
 import {
-  getReauthMethod,
+  getReauthMethods,
   reauthenticateWithGoogle,
   reauthenticateWithPassword,
   type ReauthMethod,
@@ -26,29 +26,33 @@ type ReauthGateProps = {
 /** Full-screen "confirm it's you" step shown before a sensitive account change. */
 export function ReauthGate({ title, message, onVerified, onCancel }: ReauthGateProps) {
   const { isConnected } = useNetwork();
-  const [method, setMethod] = useState<ReauthMethod | null>(null);
+  const [methods, setMethods] = useState<ReauthMethod[] | null>(null);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
+  // Which method is in flight, so only that button shows a spinner.
+  const [busy, setBusy] = useState<ReauthMethod | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getReauthMethod()
-      .then((m) => !cancelled && setMethod(m))
+    getReauthMethods()
+      .then((m) => !cancelled && setMethods(m))
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const verify = async () => {
-    if (busy || !method) return;
+  const hasPassword = !!methods?.includes("password");
+  const hasGoogle = !!methods?.includes("google");
+
+  const verify = async (method: ReauthMethod) => {
+    if (busy) return;
     if (!isConnected) {
       setError("Connect to the internet to verify it's you.");
       return;
     }
-    setBusy(true);
+    setBusy(method);
     setError(null);
     try {
       if (method === "password") await reauthenticateWithPassword(password);
@@ -58,7 +62,7 @@ export function ReauthGate({ title, message, onVerified, onCancel }: ReauthGateP
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't verify. Please try again.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -74,9 +78,9 @@ export function ReauthGate({ title, message, onVerified, onCancel }: ReauthGateP
         </Text>
 
         <View className="mt-6 gap-2">
-          {method === null && !error ? (
+          {methods === null && !error ? (
             <ActivityIndicator color={theme.colors.primary} />
-          ) : method === "password" ? (
+          ) : hasPassword ? (
             <>
               <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>
                 Password
@@ -99,8 +103,9 @@ export function ReauthGate({ title, message, onVerified, onCancel }: ReauthGateP
                   placeholderTextColor={theme.colors.faint}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
-                  autoFocus
-                  onSubmitEditing={verify}
+                  // With Google also offered, an auto-opened keyboard would hide that button.
+                  autoFocus={!hasGoogle}
+                  onSubmitEditing={() => void verify("password")}
                   returnKeyType="done"
                 />
                 <Pressable
@@ -116,7 +121,7 @@ export function ReauthGate({ title, message, onVerified, onCancel }: ReauthGateP
                 </Pressable>
               </View>
             </>
-          ) : method === "google" ? (
+          ) : hasGoogle ? (
             <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>
               Sign in again with the Google account you use for SkinLens.
             </Text>
@@ -132,15 +137,32 @@ export function ReauthGate({ title, message, onVerified, onCancel }: ReauthGateP
         <View className="flex-1" />
 
         <View className="gap-3 mt-6">
-          {method === "google" ? (
+          {hasPassword || methods === null ? (
+            <PrimaryButton
+              label="Verify"
+              onPress={() => void verify("password")}
+              loading={busy === "password"}
+              disabled={methods === null || busy !== null}
+            />
+          ) : null}
+          {hasPassword && hasGoogle ? (
+            <View className="flex-row items-center gap-3">
+              <View className="flex-1 h-px" style={{ backgroundColor: theme.colors.cardBorder }} />
+              <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                or
+              </Text>
+              <View className="flex-1 h-px" style={{ backgroundColor: theme.colors.cardBorder }} />
+            </View>
+          ) : null}
+          {hasGoogle ? (
             <Pressable
               className="bg-white p-4 rounded-full active:opacity-80"
               style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-              onPress={verify}
-              disabled={busy}
+              onPress={() => void verify("google")}
+              disabled={busy !== null}
             >
               <View className="flex-row justify-center items-center gap-2">
-                {busy ? (
+                {busy === "google" ? (
                   <ActivityIndicator color={theme.colors.primary} />
                 ) : (
                   <Image
@@ -153,14 +175,7 @@ export function ReauthGate({ title, message, onVerified, onCancel }: ReauthGateP
                 </Text>
               </View>
             </Pressable>
-          ) : (
-            <PrimaryButton
-              label="Verify"
-              onPress={verify}
-              loading={busy}
-              disabled={method === null}
-            />
-          )}
+          ) : null}
           <Pressable onPress={onCancel} className="active:opacity-70 items-center py-2">
             <Text className="text-sm font-semibold" style={{ color: theme.colors.faint }}>
               Cancel

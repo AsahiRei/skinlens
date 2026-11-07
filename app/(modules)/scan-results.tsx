@@ -18,7 +18,9 @@ import {
   insertRoutine,
 } from "@/lib/db";
 import type { ResultData } from "@/types/schema";
+import { requestSync } from "@/components/SyncManager";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
+import { isOnlineNow } from "@/utils/network";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { ingredientsAvoidedBySensitivity } from "@/utils/knowledge";
 import { generateRoutine } from "@/utils/routine-generator";
@@ -221,7 +223,11 @@ export default function ScanResults() {
     try {
       await insertRoutine(routineJsonRef.current);
 
-      const cloudinaryUrl = decodedUri ? await uploadImageToCloudinary(decodedUri) : null;
+      // Offline: don't block the save on an upload that can't succeed — insertResult queues the
+      // local photo and the sync pass uploads it on reconnect.
+      const online = decodedUri ? await isOnlineNow() : false;
+      const cloudinaryUrl =
+        decodedUri && online ? await uploadImageToCloudinary(decodedUri, 1) : null;
       if (cloudinaryUrl) {
         showNotice("Image uploaded to cloud");
       }
@@ -238,6 +244,9 @@ export default function ScanResults() {
         detection_label: detectionLabel,
         survey_answers: JSON.stringify(parsedSurveyAnswers),
       });
+      // Online but the upload failed (transient error): retry from the queue now instead of
+      // waiting for the next reconnect / foreground.
+      if (decodedUri && online && !cloudinaryUrl) requestSync();
       router.replace("/(tabs)/scan");
     } catch (e) {
       console.error("[scan-results] Save error:", e);
