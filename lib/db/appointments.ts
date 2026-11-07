@@ -1,18 +1,9 @@
 import { supabase } from "@/utils/supabase";
 
 import { requireUser } from "./auth";
-import {
-  isDuplicateKeyError,
-  isMissingColumnError,
-  isMissingFunctionError,
-} from "./pg-errors";
+import { isDuplicateKeyError, isMissingColumnError, isMissingFunctionError } from "./pg-errors";
 
-export type AppointmentStatus =
-  | "requested"
-  | "scheduled"
-  | "completed"
-  | "cancelled"
-  | "declined";
+export type AppointmentStatus = "requested" | "scheduled" | "completed" | "cancelled" | "declined";
 
 export type DoctorRow = {
   user_id: string;
@@ -28,13 +19,9 @@ export type AppointmentRow = {
   clinic_id: string;
   doctor_id: string | null;
   report_pdf_path: string | null;
-  /** Snapshot of the patient's display name at booking time (0005 migration).
-   * Lets the doctor queue show a name without needing user_profile access.
-   * Null on rows booked before the migration was applied. */
+  /** Snapshot of the patient's display name at booking time (0005 migration). */
   patient_name: string | null;
-  /** Snapshot of the patient's remote profile-photo URL at booking time
-   * (0006 migration). Only http(s) URLs are stored — local file:// photos
-   * can't be shown on another device. */
+  /** Snapshot of the patient's remote profile-photo URL at booking time (0006 migration). */
   patient_avatar_url: string | null;
   preferred_time: string | null;
   scheduled_at: string | null;
@@ -62,16 +49,12 @@ export async function getUserRole(): Promise<"patient" | "doctor"> {
     .eq("id", user.id)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data as { role?: string } | null)?.role === "doctor"
-    ? "doctor"
-    : "patient";
+  return (data as { role?: string } | null)?.role === "doctor" ? "doctor" : "patient";
 }
 
 /**
- * Read-only invite-code check (0014 migration) — run BEFORE signUp so a bad
- * code never creates an orphan auth account. Does not burn a use.
- * Returns null when the server doesn't have the function yet (migration not
- * applied) so registration degrades to the old redeem-after-signup flow.
+ * Read-only invite-code check (0014 migration) — run BEFORE signUp so a bad code never creates an
+ * orphan auth account.
  */
 export async function checkInviteCode(
   code: string,
@@ -92,10 +75,8 @@ export async function checkInviteCode(
 }
 
 /**
- * A doctor sign-up whose invite code hasn't been redeemed yet (email
- * confirmation was pending, or the redeem failed). Stored in auth
- * user_metadata at signUp so it survives across devices/sign-ins; the
- * server still validates the code, so this is only a routing hint.
+ * A doctor sign-up whose invite code hasn't been redeemed yet (email confirmation was pending, or
+ * the redeem failed).
  */
 export type PendingDoctorSignup = { inviteCode: string; displayName: string };
 
@@ -119,11 +100,7 @@ export async function clearPendingDoctorSignup(): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/**
- * Doctor self-registration (mirrors redeem_clinic_code in 0002 migration).
- * Call AFTER signUp + user_profile insert, while signed in.
- * Returns the clinic the code tied the doctor to.
- */
+/** Doctor self-registration (mirrors redeem_clinic_code in 0002 migration). */
 export async function redeemInviteCode(
   code: string,
   displayName: string,
@@ -176,7 +153,12 @@ export async function getMyDoctorProfile(): Promise<DoctorProfile | null> {
       clinicAddress = row.address?.trim() ?? "";
       const lat = Number(row.latitude);
       const lng = Number(row.longitude);
-      if (row.latitude != null && row.longitude != null && Number.isFinite(lat) && Number.isFinite(lng)) {
+      if (
+        row.latitude != null &&
+        row.longitude != null &&
+        Number.isFinite(lat) &&
+        Number.isFinite(lng)
+      ) {
         clinicLatitude = lat;
         clinicLongitude = lng;
       }
@@ -211,18 +193,14 @@ export async function updateMyDoctorProfile(input: {
   });
   if (error) {
     if (/function .*update_my_doctor_profile/i.test(error.message)) {
-      throw new Error(
-        "Profile editing isn't set up on the server yet (migration 0011).",
-      );
+      throw new Error("Profile editing isn't set up on the server yet (migration 0011).");
     }
     throw new Error(error.message);
   }
 }
 
 /** Active doctors of one verified clinic (for the booking doctor picker). */
-export async function getDoctorsForClinic(
-  clinicId: string,
-): Promise<DoctorRow[]> {
+export async function getDoctorsForClinic(clinicId: string): Promise<DoctorRow[]> {
   const { data, error } = await supabase
     .from("doctors")
     .select("user_id, clinic_id, display_name, specialty, is_active")
@@ -246,9 +224,8 @@ export async function requestAppointment(input: {
    * Ignored when null. */
   patientAvatarUrl?: string | null;
 }): Promise<AppointmentRow> {
-  // Hard backstop (the booking screen already blocks this with a modal):
-  // never persist a preferred slot that has already passed — the picked
-  // value can go stale while the form sits open.
+  // Hard backstop (the booking screen already blocks this with a modal): never persist a preferred
+  // slot that has already passed — the picked value can go stale while the form sits open.
   if (input.preferredTime) {
     const at = Date.parse(input.preferredTime);
     if (Number.isFinite(at) && at <= Date.now()) {
@@ -264,9 +241,8 @@ export async function requestAppointment(input: {
     report_pdf_path: input.reportPdfPath ?? null,
     status: "requested",
   };
-  // Prefer storing the snapshots (0005/0006 migrations). When a migration
-  // hasn't been applied yet its column doesn't exist — retry with fewer
-  // extras so booking never breaks.
+  // Prefer storing the snapshots (0005/0006 migrations). When a migration hasn't been applied yet
+  // its column doesn't exist — retry with fewer extras so booking never breaks.
   const attempts: Record<string, string>[] = [{}];
   if (input.patientName) {
     attempts.unshift({ patient_name: input.patientName });
@@ -287,23 +263,16 @@ export async function requestAppointment(input: {
     if (!error) return data as AppointmentRow;
     if (!isMissingColumnError(error)) throw new Error(error.message);
     lastError = error.message;
-    console.warn(
-      "[appointments] snapshot column missing, retrying with less:",
-      error.message,
-    );
+    console.warn("[appointments] snapshot column missing, retrying with less:", error.message);
   }
   throw new Error(lastError || "Couldn't create the appointment.");
 }
 
 /**
- * Patient attaches the generated Skin Report PDF path to their own
- * appointment row (RLS: patient update own). Called right after the
- * PDF is uploaded to the `reports/<uid>/<appointment_id>.pdf` key.
+ * Patient attaches the generated Skin Report PDF path to their own appointment row (RLS: patient
+ * update own).
  */
-export async function attachReportToAppointment(
-  id: string,
-  reportPath: string,
-): Promise<void> {
+export async function attachReportToAppointment(id: string, reportPath: string): Promise<void> {
   const user = await requireUser();
   const { error } = await supabase
     .from("appointments")
@@ -337,13 +306,8 @@ export async function cancelAppointment(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/**
- * Doctor's queue: every appointment at THEIR clinic (RLS: doctor select own
- * clinic). Patient/doctor display names are resolved by the caller.
- */
-export async function getClinicAppointments(
-  clinicId: string,
-): Promise<AppointmentRow[]> {
+/** Doctor's queue: every appointment at THEIR clinic (RLS: doctor select own clinic). */
+export async function getClinicAppointments(clinicId: string): Promise<AppointmentRow[]> {
   const { data, error } = await supabase
     .from("appointments")
     .select("*")
@@ -358,21 +322,12 @@ export async function getClinicAppointments(
 export const SLOT_TAKEN_MESSAGE =
   "That time slot is already booked at your clinic — pick a different date & time.";
 
-/**
- * Friendly copy for a picked slot that has already passed. The picker only
- * clamps the value at pick-time (and its minimumDate is captured at render),
- * so the slot goes stale while the form sits open — the booking screens
- * re-check it at press-time and show this instead of sending the request.
- */
-export const PAST_TIME_MESSAGE =
-  "That time has already passed — please pick a later date & time.";
+/** Friendly copy for a picked slot that has already passed. */
+export const PAST_TIME_MESSAGE = "That time has already passed — please pick a later date & time.";
 
 /**
- * True when a CONFIRMED visit already occupies this exact minute for the
- * doctor being scheduled (an unassigned scheduled row counts too, so the
- * clinic never double-books a slot). Checked client-side before every
- * schedule write; the partial unique index from migration 0007 is the
- * backstop for races.
+ * True when a CONFIRMED visit already occupies this exact minute for the doctor being scheduled (an
+ * unassigned scheduled row counts too, so the clinic never double-books a slot).
  */
 async function hasSlotConflict(
   appointmentId: string,
@@ -389,16 +344,10 @@ async function hasSlotConflict(
     .neq("id", appointmentId)
     .limit(20);
   if (error) throw new Error(error.message);
-  return (data ?? []).some(
-    (row) => row.doctor_id === null || row.doctor_id === doctorId,
-  );
+  return (data ?? []).some((row) => row.doctor_id === null || row.doctor_id === doctorId);
 }
 
-/**
- * Doctor schedules / completes / declines (RLS: doctor update own clinic).
- * Pass scheduledAt (ISO) when moving requested → scheduled.
- * Rejects a slot that another confirmed visit already holds.
- */
+/** Doctor schedules / completes / declines (RLS: doctor update own clinic). */
 export async function updateAppointment(
   id: string,
   input: {
@@ -420,9 +369,7 @@ export async function updateAppointment(
       .maybeSingle();
     if (rowError) throw new Error(rowError.message);
     if (!row) {
-      throw new Error(
-        "Couldn't find that appointment — pull to refresh and try again.",
-      );
+      throw new Error("Couldn't find that appointment — pull to refresh and try again.");
     }
     const clinicId = (row as { clinic_id: string }).clinic_id;
     if (await hasSlotConflict(id, clinicId, input.scheduledAt, user.id)) {
@@ -430,10 +377,7 @@ export async function updateAppointment(
     }
   }
 
-  const { error } = await supabase
-    .from("appointments")
-    .update(patch)
-    .eq("id", id);
+  const { error } = await supabase.from("appointments").update(patch).eq("id", id);
   if (error) {
     // Lost a race against the unique slot index (migration 0007).
     if (isDuplicateKeyError(error)) throw new Error(SLOT_TAKEN_MESSAGE);
@@ -442,9 +386,8 @@ export async function updateAppointment(
 }
 
 /**
- * Display name for a patient row. Always carries the human identifier
- * (first name / username) so the doctor never sees a bare "Patient".
- * Falls back to "Patient" only when the profile has no usable name.
+ * Display name for a patient row. Always carries the human identifier (first name / username) so
+ * the doctor never sees a bare "Patient".
  */
 export function formatPatientDisplayName(input: {
   username?: string | null;
@@ -465,9 +408,8 @@ export function formatPatientSubtitle(displayName: string): string {
 }
 
 /**
- * Preferred display name for one appointment in the doctor queue:
- * live-resolved profile name first, then the booking-time snapshot, then
- * the "Patient" fallback.
+ * Preferred display name for one appointment in the doctor queue: live-resolved profile name first,
+ * then the booking-time snapshot, then the "Patient" fallback.
  */
 export function patientDisplayFor(
   row: Pick<AppointmentRow, "patient_id" | "patient_name">,
@@ -534,9 +476,7 @@ export async function resolveAppointmentNames(rows: AppointmentRow[]): Promise<{
   const doctorNames: Record<string, string> = {};
   const clinicNames: Record<string, string> = {};
   const patientIds = [...new Set(rows.map((r) => r.patient_id))];
-  const doctorIds = [
-    ...new Set(rows.map((r) => r.doctor_id).filter((v): v is string => !!v)),
-  ];
+  const doctorIds = [...new Set(rows.map((r) => r.doctor_id).filter((v): v is string => !!v))];
   const clinicIds = [...new Set(rows.map((r) => r.clinic_id))];
   // Booking-time snapshots first — the doctor queue can show these even
   // when user_profile rows aren't readable under RLS (newest row wins).
@@ -545,42 +485,28 @@ export async function resolveAppointmentNames(rows: AppointmentRow[]): Promise<{
     if (snap && !patientNames[r.patient_id]) {
       patientNames[r.patient_id] = snap;
     }
-    if (
-      !patientAvatars[r.patient_id] &&
-      isRemoteImageUrl(r.patient_avatar_url)
-    ) {
+    if (!patientAvatars[r.patient_id] && isRemoteImageUrl(r.patient_avatar_url)) {
       patientAvatars[r.patient_id] = (r.patient_avatar_url as string).trim();
     }
   }
   const unresolved = () =>
-    patientIds.filter(
-      (id) => !patientNames[id] || patientNames[id] === "Patient",
-    );
+    patientIds.filter((id) => !patientNames[id] || patientNames[id] === "Patient");
   try {
     let ids = unresolved();
     if (ids.length > 0) {
-      // 1. Doctor-safe lookup (0005 migration, SECURITY DEFINER): returns
-      // only id/username/first_name for the caller's own clinic patients.
-      // Falls through to direct selects when the function isn't installed.
+      // 1. Doctor-safe lookup (0005 migration, SECURITY DEFINER): returns only
+      // id/username/first_name for the caller's own clinic patients.
       try {
-        const { data, error } = await supabase.rpc(
-          "get_patient_display_names",
-          { p_ids: ids },
-        );
+        const { data, error } = await supabase.rpc("get_patient_display_names", { p_ids: ids });
         if (error) throw error;
-        applyPatientNameRows(
-          patientNames,
-          patientAvatars,
-          data as PatientNameRow[],
-        );
+        applyPatientNameRows(patientNames, patientAvatars, data as PatientNameRow[]);
       } catch (rpcErr) {
         console.warn(
           "[appointments] patient-name RPC unavailable, trying direct read:",
           rpcErr instanceof Error ? rpcErr.message : rpcErr,
         );
-        // 2. Direct read (works when RLS permits + columns exist).
-        // face_image_url may also be missing server-side — retry without
-        // it on column errors.
+        // 2. Direct read (works when RLS permits + columns exist). face_image_url may also be
+        // missing server-side — retry without it on column errors.
         ids = unresolved();
         if (ids.length > 0) {
           try {
@@ -589,23 +515,20 @@ export async function resolveAppointmentNames(rows: AppointmentRow[]): Promise<{
               .select("id, username, first_name, face_image_url")
               .in("id", ids);
             if (error) throw error;
-            applyPatientNameRows(
-              patientNames,
-              patientAvatars,
-              data as PatientNameRow[],
-            );
+            applyPatientNameRows(patientNames, patientAvatars, data as PatientNameRow[]);
           } catch (directErr) {
-            if (!isMissingColumnError({ message: directErr instanceof Error ? directErr.message : String(directErr) })) throw directErr;
+            if (
+              !isMissingColumnError({
+                message: directErr instanceof Error ? directErr.message : String(directErr),
+              })
+            )
+              throw directErr;
             const { data, error } = await supabase
               .from("user_profile")
               .select("id, username, first_name")
               .in("id", ids);
             if (error) throw error;
-            applyPatientNameRows(
-              patientNames,
-              patientAvatars,
-              data as PatientNameRow[],
-            );
+            applyPatientNameRows(patientNames, patientAvatars, data as PatientNameRow[]);
           }
         }
       }
@@ -661,10 +584,7 @@ export async function resolveAppointmentNames(rows: AppointmentRow[]): Promise<{
   }
   try {
     if (clinicIds.length > 0) {
-      const { data } = await supabase
-        .from("clinics")
-        .select("id, name")
-        .in("id", clinicIds);
+      const { data } = await supabase.from("clinics").select("id, name").in("id", clinicIds);
       for (const c of (data ?? []) as { id: string; name: string }[]) {
         clinicNames[c.id] = c.name;
       }

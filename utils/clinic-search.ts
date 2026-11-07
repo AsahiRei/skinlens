@@ -1,11 +1,6 @@
 /**
- * Live clinic search (Geoapify Places), shared by the Derma tab and the
- * chatbot's "find a dermatologist near me" intent.
- *
- * Classification uses Geoapify's own category tags first
- * (healthcare.clinic_or_praxis.dermatology, …) and the place name second,
- * and drops places that are clearly not useful for a skin concern
- * (dentists, pediatric, eye, OB clinics, vets).
+ * Live clinic search (Geoapify Places), shared by the Derma tab and the chatbot's "find a
+ * dermatologist near me" intent.
  */
 
 export type Coords = { latitude: number; longitude: number };
@@ -58,7 +53,10 @@ export function classifyPlace(name: string, categories: string[] = []): ClinicKi
   }
   if (cats.some((c) => EXCLUDED_CATEGORIES.some((x) => c.startsWith(x)))) return "exclude";
   if (EXCLUDED_NAME_RE.test(name)) return "exclude";
-  if (cats.some((c) => c.startsWith("healthcare.hospital")) || /hospital|medical cent(er|re)/i.test(name)) {
+  if (
+    cats.some((c) => c.startsWith("healthcare.hospital")) ||
+    /hospital|medical cent(er|re)/i.test(name)
+  ) {
     return "hospital";
   }
   return "general";
@@ -71,8 +69,7 @@ const SPECIALTY_LABEL: Record<ClinicKind, string> = {
 };
 
 /**
- * Geoapify's `formatted` often starts with the place name, so the card
- * showed the name twice. Prefer `address_line2` (street/city part).
+ * Geoapify's `formatted` often starts with the place name, so the card showed the name twice.
  */
 export function cleanAddress(
   name: string,
@@ -155,14 +152,19 @@ async function fetchPlaces(
 }
 
 /**
- * Nearby clinics + hospitals within 5 km. If none of them is a
- * dermatology clinic, run a second dermatology-only search out to 30 km
- * (common outside Metro Manila) and merge the results.
+ * Nearby clinics + hospitals within 5 km. If none of them is a dermatology clinic, run a second
+ * dermatology-only search out to 30 km (common outside Metro Manila) and merge the results.
  */
 export async function searchLiveClinics(at: Coords, apiKey: string): Promise<LiveClinicSearch> {
   if (!apiKey) return { clinics: [], nearbyRadiusM: NEARBY_RADIUS_M, widenedRadiusM: null };
   const nearby = mapFeatures(
-    await fetchPlaces(at, "healthcare.clinic_or_praxis,healthcare.hospital", NEARBY_RADIUS_M, 30, apiKey),
+    await fetchPlaces(
+      at,
+      "healthcare.clinic_or_praxis,healthcare.hospital",
+      NEARBY_RADIUS_M,
+      30,
+      apiKey,
+    ),
   );
   let widenedRadiusM: number | null = null;
   let merged = nearby;

@@ -5,10 +5,9 @@ const DB_NAME = "skinlens.db";
 let rawDb: SQLite.SQLiteDatabase | null = null;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-// Serializes all statements issued against the single shared handle.
-// Concurrent prepare/execute/finalize lifecycles on one handle corrupt the
-// native statement registry on Android (SIGSEGV / bare NPE /
-// "shared object already released" — expo#48995).
+// Serializes all statements issued against the single shared handle. Concurrent
+// prepare/execute/finalize lifecycles on one handle corrupt the native statement registry on
+// Android (SIGSEGV / bare NPE / "shared object already released" — expo#48995).
 let queue: Promise<void> = Promise.resolve();
 
 function serialize<T>(fn: () => Promise<T>): Promise<T> {
@@ -137,11 +136,10 @@ async function openAndMigrate(useNewConnection: boolean): Promise<SQLite.SQLiteD
       );
     `);
 
-    // Secondary indexes for the WHERE / ORDER BY clauses the app actually
-    // issues (the schema above is all CREATE TABLE — without these every
-    // read is a full table scan, including the per-server-row natural-key
-    // lookups in sensitivity.ts).
-    await db.execAsync(`
+  // Secondary indexes for the WHERE / ORDER BY clauses the app actually issues (the schema above
+  // is all CREATE TABLE — without these every read is a full table scan, including the
+  // per-server-row natural-key lookups in sensitivity.ts).
+  await db.execAsync(`
       CREATE INDEX IF NOT EXISTS idx_results_user_created
         ON results (user_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_results_user_id
@@ -158,50 +156,43 @@ async function openAndMigrate(useNewConnection: boolean): Promise<SQLite.SQLiteD
         ON sync_queue (table_name, record_id);
     `);
 
-    // Column migrations — driven by PRAGMA table_info instead of the old
-    // "try ALTER, swallow the duplicate-column error" loop, which threw and
-    // caught ~11 exceptions (with stack capture) on every single app open.
-    await ensureColumns(db, "results", [
-      { name: "confidence", type: "REAL" },
-      { name: "detection_label", type: "TEXT" },
-      { name: "survey_answers", type: "TEXT" },
-      { name: "validation_status", type: "TEXT" },
-      { name: "doctor_notes", type: "TEXT" },
-      { name: "validated_by", type: "TEXT" },
-      { name: "validated_at", type: "TEXT" },
-    ]);
-    await ensureColumns(db, "user_profile", [
-      { name: "first_name", type: "TEXT" },
-      // Face recognition enrollment (offline mirror of the server-side
-      // ALTER TABLE public.user_profile ADD COLUMN ...).
-      { name: "face_image_url", type: "TEXT" },
-      { name: "face_embedding", type: "TEXT" },
-    ]);
+  // Column migrations — driven by PRAGMA table_info instead of the old
+  // "try ALTER, swallow the duplicate-column error" loop, which threw and
+  // caught ~11 exceptions (with stack capture) on every single app open.
+  await ensureColumns(db, "results", [
+    { name: "confidence", type: "REAL" },
+    { name: "detection_label", type: "TEXT" },
+    { name: "survey_answers", type: "TEXT" },
+    { name: "validation_status", type: "TEXT" },
+    { name: "doctor_notes", type: "TEXT" },
+    { name: "validated_by", type: "TEXT" },
+    { name: "validated_at", type: "TEXT" },
+  ]);
+  await ensureColumns(db, "user_profile", [
+    { name: "first_name", type: "TEXT" },
+    // Face recognition enrollment (offline mirror of the server-side
+    // ALTER TABLE public.user_profile ADD COLUMN ...).
+    { name: "face_image_url", type: "TEXT" },
+    { name: "face_embedding", type: "TEXT" },
+  ]);
 
-    // Drop the legacy phone_number column when it is still present.
-    if (await hasColumn(db, "user_profile", "phone_number")) {
-      try {
-        await db.runAsync(`ALTER TABLE user_profile DROP COLUMN phone_number`);
-      } catch {
-        // SQLite version doesn't support DROP COLUMN — harmless, leave it.
-      }
+  // Drop the legacy phone_number column when it is still present.
+  if (await hasColumn(db, "user_profile", "phone_number")) {
+    try {
+      await db.runAsync(`ALTER TABLE user_profile DROP COLUMN phone_number`);
+    } catch {
+      // SQLite version doesn't support DROP COLUMN — harmless, leave it.
     }
+  }
 
-    // Clean stuck notification entries from sync queue (string IDs can't sync to bigint column)
-    await db.runAsync(
-      `DELETE FROM sync_queue WHERE table_name = 'notifications'`,
-    );
+  // Clean stuck notification entries from sync queue (string IDs can't sync to bigint column)
+  await db.runAsync(`DELETE FROM sync_queue WHERE table_name = 'notifications'`);
 
   return db;
 }
 
-async function tableColumns(
-  db: SQLite.SQLiteDatabase,
-  table: string,
-): Promise<Set<string>> {
-  const rows = await db.getAllAsync<{ name: string }>(
-    `PRAGMA table_info(${table})`,
-  );
+async function tableColumns(db: SQLite.SQLiteDatabase, table: string): Promise<Set<string>> {
+  const rows = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
   return new Set(rows.map((r) => r.name));
 }
 
@@ -246,21 +237,12 @@ function wrap(db: SQLite.SQLiteDatabase): SQLite.SQLiteDatabase {
         return (...args: unknown[]) =>
           serialize(async () => {
             try {
-              return await (value as (...a: unknown[]) => Promise<unknown>).apply(
-                target,
-                args,
-              );
+              return await (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
             } catch (err) {
               if (!isPoisonedHandleError(err)) throw err;
-              // Drop the poisoned handle and reopen on a new connection.
-              // A plain reopen returns the same cached native object and never
-              // recovers, so useNewConnection is required. NOTE: retry runs
-              // directly on the fresh raw handle — routing it through
-              // getDatabase()/serialize would deadlock (we are already inside
-              // the serialize lock).
-              console.warn(
-                "[db] poisoned SQLite handle detected, reopening with new connection",
-              );
+              // Drop the poisoned handle and reopen on a new connection. A plain reopen returns the
+              // same cached native object and never recovers, so useNewConnection is required.
+              console.warn("[db] poisoned SQLite handle detected, reopening with new connection");
               const freshRaw = await openAndMigrate(true);
               rawDb = freshRaw;
               dbPromise = Promise.resolve(wrap(freshRaw));

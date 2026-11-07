@@ -105,9 +105,7 @@ function DoctorTab({
       style={styles.tabWrap}
     >
       {({ pressed }) => (
-        <Animated.View
-          style={[styles.tabCol, pillStyle, pressed && { opacity: 0.7 }]}
-        >
+        <Animated.View style={[styles.tabCol, pillStyle, pressed && { opacity: 0.7 }]}>
           <Animated.View style={iconStyle}>
             <Icon
               size={20}
@@ -115,10 +113,7 @@ function DoctorTab({
               strokeWidth={focused ? 2.2 : 1.9}
             />
           </Animated.View>
-          <Text
-            style={[styles.tabLabel, focused && styles.tabLabelActive]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.tabLabel, focused && styles.tabLabelActive]} numberOfLines={1}>
             {label}
           </Text>
         </Animated.View>
@@ -140,9 +135,7 @@ export default function DoctorLayout() {
           // on focus, so the content settles in after the fade.
           animation: "fade",
         }}
-        tabBar={(props: unknown) => (
-          <DoctorTabBar {...(props as DoctorTabBarProps)} />
-        )}
+        tabBar={(props: unknown) => <DoctorTabBar {...(props as DoctorTabBarProps)} />}
       >
         <Tabs.Screen name="index" options={{ title: "Home" }} />
         <Tabs.Screen name="history" options={{ title: "History" }} />

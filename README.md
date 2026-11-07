@@ -1,9 +1,9 @@
 # Skinlens: An Ai-Powered Mobile Application For Detecting Facial Skin Condition With Personalized Skincare Guide
 
-
 ![Skinlens Screenshot](./assets/images/skinlens-icon.png)
 
 ## Features
+
 - **AI Skin Condition Detection** – Analyzes facial images using AI to identify possible skin conditions.
 - **Location-Based Dermatologist Finder** – Helps users locate nearby dermatologists based on their area.
 - **Personalized Skincare Routine Generation** – Generates a skincare routine based on the user's skin profile and detected condition.
@@ -28,6 +28,7 @@ SkinLens aims to provide a **simple, friendly, accessible, and free-to-use** mob
 SkinLens is designed for **informational and educational purposes only**. Its AI-generated results and skincare recommendations are **not a medical diagnosis or treatment** and should not replace professional medical advice.
 
 If you have persistent, severe, or worsening skin concerns, please consult a **licensed dermatologist** or healthcare professional.
+
 ## Deployment checklist
 
 1. **Database** — run every file in `supabase/migrations/` in order (SQL Editor or `supabase db push`). `0010_security_hardening.sql` is required before release.

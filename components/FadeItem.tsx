@@ -25,14 +25,8 @@ type FadeItemProps = ViewProps & {
 };
 
 /**
- * Fades + rises in after `index * step` ms, and replays every time the screen
- * regains focus or its tab button is pressed again — so entrance animations
- * are not limited to the first mount.
- *
- * Accepts the same props as a View (className, style, ...), so it can stand in
- * for the block it wraps:
- *
- *   <FadeItem index={0} className="mt-5">...</FadeItem>
+ * Fades + rises in after `index * step` ms, and replays every time the screen regains focus or its
+ * tab button is pressed again — so entrance animations are not limited to the first mount.
  */
 export const FadeItem = memo(function FadeItem({
   index = 0,

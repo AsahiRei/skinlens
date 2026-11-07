@@ -4,9 +4,8 @@ import { theme } from "@/lib/theme";
 import Skeleton from "./Skeleton";
 
 /**
- * Shared profile loading skeletons — the exact idioms from the user
- * account page, reused by the doctor account page so both loading
- * states look like family instead of being written twice.
+ * Shared profile loading skeletons — the exact idioms from the user account page, reused by the
+ * doctor account page so both loading states look like family instead of being written twice.
  */
 
 export function HeroTextSkeleton({ className = "mt-2" }: { className?: string }) {

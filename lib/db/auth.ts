@@ -17,9 +17,8 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
-// Tables that hold user-scoped rows on-device. Wiped when the account is
-// deleted server-side (or on explicit logout) so a stale session / the next
-// login can never see the previous account's data.
+// Tables that hold user-scoped rows on-device. Wiped when the account is deleted server-side (or on
+// explicit logout) so a stale session / the next login can never see the previous account's data.
 const USER_TABLES = [
   "user_profile",
   "skin_profile",
@@ -50,12 +49,7 @@ export async function clearLocalUserData(): Promise<void> {
   }
 }
 
-/**
- * Permanently deletes the signed-in account (Google Play account-deletion
- * policy). Removes the user's report PDFs and Cloudinary photos, then calls
- * the delete_my_account RPC (migration 0010) which wipes every owned row and
- * the auth user, and finally clears this device. Requires a connection.
- */
+/** Permanently deletes the signed-in account (Google Play account-deletion policy). */
 export async function deleteMyAccount(): Promise<void> {
   const user = await requireUser();
 
@@ -73,9 +67,8 @@ export async function deleteMyAccount(): Promise<void> {
     }
   }
 
-  // Scan + face photos live on Cloudinary. Must run while the JWT is still
-  // valid (before the auth user is deleted). Best effort: a failure is
-  // logged, not fatal — the account rows are still removed.
+  // Scan + face photos live on Cloudinary. Must run while the JWT is still valid (before the auth
+  // user is deleted).
   await purgeMyCloudinaryImages();
 
   const { error } = await supabase.rpc("delete_my_account");

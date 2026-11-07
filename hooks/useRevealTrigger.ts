@@ -7,10 +7,8 @@ type TabNavigation = {
 };
 
 /**
- * Bumps a counter every time the screen regains focus, and every time its own
- * tab button is pressed again while it is already active. Entrance animations
- * keyed off this value can therefore replay instead of only running once on
- * mount.
+ * Bumps a counter every time the screen regains focus, and every time its own tab button is pressed
+ * again while it is already active.
  */
 export function useRevealTrigger() {
   const [trigger, setTrigger] = useState(0);

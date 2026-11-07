@@ -11,10 +11,7 @@ type LogoutModalProps = {
   setVisible: (v: boolean) => void;
 };
 
-export default function LogoutModal({
-  isVisible,
-  setVisible,
-}: LogoutModalProps) {
+export default function LogoutModal({ isVisible, setVisible }: LogoutModalProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const close = () => {
@@ -23,9 +20,8 @@ export default function LogoutModal({
   const logout = async () => {
     setLoading(true);
     try {
-      // Global sign-out revokes the server session, but it fails offline
-      // (or when the account was already deleted). Fall back to local
-      // scope so the user is never stuck logged in.
+      // Global sign-out revokes the server session, but it fails offline (or when the account was
+      // already deleted). Fall back to local scope so the user is never stuck logged in.
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       await clearLocalUserData();
@@ -41,10 +37,7 @@ export default function LogoutModal({
       } catch (fallbackErr) {
         // Keep the modal open and surface the failure — the session persists.
         console.error("Local sign-out failed:", fallbackErr);
-        ToastAndroid.show(
-          "Couldn't log out. Please try again.",
-          ToastAndroid.SHORT,
-        );
+        ToastAndroid.show("Couldn't log out. Please try again.", ToastAndroid.SHORT);
       }
     } finally {
       setLoading(false);

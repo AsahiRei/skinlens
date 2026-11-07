@@ -1,17 +1,10 @@
 import type { ComponentType, ReactNode, Ref } from "react";
-import {
-  KeyboardAvoidingView as RNKeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from "react-native";
+import { KeyboardAvoidingView as RNKeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import type { ScrollViewProps, StyleProp, ViewStyle } from "react-native";
 
 /**
- * The keyboard-controller native module only exists after the dev client
- * is rebuilt (`npx expo run:android`). Until then, `require` throws the
- * "doesn't seem to be linked" error — catch it and fall back to stock
- * React Native components so the app still boots (without the fix).
- * After a rebuild the real components load and the fix activates.
+ * The keyboard-controller native module only exists after the dev client is rebuilt (`npx expo
+ * run:android`).
  */
 function loadController(): Record<string, any> | null {
   try {
@@ -55,11 +48,7 @@ export function SafeKeyboardAvoidingView({
   if (controller?.KeyboardAvoidingView) {
     const C = controller.KeyboardAvoidingView;
     return (
-      <C
-        behavior="padding"
-        keyboardVerticalOffset={keyboardVerticalOffset}
-        style={style}
-      >
+      <C behavior="padding" keyboardVerticalOffset={keyboardVerticalOffset} style={style}>
         {children}
       </C>
     );

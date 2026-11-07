@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Pressable,
-  RefreshControl,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, RefreshControl, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
 import type { ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,15 +7,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import { Camera, Map, Marker } from "@maplibre/maplibre-react-native";
 import type { CameraRef, MapRef } from "@maplibre/maplibre-react-native";
-import {
-  Search,
-  XCircle,
-  ArrowRight,
-  Building,
-  MapPin,
-  Star,
-  Cross,
-} from "lucide-react-native";
+import { Search, XCircle, ArrowRight, Building, MapPin, Star, Cross } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import Skeleton from "@/components/Skeleton";
@@ -55,9 +42,7 @@ function haversineKm(a: Coords, b: Coords): number {
   const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
   const lat1 = (a.latitude * Math.PI) / 180;
   const lat2 = (b.latitude * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
@@ -84,9 +69,12 @@ export default function Derma() {
   const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   // setVerified must never run after unmount (the fetch can outlive the tab).
   const mountedRef = useRef(true);
-  useEffect(() => () => {
-    mountedRef.current = false;
-  }, []);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
 
   const loadVerified = useCallback(async () => {
     try {
@@ -97,10 +85,8 @@ export default function Derma() {
     }
   }, []);
 
-  // Verified locations come from the Supabase `clinics` table (managed from
-  // the website admin page), cached on-device for offline use. Reloaded on
-  // every focus — clinics published from the admin site used to stay hidden
-  // until the tab was remounted, because this only ever ran on mount.
+  // Verified locations come from the Supabase `clinics` table (managed from the website admin
+  // page), cached on-device for offline use.
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -129,16 +115,11 @@ export default function Derma() {
   );
 
   const customCoords: Record<string, Coords> = Object.fromEntries(
-    verified.map((c) => [
-      c.id,
-      { latitude: c.latitude, longitude: c.longitude },
-    ]),
+    verified.map((c) => [c.id, { latitude: c.latitude, longitude: c.longitude }]),
   );
 
   const filtered = results.filter((d) =>
-    `${d.name} ${d.specialty} ${d.clinic}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+    `${d.name} ${d.specialty} ${d.clinic}`.toLowerCase().includes(query.toLowerCase()),
   );
 
   const dermaFiltered = filtered.filter((d) => d.specialty === "Dermatology");
@@ -153,9 +134,7 @@ export default function Derma() {
   // If we already know the user location, compute a real distance for sorting.
   const filteredCustom: Dermatologist[] = customResults
     .filter((d) =>
-      `${d.name} ${d.specialty} ${d.clinic}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
+      `${d.name} ${d.specialty} ${d.clinic}`.toLowerCase().includes(query.toLowerCase()),
     )
     .map((d) => {
       const coord = customCoords[d.id];
@@ -168,19 +147,14 @@ export default function Derma() {
 
   // Map pins: verified (pinned/validated) entries are ALWAYS shown.
   // Live results are added on top after a search — custom entries are never removed.
-  const visiblePins = hasSearched
-    ? [...filteredCustom, ...filtered]
-    : filteredCustom;
+  const visiblePins = hasSearched ? [...filteredCustom, ...filtered] : filteredCustom;
   const visibleCoords: Record<string, Coords> = {
     ...customCoords,
     ...clinicCoords,
   };
   const mapCenter: Coords | null =
-    userLocation ??
-    (visiblePins.length > 0 ? visibleCoords[visiblePins[0].id] : undefined) ??
-    null;
-  const showMap =
-    locating || hasSearched || filteredCustom.length > 0;
+    userLocation ?? (visiblePins.length > 0 ? visibleCoords[visiblePins[0].id] : undefined) ?? null;
+  const showMap = locating || hasSearched || filteredCustom.length > 0;
 
   const fetchNearbyAt = useCallback(async (latitude: number, longitude: number) => {
     // Shared with the chatbot: category-aware classification, irrelevant
@@ -232,9 +206,8 @@ export default function Derma() {
       setUserLocation({ latitude, longitude });
 
       await fetchNearbyAt(latitude, longitude);
-      // No flyTo needed here: the map mounts below with initialViewState
-      // centered on the user location (calling flyTo on the not-yet-mounted
-      // camera would silently do nothing).
+      // No flyTo needed here: the map mounts below with initialViewState centered on the user
+      // location (calling flyTo on the not-yet-mounted camera would silently do nothing).
     } catch (err) {
       console.error(err);
       setErrorMsg("Couldn't fetch nearby clinics. Try again.");
@@ -262,14 +235,7 @@ export default function Derma() {
     } finally {
       setRefreshing(false);
     }
-  }, [
-    fetchNearbyAt,
-    hasSearched,
-    loadVerified,
-    locating,
-    refreshing,
-    userLocation,
-  ]);
+  }, [fetchNearbyAt, hasSearched, loadVerified, locating, refreshing, userLocation]);
 
   // Back to page 1 whenever the search changes. Adjusting state during render
   // (instead of in an effect) avoids an extra render with a stale page.
@@ -297,25 +263,22 @@ export default function Derma() {
             </View>
             <View className="flex-col items-end gap-1">
               <Pill label="Verified" tone="warning" />
-              {d.availableToday && (
-                <Pill label="Available today" />
-              )}
+              {d.availableToday && <Pill label="Available today" />}
             </View>
           </View>
 
-          <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}>
+          <View
+            className="flex-col gap-1 pt-3"
+            style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
+          >
             <View className="flex-row items-center gap-2">
-              <Building
-                size={14}
-                color={theme.colors.faint}
-              />
-              <Text className="text-xs" style={{ color: theme.colors.body }}>{d.clinic}</Text>
+              <Building size={14} color={theme.colors.faint} />
+              <Text className="text-xs" style={{ color: theme.colors.body }}>
+                {d.clinic}
+              </Text>
             </View>
             <View className="flex-row items-center gap-2">
-              <MapPin
-                size={14}
-                color={theme.colors.faint}
-              />
+              <MapPin size={14} color={theme.colors.faint} />
               <Text
                 className="text-xs flex-1"
                 style={{ color: theme.colors.body }}
@@ -325,7 +288,11 @@ export default function Derma() {
               </Text>
             </View>
             {extra?.description ? (
-              <Text className="text-xs mt-1" style={{ color: theme.colors.muted }} numberOfLines={2}>
+              <Text
+                className="text-xs mt-1"
+                style={{ color: theme.colors.muted }}
+                numberOfLines={2}
+              >
                 {extra.description}
               </Text>
             ) : null}
@@ -376,9 +343,7 @@ export default function Derma() {
                 end={{ x: 1, y: 0.5 }}
                 className="px-4 py-1.5"
               >
-                <Text className="text-xs text-white font-bold">
-                  View more
-                </Text>
+                <Text className="text-xs text-white font-bold">View more</Text>
               </LinearGradient>
             </Pressable>
           </View>
@@ -401,22 +366,16 @@ export default function Derma() {
               {d.specialty}
             </Text>
           </View>
-          {d.availableToday && (
-            <Pill label="Available today" />
-          )}
+          {d.availableToday && <Pill label="Available today" />}
         </View>
 
-        <View className="flex-col gap-1 pt-3" style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}>
+        <View
+          className="flex-col gap-1 pt-3"
+          style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
+        >
           <View className="flex-row items-center gap-2">
-            <MapPin
-              size={14}
-              color={theme.colors.faint}
-            />
-            <Text
-              className="text-xs flex-1"
-              style={{ color: theme.colors.body }}
-              numberOfLines={2}
-            >
+            <MapPin size={14} color={theme.colors.faint} />
+            <Text className="text-xs flex-1" style={{ color: theme.colors.body }} numberOfLines={2}>
               {d.address}
             </Text>
           </View>
@@ -449,9 +408,8 @@ export default function Derma() {
                   distanceKm: String(d.distanceKm),
                   rating: String(d.rating),
                   availableToday: String(d.availableToday),
-                  // Unverified pins are view-on-map only — pass
-                  // coordinates so the detail screen can open the
-                  // full map at this exact place.
+                  // Unverified pins are view-on-map only — pass coordinates so the detail screen
+                  // can open the full map at this exact place.
                   lat: String(clinicCoords[d.id]?.latitude ?? ""),
                   lng: String(clinicCoords[d.id]?.longitude ?? ""),
                 },
@@ -466,9 +424,7 @@ export default function Derma() {
               end={{ x: 1, y: 0.5 }}
               className="px-4 py-1.5"
             >
-              <Text className="text-xs text-white font-bold">
-                View more
-              </Text>
+              <Text className="text-xs text-white font-bold">View more</Text>
             </LinearGradient>
           </Pressable>
         </View>
@@ -477,7 +433,11 @@ export default function Derma() {
   );
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <KeyboardAwareScroll
         ref={scrollRef}
@@ -495,16 +455,20 @@ export default function Derma() {
       >
         <FadeItem index={0}>
           <View className="mt-2">
-            <ScreenHeader
-              title="Find Dermatologist"
-              subtitle="Skin specialists near you"
-            />
+            <ScreenHeader title="Find Dermatologist" subtitle="Skin specialists near you" />
           </View>
         </FadeItem>
 
         {/* Search bar */}
         <FadeItem index={1}>
-          <View className="flex-row items-center bg-white px-4 py-3 mt-5 gap-2" style={{ borderRadius: theme.radius.input, borderWidth: 1, borderColor: theme.colors.cardBorder }}>
+          <View
+            className="flex-row items-center bg-white px-4 py-3 mt-5 gap-2"
+            style={{
+              borderRadius: theme.radius.input,
+              borderWidth: 1,
+              borderColor: theme.colors.cardBorder,
+            }}
+          >
             <Search size={18} color={theme.colors.faint} />
             <TextInput
               value={query}
@@ -525,18 +489,21 @@ export default function Derma() {
         {/* Find nearby CTA — dark gradient hero */}
         <FadeItem index={2}>
           <CoachTarget id="derma.find" scrollIntoView={scrollIntoView}>
-          <GradientHeroCta
-            title={locating ? "Locating..." : "Find Nearby"}
-            subtitle="Uses your current location"
-            onPress={handleFindNearby}
-            disabled={locating}
-            accessibilityLabel="Find nearby dermatologists"
-            accessory={
-              <View className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }}>
-                <ArrowRight size={16} color="white" />
-              </View>
-            }
-          />
+            <GradientHeroCta
+              title={locating ? "Locating..." : "Find Nearby"}
+              subtitle="Uses your current location"
+              onPress={handleFindNearby}
+              disabled={locating}
+              accessibilityLabel="Find nearby dermatologists"
+              accessory={
+                <View
+                  className="h-9 w-9 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+                >
+                  <ArrowRight size={16} color="white" />
+                </View>
+              }
+            />
           </CoachTarget>
         </FadeItem>
 
@@ -548,7 +515,15 @@ export default function Derma() {
 
         {/* Map: user location + clinic pins (custom pins before search) */}
         {showMap && (
-          <View className="overflow-hidden mt-4 h-56" style={{ borderRadius: 20, borderWidth: 1, borderColor: theme.colors.cardBorder, backgroundColor: theme.colors.primarySoft }}>
+          <View
+            className="overflow-hidden mt-4 h-56"
+            style={{
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: theme.colors.cardBorder,
+              backgroundColor: theme.colors.primarySoft,
+            }}
+          >
             {locating || !mapCenter ? (
               <Skeleton className="h-full w-full" />
             ) : (
@@ -567,7 +542,10 @@ export default function Derma() {
                     id="user-location"
                     lngLat={[userLocation.longitude, userLocation.latitude]}
                   >
-                    <View className="h-4 w-4 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: theme.colors.primary }} />
+                    <View
+                      className="h-4 w-4 rounded-full border-2 border-white shadow-sm"
+                      style={{ backgroundColor: theme.colors.primary }}
+                    />
                   </Marker>
                 )}
 
@@ -589,7 +567,10 @@ export default function Derma() {
                         })
                       }
                     >
-                      <View className="h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: isCustomPin ? "#B45309" : theme.colors.primary }}>
+                      <View
+                        className="h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-sm"
+                        style={{ backgroundColor: isCustomPin ? "#B45309" : theme.colors.primary }}
+                      >
                         {isCustomPin ? (
                           <MapPin size={13} color="white" />
                         ) : (
@@ -606,25 +587,23 @@ export default function Derma() {
 
         {/* Results header */}
         <FadeItem index={3}>
-          {locating || hasSearched ? (
-            filteredCustom.length === 0 && (
-              <View className="mt-6 mb-2">
-                <SectionTitle
-                  title="Search results"
-                  meta={!locating ? `${filtered.length} found` : undefined}
-                />
-              </View>
-            )
-          ) : (
-            filteredCustom.length > 0 && (
-              <View className="mt-6 mb-2">
-                <SectionTitle
-                  title="Recommended clinics"
-                  meta={`${filteredCustom.length} saved`}
-                />
-              </View>
-            )
-          )}
+          {locating || hasSearched
+            ? filteredCustom.length === 0 && (
+                <View className="mt-6 mb-2">
+                  <SectionTitle
+                    title="Search results"
+                    meta={!locating ? `${filtered.length} found` : undefined}
+                  />
+                </View>
+              )
+            : filteredCustom.length > 0 && (
+                <View className="mt-6 mb-2">
+                  <SectionTitle
+                    title="Recommended clinics"
+                    meta={`${filteredCustom.length} saved`}
+                  />
+                </View>
+              )}
         </FadeItem>
 
         {/* Results list */}
@@ -644,17 +623,12 @@ export default function Derma() {
                     copy="Tap Find Nearby to search clinics around you."
                   />
                 ) : (
-                  <EmptyState
-                    title="No matches"
-                    copy="No recommended clinics match your search."
-                  />
+                  <EmptyState title="No matches" copy="No recommended clinics match your search." />
                 )}
               </ClinicalCard>
             </FadeItem>
           ) : (
-            <View className="flex-col gap-3 mt-2">
-              {filteredCustom.map(renderCustomCard)}
-            </View>
+            <View className="flex-col gap-3 mt-2">{filteredCustom.map(renderCustomCard)}</View>
           )
         ) : filteredCustom.length === 0 && filtered.length === 0 ? (
           <FadeItem index={4}>
@@ -681,10 +655,7 @@ export default function Derma() {
             )}
             {dermaFiltered.length > 0 && (
               <View className="mt-4 mb-[-4]">
-                <SectionTitle
-                  title="Dermatology clinics"
-                  meta={`${dermaFiltered.length} found`}
-                />
+                <SectionTitle title="Dermatology clinics" meta={`${dermaFiltered.length} found`} />
               </View>
             )}
             {widenedKm != null && dermaFiltered.length > 0 && (
@@ -734,7 +705,6 @@ export default function Derma() {
                 </Pressable>
               </View>
             )}
-
           </View>
         )}
       </KeyboardAwareScroll>

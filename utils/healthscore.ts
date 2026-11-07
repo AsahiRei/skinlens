@@ -25,24 +25,15 @@ export const getHealthScoreResponse = (
   const concern = concernLabels[answers.main_concern] ?? "";
 
   const personalizedClause =
-    skinType && concern
-      ? ` for your ${skinType} skin, with a focus on ${concern}`
-      : "";
+    skinType && concern ? ` for your ${skinType} skin, with a focus on ${concern}` : "";
 
-  const band =
-    bands.find((b) => score >= b.minScore) ?? bands[bands.length - 1];
+  const band = bands.find((b) => score >= b.minScore) ?? bands[bands.length - 1];
 
   return {
     severity: band.severity,
     label: band.label,
-    message: band.messageTemplate.replace(
-      "{personalizedClause}",
-      personalizedClause,
-    ),
-    shortMessage: band.shortMessageTemplate.replace(
-      "{personalizedClause}",
-      personalizedClause,
-    ),
+    message: band.messageTemplate.replace("{personalizedClause}", personalizedClause),
+    shortMessage: band.shortMessageTemplate.replace("{personalizedClause}", personalizedClause),
     color: band.color,
     trackColor: band.trackColor,
   };

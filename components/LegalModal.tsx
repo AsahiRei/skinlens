@@ -43,29 +43,20 @@ export default function LegalModal({
               {section.title}
             </Text>
             {section.intro ? (
-              <Text
-                className="text-[13px] leading-5 mt-1.5"
-                style={{ color: theme.colors.muted }}
-              >
+              <Text className="text-[13px] leading-5 mt-1.5" style={{ color: theme.colors.muted }}>
                 {section.intro}
               </Text>
             ) : null}
             {section.blocks?.map((block) => (
               <View key={block.label} className="flex-row gap-2 mt-2">
-                <Text
-                  className="text-[13px] leading-5"
-                  style={{ color: theme.colors.muted }}
-                >
+                <Text className="text-[13px] leading-5" style={{ color: theme.colors.muted }}>
                   •
                 </Text>
                 <Text
                   className="flex-1 text-[13px] leading-5"
                   style={{ color: theme.colors.muted }}
                 >
-                  <Text
-                    className="font-semibold"
-                    style={{ color: theme.colors.ink }}
-                  >
+                  <Text className="font-semibold" style={{ color: theme.colors.ink }}>
                     {block.label}
                   </Text>{" "}
                   {block.text}

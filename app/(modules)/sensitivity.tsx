@@ -1,10 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Plus, Trash2, X } from "lucide-react-native";
@@ -12,14 +7,18 @@ import { Plus, Trash2, X } from "lucide-react-native";
 import { FadeItem } from "@/components/FadeItem";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
-import { BackHeader, ClinicalCard, IconBadge, Pill, PrimaryButton, SectionTitle, UiModal } from "@/components/ui";
+import {
+  BackHeader,
+  ClinicalCard,
+  IconBadge,
+  Pill,
+  PrimaryButton,
+  SectionTitle,
+  UiModal,
+} from "@/components/ui";
 import { theme } from "@/lib/theme";
 import profileOptions from "@/data/profile-options.json";
-import {
-  addSensitivityEntry,
-  deleteSensitivityEntry,
-  getSensitivityHistory,
-} from "@/lib/db";
+import { addSensitivityEntry, deleteSensitivityEntry, getSensitivityHistory } from "@/lib/db";
 import type { SensitivityEntry } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 import { ScreenGradient } from "@/components/ScreenGradient";
@@ -148,7 +147,11 @@ export default function SensitivityScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <UiModal
         visible={notice !== null}
@@ -217,26 +220,27 @@ export default function SensitivityScreen() {
               </View>
 
               <View className="gap-1.5">
-                <Text className="text-sm" style={{ color: theme.colors.muted }}>Possible Trigger</Text>
-                <ChipRow
-                  options={TRIGGER_OPTIONS}
-                  value={trigger}
-                  onChange={setTrigger}
-                />
+                <Text className="text-sm" style={{ color: theme.colors.muted }}>
+                  Possible Trigger
+                </Text>
+                <ChipRow options={TRIGGER_OPTIONS} value={trigger} onChange={setTrigger} />
               </View>
 
               <View className="gap-1.5">
-                <Text className="text-sm" style={{ color: theme.colors.muted }}>Severity</Text>
-                <ChipRow
-                  options={SEVERITY_OPTIONS}
-                  value={severity}
-                  onChange={setSeverity}
-                />
+                <Text className="text-sm" style={{ color: theme.colors.muted }}>
+                  Severity
+                </Text>
+                <ChipRow options={SEVERITY_OPTIONS} value={severity} onChange={setSeverity} />
               </View>
 
               <View className="gap-1.5">
-                <Text className="text-sm" style={{ color: theme.colors.muted }}>Notes (optional)</Text>
-                <View className="bg-white rounded-2xl px-4" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}>
+                <Text className="text-sm" style={{ color: theme.colors.muted }}>
+                  Notes (optional)
+                </Text>
+                <View
+                  className="bg-white rounded-2xl px-4"
+                  style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                >
                   <TextInput
                     value={notes}
                     onChangeText={setNotes}
@@ -269,8 +273,7 @@ export default function SensitivityScreen() {
                 No sensitivity history yet
               </Text>
               <Text className="text-sm text-center" style={{ color: theme.colors.muted }}>
-                Log a reaction when your skin responds to a product, the sun, or
-                other triggers.
+                Log a reaction when your skin responds to a product, the sun, or other triggers.
               </Text>
             </ClinicalCard>
           </FadeItem>
@@ -279,10 +282,7 @@ export default function SensitivityScreen() {
             {entries.map((entry, idx) => {
               return (
                 <FadeItem key={entry.id} index={Math.min(2 + idx, 6)}>
-                  <ClinicalCard
-                    key={entry.id}
-                    className="gap-2"
-                  >
+                  <ClinicalCard key={entry.id} className="gap-2">
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center gap-2">
                         <Pill

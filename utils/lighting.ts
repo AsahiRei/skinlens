@@ -20,30 +20,18 @@ const ANALYSIS_WIDTH = 160;
 /** Centre fraction sampled (corners are usually background, not skin). */
 const CENTER_FRACTION = 0.6;
 
-/**
- * Qualities that make a frame unusable for classification: near-black or
- * blown out. "dim" / "bright" only warn — they still classify fine.
- */
+/** Qualities that make a frame unusable for classification: near-black or blown out. */
 export function blocksCapture(quality: LightingQuality): boolean {
   return quality === "dark" || quality === "glare";
 }
 
 /**
- * Pixel-based lighting check for an ALREADY CAPTURED image — the real
- * answer to "was this frame well lit?", unlike evaluateLighting on the live
- * preview (which only estimates brightness from face size + position).
- *
- * Shrinks the photo to a 160px thumbnail (same expo-image-manipulator +
- * jpeg-js pipeline as utils/skin-prediction.ts), computes luma mean and
- * standard deviation over the centre 60% region, and runs the shared
- * evaluateLighting() verdict on those numbers.
- *
- * Returns null on ANY failure (unreadable file, decode error, no pixels) so
+ * Pixel-based lighting check for an ALREADY CAPTURED image — the real answer to "was this frame
+ * well lit?", unlike evaluateLighting on the live preview (which only estimates brightness from
+ * face size + position). Returns null on ANY failure (unreadable file, decode error, no pixels) so
  * callers fail open and never block a capture on a technicality.
  */
-export async function measureImageLighting(
-  uri: string,
-): Promise<ImageLighting | null> {
+export async function measureImageLighting(uri: string): Promise<ImageLighting | null> {
   try {
     const resized = await ImageManipulator.manipulateAsync(
       uri,

@@ -27,7 +27,11 @@ import {
 } from "@/utils/face-embeddings";
 import type { ClassificationResult } from "@/types/skin";
 import { ScreenGradient } from "@/components/ScreenGradient";
-import { assessDetection, describeDetection, prettyLabel as toPretty } from "@/utils/detection-score";
+import {
+  assessDetection,
+  describeDetection,
+  prettyLabel as toPretty,
+} from "@/utils/detection-score";
 
 const steps = stepsData.analyzing;
 
@@ -58,9 +62,8 @@ export default function Analyzing() {
   const [running, setRunning] = useState(false);
   const ranRef = useRef(false);
   const cancelledRef = useRef(false);
-  // Re-entry + navigation guards: "Try Again" can be tapped repeatedly and
-  // the confirm buttons fire router.replace, which would otherwise stack
-  // duplicate screens if tapped twice.
+  // Re-entry + navigation guards: "Try Again" can be tapped repeatedly and the confirm buttons fire
+  // router.replace, which would otherwise stack duplicate screens if tapped twice.
   const busyRef = useRef(false);
   const navRef = useRef(false);
 
@@ -132,7 +135,14 @@ export default function Analyzing() {
     if (busyRef.current) return;
     busyRef.current = true;
     setRunning(true);
-    console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} run start isMulti=`, isMulti, `count=`, isMulti ? multiAngles.length : 1, `source=`, sourceType);
+    console.log(
+      `[SkinLens][Analyzing] ${new Date().toISOString()} run start isMulti=`,
+      isMulti,
+      `count=`,
+      isMulti ? multiAngles.length : 1,
+      `source=`,
+      sourceType,
+    );
     try {
       setError(null);
       setDetectedResult(null);
@@ -145,10 +155,11 @@ export default function Analyzing() {
 
       goToStep(0);
 
-      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} enhance start count=`, uris.length);
-      const enhancedUris: string[] = await Promise.all(
-        uris.map((uri) => enhanceImage(uri)),
+      console.log(
+        `[SkinLens][Analyzing] ${new Date().toISOString()} enhance start count=`,
+        uris.length,
       );
+      const enhancedUris: string[] = await Promise.all(uris.map((uri) => enhanceImage(uri)));
       if (cancelledRef.current) return;
       setDisplayUris(isMulti ? enhancedUris : [enhancedUris[0]]);
       console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} enhance done`);
@@ -156,35 +167,43 @@ export default function Analyzing() {
       if (cancelledRef.current) return;
 
       goToStep(1);
-      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} classify start count=`, uris.length);
-      const results = await Promise.all(
-        uris.map((uri) => classifyImage(uri)),
+      console.log(
+        `[SkinLens][Analyzing] ${new Date().toISOString()} classify start count=`,
+        uris.length,
       );
+      const results = await Promise.all(uris.map((uri) => classifyImage(uri)));
       if (cancelledRef.current) return;
 
       const finalResult = isMulti ? aggregateResults(results) : results[0];
-      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} classify done label=`, finalResult.label, `conf=`, finalResult.confidence.toFixed(3));
+      console.log(
+        `[SkinLens][Analyzing] ${new Date().toISOString()} classify done label=`,
+        finalResult.label,
+        `conf=`,
+        finalResult.confidence.toFixed(3),
+      );
 
       goToStep(2);
-      // ── Face verification gate ──
-      // The scan must come from the enrolled face, otherwise the user is
+      // Face verification gate: The scan must come from the enrolled face, otherwise the user is
       // sent to the mismatch page and can never reach the survey.
-      // Accounts enrolled before this feature (no stored embedding) are
-      // grandfathered through; model failures fail open with a warning so
-      // a broken model file can't brick scanning.
       console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face-verify check start`);
       const stored = await getFaceIdentity().catch((err) => {
-        console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} getFaceIdentity failed:`, err);
+        console.log(
+          `[SkinLens][Analyzing] ${new Date().toISOString()} getFaceIdentity failed:`,
+          err,
+        );
         return null;
       });
       const enrolled = parseEmbedding(stored?.face_embedding ?? null);
-      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face-verify stored=`, !!stored, `enrolled=`, !!enrolled);
+      console.log(
+        `[SkinLens][Analyzing] ${new Date().toISOString()} face-verify stored=`,
+        !!stored,
+        `enrolled=`,
+        !!enrolled,
+      );
       if (stored && enrolled) {
         try {
-          // Score every crop candidate (center square + face-aware crop) and
-          // pass if ANY of them matches, so varied framing doesn't lock out
-          // genuine users. For multi-angle scans every angle from the same
-          // live session counts.
+          // Score every crop candidate (center square + face-aware crop) and pass if ANY of them
+          // matches, so varied framing doesn't lock out genuine users.
           let similarity = 0;
           const analyzed = isMulti ? uris : [uris[0]];
           // Prefer the uncropped originals when they line up 1:1.
@@ -196,21 +215,35 @@ export default function Analyzing() {
               similarity = Math.max(similarity, cosineSimilarity(cand, enrolled));
             }
           }
-          console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face similarity(raw)=`, similarity.toFixed(3), `threshold=`, FACE_MATCH_THRESHOLD);
-          // Rescue attempt: harshly lit/low-quality captures sometimes score
-          // below threshold on the raw image. Re-score the lighting-normalized
-          // copy before redirecting to the mismatch screen.
+          console.log(
+            `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity(raw)=`,
+            similarity.toFixed(3),
+            `threshold=`,
+            FACE_MATCH_THRESHOLD,
+          );
+          // Rescue attempt: harshly lit/low-quality captures sometimes score below threshold on the
+          // raw image.
           if (similarity < FACE_MATCH_THRESHOLD && enhancedUris[0]) {
             const rescued = await getFaceEmbeddingCandidates(enhancedUris[0]);
             if (cancelledRef.current) return;
             for (const cand of rescued) {
               similarity = Math.max(similarity, cosineSimilarity(cand, enrolled));
             }
-            console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face similarity(enhanced)=`, similarity.toFixed(3));
+            console.log(
+              `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity(enhanced)=`,
+              similarity.toFixed(3),
+            );
           }
-          console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face similarity=`, similarity.toFixed(3), `threshold=`, FACE_MATCH_THRESHOLD);
+          console.log(
+            `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity=`,
+            similarity.toFixed(3),
+            `threshold=`,
+            FACE_MATCH_THRESHOLD,
+          );
           if (similarity < FACE_MATCH_THRESHOLD) {
-            console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face MISMATCH, redirecting`);
+            console.log(
+              `[SkinLens][Analyzing] ${new Date().toISOString()} face MISMATCH, redirecting`,
+            );
             router.replace({
               pathname: "/(modules)/face-mismatch",
               params: {
@@ -226,7 +259,10 @@ export default function Analyzing() {
           }
           console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face verified`);
         } catch (e) {
-          console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} face verification skipped (fail-open):`, e);
+          console.log(
+            `[SkinLens][Analyzing] ${new Date().toISOString()} face verification skipped (fail-open):`,
+            e,
+          );
           console.warn("[analyzing] face verification skipped:", e);
         }
       }
@@ -234,21 +270,18 @@ export default function Analyzing() {
       if (cancelledRef.current) return;
 
       goToStep(3);
-      // ── Detection confirmation gate ──
-      // Pause here so the user sees what was detected and explicitly
-      // agrees to take the short survey to finalize the result,
-      // instead of auto-jumping straight into the survey.
-      console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} analysis complete, showing confirmation`);
+      // Detection confirmation gate: Pause here so the user sees what was detected and explicitly
+      // agrees to take the short survey to finalize the result, instead of auto-jumping straight
+      // into the survey.
+      console.log(
+        `[SkinLens][Analyzing] ${new Date().toISOString()} analysis complete, showing confirmation`,
+      );
       setFinalUris(uris as string[]);
       setDetectedResult(finalResult);
     } catch (e) {
       console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} run failed:`, e);
       if (cancelledRef.current) return;
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Failed to analyze the image. Please try again.",
-      );
+      setError(e instanceof Error ? e.message : "Failed to analyze the image. Please try again.");
     } finally {
       busyRef.current = false;
       if (!cancelledRef.current) setRunning(false);
@@ -262,12 +295,15 @@ export default function Analyzing() {
     return () => {
       cancelledRef.current = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleProceedToSurvey = () => {
     if (navRef.current) return;
-    console.log(`[SkinLens][Analyzing] ${new Date().toISOString()} proceed to survey label=`, detectedResult?.label);
+    console.log(
+      `[SkinLens][Analyzing] ${new Date().toISOString()} proceed to survey label=`,
+      detectedResult?.label,
+    );
     if (!detectedResult || !finalUris[0]) return;
     navRef.current = true;
     router.replace({
@@ -305,16 +341,29 @@ export default function Analyzing() {
           <ScrollView
             className="flex-1"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, flexGrow: 1, justifyContent: "center" }}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: 24,
+              flexGrow: 1,
+              justifyContent: "center",
+            }}
           >
             <View className="items-center">
               <View
                 className="h-12 w-12 rounded-full items-center justify-center"
-                style={{ backgroundColor: theme.colors.warningBg, borderWidth: 1, borderColor: theme.colors.warningBorder }}
+                style={{
+                  backgroundColor: theme.colors.warningBg,
+                  borderWidth: 1,
+                  borderColor: theme.colors.warningBorder,
+                }}
               >
                 <AlertCircle size={22} color={theme.colors.warningText} />
               </View>
-              <Text className="font-bold text-[24px] mt-3 text-center" style={{ color: theme.colors.ink }}>
+              <Text
+                className="font-bold text-[24px] mt-3 text-center"
+                style={{ color: theme.colors.ink }}
+              >
                 {"We couldn't read this clearly"}
               </Text>
               <Text className="text-sm mt-1 text-center" style={{ color: theme.colors.muted }}>
@@ -326,8 +375,15 @@ export default function Analyzing() {
 
             <ClinicalCard className="mt-5 gap-3 py-6 px-5">
               {previewUri ? (
-                <View className="self-center w-28 h-28 rounded-3xl overflow-hidden" style={{ aspectRatio: 1, backgroundColor: theme.colors.primarySoft }}>
-                  <Image source={{ uri: previewUri }} className="w-full h-full" resizeMode="cover" />
+                <View
+                  className="self-center w-28 h-28 rounded-3xl overflow-hidden"
+                  style={{ aspectRatio: 1, backgroundColor: theme.colors.primarySoft }}
+                >
+                  <Image
+                    source={{ uri: previewUri }}
+                    className="w-full h-full"
+                    resizeMode="cover"
+                  />
                 </View>
               ) : null}
               <Text className="text-[15px] font-bold" style={{ color: theme.colors.ink }}>
@@ -340,7 +396,9 @@ export default function Analyzing() {
               ].map((tip) => (
                 <View key={tip} className="flex-row gap-2">
                   <Text style={{ color: theme.colors.primary }}>•</Text>
-                  <Text className="flex-1 text-sm leading-5" style={{ color: theme.colors.body }}>{tip}</Text>
+                  <Text className="flex-1 text-sm leading-5" style={{ color: theme.colors.body }}>
+                    {tip}
+                  </Text>
                 </View>
               ))}
             </ClinicalCard>
@@ -360,7 +418,13 @@ export default function Analyzing() {
         <ScrollView
           className="flex-1"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, flexGrow: 1, justifyContent: "center" }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: 12,
+            paddingBottom: 24,
+            flexGrow: 1,
+            justifyContent: "center",
+          }}
         >
           <View className="items-center">
             <View
@@ -369,7 +433,10 @@ export default function Analyzing() {
             >
               <Check size={22} color="#FFFFFF" />
             </View>
-            <Text className="font-bold text-[24px] mt-3 text-center" style={{ color: theme.colors.ink }}>
+            <Text
+              className="font-bold text-[24px] mt-3 text-center"
+              style={{ color: theme.colors.ink }}
+            >
               Scan Complete
             </Text>
             <Text className="text-sm mt-1 text-center" style={{ color: theme.colors.muted }}>
@@ -381,14 +448,14 @@ export default function Analyzing() {
 
           <ClinicalCard className="mt-5 items-center gap-3 py-6 px-5">
             {previewUri ? (
-              <View className="w-28 h-28 rounded-3xl overflow-hidden" style={{ aspectRatio: 1, backgroundColor: theme.colors.primarySoft }}>
+              <View
+                className="w-28 h-28 rounded-3xl overflow-hidden"
+                style={{ aspectRatio: 1, backgroundColor: theme.colors.primarySoft }}
+              >
                 <Image source={{ uri: previewUri }} className="w-full h-full" resizeMode="cover" />
               </View>
             ) : null}
-            <View
-              className="rounded-full px-4 py-1.5 mt-1"
-              style={{ backgroundColor: meta.bg }}
-            >
+            <View className="rounded-full px-4 py-1.5 mt-1" style={{ backgroundColor: meta.bg }}>
               <Text className="text-sm font-bold capitalize" style={{ color: meta.color }}>
                 {prettyLabel} {confidencePct > 0 ? `· ${confidencePct}%` : ""}
               </Text>
@@ -404,10 +471,7 @@ export default function Analyzing() {
           </ClinicalCard>
 
           <View className="w-full mt-5 gap-2">
-            <PrimaryButton
-              label="Continue to Short Survey"
-              onPress={handleProceedToSurvey}
-            />
+            <PrimaryButton label="Continue to Short Survey" onPress={handleProceedToSurvey} />
             <SecondaryButton label="Scan Again" onPress={handleRescan} />
           </View>
         </ScrollView>
@@ -422,8 +486,12 @@ export default function Analyzing() {
         <View className="flex-1 px-5 items-center justify-center">
           <ClinicalCard className="py-10 px-6 items-center gap-2 w-full">
             <AlertCircle size={28} color={theme.colors.danger} />
-            <Text className="font-bold" style={{ color: theme.colors.ink }}>Analysis failed</Text>
-            <Text className="text-sm text-center" style={{ color: theme.colors.muted }}>{error}</Text>
+            <Text className="font-bold" style={{ color: theme.colors.ink }}>
+              Analysis failed
+            </Text>
+            <Text className="text-sm text-center" style={{ color: theme.colors.muted }}>
+              {error}
+            </Text>
             <View className="w-full mt-2">
               <PrimaryButton
                 label="Try Again"
@@ -456,7 +524,11 @@ export default function Analyzing() {
                 <View key={i} className="relative items-center">
                   <View
                     className="w-24 h-24 rounded-2xl overflow-hidden"
-                    style={{ elevation: 6, aspectRatio: 1, backgroundColor: theme.colors.primarySoft }}
+                    style={{
+                      elevation: 6,
+                      aspectRatio: 1,
+                      backgroundColor: theme.colors.primarySoft,
+                    }}
                   >
                     {(displayUris[i] ?? uri) && (
                       <Image
@@ -485,19 +557,54 @@ export default function Analyzing() {
                     </Animated.View>
                     {/* Corner brackets */}
                     <View className="absolute top-2 left-2">
-                      <View style={{ width: 14, height: 14, borderTopWidth: 2, borderLeftWidth: 2, borderColor: theme.colors.primary }} />
+                      <View
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderTopWidth: 2,
+                          borderLeftWidth: 2,
+                          borderColor: theme.colors.primary,
+                        }}
+                      />
                     </View>
                     <View className="absolute top-2 right-2">
-                      <View style={{ width: 14, height: 14, borderTopWidth: 2, borderRightWidth: 2, borderColor: theme.colors.primary }} />
+                      <View
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderTopWidth: 2,
+                          borderRightWidth: 2,
+                          borderColor: theme.colors.primary,
+                        }}
+                      />
                     </View>
                     <View className="absolute bottom-2 left-2">
-                      <View style={{ width: 14, height: 14, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: theme.colors.primary }} />
+                      <View
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderBottomWidth: 2,
+                          borderLeftWidth: 2,
+                          borderColor: theme.colors.primary,
+                        }}
+                      />
                     </View>
                     <View className="absolute bottom-2 right-2">
-                      <View style={{ width: 14, height: 14, borderBottomWidth: 2, borderRightWidth: 2, borderColor: theme.colors.primary }} />
+                      <View
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderBottomWidth: 2,
+                          borderRightWidth: 2,
+                          borderColor: theme.colors.primary,
+                        }}
+                      />
                     </View>
                   </View>
-                  <Text className="text-xs font-semibold mt-2" style={{ color: theme.colors.primaryDeep }}>
+                  <Text
+                    className="text-xs font-semibold mt-2"
+                    style={{ color: theme.colors.primaryDeep }}
+                  >
                     {ANGLE_LABELS[i]}
                   </Text>
                 </View>
@@ -546,16 +653,48 @@ export default function Analyzing() {
                 </Animated.View>
                 {/* Corner brackets */}
                 <View className="absolute top-3 left-3">
-                  <View style={{ width: 20, height: 20, borderTopWidth: 3, borderLeftWidth: 3, borderColor: theme.colors.primary }} />
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderTopWidth: 3,
+                      borderLeftWidth: 3,
+                      borderColor: theme.colors.primary,
+                    }}
+                  />
                 </View>
                 <View className="absolute top-3 right-3">
-                  <View style={{ width: 20, height: 20, borderTopWidth: 3, borderRightWidth: 3, borderColor: theme.colors.primary }} />
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderTopWidth: 3,
+                      borderRightWidth: 3,
+                      borderColor: theme.colors.primary,
+                    }}
+                  />
                 </View>
                 <View className="absolute bottom-3 left-3">
-                  <View style={{ width: 20, height: 20, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: theme.colors.primary }} />
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderBottomWidth: 3,
+                      borderLeftWidth: 3,
+                      borderColor: theme.colors.primary,
+                    }}
+                  />
                 </View>
                 <View className="absolute bottom-3 right-3">
-                  <View style={{ width: 20, height: 20, borderBottomWidth: 3, borderRightWidth: 3, borderColor: theme.colors.primary }} />
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderBottomWidth: 3,
+                      borderRightWidth: 3,
+                      borderColor: theme.colors.primary,
+                    }}
+                  />
                 </View>
               </View>
             </View>
@@ -566,17 +705,23 @@ export default function Analyzing() {
               Scanning Your Skin
             </Text>
             <Text className="text-center" style={{ color: theme.colors.muted }}>
-              {isMulti
-                ? `Analyzing ${multiAngles.length} angles`
-                : "Analysis in progress"}
+              {isMulti ? `Analyzing ${multiAngles.length} angles` : "Analysis in progress"}
             </Text>
           </View>
 
           <View className="w-full gap-3">
-            <Text className="text-center text-base font-medium" style={{ color: theme.colors.body }}>
+            <Text
+              className="text-center text-base font-medium"
+              style={{ color: theme.colors.body }}
+            >
               {steps[stepIndex].label}...
             </Text>
-            <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
+            <InlineProgress
+              progress={progressPct}
+              height={8}
+              color={theme.colors.primary}
+              trackColor={theme.colors.primarySoft}
+            />
           </View>
 
           <ClinicalCard className="w-full gap-3">

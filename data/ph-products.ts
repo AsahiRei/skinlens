@@ -1,16 +1,10 @@
 import type { PhProduct } from "@/types/knowledge";
 
 /**
- * Curated sample of widely available products in the Philippines
- * (official brand stores on Shopee / Lazada, Watsons, Mercury Drug, etc.).
- *
- * Prices are approximate PHP ranges and change often — the chat always
- * labels them as estimates and links to a store SEARCH (not a fixed
- * listing) so links never go stale.
- *
- * `key_ingredients` must use the ingredient names from data/knowledge.json
- * (plus "Snail Mucin" / "Sunscreen") so they line up with the
- * assistant's suggestions.
+ * Curated sample of widely available products in the Philippines (official brand stores on Shopee /
+ * Lazada, Watsons, Mercury Drug, etc.). Prices are approximate PHP ranges and change often — the
+ * chat always labels them as estimates and links to a store SEARCH (not a fixed listing) so links
+ * never go stale.
  */
 export const PH_PRODUCTS: PhProduct[] = [
   // ── Niacinamide ────────────────────────────────────────────────

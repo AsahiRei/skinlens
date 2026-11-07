@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Platform,
-  ScrollView,
-  ToastAndroid,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, Platform, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AlertCircle, FileText, Info } from "lucide-react-native";
@@ -16,14 +9,7 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { ClinicalCard, Notice, PrimaryButton, SecondaryButton, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import Animated from "react-native-reanimated";
-import {
-  AnimatedBarFill,
-  enterUp,
-  fadeIn,
-  fadeOut,
-  listLayout,
-  popIn,
-} from "@/components/motion";
+import { AnimatedBarFill, enterUp, fadeIn, fadeOut, listLayout, popIn } from "@/components/motion";
 import {
   getLifestyleProfile,
   getSensitivityHistory,
@@ -51,23 +37,16 @@ const detectionDescriptions: Record<string, string> = {
 
 export default function ScanResults() {
   const router = useRouter();
-  const {
-    imageUri,
-    sourceType,
-    label,
-    confidence,
-    probabilities,
-    surveyAnswers,
-    severityScore,
-  } = useLocalSearchParams<{
-    imageUri: string;
-    sourceType: string;
-    label: string;
-    confidence: string;
-    probabilities: string;
-    surveyAnswers: string;
-    severityScore: string;
-  }>();
+  const { imageUri, sourceType, label, confidence, probabilities, surveyAnswers, severityScore } =
+    useLocalSearchParams<{
+      imageUri: string;
+      sourceType: string;
+      label: string;
+      confidence: string;
+      probabilities: string;
+      surveyAnswers: string;
+      severityScore: string;
+    }>();
 
   const detectionLabel = label ?? "normal";
   const surveyScore = Number(severityScore) || 50;
@@ -148,7 +127,11 @@ export default function ScanResults() {
 
   const decodedUri = imageUri
     ? (() => {
-        try { return decodeURIComponent(imageUri); } catch { return imageUri; }
+        try {
+          return decodeURIComponent(imageUri);
+        } catch {
+          return imageUri;
+        }
       })()
     : null;
 
@@ -205,9 +188,7 @@ export default function ScanResults() {
       if (cancelledRef.current) return;
       console.error("[scan-results] Error:", e);
       setError(
-        e instanceof Error
-          ? e.message
-          : "Failed to generate your routine. Please try again.",
+        e instanceof Error ? e.message : "Failed to generate your routine. Please try again.",
       );
     } finally {
       busyRef.current = false;
@@ -222,12 +203,11 @@ export default function ScanResults() {
     return () => {
       cancelledRef.current = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist only when the user confirms: save routine, upload the image to
-  // Cloudinary, insert the result. Guarded so a double tap can't insert twice
-  // (insertResult has no dedupe).
+  // Persist only when the user confirms: save routine, upload the image to Cloudinary, insert the
+  // result.
   const handleConfirm = async () => {
     if (savingRef.current || !resultData || !routineJsonRef.current) return;
     savingRef.current = true;
@@ -235,9 +215,7 @@ export default function ScanResults() {
     try {
       await insertRoutine(routineJsonRef.current);
 
-      const cloudinaryUrl = decodedUri
-        ? await uploadImageToCloudinary(decodedUri)
-        : null;
+      const cloudinaryUrl = decodedUri ? await uploadImageToCloudinary(decodedUri) : null;
       if (cloudinaryUrl) {
         showNotice("Image uploaded to cloud");
       }
@@ -277,27 +255,29 @@ export default function ScanResults() {
         />
         <View className="flex-1 px-5 items-center justify-center">
           <Animated.View entering={popIn} className="w-full">
-          <ClinicalCard className="py-10 px-6 items-center gap-2 w-full">
-            <AlertCircle size={28} color={theme.colors.danger} />
-            <Text className="font-bold" style={{ color: theme.colors.ink }}>
-              {"Couldn't generate results"}
-            </Text>
-            <Text className="text-sm text-center" style={{ color: theme.colors.muted }}>{error}</Text>
-            <View className="w-full mt-2">
-              <PrimaryButton
-                label="Try Again"
-                loading={generating}
-                onPress={() => {
-                  if (generating) return;
-                  ranRef.current = false;
-                  generatePreview();
-                }}
-              />
-            </View>
-            <View className="w-full mt-1">
-              <SecondaryButton label="Go Back" onPress={() => router.back()} />
-            </View>
-          </ClinicalCard>
+            <ClinicalCard className="py-10 px-6 items-center gap-2 w-full">
+              <AlertCircle size={28} color={theme.colors.danger} />
+              <Text className="font-bold" style={{ color: theme.colors.ink }}>
+                {"Couldn't generate results"}
+              </Text>
+              <Text className="text-sm text-center" style={{ color: theme.colors.muted }}>
+                {error}
+              </Text>
+              <View className="w-full mt-2">
+                <PrimaryButton
+                  label="Try Again"
+                  loading={generating}
+                  onPress={() => {
+                    if (generating) return;
+                    ranRef.current = false;
+                    generatePreview();
+                  }}
+                />
+              </View>
+              <View className="w-full mt-1">
+                <SecondaryButton label="Go Back" onPress={() => router.back()} />
+              </View>
+            </ClinicalCard>
           </Animated.View>
         </View>
       </SafeAreaView>
@@ -314,10 +294,7 @@ export default function ScanResults() {
         message={notice?.message}
         actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
       />
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         <View className="flex-1 px-5 gap-5">
           <Animated.View entering={enterUp(0)} className="pt-4 items-center">
             <Text className="font-bold text-[24px] mt-1" style={{ color: theme.colors.ink }}>
@@ -333,11 +310,7 @@ export default function ScanResults() {
                 className="w-40 h-40 rounded-3xl overflow-hidden bg-gray-200 shadow-sm"
                 style={{ aspectRatio: 1 }}
               >
-                <Image
-                  source={{ uri: imageUri }}
-                  className="w-full h-full"
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: imageUri }} className="w-full h-full" resizeMode="cover" />
               </View>
             </Animated.View>
           )}
@@ -365,14 +338,13 @@ export default function ScanResults() {
             >
               <Text className="text-3xl font-semibold text-gray-700">
                 {overallScore}
-                <Text className="text-base" style={{ color: theme.colors.muted }}>/100</Text>
+                <Text className="text-base" style={{ color: theme.colors.muted }}>
+                  /100
+                </Text>
               </Text>
             </CircularProgress>
             <View className="flex-row items-center gap-1.5">
-              <View
-                style={{ backgroundColor: color }}
-                className="h-2 w-2 rounded-full"
-              />
+              <View style={{ backgroundColor: color }} className="h-2 w-2 rounded-full" />
               <Text className="text-sm font-medium" style={{ color: theme.colors.muted }}>
                 {severityLabel}
               </Text>
@@ -381,97 +353,105 @@ export default function ScanResults() {
 
           {assessment.inconclusive && (
             <Animated.View entering={enterUp(4)}>
-            <Notice
-              icon={AlertCircle}
-              tone="warning"
-              copy="Low-confidence result: the AI wasn't sure about this photo, so treat this score as a rough estimate. A retake in even, natural light gives a more reliable result."
-            />
+              <Notice
+                icon={AlertCircle}
+                tone="warning"
+                copy="Low-confidence result: the AI wasn't sure about this photo, so treat this score as a rough estimate. A retake in even, natural light gives a more reliable result."
+              />
             </Animated.View>
           )}
 
           {/* Top 3 classifications */}
           <Animated.View entering={enterUp(5)}>
-          <ClinicalCard className="gap-3">
-            <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
-              Top 3 Predictions
-            </Text>
-            {topPredictions.map((pred, index) => {
-              const pct = Math.max(0, Math.min(100, pred.confidence * 100));
-              const isTop = index === 0;
-              return (
-                <View key={`${pred.label}-${index}`} className="gap-1.5">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-2">
-                      <View
-                        className="h-6 w-6 items-center justify-center rounded-full"
-                        style={{ backgroundColor: isTop ? theme.colors.ink : theme.colors.background }}
-                      >
-                        <Text
-                          className="text-xs font-bold"
-                          style={{ color: isTop ? "#FFFFFF" : theme.colors.muted }}
+            <ClinicalCard className="gap-3">
+              <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
+                Top 3 Predictions
+              </Text>
+              {topPredictions.map((pred, index) => {
+                const pct = Math.max(0, Math.min(100, pred.confidence * 100));
+                const isTop = index === 0;
+                return (
+                  <View key={`${pred.label}-${index}`} className="gap-1.5">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center gap-2">
+                        <View
+                          className="h-6 w-6 items-center justify-center rounded-full"
+                          style={{
+                            backgroundColor: isTop ? theme.colors.ink : theme.colors.background,
+                          }}
                         >
-                          {index + 1}
+                          <Text
+                            className="text-xs font-bold"
+                            style={{ color: isTop ? "#FFFFFF" : theme.colors.muted }}
+                          >
+                            {index + 1}
+                          </Text>
+                        </View>
+                        <Text
+                          className="text-sm font-bold capitalize"
+                          style={{ color: theme.colors.ink }}
+                        >
+                          {pred.label}
                         </Text>
                       </View>
-                      <Text className="text-sm font-bold capitalize" style={{ color: theme.colors.ink }}>
-                        {pred.label}
+                      <Text className="text-sm font-medium" style={{ color: theme.colors.muted }}>
+                        {pct.toFixed(1)}%
                       </Text>
                     </View>
-                    <Text className="text-sm font-medium" style={{ color: theme.colors.muted }}>
-                      {pct.toFixed(1)}%
-                    </Text>
+                    <View
+                      className="h-2 w-full overflow-hidden rounded-full"
+                      style={{ backgroundColor: theme.colors.background }}
+                    >
+                      <AnimatedBarFill
+                        percent={pct}
+                        delay={350 + index * 120}
+                        color={isTop ? theme.colors.primary : theme.colors.primaryTint}
+                      />
+                    </View>
                   </View>
-                  <View className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: theme.colors.background }}>
-                    <AnimatedBarFill
-                      percent={pct}
-                      delay={350 + index * 120}
-                      color={isTop ? theme.colors.primary : theme.colors.primaryTint}
-                    />
-                  </View>
-                </View>
-              );
-            })}
-          </ClinicalCard>
+                );
+              })}
+            </ClinicalCard>
           </Animated.View>
 
           {/* Detection explanation */}
           <Animated.View entering={enterUp(6)}>
-          <ClinicalCard className="gap-3">
-            <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: theme.colors.primarySoft }}>
-                <FileText
-                  size={20}
-                  color={theme.colors.primary}
-                />
+            <ClinicalCard className="gap-3">
+              <View className="flex-row items-center gap-3">
+                <View
+                  className="h-10 w-10 items-center justify-center rounded-full"
+                  style={{ backgroundColor: theme.colors.primarySoft }}
+                >
+                  <FileText size={20} color={theme.colors.primary} />
+                </View>
+                <Text className="flex-1 text-base font-bold" style={{ color: theme.colors.ink }}>
+                  Detection Explanation
+                </Text>
               </View>
-              <Text className="flex-1 text-base font-bold" style={{ color: theme.colors.ink }}>
-                Detection Explanation
+              <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>
+                {detectionDescriptions[detectionLabel]}
               </Text>
-            </View>
-            <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>
-              {detectionDescriptions[detectionLabel]}
-            </Text>
-            <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>{message}</Text>
-          </ClinicalCard>
+              <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>
+                {message}
+              </Text>
+            </ClinicalCard>
           </Animated.View>
 
           {/* Generating indicator */}
           {generating && (
             <Animated.View entering={fadeIn} exiting={fadeOut}>
-            <ClinicalCard className="py-10 px-6 items-center gap-3">
-              <ActivityIndicator color={theme.colors.primary} size="small" />
-              <Text className="text-sm" style={{ color: theme.colors.muted }}>
-                Generating your routine...
-              </Text>
-            </ClinicalCard>
+              <ClinicalCard className="py-10 px-6 items-center gap-3">
+                <ActivityIndicator color={theme.colors.primary} size="small" />
+                <Text className="text-sm" style={{ color: theme.colors.muted }}>
+                  Generating your routine...
+                </Text>
+              </ClinicalCard>
             </Animated.View>
           )}
 
           {/* Recommended products */}
-          {!generating &&
-            resultData?.recommendations &&
-            resultData.recommendations.length > 0 && (
-              <Animated.View entering={enterUp(1)} layout={listLayout}>
+          {!generating && resultData?.recommendations && resultData.recommendations.length > 0 && (
+            <Animated.View entering={enterUp(1)} layout={listLayout}>
               <ClinicalCard className="gap-4">
                 <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
                   Recommended Products
@@ -492,7 +472,10 @@ export default function ScanResults() {
                           className="rounded-full px-3 py-1"
                           style={{ backgroundColor: theme.colors.primarySoft }}
                         >
-                          <Text className="text-xs font-semibold" style={{ color: theme.colors.primaryDeep }}>
+                          <Text
+                            className="text-xs font-semibold"
+                            style={{ color: theme.colors.primaryDeep }}
+                          >
                             {ingredient}
                           </Text>
                         </View>
@@ -504,15 +487,15 @@ export default function ScanResults() {
                   </View>
                 ))}
               </ClinicalCard>
-              </Animated.View>
-            )}
+            </Animated.View>
+          )}
 
           <Animated.View entering={enterUp(7)} layout={listLayout}>
-          <Notice
-            icon={Info}
-            tone="info"
-            copy="SkinLens results are AI estimates for information only, not a medical diagnosis. Consult a licensed dermatologist for persistent, severe or worsening skin concerns."
-          />
+            <Notice
+              icon={Info}
+              tone="info"
+              copy="SkinLens results are AI estimates for information only, not a medical diagnosis. Consult a licensed dermatologist for persistent, severe or worsening skin concerns."
+            />
           </Animated.View>
 
           <View className="h-4" />
@@ -526,10 +509,7 @@ export default function ScanResults() {
           disabled={loading || generating}
           loading={loading}
         />
-        <SecondaryButton
-          label="Scan Again"
-          onPress={() => router.replace("/(tabs)/scan")}
-        />
+        <SecondaryButton label="Scan Again" onPress={() => router.replace("/(tabs)/scan")} />
       </View>
     </SafeAreaView>
   );

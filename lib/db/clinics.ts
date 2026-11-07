@@ -2,10 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { supabase } from "@/utils/supabase";
 
-// Verified hospitals — the source of truth is the Supabase `clinics` table
-// (managed from the website admin page). Replaces the old hardcoded
-// data/derma-locations.json. Last good fetch is cached on-device so the
-// verified list still shows offline.
+// Verified hospitals — the source of truth is the Supabase `clinics` table (managed from the
+// website admin page).
 export type VerifiedClinic = {
   id: string;
   name: string;

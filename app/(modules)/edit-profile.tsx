@@ -44,11 +44,7 @@ function parseDob(age?: string): Date | null {
   const year = Number(m[3]);
   if (month < 0 || Number.isNaN(day) || Number.isNaN(year)) return null;
   const date = new Date(year, month, day);
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month ||
-    date.getDate() !== day
-  )
+  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day)
     return null;
   return date;
 }
@@ -60,23 +56,26 @@ const SLEEP_OPTIONS: string[] = profileOptions.sleepOptions;
 const STRESS_OPTIONS: string[] = profileOptions.stressOptions;
 const WATER_OPTIONS: string[] = profileOptions.waterOptions;
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View className="bg-white rounded-[20px] py-4 px-4 gap-3 mt-4" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }}>
-      <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>{title}</Text>
+    <View
+      className="bg-white rounded-[20px] py-4 px-4 gap-3 mt-4"
+      style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }}
+    >
+      <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
+        {title}
+      </Text>
       {children}
     </View>
   );
 }
 
 function FieldLabel({ label }: { label: string }) {
-  return <Text className="text-sm" style={{ color: theme.colors.muted }}>{label}</Text>;
+  return (
+    <Text className="text-sm" style={{ color: theme.colors.muted }}>
+      {label}
+    </Text>
+  );
 }
 
 function OptionChips({
@@ -136,14 +135,12 @@ export default function EditProfile() {
   // overwrite the saved DOB.
   const [dateTouched, setDateTouched] = useState(false);
   const [originalAge, setOriginalAge] = useState("");
-  const ageString =
-    dateTouched && dob ? formatDob(dob) : originalAge;
+  const ageString = dateTouched && dob ? formatDob(dob) : originalAge;
 
   useEffect(() => {
     (async () => {
       try {
-        const { userProfile, skinProfile, lifestyleProfile } =
-          await getAllProfiles();
+        const { userProfile, skinProfile, lifestyleProfile } = await getAllProfiles();
         setFirstName(userProfile?.first_name ?? userProfile?.username ?? "");
         setGender(userProfile?.gender ?? "");
         setOriginalAge(userProfile?.age ?? "");
@@ -173,10 +170,7 @@ export default function EditProfile() {
 
   const handleSave = async () => {
     if (!isComplete) {
-      ToastAndroid.show(
-        "Please fill in all fields before saving.",
-        ToastAndroid.SHORT,
-      );
+      ToastAndroid.show("Please fill in all fields before saving.", ToastAndroid.SHORT);
       return;
     }
     setSaving(true);
@@ -199,17 +193,18 @@ export default function EditProfile() {
       router.back();
     } catch (err) {
       console.error("Error saving profile:", err);
-      ToastAndroid.show(
-        "Failed to save changes. Please try again.",
-        ToastAndroid.SHORT,
-      );
+      ToastAndroid.show("Failed to save changes. Please try again.", ToastAndroid.SHORT);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <FadeItem index={0}>
         <View className="px-5 pt-4 pb-1 mt-2">
@@ -231,13 +226,17 @@ export default function EditProfile() {
             <Section title="Personal Info">
               <View className="gap-1.5">
                 <FieldLabel label="First Name" />
-                <View className="bg-white rounded-2xl px-4" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}>
+                <View
+                  className="bg-white rounded-2xl px-4"
+                  style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                >
                   <TextInput
                     value={firstName}
                     onChangeText={setFirstName}
                     placeholder="Your first name"
                     placeholderTextColor={theme.colors.faint}
-                    className="py-3" style={{ color: theme.colors.ink }}
+                    className="py-3"
+                    style={{ color: theme.colors.ink }}
                   />
                 </View>
               </View>
@@ -304,11 +303,7 @@ export default function EditProfile() {
 
               <View className="gap-1.5">
                 <FieldLabel label="Gender" />
-                <OptionChips
-                  options={GENDER_OPTIONS}
-                  value={gender}
-                  onChange={setGender}
-                />
+                <OptionChips options={GENDER_OPTIONS} value={gender} onChange={setGender} />
               </View>
             </Section>
           </FadeItem>
@@ -317,11 +312,7 @@ export default function EditProfile() {
             <Section title="Skin Profile">
               <View className="gap-1.5">
                 <FieldLabel label="Skin Type" />
-                <OptionChips
-                  options={SKIN_TYPE_OPTIONS}
-                  value={skinType}
-                  onChange={setSkinType}
-                />
+                <OptionChips options={SKIN_TYPE_OPTIONS} value={skinType} onChange={setSkinType} />
               </View>
               <View className="gap-1.5">
                 <FieldLabel label="Primary Concern" />

@@ -1,3 +1,4 @@
+// @ts-nocheck -- runs on Supabase Edge (Deno), not type-checked with the app.
 // Supabase Edge Function: Cloudinary signing + per-user purge.
 //
 // Replaces the unsigned upload preset that was compiled into the app (anyone
@@ -29,10 +30,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 async function sha1Hex(input: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-1",
-    new TextEncoder().encode(input),
-  );
+  const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(input));
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
@@ -77,11 +75,9 @@ Deno.serve(async (req) => {
   }
 
   const authHeader = req.headers.get("Authorization") ?? "";
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
   const {
     data: { user },
     error: authError,

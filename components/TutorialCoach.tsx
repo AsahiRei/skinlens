@@ -9,20 +9,10 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Text } from "@/components/Text";
 import { usePathname, useRouter } from "expo-router";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { PrimaryButton } from "@/components/ui";
 import { requireUser } from "@/lib/db/auth";
@@ -124,16 +114,8 @@ function normalizeDeg(deg: number): number {
   return wrapped;
 }
 
-/**
- * Where the card sits vertically for a given spotlight rect. Keep this in
- * sync with the `cardStyle` worklet below — it repeats the same maths because
- * a worklet can't call a function that lives on the JS runtime.
- */
-function cardTopFor(
-  rect: CoachRect,
-  cardHeight: number,
-  winH: number,
-): number {
+/** Where the card sits vertically for a given spotlight rect. */
+function cardTopFor(rect: CoachRect, cardHeight: number, winH: number): number {
   const spaceBelow = winH - (rect.y + rect.height);
   return spaceBelow > cardHeight + CARD_GAP + 24
     ? rect.y + rect.height + CARD_GAP
@@ -271,10 +253,7 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
     const tick = () => {
       if (cancelled) return;
       attempt += 1;
-      const arrived =
-        !step.href ||
-        attempt > 20 ||
-        sameRoute(pathnameRef.current, step.href);
+      const arrived = !step.href || attempt > 20 || sameRoute(pathnameRef.current, step.href);
       if (arrived) targets.current.get(step.target)?.measure();
       if (attempt < 40) timer = setTimeout(tick, 160);
     };
@@ -300,13 +279,13 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
     // Mirror the card's inner padding on the right, so the mascot sits in the
     // reserved gutter with a 6pt gap to the copy (see MASCOT_GUTTER).
     const left = winW - CARD_EDGE - 1 - CARD_PADDING - MASCOT_WIDTH;
-    const top = targetBelow
-      ? cardTop + cardHeight + poke - MASCOT_HEIGHT
-      : cardTop - poke;
-    const aim = Math.atan2(
-      rect.y + rect.height / 2 - (top + MASCOT_HEIGHT / 2),
-      rect.x + rect.width / 2 - (left + MASCOT_WIDTH / 2),
-    ) * (180 / Math.PI);
+    const top = targetBelow ? cardTop + cardHeight + poke - MASCOT_HEIGHT : cardTop - poke;
+    const aim =
+      Math.atan2(
+        rect.y + rect.height / 2 - (top + MASCOT_HEIGHT / 2),
+        rect.x + rect.width / 2 - (left + MASCOT_WIDTH / 2),
+      ) *
+      (180 / Math.PI);
     const native = targetBelow ? POSE_DOWN_NATIVE : POSE_UP_NATIVE;
     // Mirroring the art swaps its pointing direction across the vertical
     // axis, so try both and keep whichever needs the smaller lean.
@@ -324,10 +303,8 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
   }, [rect, cardHeight, winH, winW]);
 
   /**
-   * The mascot is rendered straight from shared values so it can stay on
-   * screen during the beat where the spotlight rect is cleared between steps.
-   * `mpose` picks the art (0 = pointing up, 1 = pointing down) and `mopacity`
-   * fades it in on the first step of a run.
+   * The mascot is rendered straight from shared values so it can stay on screen during the beat
+   * where the spotlight rect is cleared between steps.
    */
   const mx = useSharedValue(0);
   const my = useSharedValue(0);
@@ -491,10 +468,7 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
                 >
                   STEP {index + 1} OF {steps?.length ?? 0}
                 </Text>
-                <Text
-                  className="font-bold text-[18px] mt-1"
-                  style={{ color: theme.colors.ink }}
-                >
+                <Text className="font-bold text-[18px] mt-1" style={{ color: theme.colors.ink }}>
                   {step.title}
                 </Text>
                 <Text
@@ -511,28 +485,19 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
                     accessibilityLabel="Skip tutorial"
                     className="active:opacity-60"
                   >
-                    <Text
-                      className="text-sm font-semibold"
-                      style={{ color: theme.colors.muted }}
-                    >
+                    <Text className="text-sm font-semibold" style={{ color: theme.colors.muted }}>
                       Skip
                     </Text>
                   </Pressable>
                   <View className="flex-1">
-                    <PrimaryButton
-                      label={isLast ? "Finish" : "Next"}
-                      onPress={goNext}
-                    />
+                    <PrimaryButton label={isLast ? "Finish" : "Next"} onPress={goNext} />
                   </View>
                 </View>
               </View>
             </Animated.View>
           ) : null}
           {step ? (
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.mascot, mascotStyle]}
-            >
+            <Animated.View pointerEvents="none" style={[styles.mascot, mascotStyle]}>
               <Animated.Image
                 source={POSE_UP}
                 style={[styles.mascotArt, poseUpStyle]}

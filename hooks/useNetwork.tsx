@@ -21,13 +21,10 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     const unsubscribe = NetInfo.addEventListener((info: NetInfoState) => {
       const isConnected = info.isConnected ?? false;
       const isInternetReachable = info.isInternetReachable;
-      // NetInfo fires for every interface/details change (signal strength,
-      // SSID, cellular generation…). Returning the previous object when the
-      // two fields we expose are unchanged keeps every consumer from
-      // re-rendering on each of those events.
+      // NetInfo fires for every interface/details change (signal strength, SSID, cellular
+      // generation…).
       setState((prev) =>
-        prev.isConnected === isConnected &&
-        prev.isInternetReachable === isInternetReachable
+        prev.isConnected === isConnected && prev.isInternetReachable === isInternetReachable
           ? prev
           : { isConnected, isInternetReachable },
       );
@@ -35,9 +32,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  return (
-    <NetworkContext.Provider value={state}>{children}</NetworkContext.Provider>
-  );
+  return <NetworkContext.Provider value={state}>{children}</NetworkContext.Provider>;
 }
 
 export function useNetwork(): NetworkContextValue {

@@ -51,11 +51,7 @@ function PickerItem({
   );
 }
 
-export default function ScrollPicker({
-  items,
-  selectedIndex,
-  onValueChange,
-}: Props) {
+export default function ScrollPicker({ items, selectedIndex, onValueChange }: Props) {
   const scrollY = useSharedValue(0);
   const containerHeight = VISIBLE_COUNT * ITEM_HEIGHT;
   const scrollRef = useRef<ScrollView>(null);
@@ -99,8 +95,7 @@ export default function ScrollPicker({
       >
         {Array.from({ length: totalSlots }, (_, i) => {
           const dataIdx = i - PADDING_COUNT;
-          const label =
-            dataIdx >= 0 && dataIdx < items.length ? items[dataIdx] : "";
+          const label = dataIdx >= 0 && dataIdx < items.length ? items[dataIdx] : "";
           return (
             <PickerItem
               key={i}

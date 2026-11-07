@@ -58,10 +58,9 @@ function isSameDay(dateStr: string, ref: Date): boolean {
 }
 
 // Sort key for created_at. Server rows carry Postgres timestamps
-// ("2026-11-07T10:00:00.123456+00:00", sometimes with a space instead of "T")
-// while offline rows use toISOString(); normalise both so a value the JS
-// engine can't parse doesn't return NaN and scramble the sort (which made
-// "before" and "today" pick the wrong scans). Unparseable values sort first.
+// ("2026-11-07T10:00:00.123456+00:00", sometimes with a space instead of "T") while offline rows
+// use toISOString(); normalise both so a value the JS engine can't parse doesn't return NaN and
+// scramble the sort (which made "before" and "today" pick the wrong scans).
 function toTime(dateStr: string): number {
   const normalized = dateStr
     ?.trim()
@@ -75,11 +74,9 @@ function toTime(dateStr: string): number {
 // Trend charts are fixed-size, so cap them to the most recent N scan-days.
 const TREND_DAYS = 7;
 
-// Trends update at most once per calendar day: if the user scans multiple
-// times on the same day, keep only the latest scan for that day so the
-// Confidence and Symptom charts don't gain extra points intraday.
-// Input is newest-first (ORDER BY created_at DESC), so the first row seen
-// per day is the latest scan of that day.
+// Trends update at most once per calendar day: if the user scans multiple times on the same day,
+// keep only the latest scan for that day so the Confidence and Symptom charts don't gain extra
+// points intraday.
 function dedupeDailyResults(results: Result[]): Result[] {
   const seen = new Map<string, Result>();
   for (const r of results) {
@@ -121,9 +118,7 @@ function ConfidenceTrendChart({ results }: { results: Result[] }) {
     y: padding + plotHeight - ((v - minVal) / range) * plotHeight,
   }));
 
-  const pathD = points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-    .join(" ");
+  const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
 
   // Area fill path
   const areaD = `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding} L ${points[0].x} ${chartHeight - padding} Z`;
@@ -190,7 +185,9 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
   if (reversed.length === 0) {
     return (
       <View className="items-center py-6">
-        <Text className="text-xs" style={{ color: theme.colors.faint }}>No data yet</Text>
+        <Text className="text-xs" style={{ color: theme.colors.faint }}>
+          No data yet
+        </Text>
       </View>
     );
   }
@@ -209,67 +206,81 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
 
       if (type === "acne") {
         const severity =
-          answers.severity === "severe" ? 1
-          : answers.severity === "moderate" ? 0.7
-          : answers.severity === "mild" ? 0.4
-          : 0;
+          answers.severity === "severe"
+            ? 1
+            : answers.severity === "moderate"
+              ? 0.7
+              : answers.severity === "mild"
+                ? 0.4
+                : 0;
         const duration =
-          answers.duration === "more_than_6_months" ? 1
-          : answers.duration === "3_to_6_months" ? 0.75
-          : answers.duration === "1_to_3_months" ? 0.5
-          : 0.25;
+          answers.duration === "more_than_6_months"
+            ? 1
+            : answers.duration === "3_to_6_months"
+              ? 0.75
+              : answers.duration === "1_to_3_months"
+                ? 0.5
+                : 0.25;
         return { severity, duration };
       }
 
       if (type === "eczema") {
         const severity =
-          answers.itch_level === "very_itchy" ? 1
-          : answers.itch_level === "moderate" ? 0.7
-          : answers.itch_level === "mild" ? 0.4
-          : 0;
+          answers.itch_level === "very_itchy"
+            ? 1
+            : answers.itch_level === "moderate"
+              ? 0.7
+              : answers.itch_level === "mild"
+                ? 0.4
+                : 0;
         const duration =
-          answers.coverage === "large_area" ? 1
-          : answers.coverage === "medium_area" ? 0.6
-          : 0.3;
+          answers.coverage === "large_area" ? 1 : answers.coverage === "medium_area" ? 0.6 : 0.3;
         return { severity, duration };
       }
 
       if (type === "dry") {
         const severity =
-          answers.severity === "severe" ? 1
-          : answers.severity === "moderate" ? 0.7
-          : answers.severity === "mild" ? 0.4
-          : 0;
+          answers.severity === "severe"
+            ? 1
+            : answers.severity === "moderate"
+              ? 0.7
+              : answers.severity === "mild"
+                ? 0.4
+                : 0;
         const duration =
-          answers.duration === "more_than_6_months" ? 1
-          : answers.duration === "3_to_6_months" ? 0.75
-          : answers.duration === "1_to_3_months" ? 0.5
-          : 0.25;
+          answers.duration === "more_than_6_months"
+            ? 1
+            : answers.duration === "3_to_6_months"
+              ? 0.75
+              : answers.duration === "1_to_3_months"
+                ? 0.5
+                : 0.25;
         return { severity, duration };
       }
 
       if (type === "oily") {
         const severity =
-          answers.severity === "severe" ? 1
-          : answers.severity === "moderate" ? 0.7
-          : answers.severity === "mild" ? 0.4
-          : 0;
+          answers.severity === "severe"
+            ? 1
+            : answers.severity === "moderate"
+              ? 0.7
+              : answers.severity === "mild"
+                ? 0.4
+                : 0;
         const duration =
-          answers.breakouts === "frequently" ? 1
-          : answers.breakouts === "sometimes" ? 0.6
-          : 0.3;
+          answers.breakouts === "frequently" ? 1 : answers.breakouts === "sometimes" ? 0.6 : 0.3;
         return { severity, duration };
       }
 
       const severity =
-        answers.concern === "sensitivity" ? 0.8
-        : answers.concern === "dryness" ? 0.6
-        : answers.concern === "oiliness" ? 0.5
-        : 0;
-      const duration =
-        answers.routine === "no" ? 1
-        : answers.routine === "sometimes" ? 0.5
-        : 0;
+        answers.concern === "sensitivity"
+          ? 0.8
+          : answers.concern === "dryness"
+            ? 0.6
+            : answers.concern === "oiliness"
+              ? 0.5
+              : 0;
+      const duration = answers.routine === "no" ? 1 : answers.routine === "sometimes" ? 0.5 : 0;
       return { severity, duration };
     } catch {
       return { severity: 0, duration: 0 };
@@ -304,7 +315,8 @@ function SymptomTrendChart({ results }: { results: Result[] }) {
                     style={{
                       height: barH,
                       width: barWidth,
-                      backgroundColor: symIndex === 0 ? theme.colors.primary : theme.colors.primaryTint,
+                      backgroundColor:
+                        symIndex === 0 ? theme.colors.primary : theme.colors.primaryTint,
                       borderRadius: 3,
                       marginLeft: symIndex > 0 ? 2 : 0,
                     }}
@@ -342,10 +354,7 @@ export default function Progress() {
       await exportSkinReport();
     } catch (err) {
       console.error("Error generating report:", err);
-      ToastAndroid.show(
-        "Failed to generate report. Please try again.",
-        ToastAndroid.SHORT,
-      );
+      ToastAndroid.show("Failed to generate report. Please try again.", ToastAndroid.SHORT);
     } finally {
       setExporting(false);
     }
@@ -387,10 +396,14 @@ export default function Progress() {
   useEffect(() => {
     // Clear a stale summary when the week empties out, and skip re-running the
     // on-device model when the week's scans haven't changed since last time.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (weekResults.length === 0) { setAiSummary(""); setSummaryLoading(false); return; }
-    const cached = getCachedWeeklySummary(weekResults);
-    if (cached) { setAiSummary(cached); setSummaryLoading(false); return; }
+    const cached = weekResults.length === 0 ? "" : getCachedWeeklySummary(weekResults) || null;
+    if (cached !== null) {
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setAiSummary(cached);
+      setSummaryLoading(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
+      return;
+    }
     let cancelled = false;
     const run = async () => {
       setSummaryLoading(true);
@@ -404,7 +417,9 @@ export default function Progress() {
       }
     };
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [weekResults]);
 
   const handleRefresh = async () => {
@@ -415,38 +430,25 @@ export default function Progress() {
 
   // Overall improvement: health-score change (in points) from the first scan
   // ever to the latest one.
-  const sortedByDate = [...allResults].sort(
-    (a, b) => toTime(a.created_at) - toTime(b.created_at),
-  );
+  const sortedByDate = [...allResults].sort((a, b) => toTime(a.created_at) - toTime(b.created_at));
   const firstScore = sortedByDate[0]?.healthscore ?? 0;
   const latestScore = sortedByDate[sortedByDate.length - 1]?.healthscore ?? 0;
   const improvement =
-    sortedByDate.length >= 2
-      ? Math.round((latestScore - firstScore) * 10) / 10
-      : 0;
+    sortedByDate.length >= 2 ? Math.round((latestScore - firstScore) * 10) / 10 : 0;
   const isImproving = improvement > 0;
-  const formatDelta = (delta: number) =>
-    `${delta > 0 ? "+" : ""}${delta.toFixed(1)} pts`;
+  const formatDelta = (delta: number) => `${delta > 0 ? "+" : ""}${delta.toFixed(1)} pts`;
 
   // Weekly summary
   const weekScans = weekResults.length;
   const weekAvgScore =
     weekResults.length > 0
-      ? Math.round(
-          weekResults.reduce((sum, r) => sum + r.healthscore, 0) /
-            weekResults.length,
-        )
+      ? Math.round(weekResults.reduce((sum, r) => sum + r.healthscore, 0) / weekResults.length)
       : 0;
 
   // Before vs Today
   const firstResult = sortedByDate[0] ?? null;
   const latestResult = sortedByDate[sortedByDate.length - 1] ?? null;
-  // Oldest scan (other than the latest) whose image actually loads. An
-  // image_url can be a temp file:// path (cloud upload failed at scan time)
-  // that the OS has since deleted — skip those via onError instead of
-  // rendering an empty box. Falls back to the first scan with the profile
-  // picture (the onboarding baseline was saved without a photo on older
-  // accounts), then to the "No image" placeholder.
+  // Oldest scan (other than the latest) whose image actually loads.
   const beforeScan = sortedByDate.find(
     (r) => r.image_url && !failedImages.has(r.image_url) && r.id !== latestResult?.id,
   );
@@ -481,7 +483,11 @@ export default function Progress() {
   }
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <ScrollView
         className="flex-1 px-5"
@@ -528,7 +534,9 @@ export default function Progress() {
         <FadeItem index={1}>
           <ClinicalCard className="mt-4 flex-row items-center justify-between">
             <View className="flex-col">
-              <Text className="text-sm" style={{ color: theme.colors.muted }}>Overall Improvement</Text>
+              <Text className="text-sm" style={{ color: theme.colors.muted }}>
+                Overall Improvement
+              </Text>
               <Text className="font-bold text-3xl mt-1" style={{ color: theme.colors.ink }}>
                 {formatDelta(improvement)}
               </Text>
@@ -538,9 +546,7 @@ export default function Progress() {
                   : "Scan at least twice to track change"}
               </Text>
             </View>
-            <View className="items-end gap-2">
-              {isImproving && <Pill label="Improving" />}
-            </View>
+            <View className="items-end gap-2">{isImproving && <Pill label="Improving" />}</View>
           </ClinicalCard>
         </FadeItem>
 
@@ -571,19 +577,14 @@ export default function Progress() {
             className="py-4 px-4 mt-4"
             style={{ borderRadius: theme.radius.card }}
           >
-            <Text className="font-bold text-white text-base">
-              Weekly summary
-            </Text>
+            <Text className="font-bold text-white text-base">Weekly summary</Text>
             <Text className="text-xs mt-1" style={{ color: "#A7C4B2" }}>
               {weekScans} scans · Avg score: {weekAvgScore}/100
             </Text>
             {summaryLoading ? (
               <ActivityIndicator size="small" color="#FFFFFF" style={{ marginTop: 10 }} />
             ) : aiSummary ? (
-              <TypewriterText
-                text={aiSummary}
-                className="text-white text-xs mt-2 leading-5"
-              />
+              <TypewriterText text={aiSummary} className="text-white text-xs mt-2 leading-5" />
             ) : null}
           </LinearGradient>
         </FadeItem>
@@ -596,7 +597,10 @@ export default function Progress() {
               <View className="flex-row items-center justify-between">
                 {/* Before */}
                 <View className="items-center flex-1">
-                  <View className="w-28 h-28 rounded-2xl overflow-hidden" style={{ backgroundColor: theme.colors.background }}>
+                  <View
+                    className="w-28 h-28 rounded-2xl overflow-hidden"
+                    style={{ backgroundColor: theme.colors.background }}
+                  >
                     {beforeImage ? (
                       <Image
                         key={beforeImage}
@@ -607,7 +611,9 @@ export default function Progress() {
                       />
                     ) : (
                       <View className="w-full h-full items-center justify-center">
-                        <Text className="text-xs" style={{ color: theme.colors.faint }}>No image</Text>
+                        <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                          No image
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -618,10 +624,7 @@ export default function Progress() {
 
                 {/* Arrow + improvement */}
                 <View className="items-center px-3 gap-1">
-                  <Text
-                    className="font-bold text-lg"
-                    style={{ color: theme.colors.primary }}
-                  >
+                  <Text className="font-bold text-lg" style={{ color: theme.colors.primary }}>
                     {formatDelta(beforeDelta)}
                   </Text>
                   <ArrowRight size={18} color={theme.colors.faint} />
@@ -629,7 +632,14 @@ export default function Progress() {
 
                 {/* Today */}
                 <View className="items-center flex-1">
-                  <View className="w-28 h-28 rounded-2xl overflow-hidden" style={{ backgroundColor: theme.colors.primarySoft, borderWidth: 2, borderColor: theme.colors.primary }}>
+                  <View
+                    className="w-28 h-28 rounded-2xl overflow-hidden"
+                    style={{
+                      backgroundColor: theme.colors.primarySoft,
+                      borderWidth: 2,
+                      borderColor: theme.colors.primary,
+                    }}
+                  >
                     {latestResult.image_url ? (
                       <Image
                         source={{ uri: latestResult.image_url }}
@@ -638,15 +648,14 @@ export default function Progress() {
                       />
                     ) : (
                       <View className="w-full h-full items-center justify-center">
-                        <Text className="text-xs" style={{ color: theme.colors.faint }}>No image</Text>
+                        <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                          No image
+                        </Text>
                       </View>
                     )}
                   </View>
                   <View className="flex-row items-center gap-1 mt-2">
-                    <Text
-                      className="text-xs font-bold"
-                      style={{ color: theme.colors.primary }}
-                    >
+                    <Text className="text-xs font-bold" style={{ color: theme.colors.primary }}>
                       {latestIsToday ? "Today" : formatDateFull(latestResult.created_at)}
                     </Text>
                     {latestIsToday && <Check size={12} color={theme.colors.primary} />}
@@ -662,17 +671,13 @@ export default function Progress() {
           <ClinicalCard className="mt-4">
             <SectionTitle title="Scan History" />
             {allResults.length === 0 ? (
-              <EmptyState
-                copy="No scans yet."
-              />
+              <EmptyState copy="No scans yet." />
             ) : (
               <View className="gap-3">
                 {allResults.slice(0, 3).map((result) => {
                   const label = formatter(result.detection_label ?? result.severity);
                   const dayLabel = formatDate(result.created_at);
-                  const conf = result.confidence
-                    ? `${(result.confidence * 100).toFixed(0)}%`
-                    : "—";
+                  const conf = result.confidence ? `${(result.confidence * 100).toFixed(0)}%` : "—";
                   return (
                     <View
                       key={result.id}
@@ -680,11 +685,15 @@ export default function Progress() {
                       style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
                     >
                       <View className="flex-row items-center gap-3 flex-1">
-                        <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: theme.colors.primarySoft }}>
-                          <Text className="text-xs font-bold" style={{ color: theme.colors.primaryDeep }}>
-                            {result.confidence
-                              ? `${Math.round(result.confidence * 100)}`
-                              : "—"}
+                        <View
+                          className="h-10 w-10 items-center justify-center rounded-full"
+                          style={{ backgroundColor: theme.colors.primarySoft }}
+                        >
+                          <Text
+                            className="text-xs font-bold"
+                            style={{ color: theme.colors.primaryDeep }}
+                          >
+                            {result.confidence ? `${Math.round(result.confidence * 100)}` : "—"}
                           </Text>
                         </View>
                         <View className="flex-col">
@@ -745,7 +754,10 @@ export default function Progress() {
                       </Text>
                     </View>
                     {result.image_url && (
-                      <View className="w-10 h-10 rounded-lg overflow-hidden" style={{ backgroundColor: theme.colors.background }}>
+                      <View
+                        className="w-10 h-10 rounded-lg overflow-hidden"
+                        style={{ backgroundColor: theme.colors.background }}
+                      >
                         <Image
                           source={{ uri: result.image_url }}
                           className="w-full h-full"

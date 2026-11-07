@@ -2,13 +2,7 @@ import { useState } from "react";
 import { Image, Pressable, View } from "react-native";
 import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  CalendarCheck2,
-  CalendarClock,
-  ChevronDown,
-  Clock3,
-  FileText,
-} from "lucide-react-native";
+import { CalendarCheck2, CalendarClock, ChevronDown, Clock3, FileText } from "lucide-react-native";
 
 import { DateTimeField } from "@/components/DateTimeField";
 import { DoctorProfileValidation } from "@/components/DoctorProfileValidation";
@@ -109,16 +103,9 @@ function initialOf(name: string): string {
 }
 
 /**
- * One appointment row for the doctor tabs.
- *
- * The card is now self-contained: it manages its own expanded/scheduling
- * state and its own scheduledDate, so scheduling one row never clobbers
- * another. Parents pass `onAction` for status changes and `compact` for
- * the condensed history rendering.
- *
- * `compact` shrinks the card chrome (padding, avatar, spacing) and
- * collapses the details box into one line — text sizes stay the same.
- * Used for the Home history list and the Schedule tab.
+ * One appointment row for the doctor tabs. The card is now self-contained: it manages its own
+ * expanded/scheduling state and its own scheduledDate, so scheduling one row never clobbers
+ * another.
  */
 export function DoctorAppointmentCard({
   appointment: a,
@@ -208,11 +195,7 @@ export function DoctorAppointmentCard({
         style={compact ? { paddingHorizontal: 12, paddingVertical: 12 } : undefined}
       >
         {/* Patient row */}
-        <View
-          className={
-            compact ? "flex-row items-center gap-2.5" : "flex-row items-center gap-3"
-          }
-        >
+        <View className={compact ? "flex-row items-center gap-2.5" : "flex-row items-center gap-3"}>
           {showPhoto ? (
             <Image
               source={{ uri: (patientAvatarUrl as string).trim() }}
@@ -237,9 +220,7 @@ export function DoctorAppointmentCard({
                 justifyContent: "center",
               }}
             >
-              <Text className="text-lg font-bold text-white">
-                {initialOf(patientName)}
-              </Text>
+              <Text className="text-lg font-bold text-white">{initialOf(patientName)}</Text>
             </LinearGradient>
           )}
           <View className="flex-1">
@@ -281,20 +262,14 @@ export function DoctorAppointmentCard({
                 {a.scheduled_at ? (
                   <>
                     Visit{" "}
-                    <Text
-                      className="font-bold"
-                      style={{ color: theme.colors.primaryDeep }}
-                    >
+                    <Text className="font-bold" style={{ color: theme.colors.primaryDeep }}>
                       {fmtShort(a.scheduled_at)}
                     </Text>
                   </>
                 ) : (
                   <>
                     Prefers{" "}
-                    <Text
-                      className="font-bold"
-                      style={{ color: theme.colors.ink }}
-                    >
+                    <Text className="font-bold" style={{ color: theme.colors.ink }}>
                       {fmtShort(a.preferred_time)}
                     </Text>
                   </>
@@ -338,10 +313,7 @@ export function DoctorAppointmentCard({
                 <CalendarCheck2 size={14} color={theme.colors.primary} />
                 <Text className="text-[13px] flex-1" style={{ color: theme.colors.body }}>
                   Visit{" "}
-                  <Text
-                    className="font-bold"
-                    style={{ color: theme.colors.primaryDeep }}
-                  >
+                  <Text className="font-bold" style={{ color: theme.colors.primaryDeep }}>
                     {fmtLong(a.scheduled_at)}
                   </Text>
                   {isToday(a.scheduled_at) ? " · today" : ""}
@@ -397,9 +369,7 @@ export function DoctorAppointmentCard({
             >
               <LinearGradient
                 colors={
-                  expanded
-                    ? [theme.colors.card, theme.colors.card]
-                    : [...theme.gradients.dark]
+                  expanded ? [theme.colors.card, theme.colors.card] : [...theme.gradients.dark]
                 }
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
@@ -407,10 +377,7 @@ export function DoctorAppointmentCard({
                 // +1.5 when borderless so toggling doesn't shift the layout
                 style={{ paddingVertical: expanded ? 12 : 13.5 }}
               >
-                <CalendarClock
-                  size={16}
-                  color={expanded ? theme.colors.primary : "#FFFFFF"}
-                />
+                <CalendarClock size={16} color={expanded ? theme.colors.primary : "#FFFFFF"} />
                 <Text
                   className="font-bold text-[14px]"
                   style={{ color: expanded ? theme.colors.primary : "#FFFFFF" }}
@@ -426,7 +393,10 @@ export function DoctorAppointmentCard({
             </Pressable>
 
             {expanded ? (
-              <View className="flex-col gap-2 rounded-2xl p-3" style={{ backgroundColor: theme.colors.background }}>
+              <View
+                className="flex-col gap-2 rounded-2xl p-3"
+                style={{ backgroundColor: theme.colors.background }}
+              >
                 <DateTimeField
                   value={scheduledDate}
                   onChange={setScheduledDate}
@@ -450,7 +420,10 @@ export function DoctorAppointmentCard({
               accessibilityLabel="Decline request"
               className="items-center py-2 active:opacity-70"
             >
-              <Text className="text-[13px] font-bold underline" style={{ color: theme.colors.danger }}>
+              <Text
+                className="text-[13px] font-bold underline"
+                style={{ color: theme.colors.danger }}
+              >
                 {rowBusy ? "Working…" : "Decline request"}
               </Text>
             </Pressable>
@@ -484,10 +457,7 @@ export function DoctorAppointmentCard({
                 opacity: rowBusy ? 0.6 : 1,
               }}
             >
-              <Text
-                className="font-bold text-[14px]"
-                style={{ color: theme.colors.danger }}
-              >
+              <Text className="font-bold text-[14px]" style={{ color: theme.colors.danger }}>
                 Cancel
               </Text>
             </Pressable>

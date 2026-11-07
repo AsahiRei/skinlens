@@ -17,9 +17,6 @@ const FACE_SIZE = 112;
 const EMBEDDING_DIM = 192;
 
 // Cosine similarity threshold for "same person".
-// 0.45 keeps genuine re-scans (with the face-aware crop below) comfortably
-// above across lighting/angle/distance changes while still rejecting
-// different faces; raise to 0.55+ for stricter match acceptance if needed.
 export const FACE_MATCH_THRESHOLD = 0.45;
 
 let faceModel: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
@@ -27,22 +24,20 @@ let faceModel: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 async function getFaceModel() {
   if (!faceModel) {
     console.log(`[SkinLens][FaceID] ${new Date().toISOString()} loading mobilefacenet.tflite`);
-    const asset = Asset.fromModule(
-      require("@/assets/models/mobilefacenet.tflite"),
-    );
+    const asset = Asset.fromModule(require("@/assets/models/mobilefacenet.tflite"));
     await asset.downloadAsync();
     const uri = asset.localUri ?? asset.uri;
     if (!uri) throw new Error("Failed to resolve mobilefacenet.tflite asset");
     const t0 = Date.now();
     faceModel = await loadTensorflowModel({ url: uri }, []);
-    console.log(`[SkinLens][FaceID] ${new Date().toISOString()} face model loaded in ${Date.now() - t0}ms`);
+    console.log(
+      `[SkinLens][FaceID] ${new Date().toISOString()} face model loaded in ${Date.now() - t0}ms`,
+    );
   }
   return faceModel;
 }
 
-function tryGetImageSize(
-  imageUri: string,
-): Promise<{ width: number; height: number } | null> {
+function tryGetImageSize(imageUri: string): Promise<{ width: number; height: number } | null> {
   return new Promise((resolve) => {
     Image.getSize(
       imageUri,
@@ -54,23 +49,16 @@ function tryGetImageSize(
 
 // Uniformly shaped 112x112 JPEG for whatever crop is requested; crop=null
 // keeps the legacy behavior (center-crop when non-square, plain resize else).
-async function shapeToFaceSize(
-  imageUri: string,
-  crop: CropRect | null,
-): Promise<string> {
+async function shapeToFaceSize(imageUri: string, crop: CropRect | null): Promise<string> {
   const actions: ImageManipulator.Action[] = [];
   if (crop) actions.push({ crop });
   actions.push({ resize: { width: FACE_SIZE, height: FACE_SIZE } });
   try {
-    const shaped = await ImageManipulator.manipulateAsync(
-      imageUri,
-      actions,
-      {
-        compress: 1,
-        format: ImageManipulator.SaveFormat.JPEG,
-        base64: false,
-      },
-    );
+    const shaped = await ImageManipulator.manipulateAsync(imageUri, actions, {
+      compress: 1,
+      format: ImageManipulator.SaveFormat.JPEG,
+      base64: false,
+    });
     return shaped.uri;
   } catch (err) {
     if (!crop) throw err;
@@ -91,10 +79,7 @@ async function shapeToFaceSize(
   }
 }
 
-async function decodeToPixels(
-  imageUri: string,
-  crop: CropRect | null,
-): Promise<jpeg.JpegBuffer> {
+async function decodeToPixels(imageUri: string, crop: CropRect | null): Promise<jpeg.JpegBuffer> {
   // Center-crop to square first so wide captures don't stretch (legacy path);
   // with a face-aware crop we crop directly to the detected face region.
   let squareUri: string;
@@ -102,12 +87,7 @@ async function decodeToPixels(
     squareUri = await shapeToFaceSize(imageUri, crop);
   } else {
     const size = await tryGetImageSize(imageUri);
-    if (
-      size &&
-      size.width > 0 &&
-      size.height > 0 &&
-      size.width !== size.height
-    ) {
+    if (size && size.width > 0 && size.height > 0 && size.width !== size.height) {
       const side = Math.min(size.width, size.height);
       squareUri = await shapeToFaceSize(imageUri, {
         originX: Math.round((size.width - side) / 2),
@@ -128,13 +108,9 @@ async function decodeToPixels(
   return jpeg.decode(bytes, { useTArray: true });
 }
 
-async function embeddingFromPixels(
-  decoded: jpeg.JpegBuffer,
-): Promise<number[]> {
+async function embeddingFromPixels(decoded: jpeg.JpegBuffer): Promise<number[]> {
   if (decoded.width !== FACE_SIZE || decoded.height !== FACE_SIZE) {
-    throw new Error(
-      `Unexpected face image size: ${decoded.width}x${decoded.height}`,
-    );
+    throw new Error(`Unexpected face image size: ${decoded.width}x${decoded.height}`);
   }
 
   const input = new Float32Array(1 * FACE_SIZE * FACE_SIZE * 3);
@@ -143,9 +119,9 @@ async function embeddingFromPixels(
   for (let i = 0; i < total; i++) {
     const o = i * 4;
     // Normalize RGB 0..255 -> -1..1 (MobileFaceNet convention)
-    input[idx++] = (decoded.data[o] / 127.5 - 1.0);
-    input[idx++] = (decoded.data[o + 1] / 127.5 - 1.0);
-    input[idx++] = (decoded.data[o + 2] / 127.5 - 1.0);
+    input[idx++] = decoded.data[o] / 127.5 - 1.0;
+    input[idx++] = decoded.data[o + 1] / 127.5 - 1.0;
+    input[idx++] = decoded.data[o + 2] / 127.5 - 1.0;
   }
   const inputBuffer = input.buffer.slice(
     input.byteOffset,
@@ -156,9 +132,7 @@ async function embeddingFromPixels(
   const output = await model.run([inputBuffer]);
   const raw = new Float32Array(output[0]);
   if (raw.length !== EMBEDDING_DIM) {
-    throw new Error(
-      `Expected ${EMBEDDING_DIM}-d face embedding, got ${raw.length}-d`,
-    );
+    throw new Error(`Expected ${EMBEDDING_DIM}-d face embedding, got ${raw.length}-d`);
   }
 
   // L2-normalize so cosine similarity is a plain dot product.
@@ -176,29 +150,23 @@ export async function getFaceEmbedding(imageUri: string): Promise<number[]> {
   const t0 = Date.now();
   await getFaceModel();
   const dims = await tryGetImageSize(imageUri);
-  const faceCrop = dims
-    ? detectFaceCropRect(imageUri, dims.width, dims.height)
-    : null;
+  const faceCrop = dims ? detectFaceCropRect(imageUri, dims.width, dims.height) : null;
   const decoded = await decodeToPixels(imageUri, faceCrop);
   const embedding = await embeddingFromPixels(decoded);
-  console.log(`[SkinLens][FaceID] ${new Date().toISOString()} getFaceEmbedding done in ${Date.now() - t0}ms faceCrop=`, !!faceCrop);
+  console.log(
+    `[SkinLens][FaceID] ${new Date().toISOString()} getFaceEmbedding done in ${Date.now() - t0}ms faceCrop=`,
+    !!faceCrop,
+  );
   return embedding;
 }
 
-// Embeddings for every reasonable crop of the image (legacy center square +
-// face-aware crop). Verification scores each against the enrolled embedding
-// and passes if ANY crop matches — this avoids rejecting genuine users just
-// because of framing.
-export async function getFaceEmbeddingCandidates(
-  imageUri: string,
-): Promise<number[][]> {
+// Embeddings for every reasonable crop of the image (legacy center square + face-aware crop).
+export async function getFaceEmbeddingCandidates(imageUri: string): Promise<number[][]> {
   console.log(`[SkinLens][FaceID] ${new Date().toISOString()} getFaceEmbeddingCandidates start`);
   const t0 = Date.now();
   await getFaceModel();
   const dims = await tryGetImageSize(imageUri);
-  const faceCrop = dims
-    ? detectFaceCropRect(imageUri, dims.width, dims.height)
-    : null;
+  const faceCrop = dims ? detectFaceCropRect(imageUri, dims.width, dims.height) : null;
   const candidates: number[][] = [];
   const centerCropped = await decodeToPixels(imageUri, null);
   candidates.push(await embeddingFromPixels(centerCropped));
@@ -236,7 +204,9 @@ export function embeddingToJson(embedding: number[]): string {
 
 export function parseEmbedding(json: string | null): number[] | null {
   if (!json) {
-    console.log(`[SkinLens][FaceID] ${new Date().toISOString()} parseEmbedding no stored embedding (grandfathered)`);
+    console.log(
+      `[SkinLens][FaceID] ${new Date().toISOString()} parseEmbedding no stored embedding (grandfathered)`,
+    );
     return null;
   }
   try {
@@ -248,7 +218,10 @@ export function parseEmbedding(json: string | null): number[] | null {
     ) {
       return parsed as number[];
     }
-    console.log(`[SkinLens][FaceID] ${new Date().toISOString()} parseEmbedding invalid shape len=`, Array.isArray(parsed) ? (parsed as unknown[]).length : -1);
+    console.log(
+      `[SkinLens][FaceID] ${new Date().toISOString()} parseEmbedding invalid shape len=`,
+      Array.isArray(parsed) ? (parsed as unknown[]).length : -1,
+    );
     return null;
   } catch (err) {
     console.log(`[SkinLens][FaceID] ${new Date().toISOString()} parseEmbedding JSON error:`, err);

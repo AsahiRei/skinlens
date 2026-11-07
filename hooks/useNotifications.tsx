@@ -20,6 +20,11 @@ import {
   clearAllNotifications as dbClearAll,
 } from "@/lib/db/notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  doctorNotificationSettingsSchema,
+  notificationSettingsSchema,
+  parseJson,
+} from "@/lib/validation";
 
 const NOTIFICATION_SETTINGS_KEY = "notification_settings";
 // The doctor-only toggle lives under its own key: saving it into the main
@@ -50,17 +55,14 @@ function dedupeById(list: Notification[]): Notification[] {
   return Array.from(new Map(list.map((n) => [n.id, n])).values());
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(
-  undefined,
-);
+const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<NotificationSettings>(defaultSettings);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  // Guards concurrent generateNotifications() calls (home focus + pull to
-  // refresh can overlap). Without this, two calls with the same stale
-  // `notifications` closure both think the id is new and both prepend it,
-  // producing duplicate keys like `scan-2026-10-13`.
+  // Guards concurrent generateNotifications() calls (home focus + pull to refresh can overlap).
+  // Without this, two calls with the same stale `notifications` closure both think the id is new
+  // and both prepend it, producing duplicate keys like `scan-2026-10-13`.
   const generatingRef = React.useRef(false);
   // Latest settings as seen by the mutation callbacks below (they are
   // useCallback([]) so they can't close over the state without going stale).
@@ -71,27 +73,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const loadAll = async () => {
     try {
-      const settingsStr = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
-      if (settingsStr) {
+      const stored = parseJson(
+        await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY),
+        notificationSettingsSchema,
+      );
+      if (stored) {
         // Older saves predate newer keys — fill them from the defaults.
-        const saved: NotificationSettings = { ...defaultSettings, ...JSON.parse(settingsStr) };
+        const saved: NotificationSettings = { ...defaultSettings, ...stored };
         settingsRef.current = saved;
         setSettings(saved);
         // Schedule push notifications based on saved settings
         if (saved.scanReminders) await scheduleWeeklyScanReminder();
         if (saved.dailyTips) await scheduleDailySkincareTip();
       }
-      const doctorStr = await AsyncStorage.getItem(DOCTOR_NOTIFICATION_SETTINGS_KEY);
-      if (doctorStr) {
-        const doctorSaved = JSON.parse(doctorStr) as { appointmentRequests?: boolean };
-        if (typeof doctorSaved.appointmentRequests === "boolean") {
-          const merged = {
-            ...settingsRef.current,
-            appointmentRequests: doctorSaved.appointmentRequests,
-          };
-          settingsRef.current = merged;
-          setSettings(merged);
-        }
+      const doctorSaved = parseJson(
+        await AsyncStorage.getItem(DOCTOR_NOTIFICATION_SETTINGS_KEY),
+        doctorNotificationSettingsSchema,
+      );
+      if (doctorSaved?.appointmentRequests !== undefined) {
+        const merged = {
+          ...settingsRef.current,
+          appointmentRequests: doctorSaved.appointmentRequests,
+        };
+        settingsRef.current = merged;
+        setSettings(merged);
       }
 
       // Doctor replies (schedule / decline / complete) show up here — checked
@@ -131,59 +136,51 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     loadAll();
   }, []);
 
-  const updateSettings = useCallback(
-    async (partial: Partial<NotificationSettings>) => {
-      // Read from the ref (not the useCallback closure) so two toggles in
-      // quick succession both see the result of the first one.
-      const next = { ...settingsRef.current, ...partial };
-      settingsRef.current = next;
-      setSettings(next);
+  const updateSettings = useCallback(async (partial: Partial<NotificationSettings>) => {
+    // Read from the ref (not the useCallback closure) so two toggles in
+    // quick succession both see the result of the first one.
+    const next = { ...settingsRef.current, ...partial };
+    settingsRef.current = next;
+    setSettings(next);
 
-      // Only the reminder toggles own scheduled OS notifications; flipping
-      // e.g. appointmentRequests must not (re)schedule a doctor's reminders.
-      const touchesSchedule = "scanReminders" in partial || "dailyTips" in partial;
-      const apply = async () => {
-        if ("appointmentRequests" in partial) {
-          await AsyncStorage.setItem(
-            DOCTOR_NOTIFICATION_SETTINGS_KEY,
-            JSON.stringify({ appointmentRequests: next.appointmentRequests }),
-          );
-        }
-        if (!touchesSchedule) return;
-        await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(next));
-        // Apply the new schedule: cancel everything first so toggles that are
-        // switched off stop firing, then re-schedule what is still enabled.
-        await cancelAllScheduledNotifications();
-        if (next.scanReminders) {
-          await scheduleWeeklyScanReminder();
-        }
-        if (next.dailyTips) {
-          await scheduleDailySkincareTip();
-        }
-      };
-      const run = settingsChainRef.current.then(apply, apply);
-      settingsChainRef.current = run.catch(() => {});
-      await run;
-    },
-    [],
-  );
-
-  const markAsRead = useCallback(
-    async (id: string) => {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-      );
-      try {
-        await dbMarkAsRead(id);
-      } catch (err) {
-        // Optimistic only — without this the item stayed visibly read while
-        // the row was unchanged, so it "un-read itself" on the next reload.
-        console.error("[notifications] markAsRead failed:", err);
-        await reloadFromDb();
+    // Only the reminder toggles own scheduled OS notifications; flipping
+    // e.g. appointmentRequests must not (re)schedule a doctor's reminders.
+    const touchesSchedule = "scanReminders" in partial || "dailyTips" in partial;
+    const apply = async () => {
+      if ("appointmentRequests" in partial) {
+        await AsyncStorage.setItem(
+          DOCTOR_NOTIFICATION_SETTINGS_KEY,
+          JSON.stringify({ appointmentRequests: next.appointmentRequests }),
+        );
       }
-    },
-    [],
-  );
+      if (!touchesSchedule) return;
+      await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(next));
+      // Apply the new schedule: cancel everything first so toggles that are
+      // switched off stop firing, then re-schedule what is still enabled.
+      await cancelAllScheduledNotifications();
+      if (next.scanReminders) {
+        await scheduleWeeklyScanReminder();
+      }
+      if (next.dailyTips) {
+        await scheduleDailySkincareTip();
+      }
+    };
+    const run = settingsChainRef.current.then(apply, apply);
+    settingsChainRef.current = run.catch(() => {});
+    await run;
+  }, []);
+
+  const markAsRead = useCallback(async (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    try {
+      await dbMarkAsRead(id);
+    } catch (err) {
+      // Optimistic only — without this the item stayed visibly read while
+      // the row was unchanged, so it "un-read itself" on the next reload.
+      console.error("[notifications] markAsRead failed:", err);
+      await reloadFromDb();
+    }
+  }, []);
 
   const markAllAsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -195,18 +192,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  const deleteNotification = useCallback(
-    async (id: string) => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-      try {
-        await dbDeleteNotification(id);
-      } catch (err) {
-        console.error("[notifications] delete failed:", err);
-        await reloadFromDb();
-      }
-    },
-    [],
-  );
+  const deleteNotification = useCallback(async (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await dbDeleteNotification(id);
+    } catch (err) {
+      console.error("[notifications] delete failed:", err);
+      await reloadFromDb();
+    }
+  }, []);
 
   const clearAll = useCallback(async () => {
     setNotifications([]);
@@ -266,9 +260,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         ),
         syncDoctorAppointmentRequests({
           notify: settingsRef.current.appointmentRequests,
-        }).catch((err) =>
-          console.warn("[notifications] doctor requests check failed:", err),
-        ),
+        }).catch((err) => console.warn("[notifications] doctor requests check failed:", err)),
       ]);
       setNotifications(dedupeById(await getNotifications()));
     } catch (err) {

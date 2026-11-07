@@ -25,10 +25,9 @@ function rpcError(error: { message: string }): Error {
 }
 
 /**
- * Reads one patient's newest AI result. The RPC checks the caller is an
- * active doctor whose clinic holds an active appointment for that patient,
- * and returns no image / survey data — just what the review panel needs.
- * Throws with a friendly message when the 0007 migration isn't applied yet.
+ * Reads one patient's newest AI result. The RPC checks the caller is an active doctor whose clinic
+ * holds an active appointment for that patient, and returns no image / survey data — just what the
+ * review panel needs.
  */
 export async function getPatientLatestResult(
   patientId: string,
@@ -41,9 +40,8 @@ export async function getPatientLatestResult(
 }
 
 /**
- * Writes the dermatologist verdict. Only status + notes are sent; the RPC
- * sets validated_by / validated_at itself and can never alter scores or
- * detection. Same migration hint when the RPC doesn't exist yet.
+ * Writes the dermatologist verdict. Only status + notes are sent; the RPC sets validated_by /
+ * validated_at itself and can never alter scores or detection.
  */
 export async function validateAiResult(
   resultId: number,

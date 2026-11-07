@@ -1,8 +1,4 @@
-/**
- * SkinLens clinical design system — single source of truth.
- * Modern clinical: calm background, deep-ink titles, emerald primary.
- * Keep logic untouched; only visual tokens live here.
- */
+/** SkinLens clinical design system — single source of truth. */
 export const theme = {
   colors: {
     primary: "#214E36",
@@ -37,9 +33,7 @@ export const theme = {
     /* Emerald → deep pine (diagonal). Reserved accent, currently unused —
      * all CTA buttons use `dark` so the app speaks one button language. */
     primary: ["#20A451", "#14532D"] as const,
-    /* Dark green: pine-tinted → ink (horizontal). Use for CTA buttons
-     * (PrimaryButton, modal primary actions, auth submit, onboarding next),
-     * large hero banners (Scan Your Skin, Find Nearby) and the tab bar dock. */
+    /** Dark green: pine-tinted → ink (horizontal). */
     dark: ["#214E36", "#10241A"] as const,
     /* Icon badge: soft pine → base primary (diagonal). */
     icon: ["#2F6B4A", "#214E36"] as const,

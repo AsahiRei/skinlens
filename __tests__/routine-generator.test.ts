@@ -68,8 +68,15 @@ describe("generateRoutine", () => {
     };
     const viaAsync = await generateRoutine(input);
     expect(parse(viaAsync).recommended_products).toEqual(
-      parse(buildRuleBasedRoutine("oily", "acne", 55, { sleep_quality: "", stress_level: "", water_intake: "" }, {}))
-        .recommended_products,
+      parse(
+        buildRuleBasedRoutine(
+          "oily",
+          "acne",
+          55,
+          { sleep_quality: "", stress_level: "", water_intake: "" },
+          {},
+        ),
+      ).recommended_products,
     );
   });
 });

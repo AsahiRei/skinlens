@@ -1,11 +1,4 @@
-/**
- * Turns raw classifier output into the numbers the user sees.
- *
- * The classifier always returns *some* label, even for blurry, badly lit or
- * out-of-scope photos. These helpers decide when a result is too uncertain
- * to present as a finding, and blend the full probability spread (not just
- * the top label) into the skin health score.
- */
+/** Turns raw classifier output into the numbers the user sees. */
 
 /** Per-class score anchors (0–100) used before the survey blend. */
 export const DETECTION_BASELINES: Record<string, number> = {
@@ -56,9 +49,8 @@ export function assessDetection(
 }
 
 /**
- * Probability-weighted baseline: a 51% acne / 40% normal result scores
- * between the two anchors instead of snapping to the acne anchor.
- * Falls back to the top label's anchor when probabilities are missing.
+ * Probability-weighted baseline: a 51% acne / 40% normal result scores between the two anchors
+ * instead of snapping to the acne anchor.
  */
 export function detectionBaseline(
   label: string,
@@ -79,8 +71,7 @@ export function computeOverallScore(
 ): number {
   const survey = Number.isFinite(surveyScore) ? surveyScore : DEFAULT_BASELINE;
   const raw =
-    detectionBaseline(label, probabilities) * DETECTION_WEIGHT +
-    survey * (1 - DETECTION_WEIGHT);
+    detectionBaseline(label, probabilities) * DETECTION_WEIGHT + survey * (1 - DETECTION_WEIGHT);
   return Math.max(0, Math.min(100, Math.round(raw)));
 }
 

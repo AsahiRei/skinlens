@@ -24,14 +24,7 @@ import ChatPhProductCard from "@/components/ChatPhProductCard";
 import ChatClinicCard from "@/components/ChatClinicCard";
 import { theme } from "@/lib/theme";
 import Animated from "react-native-reanimated";
-import {
-  bubbleIn,
-  enterUp,
-  fadeIn,
-  fadeOut,
-  popIn,
-  PressableScale,
-} from "@/components/motion";
+import { bubbleIn, enterUp, fadeIn, fadeOut, popIn, PressableScale } from "@/components/motion";
 import { useChatUserContext } from "@/hooks/useChatUserContext";
 import type { ChatMessage, ChatTurn, ChatUserContext } from "@/types/chat";
 import type { ProductWithImage } from "@/types/knowledge";
@@ -49,7 +42,9 @@ function buildSuggestions(ctx: ChatUserContext | null): string[] {
   if (ctx?.recommendations_summary) {
     out.push("Recommend products for me available in the Philippines");
   } else if (ctx?.main_concerns) {
-    out.push(`Best products in the Philippines for ${ctx.main_concerns.split(",")[0].trim().toLowerCase()}`);
+    out.push(
+      `Best products in the Philippines for ${ctx.main_concerns.split(",")[0].trim().toLowerCase()}`,
+    );
   } else {
     out.push("Best niacinamide serum in the Philippines?");
   }
@@ -86,9 +81,7 @@ export default function Chatbot() {
   };
   const hasStarted = messages.length > 0;
   const suggestions = buildSuggestions(userContext);
-  // Only auto-scroll when a NEW message arrives. Scrolling on every
-  // isThinking/animate flag change yanks the list back while the user is
-  // trying to scroll (felt like a scroll lock).
+  // Only auto-scroll when a NEW message arrives.
   useEffect(() => {
     if (messages.length > msgCountRef.current) {
       msgCountRef.current = messages.length;
@@ -127,14 +120,16 @@ export default function Chatbot() {
         role: m.role,
         content: m.content,
       }));
-      const reply: ChatReply = await generateChatReply(history, userContext ?? undefined, (fraction) => {
-        if (fraction < 0.1 && !downloadToastShown.current) {
-          downloadToastShown.current = true;
-          showDownloadNotice(
-            "AI model is downloading. This may take a moment...",
-          );
-        }
-      });
+      const reply: ChatReply = await generateChatReply(
+        history,
+        userContext ?? undefined,
+        (fraction) => {
+          if (fraction < 0.1 && !downloadToastShown.current) {
+            downloadToastShown.current = true;
+            showDownloadNotice("AI model is downloading. This may take a moment...");
+          }
+        },
+      );
       setThinkingLabel("Thinking");
       const assistantMessage: ChatMessage = {
         id: `${Date.now()}-assistant`,
@@ -162,16 +157,18 @@ export default function Chatbot() {
     }
   };
   const markAnimationDone = (id: string) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, animate: false } : m)),
-    );
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, animate: false } : m)));
   };
   const BackButton = <BackChip onPress={() => router.back()} label="Back to chat" />;
 
   const InputBar = (
     <View
       className="flex-row items-end gap-2 bg-white px-2 py-2"
-      style={{ borderRadius: theme.radius.card, borderWidth: 1, borderColor: theme.colors.cardBorder }}
+      style={{
+        borderRadius: theme.radius.card,
+        borderWidth: 1,
+        borderColor: theme.colors.cardBorder,
+      }}
     >
       <TextInput
         value={input}
@@ -202,10 +199,7 @@ export default function Chatbot() {
           end={{ x: 1, y: 1 }}
           className="h-10 w-10 items-center justify-center"
         >
-          <Send
-            size={16}
-            color={!input.trim() || isThinking ? theme.colors.primary : "#FFFFFF"}
-          />
+          <Send size={16} color={!input.trim() || isThinking ? theme.colors.primary : "#FFFFFF"} />
         </LinearGradient>
       </PressableScale>
     </View>
@@ -214,25 +208,19 @@ export default function Chatbot() {
     const isUser = message.role === "user";
     if (isUser) {
       return (
-        <Animated.View
-          key={message.id}
-          entering={bubbleIn}
-          className="max-w-[80%] self-end"
-        >
-        <LinearGradient
-          colors={[...theme.gradients.dark]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          accessible
-          accessibilityRole="text"
-          accessibilityLabel={`You: ${message.content}`}
-          className="rounded-2xl rounded-br-[6px] px-4 py-3"
-          style={{ borderRadius: theme.radius.card }}
-        >
-          <Text className="text-[15px] leading-6 text-white">
-            {message.content}
-          </Text>
-        </LinearGradient>
+        <Animated.View key={message.id} entering={bubbleIn} className="max-w-[80%] self-end">
+          <LinearGradient
+            colors={[...theme.gradients.dark]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={`You: ${message.content}`}
+            className="rounded-2xl rounded-br-md px-4 py-3"
+            style={{ borderRadius: theme.radius.card }}
+          >
+            <Text className="text-[15px] leading-6 text-white">{message.content}</Text>
+          </LinearGradient>
         </Animated.View>
       );
     }
@@ -243,7 +231,7 @@ export default function Chatbot() {
         accessible
         accessibilityRole="text"
         accessibilityLabel={`Assistant: ${message.content}`}
-        className="max-w-[85%] rounded-2xl rounded-bl-[6px] px-4 py-3 self-start bg-white flex-col gap-2"
+        className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 self-start bg-white flex-col gap-2"
         style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
       >
         {message.animate ? (
@@ -321,16 +309,16 @@ export default function Chatbot() {
             <View className="w-full gap-2">
               {suggestions.map((s, i) => (
                 <Animated.View key={s} entering={enterUp(i + 2, 70)} className="self-center">
-                <PressableScale
-                  onPress={() => sendMessage(s)}
-                  className="rounded-full px-4 py-2 bg-white"
-                  style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-                  accessibilityRole="button"
-                >
-                  <Text className="text-[13px]" style={{ color: theme.colors.body }}>
-                    {s}
-                  </Text>
-                </PressableScale>
+                  <PressableScale
+                    onPress={() => sendMessage(s)}
+                    className="rounded-full px-4 py-2 bg-white"
+                    style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                    accessibilityRole="button"
+                  >
+                    <Text className="text-[13px]" style={{ color: theme.colors.body }}>
+                      {s}
+                    </Text>
+                  </PressableScale>
                 </Animated.View>
               ))}
             </View>
@@ -375,7 +363,7 @@ export default function Chatbot() {
               <Animated.View
                 entering={fadeIn}
                 exiting={fadeOut}
-                className="self-start rounded-2xl rounded-bl-[6px] px-2 py-1 bg-white"
+                className="self-start rounded-2xl rounded-bl-md px-2 py-1 bg-white"
                 style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
               >
                 <TypingDots label={thinkingLabel} />

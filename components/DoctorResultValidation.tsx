@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
 import { Check, ChevronDown, ScanFace, TriangleAlert } from "lucide-react-native";
 
@@ -43,11 +38,10 @@ function toneFor(
 }
 
 /**
- * Collapsible review panel inside a doctor's appointment card: shows the
- * patient's newest AI result (score, confidence, model label) and lets an
- * active dermatologist confirm it or flag it for follow-up with notes.
- * Reads and writes go through the SECURITY DEFINER RPCs from migration
- * 0007, so nothing here can alter the scores themselves.
+ * Collapsible review panel inside a doctor's appointment card: shows the patient's newest AI result
+ * (score, confidence, model label) and lets an active dermatologist confirm it or flag it for
+ * follow-up with notes. Reads and writes go through the SECURITY DEFINER RPCs from migration 0007,
+ * so nothing here can alter the scores themselves.
  */
 export function DoctorResultValidation({ patientId }: { patientId: string }) {
   const [open, setOpen] = useState(false);
@@ -65,9 +59,7 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
       setResult(row);
       setNotes(row?.doctor_notes ?? "");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Couldn't load the latest scan.",
-      );
+      setError(err instanceof Error ? err.message : "Couldn't load the latest scan.");
     } finally {
       setLoading(false);
     }
@@ -87,9 +79,7 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
       await validateAiResult(result.id, status, notes.trim() || null);
       await load();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Couldn't save your review.",
-      );
+      setError(err instanceof Error ? err.message : "Couldn't save your review.");
     } finally {
       setSaving(false);
     }
@@ -100,9 +90,7 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
       <Pressable
         onPress={toggle}
         accessibilityRole="button"
-        accessibilityLabel={
-          open ? "Hide AI scan review" : "Review patient's latest AI scan"
-        }
+        accessibilityLabel={open ? "Hide AI scan review" : "Review patient's latest AI scan"}
         className="flex-row items-center gap-2 rounded-full px-3.5 py-2.5 active:opacity-70"
         style={{
           backgroundColor: theme.colors.background,
@@ -111,10 +99,7 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
         }}
       >
         <ScanFace size={15} color={theme.colors.primary} />
-        <Text
-          className="flex-1 text-[13px] font-semibold"
-          style={{ color: theme.colors.primary }}
-        >
+        <Text className="flex-1 text-[13px] font-semibold" style={{ color: theme.colors.primary }}>
           {open ? "Hide AI scan review" : "Review latest AI scan"}
         </Text>
         <ChevronDown
@@ -154,10 +139,7 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
             <>
               <View className="flex-row flex-wrap items-center gap-2">
                 <Pill label={result.severity} tone="primary" />
-                <Pill
-                  label={`Score ${Math.round(result.healthscore)}/100`}
-                  tone="neutral"
-                />
+                <Pill label={`Score ${Math.round(result.healthscore)}/100`} tone="neutral" />
                 {result.confidence != null ? (
                   <Pill
                     label={`${(result.confidence * 100).toFixed(0)}% confidence`}
@@ -177,13 +159,9 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
 
               {result.validation_status !== "pending" && result.validated_at ? (
                 <Text className="text-xs leading-5" style={{ color: theme.colors.muted }}>
-                  {result.validation_status === "confirmed"
-                    ? "Confirmed"
-                    : "Flagged for follow-up"}{" "}
+                  {result.validation_status === "confirmed" ? "Confirmed" : "Flagged for follow-up"}{" "}
                   {fmtWhen(result.validated_at)}.
-                  {result.doctor_notes
-                    ? ` Notes: ${result.doctor_notes}`
-                    : " No notes."}
+                  {result.doctor_notes ? ` Notes: ${result.doctor_notes}` : " No notes."}
                 </Text>
               ) : null}
 
@@ -234,10 +212,7 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
                   }}
                 >
                   <TriangleAlert size={15} color={theme.colors.danger} />
-                  <Text
-                    className="text-[13px] font-bold"
-                    style={{ color: theme.colors.danger }}
-                  >
+                  <Text className="text-[13px] font-bold" style={{ color: theme.colors.danger }}>
                     Follow-up
                   </Text>
                 </Pressable>

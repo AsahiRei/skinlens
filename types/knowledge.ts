@@ -30,7 +30,17 @@ export type PhProduct = {
   key_ingredients: string[];
   /** Approximate PHP price range, e.g. "₱600–750". */
   price: string;
-  good_for: ("oily" | "dry" | "sensitive" | "acne" | "normal" | "combination" | "eczema" | "dark spots" | "aging")[];
+  good_for: (
+    | "oily"
+    | "dry"
+    | "sensitive"
+    | "acne"
+    | "normal"
+    | "combination"
+    | "eczema"
+    | "dark spots"
+    | "aging"
+  )[];
   /** The ingredient(s) from the user's request that matched this product. */
   matched?: string[];
 };

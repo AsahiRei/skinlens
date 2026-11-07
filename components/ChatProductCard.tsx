@@ -8,21 +8,16 @@ import type { ProductWithImage } from "@/types/knowledge";
 
 /** Unified product type that works for both local knowledge base and web search results */
 export type UnifiedProductCard = ProductWithImage & {
-  sourceUrl?: string;      // Direct product page URL (from web search)
-  retailer?: string;       // Retailer name (Lazada, Shopee, Watsons, etc.)
-  price?: string;          // Price if available
+  sourceUrl?: string; // Direct product page URL (from web search)
+  retailer?: string; // Retailer name (Lazada, Shopee, Watsons, etc.)
+  price?: string; // Price if available
 };
 
 /**
- * Product card with an example photo. Photo failures fall back to an
- * icon tile so the card always renders.
- * For web search results, tapping opens the product page directly.
+ * Product card with an example photo. Photo failures fall back to an icon tile so the card always
+ * renders.
  */
-export default function ChatProductCard({
-  product,
-}: {
-  product: UnifiedProductCard;
-}) {
+export default function ChatProductCard({ product }: { product: UnifiedProductCard }) {
   const [imgOk, setImgOk] = useState(!!product.imageUrl);
 
   // Determine the best URL to open on press: product page > image source > none
@@ -52,10 +47,7 @@ export default function ChatProductCard({
         </View>
       )}
       <View className="flex-1 flex-col gap-0.5 min-w-0">
-        <Text
-          className="font-bold text-gray-900 text-[13px]"
-          numberOfLines={1}
-        >
+        <Text className="font-bold text-gray-900 text-[13px]" numberOfLines={1}>
           {product.product_type}
         </Text>
         <Text className="text-[11px] text-gray-500" numberOfLines={2}>

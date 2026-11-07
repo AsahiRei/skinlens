@@ -1,17 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ToastAndroid,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, Pressable, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
-import {
-  useCameraDevice,
-  useCameraPermission,
-  usePhotoOutput,
-} from "react-native-vision-camera";
+import { useCameraDevice, useCameraPermission, usePhotoOutput } from "react-native-vision-camera";
 import type { Photo } from "react-native-vision-camera";
 import { FaceCamera, type Face } from "@/components/FaceCamera";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -23,13 +13,7 @@ import Animated, {
   withTiming,
   withSequence,
 } from "react-native-reanimated";
-import {
-  Camera as CameraIcon,
-  RefreshCw,
-  RotateCcw,
-  Scan,
-  ScanFace,
-} from "lucide-react-native";
+import { Camera as CameraIcon, RefreshCw, RotateCcw, Scan, ScanFace } from "lucide-react-native";
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ScreenGradient } from "@/components/ScreenGradient";
@@ -37,19 +21,10 @@ import { PrimaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { saveFaceIdentity } from "@/lib/db";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
-import {
-  embeddingToJson,
-  getFaceEmbedding,
-} from "@/utils/face-embeddings";
-import {
-  evaluateAlignment,
-  getAlignmentGuidance,
-} from "@/utils/face-quality";
+import { embeddingToJson, getFaceEmbedding } from "@/utils/face-embeddings";
+import { evaluateAlignment, getAlignmentGuidance } from "@/utils/face-quality";
 
-// Module-level on purpose: usePhotoOutput memoizes on targetResolution by
-// reference. An inline object literal is new every render, which recreated the
-// photo output and re-ran session.configure() on each re-render. A capture in
-// flight then failed with "ImageCaptureException: Camera is closed".
+// Module-level on purpose: usePhotoOutput memoizes on targetResolution by reference.
 const PHOTO_TARGET_RESOLUTION = { width: 720, height: 1280 };
 
 const CAMERA_STYLE = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
@@ -288,10 +263,7 @@ export default function FaceEnroll() {
       <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <View className="flex-1 px-5 pt-8 pb-6">
-          <Text
-            className="font-bold text-[22px]"
-            style={{ color: theme.colors.ink }}
-          >
+          <Text className="font-bold text-[22px]" style={{ color: theme.colors.ink }}>
             {isReenroll ? "Update your profile picture" : "Take a profile picture"}
           </Text>
           <Text className="text-sm leading-5 mt-2" style={{ color: theme.colors.muted }}>
@@ -312,9 +284,7 @@ export default function FaceEnroll() {
   if (!hasPermission) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-black px-6">
-        <Text className="mt-3 text-base text-white text-center">
-          Camera permission required
-        </Text>
+        <Text className="mt-3 text-base text-white text-center">Camera permission required</Text>
         <Text className="mt-1 text-sm text-center text-white/70">
           We need camera access to take your profile picture.
         </Text>
@@ -362,7 +332,14 @@ export default function FaceEnroll() {
 
         <View
           pointerEvents="none"
-          style={{ position: "absolute", top: 0, left: 0, right: 0, height: 160, backgroundColor: "rgba(0,0,0,0.5)" }}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 160,
+            backgroundColor: "rgba(0,0,0,0.5)",
+          }}
         />
 
         {/* Header card */}
@@ -376,9 +353,7 @@ export default function FaceEnroll() {
                 </Text>
               </View>
               <Text className="text-sm text-gray-500">
-                {isPreview
-                  ? "Use this photo?"
-                  : "Look straight at the camera and fill the frame."}
+                {isPreview ? "Use this photo?" : "Look straight at the camera and fill the frame."}
               </Text>
             </View>
           </View>
@@ -388,17 +363,47 @@ export default function FaceEnroll() {
         {!isPreview && (
           <Animated.View
             pointerEvents="none"
-            style={[{ position: "absolute", borderRadius: 16, borderWidth: 2.5, borderColor: scoreColor }, faceBorderStyle]}
+            style={[
+              { position: "absolute", borderRadius: 16, borderWidth: 2.5, borderColor: scoreColor },
+              faceBorderStyle,
+            ]}
           />
         )}
 
         {/* No-face guide */}
         {!isPreview && !hasFace && (
-          <View pointerEvents="none" style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }}>
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              inset: 0,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <Animated.View style={guideStyle}>
-              <View style={{ width: 200, height: 260, alignItems: "center", justifyContent: "center" }}>
-                <View style={{ position: "absolute", width: 200, height: 260, borderRadius: 100, borderWidth: 2, borderColor: "rgba(255,255,255,0.35)", borderStyle: "dashed" }} />
-                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: "500", textAlign: "center" }}>
+              <View
+                style={{ width: 200, height: 260, alignItems: "center", justifyContent: "center" }}
+              >
+                <View
+                  style={{
+                    position: "absolute",
+                    width: 200,
+                    height: 260,
+                    borderRadius: 100,
+                    borderWidth: 2,
+                    borderColor: "rgba(255,255,255,0.35)",
+                    borderStyle: "dashed",
+                  }}
+                />
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: 13,
+                    fontWeight: "500",
+                    textAlign: "center",
+                  }}
+                >
                   Center your face here{"\n"}Move closer so it fills the frame
                 </Text>
               </View>
@@ -409,7 +414,10 @@ export default function FaceEnroll() {
         {/* Alignment status */}
         {!isPreview && hasFace && (
           <View pointerEvents="none" className="absolute self-center" style={{ bottom: 200 }}>
-            <View className="px-4 py-2 rounded-full" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
+            <View
+              className="px-4 py-2 rounded-full"
+              style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+            >
               <View className="flex-row items-center gap-1.5">
                 <Scan size={14} color={scoreColor} />
                 <Text className="text-sm font-semibold" style={{ color: scoreColor }}>
@@ -420,30 +428,53 @@ export default function FaceEnroll() {
           </View>
         )}
 
-        <View pointerEvents="none" style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 230, backgroundColor: "rgba(0,0,0,0.6)" }} />
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 230,
+            backgroundColor: "rgba(0,0,0,0.6)",
+          }}
+        />
 
         {/* Bottom controls */}
         {!isPreview ? (
-          <View className="absolute bottom-0 left-0 right-0 items-center justify-center gap-3" style={{ height: 200, paddingBottom: 20 }}>
+          <View
+            className="absolute bottom-0 left-0 right-0 items-center justify-center gap-3"
+            style={{ height: 200, paddingBottom: 20 }}
+          >
             <Pressable
               onPress={handleCapture}
               disabled={!canCapture}
               accessibilityRole="button"
               accessibilityLabel="Take profile picture"
               style={{
-                width: 72, height: 72, borderRadius: 36, borderWidth: 3,
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                borderWidth: 3,
                 borderColor: canCapture ? "white" : "rgba(255,255,255,0.3)",
-                alignItems: "center", justifyContent: "center",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <View
                 style={{
-                  width: 58, height: 58, borderRadius: 29,
+                  width: 58,
+                  height: 58,
+                  borderRadius: 29,
                   backgroundColor: canCapture ? "white" : "rgba(255,255,255,0.15)",
-                  alignItems: "center", justifyContent: "center",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                <CameraIcon size={26} color={canCapture ? theme.colors.primary : "rgba(255,255,255,0.4)"} />
+                <CameraIcon
+                  size={26}
+                  color={canCapture ? theme.colors.primary : "rgba(255,255,255,0.4)"}
+                />
               </View>
             </Pressable>
             <Pressable
@@ -459,13 +490,20 @@ export default function FaceEnroll() {
             </Pressable>
           </View>
         ) : (
-          <View className="absolute bottom-0 left-0 right-0 gap-3 px-6" style={{ paddingBottom: 28 }}>
+          <View
+            className="absolute bottom-0 left-0 right-0 gap-3 px-6"
+            style={{ paddingBottom: 28 }}
+          >
             <View className="flex-row items-center justify-around">
               <Pressable
                 onPress={handleRetake}
                 disabled={saving}
                 className="w-16 h-16 rounded-full items-center justify-center"
-                style={{ borderWidth: 2, borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" }}
+                style={{
+                  borderWidth: 2,
+                  borderColor: "white",
+                  backgroundColor: "rgba(255,255,255,0.1)",
+                }}
               >
                 <RefreshCw size={26} color="white" />
               </Pressable>

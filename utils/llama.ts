@@ -128,9 +128,7 @@ async function loadResumeState(): Promise<PersistedResumeState | null> {
   }
 }
 
-async function saveResumeState(
-  state: PersistedResumeState,
-): Promise<void> {
+async function saveResumeState(state: PersistedResumeState): Promise<void> {
   try {
     await AsyncStorage.setItem(RESUME_STATE_KEY, JSON.stringify(state));
   } catch {
@@ -163,11 +161,7 @@ export async function getModelBytes(): Promise<number> {
   return -1;
 }
 
-/**
- * Current on-disk progress vs the exact expected model size.
- * Used to seed progress UI on cold start (e.g. "142 / 402 MB, 35%")
- * instead of resetting to 0% after the app was closed mid-download.
- */
+/** Current on-disk progress vs the exact expected model size. */
 export async function getModelDownloadState(): Promise<{
   bytesWritten: number;
   totalBytes: number;
@@ -180,8 +174,7 @@ export async function getModelDownloadState(): Promise<{
     onDisk > 0 ? onDisk : 0,
     persisted?.bytesWritten && persisted.bytesWritten > 0 ? persisted.bytesWritten : 0,
   );
-  const fraction =
-    totalBytes > 0 && bytesWritten > 0 ? Math.min(1, bytesWritten / totalBytes) : 0;
+  const fraction = totalBytes > 0 && bytesWritten > 0 ? Math.min(1, bytesWritten / totalBytes) : 0;
   return { bytesWritten, totalBytes, fraction };
 }
 
@@ -199,9 +192,8 @@ async function getFileSizeOrThrow(uri: string): Promise<number> {
 }
 
 /**
- * Append the remainder file (`partUri`) to the end of the partial model
- * file (`mainUri`) in fixed-size chunks so a ~400MB merge never holds
- * the whole file in JS memory.
+ * Append the remainder file (`partUri`) to the end of the partial model file (`mainUri`) in
+ * fixed-size chunks so a ~400MB merge never holds the whole file in JS memory.
  */
 function appendPartToMain(partUri: string, mainUri: string): void {
   const CHUNK_BYTES = 4 * 1024 * 1024;
@@ -241,11 +233,8 @@ function appendPartToMain(partUri: string, mainUri: string): void {
 }
 
 /**
- * Resume a partial download with an HTTP Range request for the missing
- * tail (`bytes=<onDisk>-`), downloaded to a sidecar `.part` file and then
- * appended to the partial file. Returns the final model uri, or null when
- * a resume is not possible (no known offset / server ignores Range) so the
- * caller can fall back to a fresh download.
+ * Resume a partial download with an HTTP Range request for the missing tail (`bytes=<onDisk>-`),
+ * downloaded to a sidecar `.part` file and then appended to the partial file.
  */
 async function tryRangeResume(
   localPath: string,
@@ -273,10 +262,7 @@ async function tryRangeResume(
         if (progress.totalBytesExpectedToWrite > 0) {
           remainderExpected = progress.totalBytesExpectedToWrite;
           const total = knownTotal ?? onDiskBytes + remainderExpected;
-          const overall = Math.min(
-            onDiskBytes + progress.totalBytesWritten,
-            total,
-          );
+          const overall = Math.min(onDiskBytes + progress.totalBytesWritten, total);
           void savePersistedDownloadState(overall, total);
           onProgress?.(total > 0 ? overall / total : 0, overall, total);
         }
@@ -434,9 +420,7 @@ async function runFreshDownload(
   throw new Error("Failed to download the AI model after multiple attempts.");
 }
 
-export async function getModelPath(
-  onProgress?: ModelDownloadProgress,
-): Promise<string> {
+export async function getModelPath(onProgress?: ModelDownloadProgress): Promise<string> {
   const model = MODEL;
   const localPath = `${FileSystem.documentDirectory}${model.filename}`;
 
@@ -449,12 +433,10 @@ export async function getModelPath(
   }
 
   const persisted = await loadPersistedDownloadState();
-  const knownTotal =
-    persisted && persisted.totalBytes > 0 ? persisted.totalBytes : null;
+  const knownTotal = persisted && persisted.totalBytes > 0 ? persisted.totalBytes : null;
 
   const info = await FileSystem.getInfoAsync(localPath);
-  const onDiskBytes =
-    info.exists && !info.isDirectory ? info.size : 0;
+  const onDiskBytes = info.exists && !info.isDirectory ? info.size : 0;
   if (info.exists && info.isDirectory) {
     // A directory at the model path can never be valid — remove it.
     try {
@@ -511,16 +493,13 @@ export async function getModelPath(
         return ranged;
       }
       if (bytes > onDiskBytes) {
-        // Tail was appended but the file still isn't complete (connection
-        // dropped mid-tail). Loop back around: the next call resumes the
-        // new tail instead of restarting.
+        // Tail was appended but the file still isn't complete (connection dropped mid-tail).
         return getModelPath(onProgress);
       }
     }
     if (downloadAborted) throw new Error("Download cancelled.");
-    // Fell through: Range unsupported or failed — fresh download below.
-    // IMPORTANT: the partial file is kept (not deleted); a full download
-    // overwrites it only once the fresh transfer succeeds.
+    // Fell through: Range unsupported or failed — fresh download below. IMPORTANT: the partial file
+    // is kept (not deleted); a full download overwrites it only once the fresh transfer succeeds.
   }
 
   downloadAborted = false;
@@ -586,12 +565,9 @@ export async function getLlamaContext(
 }
 
 /**
- * Serialize all completions on the shared context.
- *
- * llama.rn holds a single sequence slot by default — two overlapping
- * `completion()` calls corrupt each other and one side comes back empty
- * (surfacing as "No JSON object found in model output"). Every caller
- * must route generations through this queue.
+ * Serialize all completions on the shared context. llama.rn holds a single sequence slot by default
+ * — two overlapping `completion()` calls corrupt each other and one side comes back empty
+ * (surfacing as "No JSON object found in model output").
  */
 let completionTail: Promise<void> = Promise.resolve();
 
@@ -627,9 +603,8 @@ export async function warmupLlama(): Promise<void> {
 
 export async function preloadLlama(onProgress?: ModelDownloadProgress) {
   await getLlamaContext(onProgress);
-  // Awaited (not fire-and-forget): a background warmup completion would
-  // race the first real generation on the shared context and empty it.
-  // Cost is ~1 token, paid while the progress UI is still visible.
+  // Awaited (not fire-and-forget): a background warmup completion would race the first real
+  // generation on the shared context and empty it.
   await warmupLlama();
 }
 
@@ -712,9 +687,8 @@ export async function diagnoseLlama(): Promise<LlamaDiagnosis> {
 export async function cancelDownload() {
   downloadAborted = true;
   if (activeDownload) {
-    // Prefer a clean pause so the native resumeData can be persisted to
-    // AsyncStorage: the next launch resumes instead of restarting.
-    // Fall back to a hard cancel when pausing isn't possible.
+    // Prefer a clean pause so the native resumeData can be persisted to AsyncStorage: the next
+    // launch resumes instead of restarting.
     try {
       const pauseState = await activeDownload.pauseAsync();
       await saveResumeState({

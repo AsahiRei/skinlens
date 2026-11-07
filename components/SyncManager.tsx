@@ -8,31 +8,26 @@ import { clearLocalUserData } from "@/lib/db/auth";
 import { processSyncQueue } from "@/lib/db/sync";
 import { supabase, validateSession } from "@/utils/supabase";
 
-// Foreground resumes within this window of the last completed pass skip the
-// validate + drain round trip (quick app switches would otherwise fire a
-// getUser() call every time).
+// Foreground resumes within this window of the last completed pass skip the validate + drain round
+// trip (quick app switches would otherwise fire a getUser() call every time).
 const FOREGROUND_RESYNC_MIN_INTERVAL_MS = 60_000;
 
-// Re-verifies the cached session against the server before draining the
-// queue. Returns false when the account is gone (session purged, local rows
-// wiped, routed to /welcome) so callers skip the sync.
+// Re-verifies the cached session against the server before draining the queue.
 async function validateBeforeSync(): Promise<boolean> {
   if (__DEV__) console.log(`[SkinLens][Sync] ${new Date().toISOString()} validateBeforeSync start`);
   const {
     data: { session: cached },
   } = await supabase.auth.getSession();
   if (!cached) {
-    if (__DEV__) console.log(`[SkinLens][Sync] ${new Date().toISOString()} no cached session, skip sync`);
+    if (__DEV__)
+      console.log(`[SkinLens][Sync] ${new Date().toISOString()} no cached session, skip sync`);
     return false;
   }
   const valid = await validateSession();
   if (__DEV__) console.log(`[SkinLens][Sync] ${new Date().toISOString()} session valid=`, !!valid);
   if (!valid) {
-    // validateSession() already purged the AsyncStorage session (which
-    // emits SIGNED_OUT → _layout clears + redirects), so only the SQLite
-    // rows remain to be wiped here. No signOut call — that would re-emit
-    // SIGNED_OUT and loop. replace (not push) so repeated triggers can't
-    // stack /welcome screens.
+    // validateSession() already purged the AsyncStorage session (which emits SIGNED_OUT → _layout
+    // clears + redirects), so only the SQLite rows remain to be wiped here.
     await clearLocalUserData();
     try {
       router.replace("/welcome");
@@ -52,9 +47,8 @@ async function isOnlineNow(): Promise<boolean> {
   }
 }
 
-// Mount, reconnect and foreground can all fire within the same second at
-// boot; share one in-flight validate + drain instead of issuing a getUser()
-// round trip for each. Module-level: there is a single SyncManager.
+// Mount, reconnect and foreground can all fire within the same second at boot; share one in-flight
+// validate + drain instead of issuing a getUser() round trip for each.
 let inFlight: Promise<void> | null = null;
 let lastSyncAt = 0;
 // A reconnect that lands mid-pass may mean that pass ran (and failed
@@ -67,11 +61,11 @@ function runSync(reason: string): Promise<void> {
     return inFlight;
   }
   inFlight = (async () => {
-    // Offline: validateSession() would only wait out the fetch timeout and
-    // the drain would fail every entry. The reconnect transition triggers
-    // the pass once connectivity returns.
+    // Offline: validateSession() would only wait out the fetch timeout and the drain would fail
+    // every entry.
     if (!(await isOnlineNow())) {
-      if (__DEV__) console.log(`[SkinLens][Sync] ${new Date().toISOString()} ${reason}: offline, skip`);
+      if (__DEV__)
+        console.log(`[SkinLens][Sync] ${new Date().toISOString()} ${reason}: offline, skip`);
       return;
     }
     const ok = await validateBeforeSync();
@@ -104,9 +98,7 @@ export function SyncManager() {
     const online = isConnected && isInternetReachable !== false;
 
     if (online && wasOffline.current) {
-      // Offline → online transition: the account may have been deleted
-      // while we were away. Validate first so a stale AsyncStorage session
-      // can't keep syncing or keep the user inside (tabs).
+      // Offline → online transition: the account may have been deleted while we were away.
       void runSync("reconnect");
     }
 

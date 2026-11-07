@@ -54,16 +54,9 @@ export default function PulsatingIcon() {
   }));
 
   return (
-    <View
-      className="items-center justify-center"
-      style={{ width: RING_SIZE, height: RING_SIZE }}
-    >
+    <View className="items-center justify-center" style={{ width: RING_SIZE, height: RING_SIZE }}>
       {[ring1Style, ring2Style, ring3Style].map((style, i) => (
-        <Animated.View
-          key={i}
-          style={[style, RING_STYLE]}
-          className="bg-[#14532D]"
-        />
+        <Animated.View key={i} style={[style, RING_STYLE]} className="bg-[#14532D]" />
       ))}
       <View
         style={{

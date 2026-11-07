@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  Image,
-  Pressable,
-  TextInput,
-  ToastAndroid,
-  View,
-} from "react-native";
+import { Image, Pressable, TextInput, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react-native";
@@ -15,6 +9,7 @@ import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import LegalModal from "@/components/LegalModal";
 import { PrimaryButton } from "@/components/ui";
 import { signInWithGoogle, supabase } from "@/utils/supabase";
+import { firstError, loginSchema } from "@/lib/validation";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -23,36 +18,32 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [legal, setLegal] = useState<null | "terms" | "privacy">(null);
   const router = useRouter();
-  //login
   const handleLogin = async () => {
     console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleLogin start`);
-    if (!email || !password) {
-      console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleLogin blocked: missing fields`);
-      ToastAndroid.show(
-        "Please fill in all required fields",
-        ToastAndroid.SHORT,
-      );
+    const parsed = loginSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      ToastAndroid.show(firstError(parsed.error), ToastAndroid.SHORT);
       return;
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
       if (error) {
-        console.log(`[SkinLens][Auth] ${new Date().toISOString()} signInWithPassword failed:`, error.message);
+        console.log(
+          `[SkinLens][Auth] ${new Date().toISOString()} signInWithPassword failed:`,
+          error.message,
+        );
         ToastAndroid.show(error.message, ToastAndroid.LONG);
         return;
       }
-      console.log(`[SkinLens][Auth] ${new Date().toISOString()} signInWithPassword success user=`, data.user?.id);
+      console.log(
+        `[SkinLens][Auth] ${new Date().toISOString()} signInWithPassword success user=`,
+        data.user?.id,
+      );
       router.replace("/");
     } catch (err) {
       console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleLogin exception:`, err);
-      ToastAndroid.show(
-        "Something went wrong. Please try again.",
-        ToastAndroid.SHORT,
-      );
+      ToastAndroid.show("Something went wrong. Please try again.", ToastAndroid.SHORT);
     } finally {
       setLoading(false);
     }
@@ -61,10 +52,16 @@ export default function Login() {
     console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleGoogleLogin start`);
     try {
       const user = await signInWithGoogle();
-      console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleGoogleLogin success user=`, user?.id);
+      console.log(
+        `[SkinLens][Auth] ${new Date().toISOString()} handleGoogleLogin success user=`,
+        user?.id,
+      );
       router.replace("/");
     } catch (e) {
-      console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleGoogleLogin failed:`, e instanceof Error ? e.message : e);
+      console.log(
+        `[SkinLens][Auth] ${new Date().toISOString()} handleGoogleLogin failed:`,
+        e instanceof Error ? e.message : e,
+      );
       ToastAndroid.show(
         e instanceof Error ? e.message : "Something went wrong. Please try again.",
         ToastAndroid.LONG,
@@ -86,7 +83,9 @@ export default function Login() {
               height: 20,
             }}
           />
-          <Text className="font-bold" style={{ color: theme.colors.body }}>Login with Google</Text>
+          <Text className="font-bold" style={{ color: theme.colors.body }}>
+            Login with Google
+          </Text>
         </View>
       </Pressable>
       <View className="flex-row items-center my-6">
@@ -98,8 +97,17 @@ export default function Login() {
       </View>
       <View className="flex-col gap-4">
         <View className="flex-col gap-2">
-          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Email Address</Text>
-          <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>
+            Email Address
+          </Text>
+          <View
+            className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2"
+            style={{
+              borderWidth: 1,
+              borderColor: theme.colors.cardBorder,
+              borderRadius: theme.radius.input,
+            }}
+          >
             <Mail size={22} color={theme.colors.muted} />
             <TextInput
               value={email}
@@ -114,8 +122,17 @@ export default function Login() {
           </View>
         </View>
         <View className="flex-col gap-2">
-          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Password</Text>
-          <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+          <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>
+            Password
+          </Text>
+          <View
+            className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2"
+            style={{
+              borderWidth: 1,
+              borderColor: theme.colors.cardBorder,
+              borderRadius: theme.radius.input,
+            }}
+          >
             <Lock size={22} color={theme.colors.muted} />
             <TextInput
               value={password}
@@ -126,10 +143,7 @@ export default function Login() {
               placeholderTextColor={theme.colors.faint}
               secureTextEntry={!showPassword}
             />
-            <Pressable
-              onPress={() => setShowPassword(!showPassword)}
-              className="active:opacity-60"
-            >
+            <Pressable onPress={() => setShowPassword(!showPassword)} className="active:opacity-60">
               {showPassword ? (
                 <EyeOff size={22} color={theme.colors.muted} />
               ) : (
@@ -138,11 +152,10 @@ export default function Login() {
             </Pressable>
           </View>
         </View>
-        <Pressable
-          className="active:opacity-80"
-          onPress={() => router.push("/forgot-password")}
-        >
-          <Text className="underline" style={{ color: theme.colors.primary }}>Forgot password?</Text>
+        <Pressable className="active:opacity-80" onPress={() => router.push("/forgot-password")}>
+          <Text className="underline" style={{ color: theme.colors.primary }}>
+            Forgot password?
+          </Text>
         </Pressable>
         <PrimaryButton label="Login" onPress={handleLogin} loading={loading} />
         <Text className="text-center px-4 mt-2" style={{ color: theme.colors.muted }}>

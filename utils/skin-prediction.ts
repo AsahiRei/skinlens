@@ -15,21 +15,22 @@ let model: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 
 async function getModel() {
   if (!model) {
-    console.log(`[SkinLens][Prediction] ${new Date().toISOString()} loading detection_model.tflite`);
-    // Resolve bundled asset to a file:// URI that works in both dev (http) and
-    // release (embedded) builds. Directly passing require() id causes
-    // HybridAssetLoader to try `new URL("assets_models_detection_model")` ->
-    // MalformedURLException: no protocol in release builds.
-    const asset = Asset.fromModule(
-      require("@/assets/models/detection_model.tflite"),
+    console.log(
+      `[SkinLens][Prediction] ${new Date().toISOString()} loading detection_model.tflite`,
     );
+    // Resolve bundled asset to a file:// URI that works in both dev (http) and release (embedded)
+    // builds.
+    const asset = Asset.fromModule(require("@/assets/models/detection_model.tflite"));
     await asset.downloadAsync();
     // localUri is file:// on device after download; fall back to uri (http in dev).
     const uri = asset.localUri ?? asset.uri;
     if (!uri) throw new Error("Failed to resolve detection_model.tflite asset");
     const t0 = Date.now();
     model = await loadTensorflowModel({ url: uri }, []);
-    console.log(`[SkinLens][Prediction] ${new Date().toISOString()} model loaded in ${Date.now() - t0}ms uri=`, uri.slice(0, 80));
+    console.log(
+      `[SkinLens][Prediction] ${new Date().toISOString()} model loaded in ${Date.now() - t0}ms uri=`,
+      uri.slice(0, 80),
+    );
   }
   return model;
 }
@@ -49,10 +50,7 @@ function getImageSize(imageUri: string): Promise<{ width: number; height: number
 // Center-crop to square before resizing so wide (e.g. 1280x720 landscape)
 // captures don't get stretched into squares — the old plain
 // resize:{width,height} distorted faces and made post-scan previews look wide.
-async function squareCropAndResize(
-  imageUri: string,
-  size: number,
-): Promise<string> {
+async function squareCropAndResize(imageUri: string, size: number): Promise<string> {
   try {
     const { width, height } = await getImageSize(imageUri);
     if (width > 0 && height > 0 && width !== height) {
@@ -103,13 +101,11 @@ async function decodeImageToPixels(
   return jpeg.decode(imageBytes, { useTArray: true });
 }
 
-function computeLightingGains(
-  decoded: jpeg.JpegBuffer,
-  width: number,
-  height: number,
-) {
+function computeLightingGains(decoded: jpeg.JpegBuffer, width: number, height: number) {
   const totalPixels = width * height;
-  let rSum = 0, gSum = 0, bSum = 0;
+  let rSum = 0,
+    gSum = 0,
+    bSum = 0;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
@@ -135,9 +131,7 @@ export async function enhanceImage(imageUri: string): Promise<string> {
   console.log(`[SkinLens][Prediction] ${new Date().toISOString()} enhanceImage start`);
   const t0 = Date.now();
   const decoded = await decodeImageToPixels(imageUri, 512, 512);
-  const { rGain, gGain, bGain, exposureGain } = computeLightingGains(
-    decoded, 512, 512,
-  );
+  const { rGain, gGain, bGain, exposureGain } = computeLightingGains(decoded, 512, 512);
 
   const w = decoded.width;
   const h = decoded.height;
@@ -148,8 +142,12 @@ export async function enhanceImage(imageUri: string): Promise<string> {
       let r = decoded.data[i] * rGain * exposureGain;
       let g = decoded.data[i + 1] * gGain * exposureGain;
       let b = decoded.data[i + 2] * bGain * exposureGain;
-      if (r > 255) r = 255; if (g > 255) g = 255; if (b > 255) b = 255;
-      if (r < 0) r = 0; if (g < 0) g = 0; if (b < 0) b = 0;
+      if (r > 255) r = 255;
+      if (g > 255) g = 255;
+      if (b > 255) b = 255;
+      if (r < 0) r = 0;
+      if (g < 0) g = 0;
+      if (b < 0) b = 0;
       enhanced[i] = r;
       enhanced[i + 1] = g;
       enhanced[i + 2] = b;
@@ -157,24 +155,23 @@ export async function enhanceImage(imageUri: string): Promise<string> {
     }
   }
 
-  const encoded = jpeg.encode(
-    { data: enhanced, width: w, height: h },
-    90,
-  );
+  const encoded = jpeg.encode({ data: enhanced, width: w, height: h }, 90);
   const outPath = `${FileSystem.cacheDirectory}enhanced_${Date.now()}.jpg`;
-  await FileSystem.writeAsStringAsync(
-    outPath,
-    Buffer.from(encoded.data).toString("base64"),
-    { encoding: FileSystem.EncodingType.Base64 },
+  await FileSystem.writeAsStringAsync(outPath, Buffer.from(encoded.data).toString("base64"), {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  console.log(
+    `[SkinLens][Prediction] ${new Date().toISOString()} enhanceImage done in ${Date.now() - t0}ms out=`,
+    outPath.slice(-60),
   );
-  console.log(`[SkinLens][Prediction] ${new Date().toISOString()} enhanceImage done in ${Date.now() - t0}ms out=`, outPath.slice(-60));
   return outPath;
 }
 
-export async function classifyImage(
-  imageUri: string,
-): Promise<ClassificationResult> {
-  console.log(`[SkinLens][Prediction] ${new Date().toISOString()} classifyImage start uri=`, imageUri?.slice(0, 100));
+export async function classifyImage(imageUri: string): Promise<ClassificationResult> {
+  console.log(
+    `[SkinLens][Prediction] ${new Date().toISOString()} classifyImage start uri=`,
+    imageUri?.slice(0, 100),
+  );
   const t0 = Date.now();
   const tfliteModel = await getModel();
   const squareUri = await squareCropAndResize(imageUri, 224);
@@ -186,15 +183,15 @@ export async function classifyImage(
     useTArray: true,
   });
   if (decoded.width !== 224 || decoded.height !== 224) {
-    throw new Error(
-      `Unexpected image size: ${decoded.width}x${decoded.height}`,
-    );
+    throw new Error(`Unexpected image size: ${decoded.width}x${decoded.height}`);
   }
 
   const totalPixels = 224 * 224;
 
   // Pass 1: compute per-channel averages for white balance + auto-exposure
-  let rSum = 0, gSum = 0, bSum = 0;
+  let rSum = 0,
+    gSum = 0,
+    bSum = 0;
   for (let y = 0; y < 224; y++) {
     for (let x = 0; x < 224; x++) {
       const i = (y * 224 + x) * 4;
@@ -226,8 +223,12 @@ export async function classifyImage(
       let r = decoded.data[i] * rGain * exposureGain;
       let g = decoded.data[i + 1] * gGain * exposureGain;
       let b = decoded.data[i + 2] * bGain * exposureGain;
-      if (r > 255) r = 255; if (g > 255) g = 255; if (b > 255) b = 255;
-      if (r < 0) r = 0; if (g < 0) g = 0; if (b < 0) b = 0;
+      if (r > 255) r = 255;
+      if (g > 255) g = 255;
+      if (b > 255) b = 255;
+      if (r < 0) r = 0;
+      if (g < 0) g = 0;
+      if (b < 0) b = 0;
       input[index++] = r;
       input[index++] = g;
       input[index++] = b;
@@ -262,7 +263,12 @@ export async function classifyImage(
     probabilityMap[className] = probabilities[idx];
   });
 
-  console.log(`[SkinLens][Prediction] ${new Date().toISOString()} classifyImage done in ${Date.now() - t0}ms label=`, label, `conf=`, confidence.toFixed(3));
+  console.log(
+    `[SkinLens][Prediction] ${new Date().toISOString()} classifyImage done in ${Date.now() - t0}ms label=`,
+    label,
+    `conf=`,
+    confidence.toFixed(3),
+  );
   return {
     label,
     confidence,

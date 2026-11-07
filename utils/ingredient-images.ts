@@ -24,15 +24,13 @@ type OpenverseResult = {
 const OPENVERSE_BASE = "https://api.openverse.org/v1/images/";
 const PEXELS_API_KEY = process.env.EXPO_PUBLIC_PEXELS_API_KEY ?? "";
 
-// React Native <Image> cannot render SVG — and Openverse ingredient queries
-// are polluted by Flickr spam (single spammer accounts) + DrugStats SVG
-// charts. Filter aggressively: renderable raster only, no Flickr, no charts.
+// React Native <Image> cannot render SVG — and Openverse ingredient queries are polluted by Flickr
+// spam (single spammer accounts) + DrugStats SVG charts.
 const RENDERABLE_EXT_RE = /\.(jpe?g|png|webp|gif)(\?|$)/i;
 const BLOCKED_PROVIDERS = new Set(["flickr"]);
 const CHART_TITLE_RE = /drugstats|costs|prescriptions|prescription|chart|graph/i;
 
-const IMAGE_WORDS =
-  /\b(show|picture|photo|image|what does .* look|look like|see|display)\b/i;
+const IMAGE_WORDS = /\b(show|picture|photo|image|what does .* look|look like|see|display)\b/i;
 
 // Generic cosmetic nouns — let "what does X product/serum look like" trigger
 // image search even when X has a typo or isn't in the knowledge base.
@@ -55,11 +53,7 @@ function levenshtein(a: string, b: string): number {
     prev[0] = i;
     for (let j = 1; j <= b.length; j++) {
       const temp = prev[j];
-      prev[j] = Math.min(
-        prev[j] + 1,
-        prev[j - 1] + 1,
-        diag + (a[i - 1] === b[j - 1] ? 0 : 1),
-      );
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
       diag = temp;
     }
   }
@@ -85,41 +79,26 @@ function fuzzyNameInMessage(name: string, msgTokens: string[]): boolean {
   if (q.includes(lower)) return true;
   const nameWords = lower.split(/\s+/).filter((w) => w.length >= 3);
   if (nameWords.length === 0) return false;
-  const hits = nameWords.filter((nw) =>
-    msgTokens.some((mt) => wordsSimilar(mt, nw)),
-  );
+  const hits = nameWords.filter((nw) => msgTokens.some((mt) => wordsSimilar(mt, nw)));
   // Single-word names need their one word; multi-word need at least half.
   return hits.length >= Math.max(1, Math.ceil(nameWords.length / 2));
 }
 
 /**
- * THE single knowledge-base lookup: canonical ingredient / product-type
- * names mentioned in the message (typo-tolerant), longest first.
- * Intent, related products, and image queries all reuse this — no
- * duplicated matching loops.
+ * THE single knowledge-base lookup: canonical ingredient / product-type names mentioned in the
+ * message (typo-tolerant), longest first. Intent, related products, and image queries all reuse
+ * this — no duplicated matching loops.
  */
 export function findKnownNames(message: string): string[] {
   const toks = messageTokens(message);
-  const candidates = [
-    ...ingredients.map((i) => i.name),
-    ...products.map((p) => p.product_type),
-  ];
-  return candidates
-    .filter((c) => fuzzyNameInMessage(c, toks))
-    .sort((a, b) => b.length - a.length);
+  const candidates = [...ingredients.map((i) => i.name), ...products.map((p) => p.product_type)];
+  return candidates.filter((c) => fuzzyNameInMessage(c, toks)).sort((a, b) => b.length - a.length);
 }
 
-/**
- * True when the message asks about a known ingredient / product type.
- * Typo-tolerant ("niacinimide", "salicilic acid"), and also fires for
- * generic "what does this serum/product look like" appearance questions
- * so Pexels can answer even without a knowledge-base hit.
- */
+/** True when the message asks about a known ingredient / product type. */
 export function isIngredientImageIntent(message: string): boolean {
   if (findKnownNames(message).length > 0) return true;
   // Generic appearance question, e.g. "what does vitamin c serum look like".
-  // Requires an explicit image/show word so routine advice questions
-  // ("should I use moisturizer?") don't over-fetch.
   return IMAGE_WORDS.test(message) && PRODUCT_WORDS.test(message);
 }
 
@@ -137,9 +116,8 @@ function cleanFallbackQuery(message: string): string {
 }
 
 /**
- * Product-list questions: "what's the list of products", "list products
- * for acne", "recommend me some products". These get product cards with
- * example photos even without an explicit show/image word.
+ * Product-list questions: "what's the list of products", "list products for acne", "recommend me
+ * some products".
  */
 export function isProductListIntent(message: string): boolean {
   const q = message.toLowerCase();
@@ -157,20 +135,14 @@ const CONCERN_KEYWORDS: Record<string, string[]> = {
 };
 
 /** Products matching a skin-concern keyword in the message. */
-export function getProductsForConcern(
-  message: string,
-  limit = 3,
-): ProductEntry[] {
+export function getProductsForConcern(message: string, limit = 3): ProductEntry[] {
   const q = message.toLowerCase();
   const out: ProductEntry[] = [];
   const seen = new Set<string>();
   for (const [concern, keywords] of Object.entries(CONCERN_KEYWORDS)) {
     if (!keywords.some((k) => q.includes(k))) continue;
     for (const p of products) {
-      if (
-        !seen.has(p.product_type) &&
-        p.concerns.some((c) => c.toLowerCase() === concern)
-      ) {
+      if (!seen.has(p.product_type) && p.concerns.some((c) => c.toLowerCase() === concern)) {
         seen.add(p.product_type);
         out.push(p);
         if (out.length >= limit) return out;
@@ -191,8 +163,7 @@ function productPhotoQuery(p: ProductEntry): string {
   if (t.includes("sunscreen")) return "sunscreen bottle lotion";
   if (t.includes("cleanser")) return "facial cleanser foam skincare";
   if (t.includes("toner")) return "facial toner bottle skincare";
-  if (t.includes("moisturizer") || t.includes("cream"))
-    return "cosmetic moisturizer cream jar";
+  if (t.includes("moisturizer") || t.includes("cream")) return "cosmetic moisturizer cream jar";
   if (t.includes("mask")) return "facial mask skincare";
   if (t.includes("exfoliant") || t.includes("exfoliator"))
     return "facial exfoliator scrub skincare";
@@ -203,9 +174,7 @@ function productPhotoQuery(p: ProductEntry): string {
  * Attach one example photo per product (Pexels). Never throws — products
  * without a photo still return so the text card renders.
  */
-export async function attachProductImages(
-  items: ProductEntry[],
-): Promise<ProductWithImage[]> {
+export async function attachProductImages(items: ProductEntry[]): Promise<ProductWithImage[]> {
   return Promise.all(
     items.map(async (p) => {
       try {
@@ -226,17 +195,10 @@ export async function attachProductImages(
 }
 
 /**
- * The user's OWN recommended products, parsed directly from their latest
- * scan (recommendations_summary, e.g.
- * "Acne Treatment Serum (Benzoyl Peroxide, Niacinamide); ...").
- * No hardcoded catalog involved — a "recommendation / product list"
- * question shows ONLY these. Returns [] when there is no scan data, in
- * which case the LLM text reply still answers.
+ * The user's OWN recommended products, parsed directly from their latest scan
+ * (recommendations_summary, e.g. "Acne Treatment Serum (Benzoyl Peroxide, Niacinamide); ...").
  */
-export function getRecommendedProducts(
-  ctx: ChatUserContext,
-  limit = 3,
-): ProductEntry[] {
+export function getRecommendedProducts(ctx: ChatUserContext, limit = 3): ProductEntry[] {
   const raw = ctx.recommendations_summary?.trim() ?? "";
   if (!raw) return [];
   const out: ProductEntry[] = [];
@@ -267,9 +229,8 @@ export function getRecommendedProducts(
 }
 
 /**
- * Products from the curated knowledge base that use the matched
- * ingredient (or the mentioned product type itself).
- * e.g. "show me niacinamide" -> Acne Treatment Serum, Oil-Free Moisturizer…
+ * Products from the curated knowledge base that use the matched ingredient (or the mentioned
+ * product type itself). e.g. "show me niacinamide" -> Acne Treatment Serum, Oil-Free Moisturizer…
  */
 export function getRelatedProducts(message: string, limit = 3): ProductEntry[] {
   const matched = new Set(findKnownNames(message).map((n) => n.toLowerCase()));
@@ -290,19 +251,13 @@ export function getRelatedProducts(message: string, limit = 3): ProductEntry[] {
 
   // Direct product-type mentions first ("show hydrating serum").
   for (const name of matchedProductTypes) {
-    const found = products.find(
-      (p) => p.product_type.toLowerCase() === name.toLowerCase(),
-    );
+    const found = products.find((p) => p.product_type.toLowerCase() === name.toLowerCase());
     if (found) push(found);
   }
   // Then products formulated with the mentioned ingredient(s).
   for (const ing of matchedIngredients) {
     for (const p of products) {
-      if (
-        p.recommended_ingredients.some(
-          (r) => r.toLowerCase() === ing.toLowerCase(),
-        )
-      ) {
+      if (p.recommended_ingredients.some((r) => r.toLowerCase() === ing.toLowerCase())) {
         push(p);
       }
     }
@@ -310,10 +265,7 @@ export function getRelatedProducts(message: string, limit = 3): ProductEntry[] {
   return out;
 }
 
-async function searchOpenverse(
-  query: string,
-  limit = 4,
-): Promise<IngredientImage[]> {
+async function searchOpenverse(query: string, limit = 4): Promise<IngredientImage[]> {
   // Over-fetch then filter client-side: top Openverse hits for ingredient
   // names are Flickr spam + SVG charts, both unusable in <Image>.
   const url =
@@ -336,12 +288,8 @@ async function searchOpenverse(
   // Wikimedia-hosted files first — upload.wikimedia.org is hotlink-friendly
   // and reliable in React Native; other providers after.
   usable.sort((a, b) => {
-    const aWiki = (a.provider || "").toLowerCase().includes("wikimedia")
-      ? 0
-      : 1;
-    const bWiki = (b.provider || "").toLowerCase().includes("wikimedia")
-      ? 0
-      : 1;
+    const aWiki = (a.provider || "").toLowerCase().includes("wikimedia") ? 0 : 1;
+    const bWiki = (b.provider || "").toLowerCase().includes("wikimedia") ? 0 : 1;
     return aWiki - bWiki;
   });
   return usable.slice(0, limit).map((r, idx) => ({
@@ -357,10 +305,7 @@ async function searchOpenverse(
   }));
 }
 
-async function searchWikimedia(
-  query: string,
-  limit = 4,
-): Promise<IngredientImage[]> {
+async function searchWikimedia(query: string, limit = 4): Promise<IngredientImage[]> {
   // Step 1: search for matching page titles.
   const searchUrl =
     `https://en.wikipedia.org/w/api.php?action=query&list=search` +
@@ -419,10 +364,7 @@ type PexelsPhoto = {
   src?: { medium?: string; small?: string; tiny?: string };
 };
 
-async function searchPexels(
-  query: string,
-  limit = 4,
-): Promise<IngredientImage[]> {
+async function searchPexels(query: string, limit = 4): Promise<IngredientImage[]> {
   if (!PEXELS_API_KEY) return [];
   const url =
     `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}` +
@@ -444,16 +386,10 @@ async function searchPexels(
 }
 
 /**
- * Find live images for an ingredient / product query.
- * Pexels CDN first (actually renders in <Image>), then Wikimedia
- * pageimages, then filtered Openverse (Flickr + SVG charts excluded).
- * Never throws — returns [] when offline or when providers fail, so the
- * chatbot can still reply with text.
+ * Find live images for an ingredient / product query. Never throws — returns [] when offline or
+ * when providers fail, so the chatbot can still reply with text.
  */
-export async function findIngredientImages(
-  message: string,
-  limit = 4,
-): Promise<IngredientImage[]> {
+export async function findIngredientImages(message: string, limit = 4): Promise<IngredientImage[]> {
   // Query straight from the knowledge match — no separate extraction pass.
   const query = findKnownNames(message)[0] ?? cleanFallbackQuery(message);
   if (!query) return [];

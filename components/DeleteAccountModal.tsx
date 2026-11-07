@@ -12,14 +12,8 @@ type DeleteAccountModalProps = {
   setVisible: (v: boolean) => void;
 };
 
-/**
- * Two-step confirmation for permanent account deletion. Required by Google
- * Play for apps with account creation, and promised by the Privacy Policy.
- */
-export default function DeleteAccountModal({
-  isVisible,
-  setVisible,
-}: DeleteAccountModalProps) {
+/** Two-step confirmation for permanent account deletion. */
+export default function DeleteAccountModal({ isVisible, setVisible }: DeleteAccountModalProps) {
   const router = useRouter();
   const { isConnected } = useNetwork();
   const [confirming, setConfirming] = useState(false);
@@ -33,10 +27,7 @@ export default function DeleteAccountModal({
 
   const remove = async () => {
     if (!isConnected) {
-      ToastAndroid.show(
-        "Connect to the internet to delete your account.",
-        ToastAndroid.LONG,
-      );
+      ToastAndroid.show("Connect to the internet to delete your account.", ToastAndroid.LONG);
       return;
     }
     setLoading(true);
@@ -48,10 +39,7 @@ export default function DeleteAccountModal({
       router.replace("/welcome");
     } catch (err) {
       console.warn("[account] delete failed:", err);
-      ToastAndroid.show(
-        `Couldn't delete account. ${friendlyError(err)}`,
-        ToastAndroid.LONG,
-      );
+      ToastAndroid.show(`Couldn't delete account. ${friendlyError(err)}`, ToastAndroid.LONG);
     } finally {
       setLoading(false);
     }

@@ -6,10 +6,7 @@ import { createClient, type Session } from "@supabase/supabase-js";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
-async function fetchWithTimeout(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<Response> {
+async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -30,16 +27,16 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: {
-      storage: AsyncStorage,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-    },
-    global: {
-      fetch: fetchWithTimeout,
-    },
-  });
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+  global: {
+    fetch: fetchWithTimeout,
+  },
+});
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -49,12 +46,17 @@ export const createSessionFromUrl = async (url: string) => {
   console.log(`[SkinLens][Supabase] ${new Date().toISOString()} createSessionFromUrl start`);
   const { params, errorCode } = QueryParams.getQueryParams(url);
   if (errorCode) {
-    console.log(`[SkinLens][Supabase] ${new Date().toISOString()} createSessionFromUrl errorCode=`, errorCode);
+    console.log(
+      `[SkinLens][Supabase] ${new Date().toISOString()} createSessionFromUrl errorCode=`,
+      errorCode,
+    );
     throw new Error(errorCode);
   }
   const { access_token, refresh_token } = params;
   if (!access_token) {
-    console.log(`[SkinLens][Supabase] ${new Date().toISOString()} createSessionFromUrl no access_token, skipping`);
+    console.log(
+      `[SkinLens][Supabase] ${new Date().toISOString()} createSessionFromUrl no access_token, skipping`,
+    );
     return null;
   }
   const { data, error } = await supabase.auth.setSession({
@@ -62,20 +64,27 @@ export const createSessionFromUrl = async (url: string) => {
     refresh_token,
   });
   if (error) {
-    console.log(`[SkinLens][Supabase] ${new Date().toISOString()} setSession failed:`, error.message);
+    console.log(
+      `[SkinLens][Supabase] ${new Date().toISOString()} setSession failed:`,
+      error.message,
+    );
     throw error;
   }
-  console.log(`[SkinLens][Supabase] ${new Date().toISOString()} setSession success user=`, data.session?.user?.id);
+  console.log(
+    `[SkinLens][Supabase] ${new Date().toISOString()} setSession success user=`,
+    data.session?.user?.id,
+  );
   return data.session;
 };
 
-async function upsertProfile(
-  user: { id: string; email?: string | null },
-  fullName?: string,
-) {
+async function upsertProfile(user: { id: string; email?: string | null }, fullName?: string) {
   const email = user.email ?? "";
 
-  const { data: existing } = await supabase.from("user_profile").select("id").eq("id", user.id).single();
+  const { data: existing } = await supabase
+    .from("user_profile")
+    .select("id")
+    .eq("id", user.id)
+    .single();
   if (existing) return;
 
   const { error: insertError } = await supabase.from("user_profile").upsert(
@@ -99,11 +108,16 @@ export async function signInWithGoogle() {
     },
   });
   if (error) {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} signInWithOAuth failed:`, error.message);
+    console.log(
+      `[SkinLens][Auth] ${new Date().toISOString()} signInWithOAuth failed:`,
+      error.message,
+    );
     throw error;
   }
   if (!data?.url) {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} signInWithGoogle no auth URL returned`);
+    console.log(
+      `[SkinLens][Auth] ${new Date().toISOString()} signInWithGoogle no auth URL returned`,
+    );
     throw new Error("No auth URL returned from Supabase.");
   }
   console.log(`[SkinLens][Auth] ${new Date().toISOString()} OAuth URL received, opening browser`);
@@ -120,22 +134,26 @@ export async function signInWithGoogle() {
     }, 15000);
   });
 
-  const browserResultPromise = WebBrowser.openAuthSessionAsync(
-    data.url,
-    redirectTo,
-  ).then(async (result) => {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} browser result type=`, result.type);
-    if (result.type === "success" && result.url) {
-      await createSessionFromUrl(result.url);
-    }
-  });
+  const browserResultPromise = WebBrowser.openAuthSessionAsync(data.url, redirectTo).then(
+    async (result) => {
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} browser result type=`, result.type);
+      if (result.type === "success" && result.url) {
+        await createSessionFromUrl(result.url);
+      }
+    },
+  );
   await Promise.race([authStatePromise, browserResultPromise]);
   await Promise.allSettled([authStatePromise, browserResultPromise]);
   const { data: sessionData } = await supabase.auth.getSession();
   const user = sessionData.session?.user;
-  console.log(`[SkinLens][Auth] ${new Date().toISOString()} signInWithGoogle session user=`, user?.id ?? null);
+  console.log(
+    `[SkinLens][Auth] ${new Date().toISOString()} signInWithGoogle session user=`,
+    user?.id ?? null,
+  );
   if (!user) {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} Google sign-in cancelled or failed (no session)`);
+    console.log(
+      `[SkinLens][Auth] ${new Date().toISOString()} Google sign-in cancelled or failed (no session)`,
+    );
     throw new Error("Google sign-in was cancelled or failed.");
   }
   const fullName =
@@ -153,7 +171,10 @@ export async function sendResetEmail(email: string) {
     redirectTo: resetRedirect,
   });
   if (error) {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} sendResetEmail failed:`, error.message);
+    console.log(
+      `[SkinLens][Auth] ${new Date().toISOString()} sendResetEmail failed:`,
+      error.message,
+    );
     throw new Error(error.message);
   }
   console.log(`[SkinLens][Auth] ${new Date().toISOString()} sendResetEmail success`);
@@ -163,23 +184,17 @@ export async function updatePassword(newPassword: string) {
   console.log(`[SkinLens][Auth] ${new Date().toISOString()} updatePassword start`);
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) {
-    console.log(`[SkinLens][Auth] ${new Date().toISOString()} updatePassword failed:`, error.message);
+    console.log(
+      `[SkinLens][Auth] ${new Date().toISOString()} updatePassword failed:`,
+      error.message,
+    );
     throw new Error(error.message);
   }
   console.log(`[SkinLens][Auth] ${new Date().toISOString()} updatePassword success`);
 }
 
-// ── Session validation ──────────────────────────────────────────────
-// getSession() only reads the cached session from AsyncStorage — it NEVER
-// hits the server. So if the user is deleted in the Supabase dashboard
-// (auth.users row gone / refresh token revoked), the app would keep the
-// stale session forever while offline and route straight into (tabs).
-// validateSession() fixes that: when the device is online it calls
-// getUser(), which verifies the JWT server-side. Auth rejections mean the
-// account is gone → the cached session is purged (local scope, so it works
-// even if the server already forgot us) and null is returned.
-// Network failures mean "offline, can't tell" → the cached session is kept
-// so offline mode keeps working.
+// Session validation: getSession() only reads the cached session from AsyncStorage — it NEVER hits
+// the server.
 
 function isNetworkError(err: unknown): boolean {
   const msg =
@@ -240,32 +255,31 @@ export async function validateSession(): Promise<Session | null> {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) {
-    if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession no cached session`);
+    if (__DEV__)
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession no cached session`);
     return null;
   }
-  if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession cached user=`, session.user?.id);
+  if (__DEV__)
+    console.log(
+      `[SkinLens][Auth] ${new Date().toISOString()} validateSession cached user=`,
+      session.user?.id,
+    );
 
-  // Outer watchdog: getUser() goes through the global fetchWithTimeout
-  // (10s), but supabase-js can still hang beyond that on a cold start
-  // (phone just restarted, radio connecting — internal auth lock / DNS
-  // hang that never settles). Never block boot on it: fail open to the
-  // cached session so offline mode keeps working instead of sticking on
-  // the splash loader forever.
+  // Outer watchdog: getUser() goes through the global fetchWithTimeout (10s), but supabase-js can
+  // still hang beyond that on a cold start (phone just restarted, radio connecting — internal auth
+  // lock / DNS hang that never settles).
   const VALIDATE_OUTER_TIMEOUT_MS = 12_000;
   let user;
   let error;
   try {
     const getUserPromise = supabase.auth.getUser();
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(
-        () => reject(new Error("validateSession timeout")),
-        VALIDATE_OUTER_TIMEOUT_MS,
-      ),
+      setTimeout(() => reject(new Error("validateSession timeout")), VALIDATE_OUTER_TIMEOUT_MS),
     );
-    ({ data: { user }, error } = await Promise.race([
-      getUserPromise,
-      timeoutPromise,
-    ]));
+    ({
+      data: { user },
+      error,
+    } = await Promise.race([getUserPromise, timeoutPromise]));
   } catch (err) {
     // Thrown (rather than returned) errors are transport-level → offline.
     // Keep the cached session so offline mode keeps working.
@@ -275,14 +289,25 @@ export async function validateSession(): Promise<Session | null> {
     return null;
   }
 
-  if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession getUser done hasUser=`, !!user, `error=`, error?.message ?? null);
+  if (__DEV__)
+    console.log(
+      `[SkinLens][Auth] ${new Date().toISOString()} validateSession getUser done hasUser=`,
+      !!user,
+      `error=`,
+      error?.message ?? null,
+    );
   if (error) {
     const status =
       typeof error === "object" && error !== null && "status" in error
         ? (error as { status?: unknown }).status
         : undefined;
     if (isNetworkError(error)) return session;
-    if (isAuthRejection(error.message ?? String(error), typeof status === "number" ? status : undefined)) {
+    if (
+      isAuthRejection(
+        error.message ?? String(error),
+        typeof status === "number" ? status : undefined,
+      )
+    ) {
       console.warn("[auth] session rejected by server, signing out locally:", error.message);
       await signOutLocal();
       return null;
@@ -294,10 +319,17 @@ export async function validateSession(): Promise<Session | null> {
   }
 
   if (!user) {
-    if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession no user, signing out locally`);
+    if (__DEV__)
+      console.log(
+        `[SkinLens][Auth] ${new Date().toISOString()} validateSession no user, signing out locally`,
+      );
     await signOutLocal();
     return null;
   }
-  if (__DEV__) console.log(`[SkinLens][Auth] ${new Date().toISOString()} validateSession valid user=`, user.id);
+  if (__DEV__)
+    console.log(
+      `[SkinLens][Auth] ${new Date().toISOString()} validateSession valid user=`,
+      user.id,
+    );
   return session;
 }

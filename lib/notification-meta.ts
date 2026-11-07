@@ -12,11 +12,7 @@ import {
 
 import type { Notification, NotificationType } from "@/types/schema";
 
-/**
- * Single source of truth for how each notification type looks and what it
- * leads to. Both the list and the detail screen read from here, so a new type
- * can never leak its raw key (e.g. "appointment_reply") into the UI again.
- */
+/** Single source of truth for how each notification type looks and what it leads to. */
 export type NotificationMeta = {
   /** Human label for the category, e.g. "Appointment update". */
   label: string;

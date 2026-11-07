@@ -17,14 +17,8 @@ function isAuthSyncError(err: unknown): boolean {
     typeof err === "object" && err !== null && "code" in err
       ? String((err as { code: unknown }).code)
       : "";
-  // Supabase auth errors: invalid JWT / user gone. PostgREST may surface
-  // these as PGRST301 or via message text.
-  //
-  // NOTE: schema errors such as `column ... does not exist` (42703) or
-  // `relation ... does not exist` must NEVER match here — handleInvalidSession
-  // wipes every local table on a match, so a stale schema cache would log the
-  // patient out and destroy their offline data. Those are handled by
-  // isMissingColumnError fallbacks instead.
+  // Supabase auth errors: invalid JWT / user gone. Schema errors (42703, "relation does not exist")
+  // must NEVER match here — handleInvalidSession wipes every local table on a match.
   if (code === "PGRST301") return true;
   const msg = err instanceof Error ? err.message.toLowerCase() : String(err ?? "").toLowerCase();
   return (
@@ -39,14 +33,12 @@ function isAuthSyncError(err: unknown): boolean {
 }
 
 export async function processSyncQueue(opts?: {
-  // Set by callers that just ran validateSession() themselves: skips the
-  // second (identical) network round trip. The queue drain below still runs
-  // — only the redundant auth re-verification is skipped.
+  // Set by callers that just ran validateSession() themselves: skips the second (identical) network
+  // round trip.
   sessionValidated?: boolean;
 }): Promise<void> {
-  // SyncManager (mount) and network transitions can trigger this
-  // concurrently; without a guard two passes would pick up and double-apply
-  // the same queue rows.
+  // SyncManager (mount) and network transitions can trigger this concurrently; without a guard two
+  // passes would pick up and double-apply the same queue rows.
   if (processing) return;
   processing = true;
   try {
@@ -59,11 +51,9 @@ export async function processSyncQueue(opts?: {
 let processing = false;
 
 async function processSyncQueueInner(sessionValidated = false): Promise<void> {
-  // Deleted-user guard: the cached AsyncStorage session may belong to an
-  // account that no longer exists. Validating first stops us from pushing
-  // that user's queued rows (which would fail / leak) and purges the
-  // session + local rows instead. Offline → returns cached session and we
-  // fall through to best-effort sync as before.
+  // Deleted-user guard: the cached AsyncStorage session may belong to an account that no longer
+  // exists. Validating first stops us from pushing that user's queued rows (which would fail /
+  // leak) and purges the session + local rows instead.
   const {
     data: { session: cached },
   } = await supabase.auth.getSession();
@@ -76,9 +66,8 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
     }
   }
 
-  // Scans taken while signed out sit under user_id='anonymous' and would be
-  // invisible to every read (which filters on the real id). Claim them first
-  // so their queue entries are picked up by THIS pass.
+  // Scans taken while signed out sit under user_id='anonymous' and would be invisible to every read
+  // (which filters on the real id).
   try {
     await claimAnonymousResults();
   } catch (err) {
@@ -111,9 +100,8 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
               id: string;
               [k: string]: unknown;
             };
-            // `.select()` matters: PostgREST reports NO error when an UPDATE
-            // matches zero rows (profile row never created server-side), which
-            // would drop the fields silently. Empty result → create it.
+            // `.select()` matters: PostgREST reports NO error when an UPDATE matches zero rows
+            // (profile row never created server-side), which would drop the fields silently.
             const { data: updated, error } = await supabase
               .from("user_profile")
               .update(updates)
@@ -134,9 +122,7 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
             id: string;
             [k: string]: unknown;
           };
-          const { error } = await supabase
-            .from("skin_profile")
-            .upsert({ id, ...profile });
+          const { error } = await supabase.from("skin_profile").upsert({ id, ...profile });
           if (error) throw error;
           break;
         }
@@ -145,24 +131,18 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
             id: string;
             [k: string]: unknown;
           };
-          const { error } = await supabase
-            .from("lifestyle_profile")
-            .upsert({ id, ...profile });
+          const { error } = await supabase.from("lifestyle_profile").upsert({ id, ...profile });
           if (error) throw error;
           break;
         }
         case "results": {
           const payload = entry.payload as Record<string, unknown>;
-          if (
-            typeof payload.image_url === "string" &&
-            payload.image_url.startsWith("file://")
-          ) {
+          if (typeof payload.image_url === "string" && payload.image_url.startsWith("file://")) {
             const cloudUrl = await uploadImageToCloudinary(payload.image_url);
             payload.image_url = cloudUrl ?? null;
           }
-          // Validation columns are owned by the validate_ai_result() RPC
-          // (migration 0007) — strip them defensively so a patient sync can
-          // never overwrite a dermatologist's review.
+          // Validation columns are owned by the validate_ai_result() RPC (migration 0007) — strip
+          // them defensively so a patient sync can never overwrite a dermatologist's review.
           const {
             id: payloadId,
             validation_status: _validationStatus,
@@ -187,17 +167,13 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
             continue;
           }
 
-          const tempId =
-            typeof payloadId === "number" && payloadId < 0 ? payloadId : null;
+          const tempId = typeof payloadId === "number" && payloadId < 0 ? payloadId : null;
 
-          const writeResultsRow = async (
-            body: Record<string, unknown>,
-          ): Promise<number | null> => {
+          const writeResultsRow = async (body: Record<string, unknown>): Promise<number | null> => {
             if (tempId !== null) {
-              // Row was created offline with a negative temp id. Insert
-              // WITHOUT an id so the server generates a real one — reusing
-              // the temp id collides with other users' temp rows and trips
-              // RLS (42501). Then remap the local row to the server id.
+              // Row was created offline with a negative temp id. Insert WITHOUT an id so the server
+              // generates a real one — reusing the temp id collides with other users' temp rows and
+              // trips RLS (42501).
               const { data, error } = await supabase
                 .from("results")
                 .insert(body)
@@ -210,23 +186,19 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
                 [data.id],
               );
               if (alreadyLocal) {
-                await db.runAsync(`DELETE FROM results WHERE id = ?`, [
+                await db.runAsync(`DELETE FROM results WHERE id = ?`, [tempId]);
+              } else {
+                await db.runAsync(`UPDATE results SET id = ?, synced_at = ? WHERE id = ?`, [
+                  data.id,
+                  ts,
                   tempId,
                 ]);
-              } else {
-                await db.runAsync(
-                  `UPDATE results SET id = ?, synced_at = ? WHERE id = ?`,
-                  [data.id, ts, tempId],
-                );
               }
               return typeof data.id === "number" ? data.id : null;
             } else {
               const { error } = await supabase
                 .from("results")
-                .upsert(
-                  { id: payloadId, ...body },
-                  { onConflict: "id", ignoreDuplicates: false },
-                );
+                .upsert({ id: payloadId, ...body }, { onConflict: "id", ignoreDuplicates: false });
               if (error) throw error;
               return null;
             }
@@ -250,18 +222,14 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
             } = remotePayload;
             const serverId = await writeResultsRow(corePayload);
             if (tempId !== null && serverId !== null) {
-              // The temp id was consumed by the insert above (local row
-              // remapped). Re-point the still-queued payload at the real
-              // id so the next pass upserts INTO that row instead of
-              // inserting a duplicate with a fresh server id.
-              await db.runAsync(
-                `UPDATE sync_queue SET record_id = ?, payload = ? WHERE id = ?`,
-                [
-                  String(serverId),
-                  JSON.stringify({ ...payload, id: serverId }),
-                  entry.id,
-                ],
-              );
+              // The temp id was consumed by the insert above (local row remapped). Re-point the
+              // still-queued payload at the real id so the next pass upserts INTO that row instead
+              // of inserting a duplicate with a fresh server id.
+              await db.runAsync(`UPDATE sync_queue SET record_id = ?, payload = ? WHERE id = ?`, [
+                String(serverId),
+                JSON.stringify({ ...payload, id: serverId }),
+                entry.id,
+              ]);
             }
             continue;
           }
@@ -296,19 +264,18 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
               [data.id],
             );
             if (alreadyLocal) {
-              await db.runAsync(`DELETE FROM routines WHERE id = ?`, [
+              await db.runAsync(`DELETE FROM routines WHERE id = ?`, [tempRoutineId]);
+            } else {
+              await db.runAsync(`UPDATE routines SET id = ?, synced_at = ? WHERE id = ?`, [
+                data.id,
+                ts,
                 tempRoutineId,
               ]);
-            } else {
-              await db.runAsync(
-                `UPDATE routines SET id = ?, synced_at = ? WHERE id = ?`,
-                [data.id, ts, tempRoutineId],
-              );
             }
-            await db.runAsync(
-              `UPDATE routine_progress SET routine_id = ? WHERE routine_id = ?`,
-              [data.id, tempRoutineId],
-            );
+            await db.runAsync(`UPDATE routine_progress SET routine_id = ? WHERE routine_id = ?`, [
+              data.id,
+              tempRoutineId,
+            ]);
           }
           break;
         }
@@ -346,10 +313,9 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
           break;
         }
         case "sensitivity_history": {
-          // Local sqlite autoincrement ids are NOT server ids (the server
-          // uses `bigint generated by default as identity`), so the payload
-          // id must never be sent or used in onConflict — it would collide
-          // with other users' rows. Rows are matched by natural key instead.
+          // Local sqlite autoincrement ids are NOT server ids (the server uses `bigint generated by
+          // default as identity`), so the payload id must never be sent or used in onConflict — it
+          // would collide with other users' rows.
           const payload = entry.payload as {
             user_id: string;
             trigger_cause: string;
@@ -368,19 +334,15 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
             if (lookupError) throw lookupError;
             const ids = (matches ?? []).map((r) => r.id);
             if (ids.length > 0) {
-              const { error } = await supabase
-                .from("sensitivity_history")
-                .delete()
-                .in("id", ids);
+              const { error } = await supabase.from("sensitivity_history").delete().in("id", ids);
               if (error) throw error;
             }
             // No match = already gone server-side; still a success so the
             // queue entry is removed below.
           } else {
-            // Upsert by natural key, exactly like the delete branch: local
-            // sqlite ids are not server ids, and a bare insert would create a
-            // second server row whenever this entry is replayed (the inline
-            // write in addSensitivityEntry succeeds but used to leave the
+            // Upsert by natural key, exactly like the delete branch: local sqlite ids are not
+            // server ids, and a bare insert would create a second server row whenever this entry is
+            // replayed (the inline write in addSensitivityEntry succeeds but used to leave the
             // queued copy behind).
             const { data: matches, error: lookupError } = await supabase
               .from("sensitivity_history")
@@ -405,9 +367,7 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
                 .eq("id", existing[0].id);
               if (error) throw error;
             } else {
-              const { error } = await supabase
-                .from("sensitivity_history")
-                .insert(row);
+              const { error } = await supabase.from("sensitivity_history").insert(row);
               if (error) throw error;
             }
           }
@@ -425,10 +385,7 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
           };
           if (entry.operation === "delete") {
             if (payload.id) {
-              const { error } = await supabase
-                .from("notifications")
-                .delete()
-                .eq("id", payload.id);
+              const { error } = await supabase.from("notifications").delete().eq("id", payload.id);
               if (error) throw error;
             } else {
               const { error } = await supabase
@@ -444,28 +401,24 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
               .eq("id", payload.id);
             if (error) throw error;
           } else {
-            const { error } = await supabase
-              .from("notifications")
-              .upsert(
-                {
-                  id: payload.id,
-                  user_id: payload.user_id,
-                  type: payload.type,
-                  title: payload.title,
-                  message: payload.message,
-                  read: payload.read,
-                  created_at: payload.created_at,
-                },
-                { onConflict: "id", ignoreDuplicates: false },
-              );
+            const { error } = await supabase.from("notifications").upsert(
+              {
+                id: payload.id,
+                user_id: payload.user_id,
+                type: payload.type,
+                title: payload.title,
+                message: payload.message,
+                read: payload.read,
+                created_at: payload.created_at,
+              },
+              { onConflict: "id", ignoreDuplicates: false },
+            );
             if (error) throw error;
           }
           break;
         }
         default: {
-          // Unknown table — this entry can never sync. Drop it so it isn't
-          // reprocessed on every pass, but don't mark anything as synced
-          // (that would run UPDATE against an arbitrary table name below).
+          // Unknown table — this entry can never sync.
           await removeSyncEntry(entry.id);
           continue;
         }
@@ -474,12 +427,9 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
       await removeSyncEntry(entry.id);
     } catch (err) {
       if (isAuthSyncError(err)) {
-        // The account this queue belongs to is gone (deleted in the
-        // dashboard, token revoked, …). Retrying forever would spin on
-        // every reconnect — purge the session + local rows and stop.
-        console.warn(
-          `[sync] auth rejected ${entry.table_name} entry ${entry.id}, purging session`,
-        );
+        // The account this queue belongs to is gone (deleted in the dashboard, token revoked, …).
+        // Retrying forever would spin on every reconnect — purge the session + local rows and stop.
+        console.warn(`[sync] auth rejected ${entry.table_name} entry ${entry.id}, purging session`);
         await handleInvalidSession();
         return;
       }
@@ -488,9 +438,8 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
           ? String((err as { code: unknown }).code)
           : null;
       if (code === "42501") {
-        // Row-level security rejected this payload and will reject it on
-        // every retry (e.g. queued under a different user). Drop it so the
-        // queue can drain — the local copy is retained on-device.
+        // Row-level security rejected this payload and will reject it on every retry (e.g. queued
+        // under a different user).
         console.warn(
           `[sync] dropping ${entry.table_name} entry ${entry.id}: rejected by RLS policy`,
         );
@@ -498,10 +447,7 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
         continue;
       }
       if (isTransportSyncError(err)) {
-        // Connection dropped (or never really came back) mid-pass. Every
-        // remaining entry would wait out the same fetch timeout one by one
-        // while holding the `processing` lock — stop now and let the next
-        // reconnect/foreground trigger resume from this entry.
+        // Connection dropped (or never really came back) mid-pass.
         console.warn(
           `[sync] network error on ${entry.table_name} entry ${entry.id}, pausing sync until next reconnect`,
         );
@@ -519,9 +465,6 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
   // blocked the serialized DB queue that the UI reads go through.
   const ts = new Date().toISOString();
   for (const table of syncedTables) {
-    await db.runAsync(
-      `UPDATE ${table} SET synced_at = ? WHERE synced_at IS NULL`,
-      [ts],
-    );
+    await db.runAsync(`UPDATE ${table} SET synced_at = ? WHERE synced_at IS NULL`, [ts]);
   }
 }

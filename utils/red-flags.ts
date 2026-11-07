@@ -1,11 +1,4 @@
-/**
- * Deterministic safety screen that runs BEFORE the on-device LLM.
- *
- * The local model is small and can't be trusted to escalate reliably, so
- * messages describing emergencies, warning signs of skin cancer/infection,
- * or self-harm get a fixed, reviewed reply instead of a generated one.
- * Patterns cover common English and Tagalog/Taglish phrasing.
- */
+/** Deterministic safety screen that runs BEFORE the on-device LLM. */
 
 export type RedFlagLevel = "crisis" | "emergency" | "urgent";
 
@@ -78,7 +71,7 @@ const EMERGENCY_REPLY =
 const URGENT_REPLY =
   "That's worth having a doctor look at soon rather than treating at home. Signs like a changing or bleeding mole, a painful boil, " +
   "a sore that won't heal, or a rash near the eyes or spreading quickly need an in-person check. " +
-  "Please book a dermatologist visit within the next few days. Ask me \"find a dermatologist near me\" and I'll look one up.";
+  'Please book a dermatologist visit within the next few days. Ask me "find a dermatologist near me" and I\'ll look one up.';
 
 export function detectRedFlag(message: string): RedFlagMatch | null {
   const text = message.trim();

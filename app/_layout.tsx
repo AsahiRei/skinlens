@@ -18,14 +18,12 @@ import { releaseLlama } from "@/utils/llama";
 
 import "../global.css";
 
-// Keep the native splash on screen until Redaction10 has loaded, so the first
-// visible frame never paints in the system font. The splash is dismissed by
-// the effect below; on web this is a no-op.
+// Keep the native splash on screen until Redaction10 has loaded, so the first visible frame never
+// paints in the system font.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// Crash reporting. Inert until EXPO_PUBLIC_SENTRY_DSN is set, so dev builds
-// and forks without a Sentry project behave exactly as before. No PII:
-// user ids only, never emails / photos / health data.
+// Crash reporting. Inert until EXPO_PUBLIC_SENTRY_DSN is set, so dev builds and forks without a
+// Sentry project behave exactly as before.
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 if (SENTRY_DSN) {
   Sentry.init({
@@ -36,10 +34,9 @@ if (SENTRY_DSN) {
   });
 }
 
-// Release builds: drop verbose logging. The codebase logs user ids, auth
-// events and timings on almost every step, which costs JS-thread time and
-// ends up in device logs (logcat) that other tooling can read. Warnings and
-// errors are kept so crash reporters still see them.
+// Release builds: drop verbose logging. The codebase logs user ids, auth events and timings on
+// almost every step, which costs JS-thread time and ends up in device logs (logcat) that other
+// tooling can read. Warnings and errors are kept so crash reporters still see them.
 if (!__DEV__) {
   const noop = () => {};
   console.log = noop;
@@ -49,14 +46,10 @@ if (!__DEV__) {
 
 function RootLayout() {
   const router = useRouter();
-  // Coalesces rapid duplicate SIGNED_OUT events (logout fires one per
-  // signOut scope + one from validateSession's purge) into a single
-  // redirect so navigation never loops.
+  // Coalesces rapid duplicate SIGNED_OUT events (logout fires one per signOut scope + one from
+  // validateSession's purge) into a single redirect so navigation never loops.
   const lastSignOutRedirect = useRef(0);
   // App-wide default typeface — components/Text.tsx applies it to every <Text>.
-  // Both weights are loaded so font-bold (700) resolves to the real Bold face
-  // instead of falling back to the system font (iOS resolves it at runtime;
-  // Android gets it via the expo-font config plugin in app.json).
   const [fontsLoaded, fontError] = useFonts({
     "Redaction10-Regular": require("../assets/fonts/Redaction10-Regular.ttf"),
     "Redaction10-Bold": require("../assets/fonts/Redaction10-Bold.ttf"),
@@ -83,7 +76,10 @@ function RootLayout() {
         if (url) {
           console.log(`[SkinLens][Auth] ${new Date().toISOString()} initial URL received`);
           createSessionFromUrl(url).catch((err) => {
-            console.log(`[SkinLens][Auth] ${new Date().toISOString()} initial URL session failed:`, err);
+            console.log(
+              `[SkinLens][Auth] ${new Date().toISOString()} initial URL session failed:`,
+              err,
+            );
             console.warn("Failed to create session from URL:", err);
           });
         }
@@ -97,13 +93,9 @@ function RootLayout() {
         router.push("/create-new-password");
       }
       if (event === "SIGNED_OUT") {
-        // Covers refresh-token rejection after the user was deleted in the
-        // dashboard (supabase-js fires SIGNED_OUT when refresh fails).
-        // NOTE: no signOut() call here — SIGNED_OUT means the session is
-        // already gone, and signing out again would re-emit SIGNED_OUT and
-        // loop forever. Just wipe on-device rows and route to login.
-        // Purge on-device rows so the deleted account leaves nothing
-        // behind, then force the login screen.
+        // Covers refresh-token rejection after the user was deleted in the dashboard (supabase-js
+        // fires SIGNED_OUT when refresh fails). NOTE: no signOut() call here — SIGNED_OUT means the
+        // session is already gone, and signing out again would re-emit SIGNED_OUT and loop forever.
         clearLocalUserData()
           .catch(() => {})
           .finally(() => {
@@ -138,43 +130,43 @@ function RootLayout() {
           <SyncManager />
           <OfflineModal />
           <KeyboardProvider>
-          {/* Wraps the whole app so the tour overlay can dim/spotlight any
-           * screen, including the tab bar. */}
-          <TutorialCoachProvider>
-          {/* Transition language:
-           *  - push (default): iOS-style slide for drilling into detail.
-           *  - fade: context switches (auth ↔ app, boot, camera/analyzing),
-           *    where a lateral slide would imply a "back" that isn't there.
-           *  - fade_from_bottom: results that are "presented" to the user. */}
-          <Stack
-            screenOptions={{
-              animation: "ios_from_right",
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen name="index" options={{ animation: "fade" }} />
-            <Stack.Screen name="welcome" options={{ animation: "fade" }} />
-            <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
-            <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
-            <Stack.Screen name="doctor" options={{ animation: "fade" }} />
-            <Stack.Screen name="doctor-setup" options={{ animation: "fade" }} />
-            <Stack.Screen name="(modules)/camera" options={{ animation: "fade" }} />
-            <Stack.Screen name="(modules)/analyzing" options={{ animation: "fade" }} />
-            <Stack.Screen
-              name="(modules)/scan-results"
-              options={{ animation: "fade_from_bottom" }}
-            />
-            <Stack.Screen
-              name="(modules)/face-mismatch"
-              options={{ animation: "fade_from_bottom" }}
-            />
-            <Stack.Screen name="(user-setup)/loading" options={{ animation: "fade" }} />
-            <Stack.Screen
-              name="(user-setup)/results"
-              options={{ animation: "fade_from_bottom" }}
-            />
-          </Stack>
-          </TutorialCoachProvider>
+            {/* Wraps the whole app so the tour overlay can dim/spotlight any
+             * screen, including the tab bar. */}
+            <TutorialCoachProvider>
+              {/* Transition language:
+               *  - push (default): iOS-style slide for drilling into detail.
+               *  - fade: context switches (auth ↔ app, boot, camera/analyzing),
+               *    where a lateral slide would imply a "back" that isn't there.
+               *  - fade_from_bottom: results that are "presented" to the user. */}
+              <Stack
+                screenOptions={{
+                  animation: "ios_from_right",
+                  headerShown: false,
+                }}
+              >
+                <Stack.Screen name="index" options={{ animation: "fade" }} />
+                <Stack.Screen name="welcome" options={{ animation: "fade" }} />
+                <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
+                <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
+                <Stack.Screen name="doctor" options={{ animation: "fade" }} />
+                <Stack.Screen name="doctor-setup" options={{ animation: "fade" }} />
+                <Stack.Screen name="(modules)/camera" options={{ animation: "fade" }} />
+                <Stack.Screen name="(modules)/analyzing" options={{ animation: "fade" }} />
+                <Stack.Screen
+                  name="(modules)/scan-results"
+                  options={{ animation: "fade_from_bottom" }}
+                />
+                <Stack.Screen
+                  name="(modules)/face-mismatch"
+                  options={{ animation: "fade_from_bottom" }}
+                />
+                <Stack.Screen name="(user-setup)/loading" options={{ animation: "fade" }} />
+                <Stack.Screen
+                  name="(user-setup)/results"
+                  options={{ animation: "fade_from_bottom" }}
+                />
+              </Stack>
+            </TutorialCoachProvider>
           </KeyboardProvider>
         </NotificationProvider>
       </NetworkProvider>

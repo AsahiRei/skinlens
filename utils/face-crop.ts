@@ -9,9 +9,7 @@ export type CropRect = {
   height: number;
 };
 
-// Square side as a multiple of the detected face box. ML Kit's box is tight
-// (cuts forehead, jawline and chin — common acne areas), and 1.5x matches the
-// margin face verification uses, so cropped scans embed like full photos.
+// Square side as a multiple of the detected face box.
 export const FACE_CROP_MARGIN = 1.5;
 
 // ML Kit still-image detector, shared by the scan crop and face verification.
@@ -26,9 +24,7 @@ function getImageFaceDetector(): ImageFaceDetector {
   return imageFaceDetector;
 }
 
-// Square region centered on the largest detected face (with margin), clamped
-// to image bounds. Returns null when no face is found so the caller can fall
-// back to the uncropped image.
+// Square region centered on the largest detected face (with margin), clamped to image bounds.
 export function detectFaceCropRect(
   imageUri: string,
   width: number,
@@ -63,10 +59,7 @@ export function detectFaceCropRect(
       height: Math.round(side),
     };
   } catch (err) {
-    console.log(
-      `[SkinLens][FaceCrop] ${new Date().toISOString()} face detect failed:`,
-      err,
-    );
+    console.log(`[SkinLens][FaceCrop] ${new Date().toISOString()} face detect failed:`, err);
     return null;
   }
 }
@@ -78,13 +71,7 @@ export type FaceCropResult = {
 };
 
 /**
- * Crops a captured photo to a square around the face so the skin model sees
- * skin, not background. Detection runs on the saved still (not the live
- * preview box), so there is no preview→photo coordinate mapping, mirroring or
- * aspect-ratio mismatch to get wrong.
- *
- * The photo is first re-rendered once so EXIF orientation is baked in; the
- * detector, the reported size and the crop then all share one pixel space.
+ * Crops a captured photo to a square around the face so the skin model sees skin, not background.
  * Never throws: any failure returns the original URI with cropped=false.
  */
 export async function cropToFace(imageUri: string): Promise<FaceCropResult> {
@@ -98,7 +85,9 @@ export async function cropToFace(imageUri: string): Promise<FaceCropResult> {
 
     const rect = detectFaceCropRect(normalized.uri, width, height);
     if (!rect) {
-      console.log(`[SkinLens][FaceCrop] ${new Date().toISOString()} no face in still, keeping full photo`);
+      console.log(
+        `[SkinLens][FaceCrop] ${new Date().toISOString()} no face in still, keeping full photo`,
+      );
       return { uri: imageUri, cropped: false };
     }
 
@@ -110,7 +99,10 @@ export async function cropToFace(imageUri: string): Promise<FaceCropResult> {
     );
     return { uri: saved.uri, cropped: true };
   } catch (err) {
-    console.log(`[SkinLens][FaceCrop] ${new Date().toISOString()} crop failed, keeping full photo:`, err);
+    console.log(
+      `[SkinLens][FaceCrop] ${new Date().toISOString()} crop failed, keeping full photo:`,
+      err,
+    );
     return { uri: imageUri, cropped: false };
   } finally {
     ctx.release();

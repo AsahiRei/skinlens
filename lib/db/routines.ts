@@ -14,10 +14,7 @@ function swallow(p: PromiseLike<unknown>) {
   Promise.resolve(p).catch(() => {});
 }
 
-// Monotonic negative temp ids for routines created while the server insert
-// fails. Initialized below every id already in the table so temp ids stay
-// unique across app restarts (the old Math.min(max,0)-1 scheme always
-// produced -1 and each offline insert overwrote the previous one).
+// Monotonic negative temp ids for routines created while the server insert fails.
 let nextTempId: number | null = null;
 
 async function getNextTempId(userId: string): Promise<number> {
@@ -44,10 +41,9 @@ export async function getLatestRoutine(): Promise<{
     id: number;
     user_id: string;
     routine_json: string;
-  }>(
-    `SELECT id, user_id, routine_json FROM routines WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-    [user.id],
-  );
+  }>(`SELECT id, user_id, routine_json FROM routines WHERE user_id = ? ORDER BY id DESC LIMIT 1`, [
+    user.id,
+  ]);
 
   if (local) {
     // Refresh in background
@@ -129,9 +125,7 @@ export async function insertRoutine(routineJson: string): Promise<void> {
   );
 }
 
-export async function getTodayProgress(
-  routineId: number,
-): Promise<Set<string>> {
+export async function getTodayProgress(routineId: number): Promise<Set<string>> {
   const user = await requireUser();
   const db = await getDatabase();
   const todayStr = getTodayStr();

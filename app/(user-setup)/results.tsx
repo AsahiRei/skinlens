@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  ToastAndroid,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Check } from "lucide-react-native";
@@ -45,19 +40,15 @@ export default function Results() {
       return {};
     }
   }, [answers]);
-  const { label, message, color, trackColor } = getHealthScoreResponse(
-    score,
-    parsedAnswers,
-  );
+  const { label, message, color, trackColor } = getHealthScoreResponse(score, parsedAnswers);
   const router = useRouter();
   const { startTutorial } = useTutorial();
   const getStarted = async () => {
     setLoading(true);
     try {
       await updateUserProfile({ user_setup: true });
-      // Arm the first-run tour flag: the boot router reads it, so killing
-      // the app mid-tour replays the tour on the next launch instead of
-      // silently dropping it.
+      // Arm the first-run tour flag: the boot router reads it, so killing the app mid-tour replays
+      // the tour on the next launch instead of silently dropping it.
       try {
         const user = await requireUser();
         await setTutorialPending(user.id);
@@ -69,10 +60,7 @@ export default function Results() {
       startTutorial();
       router.replace("/(tabs)");
     } catch {
-      ToastAndroid.show(
-        "Something went wrong. Please try again.",
-        ToastAndroid.SHORT,
-      );
+      ToastAndroid.show("Something went wrong. Please try again.", ToastAndroid.SHORT);
     } finally {
       setLoading(false);
     }
@@ -90,9 +78,8 @@ export default function Results() {
       setResultLoading(false);
     }
   }, []);
-  // Mount fetch lives in its own cancelled-flag IIFE: the initial render
-  // already shows the loading card (resultLoading starts true), so no
-  // setState may run synchronously from the effect body.
+  // Mount fetch lives in its own cancelled-flag IIFE: the initial render already shows the loading
+  // card (resultLoading starts true), so no setState may run synchronously from the effect body.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -112,18 +99,13 @@ export default function Results() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         <View className="flex-1 px-5 gap-5">
           <Animated.View entering={enterUp(0)} className="pt-4 items-center">
             <Text className="font-bold text-[24px]" style={{ color: theme.colors.ink }}>
               Skin Results
             </Text>
-            <Text style={{ color: theme.colors.muted }}>
-              Your skin analysis
-            </Text>
+            <Text style={{ color: theme.colors.muted }}>Your skin analysis</Text>
           </Animated.View>
 
           <Animated.View entering={enterUp(1)} className="items-center gap-2">
@@ -134,108 +116,121 @@ export default function Results() {
               color={color}
               trackColor={trackColor}
             >
-              <Text className="text-3xl font-semibold text-gray-700">
-                {score}/100
-              </Text>
+              <Text className="text-3xl font-semibold text-gray-700">{score}/100</Text>
             </CircularProgress>
             <View className="flex-row items-center gap-1.5">
-              <View
-                style={{ backgroundColor: color }}
-                className="h-2 w-2 rounded-full"
-              />
+              <View style={{ backgroundColor: color }} className="h-2 w-2 rounded-full" />
               <Text className="text-sm font-medium text-gray-500">{label}</Text>
             </View>
           </Animated.View>
 
           <Animated.View entering={enterUp(2)}>
-          <ClinicalCard className="gap-3">
-            <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: theme.colors.primarySoft }}>
-                <Animated.View entering={popIn.delay(450)}>
-                  <Check size={20} color={theme.colors.primary} />
-                </Animated.View>
+            <ClinicalCard className="gap-3">
+              <View className="flex-row items-center gap-3">
+                <View
+                  className="h-10 w-10 items-center justify-center rounded-full"
+                  style={{ backgroundColor: theme.colors.primarySoft }}
+                >
+                  <Animated.View entering={popIn.delay(450)}>
+                    <Check size={20} color={theme.colors.primary} />
+                  </Animated.View>
+                </View>
+                <Text className="flex-1 text-base font-bold" style={{ color: theme.colors.ink }}>
+                  Your routine is ready
+                </Text>
               </View>
-              <Text className="flex-1 text-base font-bold" style={{ color: theme.colors.ink }}>
-                Your routine is ready
+              <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>
+                {message}
               </Text>
-            </View>
-            <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>{message}</Text>
-          </ClinicalCard>
+            </ClinicalCard>
           </Animated.View>
 
           {resultLoading ? (
             <Animated.View key="loading" entering={enterUp(3)}>
-            <ClinicalCard className="items-center gap-3" style={{ paddingVertical: 40, paddingHorizontal: 24 }}>
-              <ActivityIndicator color={theme.colors.primary} size="small" />
-              <Text className="text-sm" style={{ color: theme.colors.muted }}>
-                Loading your recommended products...
-              </Text>
-            </ClinicalCard>
+              <ClinicalCard
+                className="items-center gap-3"
+                style={{ paddingVertical: 40, paddingHorizontal: 24 }}
+              >
+                <ActivityIndicator color={theme.colors.primary} size="small" />
+                <Text className="text-sm" style={{ color: theme.colors.muted }}>
+                  Loading your recommended products...
+                </Text>
+              </ClinicalCard>
             </Animated.View>
           ) : (
             resultData?.recommendations &&
             resultData.recommendations.length > 0 && (
               <Animated.View key="products" entering={fadeIn} layout={listLayout}>
-              <ClinicalCard className="gap-4">
-                <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
-                  Recommended Products
-                </Text>
-                <Text className="text-sm pb-3" style={{ color: theme.colors.muted, borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}>
-                  {resultData.description}
-                </Text>
-                {resultData.recommendations.map((product) => (
-                  <View
-                    key={product.product_type}
-                    className="gap-1.5 pb-3"
-                    style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
+                <ClinicalCard className="gap-4">
+                  <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
+                    Recommended Products
+                  </Text>
+                  <Text
+                    className="text-sm pb-3"
+                    style={{
+                      color: theme.colors.muted,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.colors.divider,
+                    }}
                   >
-                    <Text className="font-bold" style={{ color: theme.colors.ink }}>
-                      {product.product_type}
-                    </Text>
-                    <View className="flex-row flex-wrap gap-1.5">
-                      {product.recommended_ingredients.map((ingredient, i) => (
-                        <View
-                          key={i}
-                          className="rounded-full px-3 py-1"
-                          style={{ backgroundColor: theme.colors.primarySoft }}
-                        >
-                          <Text className="text-xs font-semibold" style={{ color: theme.colors.primaryDeep }}>
-                            {ingredient}
-                          </Text>
-                        </View>
-                      ))}
+                    {resultData.description}
+                  </Text>
+                  {resultData.recommendations.map((product) => (
+                    <View
+                      key={product.product_type}
+                      className="gap-1.5 pb-3"
+                      style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
+                    >
+                      <Text className="font-bold" style={{ color: theme.colors.ink }}>
+                        {product.product_type}
+                      </Text>
+                      <View className="flex-row flex-wrap gap-1.5">
+                        {product.recommended_ingredients.map((ingredient, i) => (
+                          <View
+                            key={i}
+                            className="rounded-full px-3 py-1"
+                            style={{ backgroundColor: theme.colors.primarySoft }}
+                          >
+                            <Text
+                              className="text-xs font-semibold"
+                              style={{ color: theme.colors.primaryDeep }}
+                            >
+                              {ingredient}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
+                        {product.reason}
+                      </Text>
                     </View>
-                    <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
-                      {product.reason}
-                    </Text>
-                  </View>
-                ))}
-              </ClinicalCard>
+                  ))}
+                </ClinicalCard>
               </Animated.View>
             )
           )}
 
           {Object.keys(parsedAnswers).length > 0 && (
             <Animated.View entering={enterUp(4)} layout={listLayout}>
-            <ClinicalCard className="gap-3">
-              <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
-                Your Answers
-              </Text>
-              {Object.entries(parsedAnswers).map(([question, answer]) => (
-                <View
-                  key={question}
-                  className="flex-row justify-between gap-3 pb-2"
-                  style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
-                >
-                  <Text className="flex-1 text-sm" style={{ color: theme.colors.muted }}>
-                    {formatter(question)}
-                  </Text>
-                  <Text className="text-sm font-bold" style={{ color: theme.colors.ink }}>
-                    {formatter(answer)}
-                  </Text>
-                </View>
-              ))}
-            </ClinicalCard>
+              <ClinicalCard className="gap-3">
+                <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
+                  Your Answers
+                </Text>
+                {Object.entries(parsedAnswers).map(([question, answer]) => (
+                  <View
+                    key={question}
+                    className="flex-row justify-between gap-3 pb-2"
+                    style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
+                  >
+                    <Text className="flex-1 text-sm" style={{ color: theme.colors.muted }}>
+                      {formatter(question)}
+                    </Text>
+                    <Text className="text-sm font-bold" style={{ color: theme.colors.ink }}>
+                      {formatter(answer)}
+                    </Text>
+                  </View>
+                ))}
+              </ClinicalCard>
             </Animated.View>
           )}
 
@@ -243,11 +238,7 @@ export default function Results() {
         </View>
       </ScrollView>
       <View className="py-6 w-full gap-2 px-5">
-        <PrimaryButton
-          label="Confirm Result"
-          onPress={getStarted}
-          loading={loading}
-        />
+        <PrimaryButton label="Confirm Result" onPress={getStarted} loading={loading} />
         <SecondaryButton label="Retry Again" onPress={fetchResult} />
       </View>
     </SafeAreaView>

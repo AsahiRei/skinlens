@@ -11,44 +11,33 @@ import { PrimaryButton, SecondaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { FadeItem } from "@/components/FadeItem";
 import { sendResetEmail } from "@/utils/supabase";
+import { firstError, forgotPasswordSchema } from "@/lib/validation";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const handleResetEmail = async () => {
-    console.log(
-      `[SkinLens][Auth] ${new Date().toISOString()} forgot-password submit email=`,
-      email,
-    );
+    const parsed = forgotPasswordSchema.safeParse({ email });
+    if (!parsed.success) {
+      ToastAndroid.show(firstError(parsed.error), ToastAndroid.SHORT);
+      return;
+    }
+    console.log(`[SkinLens][Auth] ${new Date().toISOString()} forgot-password submit`);
     setLoading(true);
     try {
-      await sendResetEmail(email);
-      console.log(
-        `[SkinLens][Auth] ${new Date().toISOString()} forgot-password email sent`,
-      );
-      ToastAndroid.show(
-        "Email has been sent. Please check in your mailbox.",
-        ToastAndroid.SHORT,
-      );
+      await sendResetEmail(parsed.data.email);
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} forgot-password email sent`);
+      ToastAndroid.show("Email has been sent. Please check in your mailbox.", ToastAndroid.SHORT);
     } catch (err) {
-      console.log(
-        `[SkinLens][Auth] ${new Date().toISOString()} forgot-password failed:`,
-        err,
-      );
-      ToastAndroid.show(
-        "Something went wrong. Please try again.",
-        ToastAndroid.SHORT,
-      );
+      console.log(`[SkinLens][Auth] ${new Date().toISOString()} forgot-password failed:`, err);
+      ToastAndroid.show("Something went wrong. Please try again.", ToastAndroid.SHORT);
     } finally {
       setLoading(false);
     }
   };
   return (
-    <SafeAreaView
-      className="flex-1"
-      style={{ backgroundColor: theme.colors.background }}
-    >
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       <KeyboardAwareScroll contentContainerStyle={{ paddingHorizontal: 20 }}>
         <View className="flex-col">
@@ -61,10 +50,7 @@ export default function ForgotPassword() {
             />
           </FadeItem>
           <FadeItem index={2}>
-            <Text
-              className="text-[24px] font-bold text-center mt-4"
-              style={{ color: "#10241A" }}
-            >
+            <Text className="text-[24px] font-bold text-center mt-4" style={{ color: "#10241A" }}>
               Forgot Password
             </Text>
             <Text className="text-center mt-2" style={{ color: "#6B7280" }}>

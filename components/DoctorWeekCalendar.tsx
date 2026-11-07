@@ -30,11 +30,7 @@ export function dayKey(d: Date): string {
 /** Amber dot for pending requests — readable on the dark gradient. */
 const REQUEST_DOT = "#FCD34D";
 
-/**
- * Dark-green week strip (matches the tab bar gradient). Tap a day to
- * filter, tap again (or the pill) to clear. A white dot marks days with a
- * scheduled visit; an amber dot marks days a pending request prefers.
- */
+/** Dark-green week strip (matches the tab bar gradient). */
 export function DoctorWeekCalendar({
   selectedDay,
   onSelect,
@@ -92,15 +88,10 @@ export function DoctorWeekCalendar({
             className="rounded-full px-3 py-1.5 active:opacity-70"
             style={{ backgroundColor: "rgba(255,255,255,0.22)" }}
           >
-            <Text className="text-[11px] font-bold text-white">
-              {selectedLabel} ✕
-            </Text>
+            <Text className="text-[11px] font-bold text-white">{selectedLabel} ✕</Text>
           </Pressable>
         ) : (
-          <Text
-            className="text-[11px] font-semibold"
-            style={{ color: "rgba(255,255,255,0.8)" }}
-          >
+          <Text className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.8)" }}>
             Tap a day to filter
           </Text>
         )}
@@ -129,10 +120,7 @@ export function DoctorWeekCalendar({
               accessibilityState={isSelected ? { selected: true } : {}}
               className="flex-1 items-center active:opacity-70"
             >
-              <Text
-                className="text-[11px] font-bold"
-                style={{ color: "rgba(255,255,255,0.75)" }}
-              >
+              <Text className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.75)" }}>
                 {WEEK_LETTERS[i]}
               </Text>
               <View

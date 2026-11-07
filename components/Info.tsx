@@ -10,8 +10,12 @@ export function InfoCard({ label, value }: { label: string; value: string }) {
       className="flex-1 rounded-2xl px-4 py-3"
       style={{ backgroundColor: theme.colors.primarySoft, borderRadius: theme.radius.input }}
     >
-      <Text className="text-sm mb-1" style={{ color: theme.colors.muted }}>{label}</Text>
-      <Text className="font-bold text-base" style={{ color: theme.colors.primaryDeep }}>{value}</Text>
+      <Text className="text-sm mb-1" style={{ color: theme.colors.muted }}>
+        {label}
+      </Text>
+      <Text className="font-bold text-base" style={{ color: theme.colors.primaryDeep }}>
+        {value}
+      </Text>
     </View>
   );
 }

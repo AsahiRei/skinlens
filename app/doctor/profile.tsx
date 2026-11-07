@@ -13,14 +13,7 @@ import {
 import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Camera, Map, Marker } from "@maplibre/maplibre-react-native";
-import {
-  Cross,
-  ExternalLink,
-  Pencil,
-  LogOut,
-  MapPin,
-  ShieldCheck,
-} from "lucide-react-native";
+import { Cross, ExternalLink, Pencil, LogOut, MapPin, ShieldCheck } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { FadeItem } from "@/components/FadeItem";
@@ -83,9 +76,7 @@ export default function DoctorProfileScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [{ data: userData }] = await Promise.all([
-        supabase.auth.getUser(),
-      ]);
+      const [{ data: userData }] = await Promise.all([supabase.auth.getUser()]);
       setEmail(userData.user?.email ?? "");
       const prof = await getMyDoctorProfile();
       setDoctor(prof);
@@ -215,7 +206,11 @@ export default function DoctorProfileScreen() {
         />
       </UiModal>
 
-      <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+      <SafeAreaView
+        edges={["top"]}
+        className="flex-1"
+        style={{ backgroundColor: theme.colors.background }}
+      >
         <ScreenGradient />
         <ScrollView
           className="flex-1 px-5"
@@ -247,7 +242,9 @@ export default function DoctorProfileScreen() {
                       style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
                     >
                       <Pencil size={14} color={theme.colors.primary} />
-                      <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>Edit</Text>
+                      <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>
+                        Edit
+                      </Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -276,11 +273,19 @@ export default function DoctorProfileScreen() {
                       </Text>
                     </LinearGradient>
                     <View className="flex-1">
-                      <Text className="font-semibold mt-0.5 text-xl" style={{ color: "#FFFFFF" }} numberOfLines={1}>
+                      <Text
+                        className="font-semibold mt-0.5 text-xl"
+                        style={{ color: "#FFFFFF" }}
+                        numberOfLines={1}
+                      >
                         {doctor?.displayName ?? "Doctor"}
                       </Text>
                       {email ? (
-                        <Text className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.8)" }} numberOfLines={1}>
+                        <Text
+                          className="text-sm mt-0.5"
+                          style={{ color: "rgba(255,255,255,0.8)" }}
+                          numberOfLines={1}
+                        >
                           {email}
                         </Text>
                       ) : null}
@@ -326,7 +331,11 @@ export default function DoctorProfileScreen() {
                   placeholder="Display name (Dr. Jane Cruz)"
                   placeholderTextColor={theme.colors.faint}
                   className="bg-white rounded-2xl px-4 py-3"
-                  style={{ color: theme.colors.ink, borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                  style={{
+                    color: theme.colors.ink,
+                    borderWidth: 1,
+                    borderColor: theme.colors.cardBorder,
+                  }}
                 />
                 <TextInput
                   value={linkCode}
@@ -335,7 +344,11 @@ export default function DoctorProfileScreen() {
                   placeholderTextColor={theme.colors.faint}
                   autoCapitalize="characters"
                   className="bg-white rounded-2xl px-4 py-3"
-                  style={{ color: theme.colors.ink, borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                  style={{
+                    color: theme.colors.ink,
+                    borderWidth: 1,
+                    borderColor: theme.colors.cardBorder,
+                  }}
                 />
                 {linkError ? (
                   <Text className="text-xs" style={{ color: theme.colors.danger }}>
@@ -350,86 +363,98 @@ export default function DoctorProfileScreen() {
               </ClinicalCard>
             ) : (
               <ClinicalCard className="flex-col gap-3 mt-5">
-              <SectionTitle title="Hospital" meta="Verified clinic" />
-              <View className="flex-row items-center gap-3">
-                <View className="flex-1">
-                  <Text className="text-base font-bold" style={{ color: theme.colors.ink }} numberOfLines={1}>
-                    {doctor?.clinicName ?? "Not linked yet"}
-                  </Text>
-                  <Text className="text-sm" style={{ color: theme.colors.muted }} numberOfLines={1}>
-                    {doctor ? "Invite-code verified" : "Link your hospital to receive requests"}
-                  </Text>
-                </View>
-                <ShieldCheck size={18} color={theme.colors.primary} />
-              </View>
-              <Pressable
-                className="flex-row items-center gap-3 rounded-2xl px-3 py-3 active:opacity-70"
-                style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-                disabled={!hasCoords}
-                onPress={openClinicMap}
-                accessibilityRole={hasCoords ? "button" : undefined}
-                accessibilityLabel={`Hospital location: ${doctor.clinicAddress || "Address not set"}`}
-              >
-                <MapPin size={18} color={theme.colors.primary} />
-                <View className="flex-1">
-                  <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                    Location
-                  </Text>
-                  <Text className="text-sm font-semibold" style={{ color: theme.colors.ink }} numberOfLines={2}>
-                    {doctor.clinicAddress || "Address not set"}
-                  </Text>
-                </View>
-                {hasCoords ? <ExternalLink size={16} color={theme.colors.muted} /> : null}
-              </Pressable>
-              {hasCoords ? (
-                <View
-                  className="overflow-hidden h-44"
-                  style={{
-                    borderRadius: 20,
-                    borderWidth: 1,
-                    borderColor: theme.colors.cardBorder,
-                    backgroundColor: theme.colors.primarySoft,
-                  }}
-                >
-                  {/* Static preview: gestures off so it doesn't fight the
-                      ScrollView; tapping opens the full maps app. */}
-                  <Map
-                    mapStyle={MAP_STYLE_URL}
-                    logo={false}
-                    compass={false}
-                    dragPan={false}
-                    touchZoom={false}
-                    doubleTapZoom={false}
-                    touchRotate={false}
-                    touchPitch={false}
-                    onPress={openClinicMap}
-                  >
-                    <Camera
-                      initialViewState={{
-                        center: [doctor.clinicLongitude!, doctor.clinicLatitude!],
-                        zoom: 15,
-                      }}
-                    />
-                    <Marker
-                      id="clinic-location"
-                      lngLat={[doctor.clinicLongitude!, doctor.clinicLatitude!]}
+                <SectionTitle title="Hospital" meta="Verified clinic" />
+                <View className="flex-row items-center gap-3">
+                  <View className="flex-1">
+                    <Text
+                      className="text-base font-bold"
+                      style={{ color: theme.colors.ink }}
+                      numberOfLines={1}
                     >
-                      <View
-                        className="h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-sm"
-                        style={{ backgroundColor: theme.colors.primary }}
+                      {doctor?.clinicName ?? "Not linked yet"}
+                    </Text>
+                    <Text
+                      className="text-sm"
+                      style={{ color: theme.colors.muted }}
+                      numberOfLines={1}
+                    >
+                      {doctor ? "Invite-code verified" : "Link your hospital to receive requests"}
+                    </Text>
+                  </View>
+                  <ShieldCheck size={18} color={theme.colors.primary} />
+                </View>
+                <Pressable
+                  className="flex-row items-center gap-3 rounded-2xl px-3 py-3 active:opacity-70"
+                  style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                  disabled={!hasCoords}
+                  onPress={openClinicMap}
+                  accessibilityRole={hasCoords ? "button" : undefined}
+                  accessibilityLabel={`Hospital location: ${doctor.clinicAddress || "Address not set"}`}
+                >
+                  <MapPin size={18} color={theme.colors.primary} />
+                  <View className="flex-1">
+                    <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                      Location
+                    </Text>
+                    <Text
+                      className="text-sm font-semibold"
+                      style={{ color: theme.colors.ink }}
+                      numberOfLines={2}
+                    >
+                      {doctor.clinicAddress || "Address not set"}
+                    </Text>
+                  </View>
+                  {hasCoords ? <ExternalLink size={16} color={theme.colors.muted} /> : null}
+                </Pressable>
+                {hasCoords ? (
+                  <View
+                    className="overflow-hidden h-44"
+                    style={{
+                      borderRadius: 20,
+                      borderWidth: 1,
+                      borderColor: theme.colors.cardBorder,
+                      backgroundColor: theme.colors.primarySoft,
+                    }}
+                  >
+                    {/* Static preview: gestures off so it doesn't fight the
+                      ScrollView; tapping opens the full maps app. */}
+                    <Map
+                      mapStyle={MAP_STYLE_URL}
+                      logo={false}
+                      compass={false}
+                      dragPan={false}
+                      touchZoom={false}
+                      doubleTapZoom={false}
+                      touchRotate={false}
+                      touchPitch={false}
+                      onPress={openClinicMap}
+                    >
+                      <Camera
+                        initialViewState={{
+                          center: [doctor.clinicLongitude!, doctor.clinicLatitude!],
+                          zoom: 15,
+                        }}
+                      />
+                      <Marker
+                        id="clinic-location"
+                        lngLat={[doctor.clinicLongitude!, doctor.clinicLatitude!]}
                       >
-                        <Cross size={13} color="white" />
-                      </View>
-                    </Marker>
-                  </Map>
+                        <View
+                          className="h-7 w-7 items-center justify-center rounded-full border-2 border-white shadow-sm"
+                          style={{ backgroundColor: theme.colors.primary }}
+                        >
+                          <Cross size={13} color="white" />
+                        </View>
+                      </Marker>
+                    </Map>
+                  </View>
+                ) : null}
+                <View className="flex-row items-center gap-2 pt-1">
+                  <View className="flex-1">
+                    <PrimaryButton label="Switch hospital" onPress={() => setLinkOpen(true)} />
+                  </View>
                 </View>
-              ) : null}
-              <View className="flex-row items-center gap-2 pt-1">
-                <View className="flex-1">
-                  <PrimaryButton label="Switch hospital" onPress={() => setLinkOpen(true)} />
-                </View>
-              </View>
-            </ClinicalCard>
+              </ClinicalCard>
             )}
           </FadeItem>
 
@@ -468,7 +493,9 @@ export default function DoctorProfileScreen() {
               onPress={() => setLogoutModal(true)}
             >
               <LogOut size={18} color={theme.colors.card} />
-              <Text className="font-bold" style={{ color: theme.colors.card }}>Logout</Text>
+              <Text className="font-bold" style={{ color: theme.colors.card }}>
+                Logout
+              </Text>
             </Pressable>
             <Pressable
               className="active:opacity-60 py-3 mt-2 items-center"

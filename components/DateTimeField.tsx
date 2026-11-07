@@ -8,10 +8,8 @@ import { theme } from "@/lib/theme";
 import { PAST_TIME_MESSAGE } from "@/lib/db/appointments";
 
 /**
- * Effective floor for a picked slot: the later of the caller's
- * `minimumDate` and the moment of picking. The prop is usually
- * `new Date()` captured at render — stale by the time the user finishes
- * chaining through the Android date → time dialogs.
+ * Effective floor for a picked slot: the later of the caller's `minimumDate` and the moment of
+ * picking.
  */
 function floorAtCommit(minimumDate: Date): number {
   return Math.max(minimumDate.getTime(), Date.now());
@@ -26,17 +24,7 @@ function fmtSlot(value: Date): string {
   });
 }
 
-/**
- * Date+time field that works on both platforms.
- *
- * WHY THIS EXISTS: @react-native-community/datetimepicker v9 crashes on
- * Android when the <DateTimePicker mode="datetime"> component is rendered
- * (`pickers[mode].dismiss()` — the native map only has `date`/`time` keys,
- * so `mode="datetime"` resolves to undefined). Only `mode="date"` and
- * `mode="time"` are safe as components on Android, so this field chains
- * them: date dialog first, then time dialog, combined into one Date.
- * iOS keeps a single inline `mode="datetime"` spinner.
- */
+/** Date+time field that works on both platforms. */
 export function DateTimeField({
   value,
   onChange,
@@ -85,15 +73,8 @@ export function DateTimeField({
           </Text>
         </Pressable>
         {value && onClear ? (
-          <Pressable
-            hitSlop={8}
-            onPress={onClear}
-            accessibilityLabel="Clear selected time"
-          >
-            <Text
-              className="text-xs font-bold"
-              style={{ color: theme.colors.primary }}
-            >
+          <Pressable hitSlop={8} onPress={onClear} accessibilityLabel="Clear selected time">
+            <Text className="text-xs font-bold" style={{ color: theme.colors.primary }}>
               Clear
             </Text>
           </Pressable>
@@ -139,23 +120,12 @@ export function DateTimeField({
               display="default"
               onChange={(event, selected) => {
                 setOpen(false);
-                if (event?.type === "dismissed" || !selected || !pendingDate)
-                  return;
+                if (event?.type === "dismissed" || !selected || !pendingDate) return;
                 const combined = new Date(pendingDate);
-                combined.setHours(
-                  selected.getHours(),
-                  selected.getMinutes(),
-                  0,
-                  0,
-                );
-                // The date dialog's minimumDate only clamps by DAY, so the
-                // time dialog happily accepts an hour that already passed
-                // (3 PM now → "today 2 PM"). Reject it here instead of
-                // committing a slot in the past.
-                if (
-                  minimumDate &&
-                  combined.getTime() < floorAtCommit(minimumDate)
-                ) {
+                combined.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+                // The date dialog's minimumDate only clamps by DAY, so the time dialog happily
+                // accepts an hour that already passed (3 PM now → "today 2 PM").
+                if (minimumDate && combined.getTime() < floorAtCommit(minimumDate)) {
                   if (Platform.OS === "android") {
                     ToastAndroid.show(PAST_TIME_MESSAGE, ToastAndroid.SHORT);
                   }

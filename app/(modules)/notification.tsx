@@ -13,13 +13,7 @@ import {
 
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ScreenGradient } from "@/components/ScreenGradient";
-import {
-  BackHeader,
-  ClinicalCard,
-  EmptyState,
-  PrimaryButton,
-  UiModal,
-} from "@/components/ui";
+import { BackHeader, ClinicalCard, EmptyState, PrimaryButton, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import Animated from "react-native-reanimated";
 import { FadeItem } from "@/components/FadeItem";
@@ -127,7 +121,11 @@ export default function NotificationDetailScreen() {
 
   if (!notification) {
     return (
-      <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+      <SafeAreaView
+        edges={["top"]}
+        className="flex-1"
+        style={{ backgroundColor: theme.colors.background }}
+      >
         <ScreenGradient />
         <View className="flex-1 px-5">
           <View className="mt-2">
@@ -150,7 +148,11 @@ export default function NotificationDetailScreen() {
   const Icon = meta.icon;
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <ScrollView
         className="flex-1 px-5"
@@ -178,66 +180,66 @@ export default function NotificationDetailScreen() {
 
         {/* Hero */}
         <FadeItem index={1}>
-        <ClinicalCard className="mt-5">
-          <View className="flex-row items-center">
-            <View
-              className="h-12 w-12 rounded-2xl items-center justify-center"
-              style={{ backgroundColor: meta.tint }}
-            >
-              <Icon size={22} color={meta.color} />
-            </View>
-            <View className="ml-3 flex-1">
+          <ClinicalCard className="mt-5">
+            <View className="flex-row items-center">
               <View
-                className="self-start rounded-full px-2.5 py-0.5"
+                className="h-12 w-12 rounded-2xl items-center justify-center"
                 style={{ backgroundColor: meta.tint }}
               >
-                <Text className="text-[12px] font-bold" style={{ color: meta.color }}>
-                  {meta.label}
+                <Icon size={22} color={meta.color} />
+              </View>
+              <View className="ml-3 flex-1">
+                <View
+                  className="self-start rounded-full px-2.5 py-0.5"
+                  style={{ backgroundColor: meta.tint }}
+                >
+                  <Text className="text-[12px] font-bold" style={{ color: meta.color }}>
+                    {meta.label}
+                  </Text>
+                </View>
+                <Text className="text-[12px] mt-1" style={{ color: theme.colors.faint }}>
+                  {relativeTime(notification.created_at)} · {fullDateTime(notification.created_at)}
                 </Text>
               </View>
-              <Text className="text-[12px] mt-1" style={{ color: theme.colors.faint }}>
-                {relativeTime(notification.created_at)} · {fullDateTime(notification.created_at)}
-              </Text>
             </View>
-          </View>
 
-          <Text
-            className="font-bold text-[20px] leading-7 mt-4"
-            style={{ color: theme.colors.ink }}
-          >
-            {notification.title}
-          </Text>
-          <Text className="text-[15px] leading-6 mt-2" style={{ color: theme.colors.body }}>
-            {notification.message}
-          </Text>
-        </ClinicalCard>
+            <Text
+              className="font-bold text-[20px] leading-7 mt-4"
+              style={{ color: theme.colors.ink }}
+            >
+              {notification.title}
+            </Text>
+            <Text className="text-[15px] leading-6 mt-2" style={{ color: theme.colors.body }}>
+              {notification.message}
+            </Text>
+          </ClinicalCard>
         </FadeItem>
 
         {/* Live appointment details */}
         {appt.isAppointment && (
           <FadeItem index={2}>
-          <ClinicalCard className="mt-3">
-            <Text
-              className="text-[12px] font-bold uppercase mb-1"
-              style={{ color: theme.colors.muted, letterSpacing: 0.8 }}
-            >
-              Appointment details
-            </Text>
-            {appt.loading ? (
-              <View className="py-4 items-center">
-                <ActivityIndicator color={theme.colors.primary} />
-              </View>
-            ) : appt.details ? (
-              <Animated.View entering={fadeIn}>
-                <AppointmentDetailRows details={appt.details} />
-              </Animated.View>
-            ) : (
-              <Text className="text-[13px] mt-1" style={{ color: theme.colors.muted }}>
-                Couldn&apos;t load this appointment. Check your connection or open
-                Appointments to see its latest status.
+            <ClinicalCard className="mt-3">
+              <Text
+                className="text-[12px] font-bold uppercase mb-1"
+                style={{ color: theme.colors.muted, letterSpacing: 0.8 }}
+              >
+                Appointment details
               </Text>
-            )}
-          </ClinicalCard>
+              {appt.loading ? (
+                <View className="py-4 items-center">
+                  <ActivityIndicator color={theme.colors.primary} />
+                </View>
+              ) : appt.details ? (
+                <Animated.View entering={fadeIn}>
+                  <AppointmentDetailRows details={appt.details} />
+                </Animated.View>
+              ) : (
+                <Text className="text-[13px] mt-1" style={{ color: theme.colors.muted }}>
+                  Couldn&apos;t load this appointment. Check your connection or open Appointments to
+                  see its latest status.
+                </Text>
+              )}
+            </ClinicalCard>
           </FadeItem>
         )}
 
@@ -296,7 +298,8 @@ function AppointmentDetailRows({ details }: { details: AppointmentDetails }) {
       <DetailRow icon={Building2} label="Clinic" value={clinicName} />
       {doctorName ? <DetailRow icon={Stethoscope} label="Doctor" value={doctorName} /> : null}
       <DetailRow icon={CalendarClock} label="Date & time" value={when} />
-      <View className="flex-row items-center justify-between pt-3 mt-1"
+      <View
+        className="flex-row items-center justify-between pt-3 mt-1"
         style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
       >
         <Text className="text-[13px]" style={{ color: theme.colors.muted }}>
@@ -327,7 +330,10 @@ function DetailRow({
       <Text className="text-[13px] ml-2.5 w-24" style={{ color: theme.colors.muted }}>
         {label}
       </Text>
-      <Text className="text-[14px] font-semibold flex-1 text-right" style={{ color: theme.colors.ink }}>
+      <Text
+        className="text-[14px] font-semibold flex-1 text-right"
+        style={{ color: theme.colors.ink }}
+      >
         {value}
       </Text>
     </View>

@@ -1,17 +1,11 @@
-import {
-  getIngredientsForCondition,
-  getProductsForCondition,
-  selectForProfile,
-} from "./knowledge";
+import { getIngredientsForCondition, getProductsForCondition, selectForProfile } from "./knowledge";
 
 function parseAndValidateRoutine(jsonStr: string): string {
   let parsed: any;
   try {
     parsed = JSON.parse(jsonStr);
   } catch {
-    throw new Error(
-      "Failed to parse routine JSON: " + jsonStr.slice(0, 200),
-    );
+    throw new Error("Failed to parse routine JSON: " + jsonStr.slice(0, 200));
   }
 
   if (!parsed || typeof parsed !== "object") {
@@ -22,11 +16,7 @@ function parseAndValidateRoutine(jsonStr: string): string {
     parsed.summary = "Your personalized skincare routine.";
   }
 
-  const routineKeys = [
-    "morning_routine",
-    "afternoon_routine",
-    "evening_routine",
-  ] as const;
+  const routineKeys = ["morning_routine", "afternoon_routine", "evening_routine"] as const;
 
   for (const key of routineKeys) {
     if (!Array.isArray(parsed[key])) {
@@ -43,8 +33,7 @@ function parseAndValidateRoutine(jsonStr: string): string {
         };
       } else if (typeof step === "object" && step !== null) {
         if (typeof step.step !== "number") step.step = i + 1;
-        if (typeof step.product_type !== "string")
-          step.product_type = "Skincare Product";
+        if (typeof step.product_type !== "string") step.product_type = "Skincare Product";
         if (typeof step.instruction !== "string") step.instruction = "";
         if (typeof step.reason !== "string") step.reason = "";
       }
@@ -63,10 +52,8 @@ function parseAndValidateRoutine(jsonStr: string): string {
         reason: "",
       };
     } else if (typeof prod === "object" && prod !== null) {
-      if (typeof prod.product_type !== "string")
-        prod.product_type = "Skincare Product";
-      if (!Array.isArray(prod.recommended_ingredients))
-        prod.recommended_ingredients = [];
+      if (typeof prod.product_type !== "string") prod.product_type = "Skincare Product";
+      if (!Array.isArray(prod.recommended_ingredients)) prod.recommended_ingredients = [];
       if (typeof prod.reason !== "string") prod.reason = "";
     }
   }
@@ -118,8 +105,7 @@ const CONCERN_BENEFIT: Record<string, string> = {
 
 function concernBenefit(concern: string): string {
   return (
-    CONCERN_BENEFIT[concern.toLowerCase().trim()] ??
-    `improve ${concern} and support healthy skin`
+    CONCERN_BENEFIT[concern.toLowerCase().trim()] ?? `improve ${concern} and support healthy skin`
   );
 }
 
@@ -177,11 +163,8 @@ function lifestyleSentence(
 }
 
 /**
- * Rule-based routine built deterministically from the local knowledge base
- * (`data/knowledge.json` via `utils/knowledge`).
- *
- * No LLM involved: given the same skin profile + concern, the output is
- * always the same, which keeps results explainable and offline-friendly.
+ * Rule-based routine built deterministically from the local knowledge base (`data/knowledge.json`
+ * via `utils/knowledge`).
  */
 export function buildRuleBasedRoutine(
   skinType: string,
@@ -219,21 +202,19 @@ export function buildRuleBasedRoutine(
     products = getProductsForCondition("normal").slice(0, 4);
   }
   const ingNames = ingredients.map((i) => i.name);
-  const pick = (i: number) =>
-    ingNames[i % Math.max(ingNames.length, 1)] ?? "Gentle Cleanser";
+  const pick = (i: number) => ingNames[i % Math.max(ingNames.length, 1)] ?? "Gentle Cleanser";
   const benefit = concernBenefit(safeConcern);
 
   const cleanser = products[0]?.product_type ?? "Gentle Cleanser";
   const treatment = products[1]?.product_type ?? "Treatment Serum";
-  const moisturizer =
-    products[2]?.product_type ?? products[0]?.product_type ?? "Moisturizer";
+  const moisturizer = products[2]?.product_type ?? products[0]?.product_type ?? "Moisturizer";
 
-  const step = (
-    n: number,
-    productType: string,
-    instruction: string,
-    reason: string,
-  ) => ({ step: n, product_type: productType, instruction, reason });
+  const step = (n: number, productType: string, instruction: string, reason: string) => ({
+    step: n,
+    product_type: productType,
+    instruction,
+    reason,
+  });
 
   const lifestyleNote = lifestyle
     ? lifestyleSentence(
@@ -250,10 +231,7 @@ export function buildRuleBasedRoutine(
 
   // Personalisation notes (skin type tuning, sensitivity exclusions) come
   // straight from selectForProfile — same deterministic input → output.
-  const summaryTail = [
-    ...selection.notes,
-    lifestyleNote ? `Also note: ${lifestyleNote}` : "",
-  ]
+  const summaryTail = [...selection.notes, lifestyleNote ? `Also note: ${lifestyleNote}` : ""]
     .filter(Boolean)
     .join(" ");
   const summary = summaryTail ? `${summaryBase}. ${summaryTail}` : `${summaryBase}.`;

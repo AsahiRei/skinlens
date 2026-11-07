@@ -9,12 +9,24 @@ import {
 
 describe("assessDetection", () => {
   it("accepts a clear, confident result", () => {
-    const r = assessDetection(0.82, { acne: 0.82, oily: 0.1, normal: 0.05, dry: 0.02, eczema: 0.01 });
+    const r = assessDetection(0.82, {
+      acne: 0.82,
+      oily: 0.1,
+      normal: 0.05,
+      dry: 0.02,
+      eczema: 0.01,
+    });
     expect(r.inconclusive).toBe(false);
   });
 
   it("flags low confidence", () => {
-    const r = assessDetection(0.31, { acne: 0.31, oily: 0.25, normal: 0.2, dry: 0.14, eczema: 0.1 });
+    const r = assessDetection(0.31, {
+      acne: 0.31,
+      oily: 0.25,
+      normal: 0.2,
+      dry: 0.14,
+      eczema: 0.1,
+    });
     expect(r).toEqual({ inconclusive: true, reason: "low_confidence", runnerUp: null });
   });
 

@@ -51,14 +51,13 @@ export default function Survey() {
   const [page, setPage] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
-  const { imageUri, sourceType, label, confidence, probabilities } =
-    useLocalSearchParams<{
-      imageUri: string;
-      sourceType: string;
-      label: string;
-      confidence: string;
-      probabilities: string;
-    }>();
+  const { imageUri, sourceType, label, confidence, probabilities } = useLocalSearchParams<{
+    imageUri: string;
+    sourceType: string;
+    label: string;
+    confidence: string;
+    probabilities: string;
+  }>();
 
   const detectionLabel = label ?? "normal";
   const questions = detectionQuestions[detectionLabel] ?? detectionQuestions.normal;
@@ -116,12 +115,22 @@ export default function Survey() {
       <ScreenGradient />
       <View className="px-5 pt-4 gap-2">
         <View className="flex-row items-center justify-between">
-          <Text className="font-bold text-[11px]" style={{ color: theme.colors.primary, letterSpacing: 1 }}>
+          <Text
+            className="font-bold text-[11px]"
+            style={{ color: theme.colors.primary, letterSpacing: 1 }}
+          >
             STEP {page + 1} OF {questions.length}
           </Text>
-          <Text className="text-xs" style={{ color: theme.colors.muted }}>{progressPct}%</Text>
+          <Text className="text-xs" style={{ color: theme.colors.muted }}>
+            {progressPct}%
+          </Text>
         </View>
-        <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
+        <InlineProgress
+          progress={progressPct}
+          height={8}
+          color={theme.colors.primary}
+          trackColor={theme.colors.primarySoft}
+        />
       </View>
 
       {/* Detection badge */}
@@ -173,14 +182,19 @@ export default function Survey() {
                     className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border"
                     style={
                       isSelected
-                        ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                        ? {
+                            backgroundColor: theme.colors.primary,
+                            borderColor: theme.colors.primary,
+                          }
                         : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
                     }
                   >
                     <View
                       className="h-9 w-9 items-center justify-center rounded-full"
                       style={{
-                        backgroundColor: isSelected ? "rgba(255,255,255,0.2)" : theme.colors.primarySoft,
+                        backgroundColor: isSelected
+                          ? "rgba(255,255,255,0.2)"
+                          : theme.colors.primarySoft,
                       }}
                     >
                       <Text

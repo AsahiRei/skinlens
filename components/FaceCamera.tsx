@@ -8,21 +8,10 @@ import {
 import type { Face } from "react-native-vision-camera-face-detector";
 
 /**
- * Drop-in replacement for `Camera` from `react-native-vision-camera-face-detector`.
- *
- * Why this exists: the library wrapper (v2.1.0) memoizes its native detector
- * output on a rest-spread `options` object, which is a NEW object every render.
- * Every parent re-render therefore created a fresh ML Kit detector AND made
- * VisionCamera re-run `session.configure()`. Our screens re-render several
- * times a second while a face is in frame (live guidance), so the session was
- * rebuilt constantly and the preview progressively lagged.
- *
- * Here the detector output is created once per (facing, performance options)
- * combination, callbacks go through refs, and the outputs array is stable — so
- * re-rendering the parent never touches the camera session.
- *
- * Detection callbacks are also throttled BEFORE the preview-coordinate
- * transform (4 synchronous native calls per face), not after it.
+ * Drop-in replacement for `Camera` from `react-native-vision-camera-face-detector`. Here the
+ * detector output is created once per (facing, performance options) combination, callbacks go
+ * through refs, and the outputs array is stable — so re-rendering the parent never touches the
+ * camera session.
  */
 type Props = Omit<CameraViewProps, "onError" | "outputs"> & {
   cameraFacing?: "front" | "back";
@@ -102,18 +91,10 @@ export function FaceCamera({
     [handleFaces, handleError, cameraFacing, performanceMode, minFaceSize],
   );
 
-  const allOutputs = useMemo(
-    () => [detectorOutput, ...(outputs ?? [])],
-    [detectorOutput, outputs],
-  );
+  const allOutputs = useMemo(() => [detectorOutput, ...(outputs ?? [])], [detectorOutput, outputs]);
 
   return (
-    <VisionCamera
-      {...cameraProps}
-      ref={cameraRef}
-      outputs={allOutputs}
-      onError={handleError}
-    />
+    <VisionCamera {...cameraProps} ref={cameraRef} outputs={allOutputs} onError={handleError} />
   );
 }
 

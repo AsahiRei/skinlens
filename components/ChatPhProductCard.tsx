@@ -16,22 +16,39 @@ export default function ChatPhProductCard({ product }: { product: PhProduct }) {
   return (
     <View
       className="rounded-xl px-3 py-2.5 flex-col gap-2"
-      style={{ backgroundColor: theme.colors.primarySoft, borderWidth: 1, borderColor: theme.colors.cardBorder }}
+      style={{
+        backgroundColor: theme.colors.primarySoft,
+        borderWidth: 1,
+        borderColor: theme.colors.cardBorder,
+      }}
       accessible
       accessibilityLabel={`${product.brand} ${product.name}, ${product.product_type}, about ${product.price}`}
     >
       <View className="flex-row gap-2.5 items-start">
         <View
-          style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: theme.colors.primaryTint }}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            backgroundColor: theme.colors.primaryTint,
+          }}
           className="items-center justify-center"
         >
           <ShoppingBag size={18} color={theme.colors.primary} />
         </View>
         <View className="flex-1 min-w-0">
-          <Text className="text-[11px] font-bold uppercase" style={{ color: theme.colors.primary }} numberOfLines={1}>
+          <Text
+            className="text-[11px] font-bold uppercase"
+            style={{ color: theme.colors.primary }}
+            numberOfLines={1}
+          >
             {product.brand}
           </Text>
-          <Text className="text-[13px] font-bold" style={{ color: theme.colors.ink }} numberOfLines={2}>
+          <Text
+            className="text-[13px] font-bold"
+            style={{ color: theme.colors.ink }}
+            numberOfLines={2}
+          >
             {product.name}
           </Text>
           <Text className="text-[11px]" style={{ color: theme.colors.muted }} numberOfLines={1}>

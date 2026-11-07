@@ -1,17 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
- * First-run tutorial state — device-only and keyed per account.
- *
- * The flag answers "has the guided tour on THIS device been finished for
- * this account?", so it lives in AsyncStorage instead of SQLite/sync: a
- * second account signed in on the same phone still gets the tour, and the
- * server never needs to know about it.
- *
- * Flow: results.tsx arms it right after setup completes, the coach tour
- * (components/TutorialCoach.tsx) clears it on finish/skip, and the boot
- * router in app/index.tsx checks it so killing the app mid-tour replays the
- * tour on next launch.
+ * First-run tutorial state — device-only and keyed per account, so it lives in AsyncStorage instead
+ * of SQLite/sync. Armed by results.tsx, cleared by TutorialCoach, checked by the boot router.
  */
 const TUTORIAL_PENDING_KEY = "tutorial_pending:";
 

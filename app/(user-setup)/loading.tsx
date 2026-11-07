@@ -140,11 +140,7 @@ export default function Loading() {
       });
     } catch (e) {
       if (cancelledRef.current) return;
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Something went wrong. Please try again.",
-      );
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
       busyRef.current = false;
       if (!cancelledRef.current) setBusy(false);
@@ -158,7 +154,7 @@ export default function Loading() {
     return () => {
       cancelledRef.current = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {
@@ -167,24 +163,29 @@ export default function Loading() {
         <ScreenGradient />
         <View className="flex-1 px-5 items-center justify-center">
           <Animated.View entering={popIn} className="w-full">
-          <ClinicalCard className="items-center gap-2 w-full" style={{ paddingVertical: 40, paddingHorizontal: 24 }}>
-            <AlertCircle size={28} color={theme.colors.danger} />
-            <Text className="font-bold" style={{ color: theme.colors.ink }}>
-              {"Couldn't generate your routine"}
-            </Text>
-            <Text className="text-sm text-center" style={{ color: theme.colors.muted }}>{error}</Text>
-            <View className="w-full mt-2">
-              <PrimaryButton
-                label="Try Again"
-                loading={busy}
-                onPress={() => {
-                  if (busyRef.current) return;
-                  ranRef.current = false;
-                  run();
-                }}
-              />
-            </View>
-          </ClinicalCard>
+            <ClinicalCard
+              className="items-center gap-2 w-full"
+              style={{ paddingVertical: 40, paddingHorizontal: 24 }}
+            >
+              <AlertCircle size={28} color={theme.colors.danger} />
+              <Text className="font-bold" style={{ color: theme.colors.ink }}>
+                {"Couldn't generate your routine"}
+              </Text>
+              <Text className="text-sm text-center" style={{ color: theme.colors.muted }}>
+                {error}
+              </Text>
+              <View className="w-full mt-2">
+                <PrimaryButton
+                  label="Try Again"
+                  loading={busy}
+                  onPress={() => {
+                    if (busyRef.current) return;
+                    ranRef.current = false;
+                    run();
+                  }}
+                />
+              </View>
+            </ClinicalCard>
           </Animated.View>
         </View>
       </SafeAreaView>
@@ -208,57 +209,65 @@ export default function Loading() {
           <Animated.View entering={enterUp(2)} className="w-full gap-3">
             {/* Keyed on the step so each new label cross-fades in. */}
             <Animated.View key={stepIndex} entering={fadeIn}>
-              <Text className="text-center text-base font-medium" style={{ color: theme.colors.body }}>
+              <Text
+                className="text-center text-base font-medium"
+                style={{ color: theme.colors.body }}
+              >
                 {steps[stepIndex].label}...
               </Text>
             </Animated.View>
-            <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
+            <InlineProgress
+              progress={progressPct}
+              height={8}
+              color={theme.colors.primary}
+              trackColor={theme.colors.primarySoft}
+            />
           </Animated.View>
 
           <Animated.View entering={enterUp(3)} className="w-full">
-          <ClinicalCard className="w-full gap-3">
-            {steps.map((step, i) => {
-              const isDone = i < stepIndex;
-              const isActive = i === stepIndex;
-              return (
-                <View key={step.label} className="flex-row items-center gap-3">
-                  <View
-                    className="h-7 w-7 rounded-full items-center justify-center"
-                    style={{
-                      backgroundColor: isDone
-                        ? theme.colors.primary
-                        : isActive
-                          ? theme.colors.primarySoft
-                          : theme.colors.background,
-                    }}
-                  >
-                    {isDone ? (
-                      <Animated.View entering={popIn}>
-                        <Check size={14} color="#FFFFFF" />
-                      </Animated.View>
-                    ) : (
-                      <Text
-                        className="text-xs font-bold"
-                        style={{ color: isActive ? theme.colors.primary : theme.colors.faint }}
-                      >
-                        {i + 1}
-                      </Text>
-                    )}
+            <ClinicalCard className="w-full gap-3">
+              {steps.map((step, i) => {
+                const isDone = i < stepIndex;
+                const isActive = i === stepIndex;
+                return (
+                  <View key={step.label} className="flex-row items-center gap-3">
+                    <View
+                      className="h-7 w-7 rounded-full items-center justify-center"
+                      style={{
+                        backgroundColor: isDone
+                          ? theme.colors.primary
+                          : isActive
+                            ? theme.colors.primarySoft
+                            : theme.colors.background,
+                      }}
+                    >
+                      {isDone ? (
+                        <Animated.View entering={popIn}>
+                          <Check size={14} color="#FFFFFF" />
+                        </Animated.View>
+                      ) : (
+                        <Text
+                          className="text-xs font-bold"
+                          style={{ color: isActive ? theme.colors.primary : theme.colors.faint }}
+                        >
+                          {i + 1}
+                        </Text>
+                      )}
+                    </View>
+                    <Text
+                      className="text-sm"
+                      style={{
+                        color: isDone || isActive ? theme.colors.ink : theme.colors.faint,
+                        fontWeight: isActive ? "700" : "400",
+                        textDecorationLine: isDone ? "line-through" : "none",
+                      }}
+                    >
+                      {step.label}
+                    </Text>
                   </View>
-                  <Text
-                    className="text-sm"
-                    style={{
-                      color: isDone || isActive ? theme.colors.ink : theme.colors.faint,
-                      fontWeight: isActive ? "700" : "400",
-                      textDecorationLine: isDone ? "line-through" : "none",
-                    }}
-                  >
-                    {step.label}
-                  </Text>
-                </View>
-              );
-            })}
-          </ClinicalCard>
+                );
+              })}
+            </ClinicalCard>
           </Animated.View>
         </View>
       </View>

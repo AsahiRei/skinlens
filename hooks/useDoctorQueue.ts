@@ -22,27 +22,18 @@ function isToday(iso: string | null): boolean {
   );
 }
 
-/**
- * Shared queue state for the doctor tabs (Home + Schedule).
- * Loads the doctor's clinic queue, resolves patient names, and exposes
- * a status-change helper that reloads afterwards. Redirects unlinked
- * doctors to the Account tab, which owns the link flow.
- */
+/** Shared queue state for the doctor tabs (Home + Schedule). */
 export function useDoctorQueue() {
   const router = useRouter();
   const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
   const [rows, setRows] = useState<AppointmentRow[]>([]);
   const [patientNames, setPatientNames] = useState<Record<string, string>>({});
-  const [patientAvatars, setPatientAvatars] = useState<Record<string, string>>(
-    {},
-  );
+  const [patientAvatars, setPatientAvatars] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Focus, pull-to-refresh and applyStatus all call load() concurrently with
-  // no ordering — a slow earlier response used to overwrite fresher rows.
-  // Each call takes a ticket; anything but the newest is dropped. The mounted
-  // flag stops a response that lands after the hook is gone from redirecting.
+  // Focus, pull-to-refresh and applyStatus all call load() concurrently with no ordering — a slow
+  // earlier response used to overwrite fresher rows.
   const requestIdRef = useRef(0);
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -55,8 +46,7 @@ export function useDoctorQueue() {
 
   const load = useCallback(async () => {
     const requestId = ++requestIdRef.current;
-    const isStale = () =>
-      requestIdRef.current !== requestId || !mountedRef.current;
+    const isStale = () => requestIdRef.current !== requestId || !mountedRef.current;
     setError(null);
     try {
       const prof = await getMyDoctorProfile();
@@ -114,9 +104,7 @@ export function useDoctorQueue() {
     return {
       fresh: rows.filter((r) => r.status === "requested").length,
       scheduled: rows.filter((r) => r.status === "scheduled").length,
-      today: rows.filter(
-        (r) => r.status === "scheduled" && isToday(r.scheduled_at),
-      ).length,
+      today: rows.filter((r) => r.status === "scheduled" && isToday(r.scheduled_at)).length,
     };
   }, [rows]);
 

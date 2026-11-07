@@ -1,8 +1,6 @@
 /**
- * The interactive first-run tour. Each step spotlights a real element on a
- * real screen (targets are registered by <CoachTarget id=...> wrappers in
- * the tab screens) and explains how it works. Steps with `href` navigate
- * there first, so the tour walks the user through every tab in order.
+ * The interactive first-run tour. Each step spotlights a real element on a real screen (targets are
+ * registered by <CoachTarget id=...> wrappers in the tab screens) and explains how it works.
  */
 export type CoachStep = {
   /** id of the <CoachTarget> to spotlight */
@@ -18,11 +16,10 @@ export type CoachStep = {
 export const TUTORIAL_STEPS: CoachStep[] = [
   {
     target: "home.header",
-    // Every step navigates to its own screen first, even the Home ones:
-    // the tour can be replayed from any tab (Profile → Replay Tutorial) or
-    // over an unfinished first run, and measuring a screen that is not
-    // focused fails (react-native-screens detaches inactive tabs), leaving
-    // the spotlight unpositioned.
+    // Every step navigates to its own screen first, even the Home ones: the tour can be replayed
+    // from any tab (Profile → Replay Tutorial) or over an unfinished first run, and measuring a
+    // screen that is not focused fails (react-native-screens detaches inactive tabs), leaving the
+    // spotlight unpositioned.
     href: "/(tabs)",
     title: "This is your Home tab",
     body: "Your daily hub. The bell up top shows scan reminders and appointment updates.",

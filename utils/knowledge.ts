@@ -1,8 +1,4 @@
-import type {
-  Ingredient,
-  ProductEntry,
-  SkinCondition,
-} from "@/types/knowledge";
+import type { Ingredient, ProductEntry, SkinCondition } from "@/types/knowledge";
 import { ingredients, products } from "@/data/knowledge";
 
 const VALID_CONDITIONS: SkinCondition[] = ["acne", "dry", "eczema", "oily", "normal"];
@@ -15,10 +11,7 @@ function normalizeCondition(label: string): SkinCondition {
   return "normal";
 }
 
-export function getIngredientsForCondition(
-  condition: string,
-  concerns?: string,
-) {
+export function getIngredientsForCondition(condition: string, concerns?: string) {
   const primary = normalizeCondition(condition);
   const matched = new Set<string>();
 
@@ -45,10 +38,7 @@ export function getIngredientsForCondition(
   return result;
 }
 
-export function getProductsForCondition(
-  condition: string,
-  concerns?: string,
-) {
+export function getProductsForCondition(condition: string, concerns?: string) {
   const primary = normalizeCondition(condition);
   const matched = new Set<string>();
 
@@ -81,9 +71,8 @@ export function getProductsForCondition(
 }
 
 /**
- * Question-text → skin condition hints. Lets a question like "what helps
- * with blackheads?" pull in the acne knowledge even when the profile's
- * concerns string doesn't mention it.
+ * Question-text → skin condition hints. Lets a question like "what helps with blackheads?" pull in
+ * the acne knowledge even when the profile's concerns string doesn't mention it.
  */
 const QUESTION_CONCERN_HINTS: [SkinCondition, RegExp][] = [
   ["acne", /\b(acne|pimple|breakout|blemish|blackhead|whitehead|comedone|cystic)\b/i],
@@ -92,9 +81,8 @@ const QUESTION_CONCERN_HINTS: [SkinCondition, RegExp][] = [
   ["eczema", /\b(eczema|atopic|itchy rash|irritat|sensitive skin)\b/i],
 ];
 
-// The on-device model has a ~2048-token context shared by system prompt,
-// profile, knowledge and history — unbounded retrieval would crowd out
-// the conversation. Keep the knowledge block small and relevant.
+// The on-device model has a ~2048-token context shared by system prompt, profile, knowledge and
+// history — unbounded retrieval would crowd out the conversation.
 const MAX_PROMPT_INGREDIENTS = 8;
 const MAX_PROMPT_PRODUCTS = 4;
 
@@ -155,12 +143,8 @@ export function formatKnowledgeForPrompt(
     return aQ - bQ;
   });
   matchedProducts.sort((a, b) => {
-    const aQ = question?.toLowerCase().includes(a.product_type.toLowerCase())
-      ? 0
-      : 1;
-    const bQ = question?.toLowerCase().includes(b.product_type.toLowerCase())
-      ? 0
-      : 1;
+    const aQ = question?.toLowerCase().includes(a.product_type.toLowerCase()) ? 0 : 1;
+    const bQ = question?.toLowerCase().includes(b.product_type.toLowerCase()) ? 0 : 1;
     return aQ - bQ;
   });
 
@@ -190,12 +174,7 @@ export function formatKnowledgeForPrompt(
   return lines.join("\n");
 }
 
-/* ── Profile-aware selection ───────────────────────────────────────────
- * Personalisation layer for the rule-based routine generator. The detected
- * condition remains the primary signal; the profile's skin type and
- * free-text concerns only re-rank entries from the SAME knowledge base,
- * and the patient's sensitivity log can drop ingredients — still fully
- * deterministic, no LLM involved. */
+/** Profile-aware selection: Personalisation layer for the rule-based routine generator. */
 
 /** Secondary conditions that a skin type contributes to the ranking. */
 const SKIN_TYPE_CONDITIONS: Record<string, SkinCondition[]> = {
@@ -249,9 +228,7 @@ export function selectForProfile(opts: {
   const secondary = SKIN_TYPE_CONDITIONS[skinType] ?? [];
   const concerns = (opts.profile_concerns ?? "").toLowerCase().trim();
   const avoid = new Set(
-    (opts.avoid_ingredients ?? [])
-      .map((name) => name.trim().toLowerCase())
-      .filter(Boolean),
+    (opts.avoid_ingredients ?? []).map((name) => name.trim().toLowerCase()).filter(Boolean),
   );
   const notes: string[] = [];
 
@@ -268,9 +245,7 @@ export function selectForProfile(opts: {
     if (secondary.some((c) => prod.concerns.includes(c))) score += 2;
     if (
       concerns &&
-      prod.recommended_ingredients.some((ing) =>
-        concerns.includes(ing.toLowerCase()),
-      )
+      prod.recommended_ingredients.some((ing) => concerns.includes(ing.toLowerCase()))
     ) {
       score += 1;
     }
@@ -326,9 +301,8 @@ export function selectForProfile(opts: {
 }
 
 /**
- * Ingredient names from the knowledge base that appear anywhere in the
- * patient's sensitivity log (trigger cause + notes are free text, so match
- * by substring on the whole corpus).
+ * Ingredient names from the knowledge base that appear anywhere in the patient's sensitivity log
+ * (trigger cause + notes are free text, so match by substring on the whole corpus).
  */
 export function ingredientsAvoidedBySensitivity(
   entries: { trigger_cause?: string | null; notes?: string | null }[],

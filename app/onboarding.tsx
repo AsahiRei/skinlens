@@ -26,11 +26,7 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import { PrimaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import onboardingPage from "@/data/onboarding.json";
-import {
-  cancelDownload,
-  getModelDownloadState,
-  getModelPath,
-} from "@/utils/llama";
+import { cancelDownload, getModelDownloadState, getModelPath } from "@/utils/llama";
 
 const onboardingImages = {
   skin: require("@/assets/images/onboarding/1.png"),
@@ -44,13 +40,8 @@ const downloadingImage = require("@/assets/images/onboarding/5.png");
 type OnboardingItem = (typeof onboardingPage)[number];
 
 /**
- * A single onboarding slide whose content is driven by the pager's continuous
- * scroll position (page index + offset). Because it is scroll-driven rather
- * than press-driven, tapping "Next" and swiping produce the exact same motion,
- * and the animation tracks the finger mid-swipe.
- *
- * `distance` is how far this slide is from the centre: -1 (one page to the
- * right, incoming), 0 (focused), 1 (one page to the left, outgoing).
+ * A single onboarding slide whose content is driven by the pager's continuous scroll position (page
+ * index + offset).
  */
 function OnboardingSlide({
   item,
@@ -145,18 +136,12 @@ function OnboardingSlide({
         />
       </Animated.View>
       <Animated.View style={titleStyle}>
-        <Text
-          className="text-[28px] font-bold text-center mt-2"
-          style={{ color: "#10241A" }}
-        >
+        <Text className="text-[28px] font-bold text-center mt-2" style={{ color: "#10241A" }}>
           {item.title}
         </Text>
       </Animated.View>
       <Animated.View style={descriptionStyle}>
-        <Text
-          className="mt-3 text-center text-[15px] leading-6"
-          style={{ color: "#6B7280" }}
-        >
+        <Text className="mt-3 text-center text-[15px] leading-6" style={{ color: "#6B7280" }}>
           {item.description}
         </Text>
       </Animated.View>
@@ -216,11 +201,7 @@ export default function Onboarding() {
     transform: [{ translateY: bounceY.value }],
   }));
 
-  const reportProgress = (
-    fraction: number,
-    bytesWritten?: number,
-    totalBytes?: number,
-  ) => {
+  const reportProgress = (fraction: number, bytesWritten?: number, totalBytes?: number) => {
     setProgress(Math.round(fraction * 100));
     if (typeof bytesWritten === "number" && bytesWritten >= 0) {
       setDownloadedMB(bytesWritten / (1024 * 1024));
@@ -266,11 +247,7 @@ export default function Onboarding() {
         router.replace("/welcome");
       } catch (err) {
         setStatus("error");
-        setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Download failed. Please try again.",
-        );
+        setErrorMessage(err instanceof Error ? err.message : "Download failed. Please try again.");
       } finally {
         downloadingRef.current = false;
       }
@@ -297,21 +274,14 @@ export default function Onboarding() {
       router.replace("/welcome");
     } catch (err) {
       setStatus("error");
-      setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : "Download failed. Please try again.",
-      );
+      setErrorMessage(err instanceof Error ? err.message : "Download failed. Please try again.");
     } finally {
       downloadingRef.current = false;
     }
   };
 
   return (
-    <SafeAreaView
-      className="flex-1"
-      style={{ backgroundColor: theme.colors.background }}
-    >
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <ScreenGradient />
       {!downloading && (
         <View className="mb-6 flex-row items-center justify-center gap-1.5 px-6 mt-2">
@@ -333,29 +303,17 @@ export default function Onboarding() {
               resizeMode="contain"
             />
           </Animated.View>
-          <Text
-            className="text-center text-xl font-bold"
-            style={{ color: "#10241A" }}
-          >
+          <Text className="text-center text-xl font-bold" style={{ color: "#10241A" }}>
             Downloading Resources
           </Text>
           <Text className="text-center text-sm" style={{ color: "#6B7280" }}>
-            Resources are needed for skin analysis. This may take a few minutes
-            on first download.
+            Resources are needed for skin analysis. This may take a few minutes on first download.
           </Text>
 
           {status === "downloading" ? (
             <View className="w-full gap-2">
-              <InlineProgress
-                progress={progress}
-                height={8}
-                color="#214E36"
-                trackColor="#EAF6EE"
-              />
-              <Text
-                className="text-center text-sm font-medium"
-                style={{ color: "#3F4A44" }}
-              >
+              <InlineProgress progress={progress} height={8} color="#214E36" trackColor="#EAF6EE" />
+              <Text className="text-center text-sm font-medium" style={{ color: "#3F4A44" }}>
                 {totalMB > 0
                   ? `${progress}% (${downloadedMB.toFixed(0)} / ${totalMB.toFixed(0)} MB)`
                   : `${progress}%`}
@@ -402,9 +360,7 @@ export default function Onboarding() {
           </PagerView>
           <View className="mx-6 mb-8">
             <PrimaryButton
-              label={
-                page === onboardingPage.length - 1 ? "Get Started" : "Next"
-              }
+              label={page === onboardingPage.length - 1 ? "Get Started" : "Next"}
               onPress={handleNext}
             />
           </View>

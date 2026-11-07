@@ -14,10 +14,7 @@ export default function Skeleton({ className }: { className: string }) {
 
   useEffect(() => {
     opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 700 }),
-        withTiming(0.3, { duration: 700 }),
-      ),
+      withSequence(withTiming(1, { duration: 700 }), withTiming(0.3, { duration: 700 })),
       -1,
     );
   }, [opacity]);

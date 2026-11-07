@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Image,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Switch,
-  View,
-} from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, Switch, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import {
@@ -38,15 +31,8 @@ import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { useCoachScroller } from "@/hooks/useCoachScroller";
 import { useNotifications } from "@/hooks/useNotifications";
 import { getAllProfiles, updateUserProfile } from "@/lib/db";
-import {
-  getMyProfileValidation,
-  type ProfileValidation,
-} from "@/lib/db/profile-review";
-import type {
-  LifestyleProfile,
-  SkinProfile,
-  UserProfile,
-} from "@/types/schema";
+import { getMyProfileValidation, type ProfileValidation } from "@/lib/db/profile-review";
+import type { LifestyleProfile, SkinProfile, UserProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
@@ -56,8 +42,7 @@ export default function Profile() {
   const { settings, updateSettings } = useNotifications();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [skinProfile, setSkinProfile] = useState<SkinProfile | null>(null);
-  const [lifestyleProfile, setLifestyleProfile] =
-    useState<LifestyleProfile | null>(null);
+  const [lifestyleProfile, setLifestyleProfile] = useState<LifestyleProfile | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingSkin, setLoadingSkin] = useState(true);
   const [loadingLifestyle, setLoadingLifestyle] = useState(true);
@@ -67,9 +52,7 @@ export default function Profile() {
   const [pickerVisible, setPickerVisible] = useState(false);
   // undefined = unknown (offline / not migrated) → card hidden;
   // null = never reviewed.
-  const [validation, setValidation] = useState<
-    ProfileValidation | null | undefined
-  >(undefined);
+  const [validation, setValidation] = useState<ProfileValidation | null | undefined>(undefined);
   const focusTrigger = useFocusTrigger();
   // Replaying from this screen leaves it scrolled down where the Replay
   // button lives — the tutorial needs to scroll its target back into view.
@@ -77,8 +60,7 @@ export default function Profile() {
   const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   const fetchProfiles = async () => {
     try {
-      const { userProfile, skinProfile, lifestyleProfile } =
-        await getAllProfiles();
+      const { userProfile, skinProfile, lifestyleProfile } = await getAllProfiles();
       setUserProfile(userProfile);
       setSkinProfile(skinProfile);
       setLifestyleProfile(lifestyleProfile);
@@ -112,10 +94,7 @@ export default function Profile() {
 
   const goEdit = () => router.push("/(modules)/edit-profile");
   const displayName = userProfile?.first_name || userProfile?.username || "";
-  const avatarInitial = (displayName || userProfile?.email || "?")
-    .trim()
-    .charAt(0)
-    .toUpperCase();
+  const avatarInitial = (displayName || userProfile?.email || "?").trim().charAt(0).toUpperCase();
 
   const handleAvatarPress = () => {
     setPickerVisible(true);
@@ -161,7 +140,11 @@ export default function Profile() {
           { label: "Cancel", kind: "ghost", onPress: () => setPickerVisible(false) },
         ]}
       />
-      <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+      <SafeAreaView
+        edges={["top"]}
+        className="flex-1"
+        style={{ backgroundColor: theme.colors.background }}
+      >
         <ScreenGradient />
         <ScrollView
           ref={scrollRef}
@@ -186,120 +169,107 @@ export default function Profile() {
             ) : (
               <View className="mt-2">
                 <View className="flex-row items-start justify-between">
-                  <ScreenHeader
-                    title="My Profile"
-                    subtitle="Personal and skin details"
-                  />
+                  <ScreenHeader title="My Profile" subtitle="Personal and skin details" />
                   <Pressable
                     onPress={goEdit}
                     className="flex-row items-center gap-1.5 bg-white rounded-full px-3.5 py-2 active:opacity-70"
                     style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
                   >
                     <Pencil size={14} color={theme.colors.primary} />
-                    <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>Edit</Text>
+                    <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>
+                      Edit
+                    </Text>
                   </Pressable>
                 </View>
                 <CoachTarget id="profile.card" scrollIntoView={scrollIntoView}>
-                <LinearGradient
-                  colors={[...theme.gradients.dark]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  className="flex-col mt-4 px-4 py-4"
-                  style={{ borderRadius: theme.radius.card, ...cardShadow }}
-                >
-                  <View className="flex-row items-center gap-4">
-                    <Pressable
-                      onPress={handleAvatarPress}
-                      accessibilityRole="button"
-                      accessibilityLabel="Change profile picture"
-                      className="active:opacity-80"
-                    >
-                      <View>
-                        {userProfile?.face_image_url ? (
-                          <Image
-                            source={{ uri: userProfile.face_image_url }}
-                            className="h-20 w-20 rounded-full"
-                          style={{ backgroundColor: theme.colors.primarySoft }}
-                          />
-                        ) : (
+                  <LinearGradient
+                    colors={[...theme.gradients.dark]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    className="flex-col mt-4 px-4 py-4"
+                    style={{ borderRadius: theme.radius.card, ...cardShadow }}
+                  >
+                    <View className="flex-row items-center gap-4">
+                      <Pressable
+                        onPress={handleAvatarPress}
+                        accessibilityRole="button"
+                        accessibilityLabel="Change profile picture"
+                        className="active:opacity-80"
+                      >
+                        <View>
+                          {userProfile?.face_image_url ? (
+                            <Image
+                              source={{ uri: userProfile.face_image_url }}
+                              className="h-20 w-20 rounded-full"
+                              style={{ backgroundColor: theme.colors.primarySoft }}
+                            />
+                          ) : (
+                            <LinearGradient
+                              colors={[...theme.gradients.icon]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={{
+                                height: 80,
+                                width: 80,
+                                borderRadius: 999,
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Text className="text-3xl font-bold text-white">{avatarInitial}</Text>
+                            </LinearGradient>
+                          )}
                           <LinearGradient
                             colors={[...theme.gradients.icon]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={{
-                              height: 80,
-                              width: 80,
+                              position: "absolute",
+                              bottom: -4,
+                              right: -4,
+                              height: 28,
+                              width: 28,
                               borderRadius: 999,
                               alignItems: "center",
                               justifyContent: "center",
+                              borderWidth: 2,
+                              borderColor: "#FFFFFF",
                             }}
                           >
-                            <Text className="text-3xl font-bold text-white">
-                              {avatarInitial}
-                            </Text>
+                            <ScanFace size={14} color="#FFFFFF" />
                           </LinearGradient>
-                        )}
-                        <LinearGradient
-                          colors={[...theme.gradients.icon]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={{
-                            position: "absolute",
-                            bottom: -4,
-                            right: -4,
-                            height: 28,
-                            width: 28,
-                            borderRadius: 999,
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderWidth: 2,
-                            borderColor: "#FFFFFF",
-                          }}
-                        >
-                          <ScanFace size={14} color="#FFFFFF" />
-                        </LinearGradient>
+                        </View>
+                      </Pressable>
+                      <View className="flex-1">
+                        <Text className="font-semibold mt-0.5 text-xl" style={{ color: "#FFFFFF" }}>
+                          {displayName}
+                        </Text>
+                        <Text className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.8)" }}>
+                          {userProfile?.email}
+                        </Text>
                       </View>
-                    </Pressable>
-                    <View className="flex-1">
-                      <Text className="font-semibold mt-0.5 text-xl" style={{ color: "#FFFFFF" }}>
-                        {displayName}
-                      </Text>
-                      <Text className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.8)" }}>
-                        {userProfile?.email}
-                      </Text>
                     </View>
-                  </View>
-                  <View className="mt-2 self-start">
-                    <Pill
-                      label={`Member since ${
-                        userProfile?.created_at
-                          ? new Date(userProfile.created_at).toLocaleDateString(
-                              "en-US",
-                              {
+                    <View className="mt-2 self-start">
+                      <Pill
+                        label={`Member since ${
+                          userProfile?.created_at
+                            ? new Date(userProfile.created_at).toLocaleDateString("en-US", {
                                 year: "numeric",
                                 month: "long",
                                 day: "numeric",
-                              },
-                            )
-                          : ""
-                      }`}
-                    />
-                  </View>
-                  <View className="flex-row gap-3 mt-3">
-                    <InfoCard
-                      label="Date of Birth"
-                      value={userProfile?.age || "—"}
-                    />
-                    <InfoCard
-                      label="Gender"
-                      value={
-                        userProfile?.gender
-                          ? formatter(userProfile.gender)
-                          : "—"
-                      }
-                    />
-                  </View>
-                </LinearGradient>
+                              })
+                            : ""
+                        }`}
+                      />
+                    </View>
+                    <View className="flex-row gap-3 mt-3">
+                      <InfoCard label="Date of Birth" value={userProfile?.age || "—"} />
+                      <InfoCard
+                        label="Gender"
+                        value={userProfile?.gender ? formatter(userProfile.gender) : "—"}
+                      />
+                    </View>
+                  </LinearGradient>
                 </CoachTarget>
               </View>
             )}
@@ -344,17 +314,27 @@ export default function Profile() {
             ) : (
               <ClinicalCard className="flex-col gap-3 mt-4">
                 <SectionTitle title="Lifestyle Info" />
-                <View className="flex-row items-center py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
+                <View
+                  className="flex-row items-center py-3 border-b"
+                  style={{ borderBottomColor: theme.colors.divider }}
+                >
                   <View className="flex-1">
-                    <Text className="text-sm" style={{ color: theme.colors.faint }}>Sleep Quality</Text>
+                    <Text className="text-sm" style={{ color: theme.colors.faint }}>
+                      Sleep Quality
+                    </Text>
                     <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
                       {formatter(lifestyleProfile?.sleep_quality || "") || "—"}
                     </Text>
                   </View>
                 </View>
-                <View className="flex-row items-center py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
+                <View
+                  className="flex-row items-center py-3 border-b"
+                  style={{ borderBottomColor: theme.colors.divider }}
+                >
                   <View className="flex-1">
-                    <Text className="text-sm" style={{ color: theme.colors.faint }}>Water Intake</Text>
+                    <Text className="text-sm" style={{ color: theme.colors.faint }}>
+                      Water Intake
+                    </Text>
                     <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
                       {formatter(lifestyleProfile?.water_intake || "") || "—"}
                     </Text>
@@ -362,7 +342,9 @@ export default function Profile() {
                 </View>
                 <View className="flex-row items-center py-3">
                   <View className="flex-1">
-                    <Text className="text-sm" style={{ color: theme.colors.faint }}>Stress Level</Text>
+                    <Text className="text-sm" style={{ color: theme.colors.faint }}>
+                      Stress Level
+                    </Text>
                     <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
                       {formatter(lifestyleProfile?.stress_level || "") || "—"}
                     </Text>
@@ -386,19 +368,22 @@ export default function Profile() {
           <FadeItem index={4}>
             <ClinicalCard className="flex-col gap-3 mt-4">
               <SectionTitle title="Notifications" />
-              <View className="flex-row items-center justify-between py-3 border-b" style={{ borderBottomColor: theme.colors.divider }}>
+              <View
+                className="flex-row items-center justify-between py-3 border-b"
+                style={{ borderBottomColor: theme.colors.divider }}
+              >
                 <View className="flex-col flex-1 pr-3">
-  <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
-                      Scan Reminders
-                    </Text>
-                    <Text className="text-sm" style={{ color: theme.colors.faint }}>
+                  <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
+                    Scan Reminders
+                  </Text>
+                  <Text className="text-sm" style={{ color: theme.colors.faint }}>
                     Weekly skin check reminders
                   </Text>
                 </View>
                 <Switch
                   value={settings.scanReminders}
                   onValueChange={(val) => updateSettings({ scanReminders: val })}
-  trackColor={{ false: theme.colors.cardBorder, true: theme.colors.primary }}
+                  trackColor={{ false: theme.colors.cardBorder, true: theme.colors.primary }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -457,7 +442,9 @@ export default function Profile() {
               onPress={() => setLogoutModal(true)}
             >
               <LogOut size={18} color={theme.colors.card} />
-              <Text className="font-bold" style={{ color: theme.colors.card }}>Logout</Text>
+              <Text className="font-bold" style={{ color: theme.colors.card }}>
+                Logout
+              </Text>
             </Pressable>
             <Pressable
               className="active:opacity-60 py-3 mt-2 items-center"
@@ -522,7 +509,9 @@ function ProfileReviewCard({
       <View className="flex-row items-start gap-3">
         <View
           className="h-9 w-9 rounded-full items-center justify-center"
-          style={{ backgroundColor: confirmed ? theme.colors.primarySoft : theme.colors.background }}
+          style={{
+            backgroundColor: confirmed ? theme.colors.primarySoft : theme.colors.background,
+          }}
         >
           <Icon size={18} color={iconColor} />
         </View>

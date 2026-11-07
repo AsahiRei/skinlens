@@ -45,30 +45,50 @@ export default function ChatClinicCard({ clinic }: { clinic: ChatClinic }) {
     <Pressable
       onPress={open}
       className="rounded-xl px-3 py-2.5 flex-row gap-2.5 items-center active:opacity-80"
-      style={{ backgroundColor: theme.colors.primarySoft, borderWidth: 1, borderColor: theme.colors.cardBorder }}
+      style={{
+        backgroundColor: theme.colors.primarySoft,
+        borderWidth: 1,
+        borderColor: theme.colors.cardBorder,
+      }}
       accessibilityRole="button"
       accessibilityLabel={`${clinic.name}, ${clinic.specialty}${clinic.distanceKm > 0 ? `, ${clinic.distanceKm.toFixed(1)} kilometers away` : ""}. Open details`}
     >
       <View
-        style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: theme.colors.primaryTint }}
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 10,
+          backgroundColor: theme.colors.primaryTint,
+        }}
         className="items-center justify-center"
       >
         <Stethoscope size={18} color={theme.colors.primary} />
       </View>
       <View className="flex-1 min-w-0 gap-0.5">
-        <Text className="text-[13px] font-bold" style={{ color: theme.colors.ink }} numberOfLines={2}>
+        <Text
+          className="text-[13px] font-bold"
+          style={{ color: theme.colors.ink }}
+          numberOfLines={2}
+        >
           {clinic.name}
         </Text>
         <View className="flex-row items-center gap-1">
           <MapPin size={11} color={theme.colors.faint} />
-          <Text className="text-[11px] flex-1" style={{ color: theme.colors.muted }} numberOfLines={1}>
+          <Text
+            className="text-[11px] flex-1"
+            style={{ color: theme.colors.muted }}
+            numberOfLines={1}
+          >
             {clinic.distanceKm > 0 ? `${clinic.distanceKm.toFixed(1)} km • ` : ""}
             {clinic.address}
           </Text>
         </View>
         <View className="flex-row gap-1 mt-0.5">
           {clinic.verified ? <Pill label="Verified • Bookable" tone="warning" /> : null}
-          <Pill label={clinic.specialty} tone={/derma/i.test(clinic.specialty) ? "primary" : "neutral"} />
+          <Pill
+            label={clinic.specialty}
+            tone={/derma/i.test(clinic.specialty) ? "primary" : "neutral"}
+          />
         </View>
       </View>
       <ArrowRight size={16} color={theme.colors.primary} />

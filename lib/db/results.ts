@@ -14,16 +14,10 @@ function swallow(p: PromiseLike<unknown>) {
   Promise.resolve(p).catch(() => {});
 }
 
-// Columns that exist on the Supabase `results` table. `confidence`,
-// `detection_label` and `survey_answers` were device-only until migration
-// 0007 added them server-side — when the server predates that migration the
-// insert is retried without them (see insertResult) so a write never fails
-// just because the schema is behind.
-//
-// The validation fields (validation_status / doctor_notes / validated_by /
-// validated_at) are deliberately NEVER sent from the patient client: only
-// the validate_ai_result() RPC writes them, so a patient sync can never
-// clobber a dermatologist's review.
+// Columns that exist on the Supabase `results` table. `confidence`, `detection_label` and
+// `survey_answers` were device-only until migration 0007 added them server-side — when the server
+// predates that migration the insert is retried without them (see insertResult) so a write never
+// fails just because the schema is behind.
 function toServerResultPayload(
   result: {
     user_id: string;
@@ -56,14 +50,10 @@ function toServerResultPayload(
   return payload;
 }
 
-// Monotonic negative temp ids for rows created while the server insert
-// fails. Initialized below every id already in the table so temp ids stay
-// unique across app restarts (the old Math.min(max,0)-1 scheme always
-// produced -1 and each offline insert overwrote the previous one).
-//
-// Scoped to the WHOLE table, not the current user: `id` is the primary key
-// and is shared by every row, so an id that belongs to another (or to an
-// 'anonymous') row would make the ON CONFLICT upsert below overwrite it.
+// Monotonic negative temp ids for rows created while the server insert fails. Scoped to the WHOLE
+// table, not the current user: `id` is the primary key and is shared by every row, so an id that
+// belongs to another (or to an 'anonymous') row would make the ON CONFLICT upsert below overwrite
+// it.
 let nextTempId: number | null = null;
 
 async function getNextTempId(): Promise<number> {
@@ -97,11 +87,8 @@ const UPSERT_RESULT_SQL = `INSERT INTO results (id, user_id, severity, descripti
    detection_label = COALESCE(excluded.detection_label, results.detection_label),
    survey_answers = COALESCE(excluded.survey_answers, results.survey_answers)`;
 
-// Server-refresh upsert: same columns plus the dermatologist-validation
-// fields, which only ever come back from a server read (the patient client
-// never writes them — see toServerResultPayload). Used when a Supabase
-// SELECT is mirrored into the local cache, so validation reached on the
-// server (doctor reviewed on another device) shows up here too.
+// Server-refresh upsert: same columns plus the dermatologist-validation fields, which only ever
+// come back from a server read (the patient client never writes them — see toServerResultPayload).
 const UPSERT_RESULT_SERVER_SQL = `INSERT INTO results (id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers, validation_status, doctor_notes, validated_by, validated_at)
  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
  ON CONFLICT(id) DO UPDATE SET
@@ -142,9 +129,7 @@ type ServerResultRow = {
   validated_at?: string | null;
 };
 
-// PostgREST row → params for UPSERT_RESULT_SERVER_SQL. Validation fields
-// fall back to null on servers that predate migration 0007, and the SQL's
-// COALESCE keeps whatever the local row already had in that case.
+// PostgREST row → params for UPSERT_RESULT_SERVER_SQL.
 function serverRowParams(row: ServerResultRow): (string | number | null)[] {
   return [
     row.id,
@@ -167,12 +152,8 @@ function serverRowParams(row: ServerResultRow): (string | number | null)[] {
   ];
 }
 
-// ── Batched server→cache mirroring ────────────────────────────────────────
-// Every read path used to run ONE statement per fetched row through the
-// globally serialized SQLite handle — 200 rows = 200 queued round trips on
-// every screen focus. Multi-row VALUES (chunked well under SQLite's
-// guaranteed 999-parameter floor) collapses that to a handful of statements
-// while keeping the exact same ON CONFLICT semantics.
+// Batched server→cache mirroring: Every read path used to run ONE statement per fetched row through
+// the globally serialized SQLite handle — 200 rows = 200 queued round trips on every screen focus.
 const SERVER_UPSERT_COLUMNS = `id, user_id, severity, description, healthscore, image_url, source_type, recommendations, created_at, synced_at, confidence, detection_label, survey_answers, validation_status, doctor_notes, validated_by, validated_at`;
 
 const SERVER_UPSERT_SET = `user_id = excluded.user_id,
@@ -195,12 +176,7 @@ const SERVER_UPSERT_SET = `user_id = excluded.user_id,
 /** Params per row of UPSERT_RESULT_SERVER_SQL. */
 const SERVER_UPSERT_PARAMS_PER_ROW = 17;
 
-/**
- * Upper bound on rows pulled down per read. History screens render ~30 rows
- * and Progress/Report top out well below this; without a cap every focus
- * re-downloads the patient's entire scan history (with its recommendation
- * JSON) and mirrors it row by row.
- */
+/** Upper bound on rows pulled down per read. */
 const RESULTS_FETCH_LIMIT = 200;
 /** 40 × 17 = 680 params — under the 999 guaranteed by every SQLite build. */
 const SERVER_UPSERT_CHUNK = 40;
@@ -251,9 +227,7 @@ function rowToResult(row: {
     healthscore: row.healthscore,
     image_url: row.image_url,
     source_type: row.source_type,
-    recommendations: row.recommendations
-      ? JSON.parse(row.recommendations)
-      : null,
+    recommendations: row.recommendations ? JSON.parse(row.recommendations) : null,
     user_id: row.user_id,
     created_at: row.created_at,
     confidence: row.confidence ?? null,
@@ -354,9 +328,7 @@ export async function getAllResults(): Promise<Result[]> {
     confidence: number | null;
     detection_label: string | null;
     survey_answers: string | null;
-  }>(`SELECT * FROM results WHERE user_id = ? ORDER BY created_at DESC`, [
-    user.id,
-  ]);
+  }>(`SELECT * FROM results WHERE user_id = ? ORDER BY created_at DESC`, [user.id]);
 
   if (rows.length === 0) {
     // No local results — fetch from server and cache
@@ -384,9 +356,7 @@ export async function getAllResults(): Promise<Result[]> {
           confidence: number | null;
           detection_label: string | null;
           survey_answers: string | null;
-        }>(`SELECT * FROM results WHERE user_id = ? ORDER BY created_at DESC`, [
-          user.id,
-        ]);
+        }>(`SELECT * FROM results WHERE user_id = ? ORDER BY created_at DESC`, [user.id]);
         return cached.map(rowToResult);
       }
     } catch {
@@ -414,11 +384,10 @@ export async function getAllResults(): Promise<Result[]> {
 }
 
 /**
- * Like getAllResults, but waits for the server pull to land in the local cache
- * before reading. getAllResults only refreshes in the background, so a cache
- * holding just a scan or two (fresh install, new device, or only this week's
- * rows cached) keeps showing that partial history until the next visit.
- * Falls back to the cached rows when the server is unreachable.
+ * Like getAllResults, but waits for the server pull to land in the local cache before reading.
+ * getAllResults only refreshes in the background, so a cache holding just a scan or two (fresh
+ * install, new device, or only this week's rows cached) keeps showing that partial history until
+ * the next visit.
  */
 export async function refreshAllResults(): Promise<Result[]> {
   const user = await requireUser();
@@ -467,10 +436,10 @@ export async function getThisWeekResults(): Promise<Result[]> {
     confidence: number | null;
     detection_label: string | null;
     survey_answers: string | null;
-  }>(
-    `SELECT * FROM results WHERE user_id = ? AND created_at >= ? ORDER BY created_at DESC`,
-    [user.id, weekAgoISO],
-  );
+  }>(`SELECT * FROM results WHERE user_id = ? AND created_at >= ? ORDER BY created_at DESC`, [
+    user.id,
+    weekAgoISO,
+  ]);
 
   if (rows.length === 0) {
     // No local results for this week — fetch from server and cache
@@ -498,10 +467,10 @@ export async function getThisWeekResults(): Promise<Result[]> {
           confidence: number | null;
           detection_label: string | null;
           survey_answers: string | null;
-        }>(
-          `SELECT * FROM results WHERE user_id = ? AND created_at >= ? ORDER BY created_at DESC`,
-          [user.id, weekAgoISO],
-        );
+        }>(`SELECT * FROM results WHERE user_id = ? AND created_at >= ? ORDER BY created_at DESC`, [
+          user.id,
+          weekAgoISO,
+        ]);
         return cached.map(rowToResult);
       }
     } catch {
@@ -555,10 +524,7 @@ export async function insertResult(result: {
     console.log("[insertResult] image_url:", result.image_url, "user:", user.id);
   }
 
-  // Full server payload: core columns plus the scan fields that used to be
-  // device-only. When the server predates migration 0007 the insert is
-  // retried without them so the row still lands, and a follow-up entry is
-  // queued so the scan fields sync as soon as the migration is applied.
+  // Full server payload: core columns plus the scan fields that used to be device-only.
   const serverPayload = {
     user_id: user.id,
     severity: result.severity,
@@ -591,9 +557,7 @@ export async function insertResult(result: {
       );
       const res = await supabase
         .from("results")
-        .insert(
-          toServerResultPayload(serverPayload, { includeScanFields: false }),
-        )
+        .insert(toServerResultPayload(serverPayload, { includeScanFields: false }))
         .select()
         .single();
       if (res.error) throw res.error;
@@ -619,10 +583,7 @@ export async function insertResult(result: {
       survey_answers: result.survey_answers ?? null,
     };
   } catch (err) {
-    console.warn(
-      "[insertResult] Supabase insert failed, queuing for sync:",
-      err,
-    );
+    console.warn("[insertResult] Supabase insert failed, queuing for sync:", err);
     const tempId = await getNextTempId();
     serverResult = {
       id: tempId,
@@ -638,9 +599,8 @@ export async function insertResult(result: {
       detection_label: result.detection_label ?? null,
       survey_answers: result.survey_answers ?? null,
     };
-    // Rows attributed to "anonymous" (no session) can never satisfy server
-    // RLS — keep them device-local only instead of queueing an entry that
-    // fails on every sync pass.
+    // Rows attributed to "anonymous" (no session) can never satisfy server RLS — keep them
+    // device-local only instead of queueing an entry that fails on every sync pass.
     if (user.id !== "anonymous") {
       await enqueueSync("results", "upsert", String(tempId), {
         id: tempId,
@@ -658,8 +618,7 @@ export async function insertResult(result: {
     }
   }
 
-  const localImageUrl =
-    serverResult.image_url ?? result.local_image_uri ?? null;
+  const localImageUrl = serverResult.image_url ?? result.local_image_uri ?? null;
 
   await db.runAsync(UPSERT_RESULT_SQL, [
     serverResult.id,
@@ -669,9 +628,7 @@ export async function insertResult(result: {
     serverResult.healthscore,
     localImageUrl,
     serverResult.source_type,
-    serverResult.recommendations
-      ? JSON.stringify(serverResult.recommendations)
-      : null,
+    serverResult.recommendations ? JSON.stringify(serverResult.recommendations) : null,
     serverResult.created_at,
     now(),
     serverResult.confidence ?? null,
@@ -682,14 +639,9 @@ export async function insertResult(result: {
 }
 
 /**
- * Re-homes scans taken while the session was missing. insertResult stores
- * those rows under `user_id = 'anonymous'` (and never queues them, because
- * RLS would reject them forever), while every read filters on the signed-in
- * id — so without this the offline scan simply never appears after login.
- *
- * Runs at the start of every sync pass (cheap no-op when there is nothing to
- * claim) and queues the rows under their real temp ids so they reach the
- * server too.
+ * Re-homes scans taken while the session was missing. insertResult stores those rows under `user_id
+ * = 'anonymous'` (and never queues them, because RLS would reject them forever), while every read
+ * filters on the signed-in id — so without this the offline scan simply never appears after login.
  */
 export async function claimAnonymousResults(): Promise<void> {
   const db = await getDatabase();
@@ -722,17 +674,11 @@ export async function claimAnonymousResults(): Promise<void> {
     if (row.id >= 0) {
       // A positively-id'd row can only exist from a past session; leave it
       // alone rather than risk colliding with the server id of another user.
-      await db.runAsync(`UPDATE results SET user_id = ? WHERE id = ?`, [
-        userId,
-        row.id,
-      ]);
+      await db.runAsync(`UPDATE results SET user_id = ? WHERE id = ?`, [userId, row.id]);
       continue;
     }
     if (await hasPendingSync("results", String(row.id))) continue;
-    await db.runAsync(`UPDATE results SET user_id = ? WHERE id = ?`, [
-      userId,
-      row.id,
-    ]);
+    await db.runAsync(`UPDATE results SET user_id = ? WHERE id = ?`, [userId, row.id]);
     let recommendations: RecommendedProduct[] | null = null;
     if (row.recommendations) {
       try {

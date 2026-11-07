@@ -21,7 +21,8 @@ const DAILY_TIPS = notificationsData.dailyTips;
 
 export function generateScanReminder(): Notification | null {
   const today = new Date().toISOString().split("T")[0];
-  const index = today.split("-").reduce((acc, v) => acc + parseInt(v, 10), 0) % SCAN_REMINDERS.length;
+  const index =
+    today.split("-").reduce((acc, v) => acc + parseInt(v, 10), 0) % SCAN_REMINDERS.length;
   const { title, message } = SCAN_REMINDERS[index];
 
   return {
@@ -42,7 +43,7 @@ export function generateDailyTip(): Notification | null {
   const index = dayOfYear % DAILY_TIPS.length;
   const { title, message } = DAILY_TIPS[index];
 
-      return {
+  return {
     id: `tip-${today}`,
     type: "daily_tip",
     title,
@@ -54,9 +55,7 @@ export function generateDailyTip(): Notification | null {
 
 /* ---------- Doctor replies on appointment requests ---------- */
 
-// Per-appointment status snapshot (AsyncStorage). A row's notification fires
-// when its status changes between two checks — the snapshot is only in this
-// device's local DB, so each device counts its own first run as a baseline.
+// Per-appointment status snapshot (AsyncStorage).
 const APPT_REPLY_ACKS_KEY = "appointment_reply_acks";
 
 const REPLIED_STATUSES = ["scheduled", "declined", "completed"] as const;
@@ -101,13 +100,9 @@ function replyCopy(
 }
 
 /**
- * Detects appointment status changes the doctor made on their device
- * (schedule / decline / complete) and turns each into a local notification
- * for the patient. No push infrastructure — this runs on the patient's own
- * device whenever the app loads or the user refreshes notifications.
- *
- * Returns only the freshly-created notifications (already inserted into the
- * local DB with deterministic ids, so a second run never duplicates).
+ * Detects appointment status changes the doctor made on their device (schedule / decline /
+ * complete) and turns each into a local notification for the patient. No push infrastructure — this
+ * runs on the patient's own device whenever the app loads or the user refreshes notifications.
  */
 export async function syncAppointmentReplies(): Promise<Notification[]> {
   let rows: AppointmentRow[] = [];
@@ -151,9 +146,7 @@ export async function syncAppointmentReplies(): Promise<Notification[]> {
   if (changed.length === 0) return [];
 
   // Doctor display names for the copy (fallback: "The clinic").
-  const doctorIds = [
-    ...new Set(changed.map((r) => r.doctor_id).filter((v): v is string => !!v)),
-  ];
+  const doctorIds = [...new Set(changed.map((r) => r.doctor_id).filter((v): v is string => !!v))];
   const doctorNames: Record<string, string> = {};
   if (doctorIds.length > 0) {
     try {
@@ -191,9 +184,7 @@ export async function syncAppointmentReplies(): Promise<Notification[]> {
 
 /* ---------- New booking requests (doctor side) ---------- */
 
-// Appointment ids this device has already turned into a notification, per
-// doctor account. Keeps a re-run from re-inserting (INSERT OR REPLACE would
-// reset a notification the doctor already read).
+// Appointment ids this device has already turned into a notification, per doctor account.
 const DOCTOR_REQUEST_SEEN_KEY = "doctor_request_seen";
 
 /** Request-notification ids are `apptreq-<appointmentId>`. */
@@ -215,12 +206,9 @@ async function showSystemBanner(title: string, body: string): Promise<void> {
 }
 
 /**
- * Detects new patient booking requests for the signed-in doctor (rows at
- * their clinic that are still "requested" and either unassigned or addressed
- * to them) and turns each into a local notification. No-op for patients.
- *
- * The first run on a device lists the currently pending requests in-app
- * without firing system banners; later runs also show a banner per new one.
+ * Detects new patient booking requests for the signed-in doctor (rows at their clinic that are
+ * still "requested" and either unassigned or addressed to them) and turns each into a local
+ * notification.
  */
 let doctorSyncInFlight: Promise<Notification[]> | null = null;
 

@@ -41,10 +41,7 @@ export function evaluateLighting(
   return { quality: "good", message: "Good lighting", icon: "sun" };
 }
 
-export function evaluateAlignment(
-  face: FaceBounds,
-  targetAngle?: ScanAngle,
-): AlignmentStatus {
+export function evaluateAlignment(face: FaceBounds, targetAngle?: ScanAngle): AlignmentStatus {
   const faceCenterX = (face.x + face.width / 2) / SCREEN_W;
   const faceCenterY = (face.y + face.height / 2) / SCREEN_H;
 
@@ -69,10 +66,8 @@ export function evaluateAlignment(
     const yawDiff = Math.abs(yawAngle - targetYaw);
     const isFacingCorrect = yawDiff < ANGLE_YAW_TOLERANCE;
     score -= Math.min(60, yawDiff * 2.5);
-    // Hard gate: outside the yaw window the pose must NOT be capturable,
-    // no matter how well centered/level the face is. Without this, a
-    // front face (yaw ~0, diff ~35) only loses ~40pts -> score ~60 and
-    // wrongly passes the `score >= 50` capture check.
+    // Hard gate: outside the yaw window the pose must NOT be capturable, no matter how well
+    // centered/level the face is.
     if (!isFacingCorrect) {
       score = Math.min(score, 45);
     }

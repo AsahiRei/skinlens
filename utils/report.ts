@@ -5,12 +5,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Platform, ToastAndroid } from "react-native";
 import { Buffer } from "buffer";
 
-import {
-  getAllProfiles,
-  getAllResults,
-  getLatestRoutine,
-  getSensitivityHistory,
-} from "@/lib/db";
+import { getAllProfiles, getAllResults, getLatestRoutine, getSensitivityHistory } from "@/lib/db";
 import { requireUser } from "@/lib/db/auth";
 import { formatter } from "@/utils/formatter";
 import { getHealthScoreResponse } from "@/utils/healthscore";
@@ -77,9 +72,8 @@ function reviewCell(result: { validation_status?: string | null }): string {
 }
 
 export async function generateSkinReportHtml(): Promise<string> {
-  // Sequential: single shared SQLite handle — concurrent statements corrupt
-  // it on Android (expo#48995). The proxy also serializes, this just reduces
-  // queue pressure for a 4-way fan-out.
+  // Sequential: single shared SQLite handle — concurrent statements corrupt it on Android
+  // (expo#48995).
   const { userProfile, skinProfile, lifestyleProfile } = await getAllProfiles();
   const results = await getAllResults();
   const routine = await getLatestRoutine();
@@ -93,10 +87,7 @@ export async function generateSkinReportHtml(): Promise<string> {
     main_concern: skinProfile?.main_concerns ?? "",
   });
 
-  const name =
-    userProfile?.first_name ||
-    userProfile?.username ||
-    "SkinLens User";
+  const name = userProfile?.first_name || userProfile?.username || "SkinLens User";
 
   const userImageUrl = userProfile?.face_image_url ?? null;
 
@@ -132,9 +123,7 @@ export async function generateSkinReportHtml(): Promise<string> {
         <div class="score-meta">
           <div class="score-label">${escapeHtml(health.label)}</div>
           <div class="score-sub">${fmt(latest.detection_label)} detection${
-            latest.confidence
-              ? ` · ${(latest.confidence * 100).toFixed(1)}% confidence`
-              : ""
+            latest.confidence ? ` · ${(latest.confidence * 100).toFixed(1)}% confidence` : ""
           }</div>
           <div class="score-sub">Scanned on ${fmtDate(latest.created_at)}</div>
           <div class="score-sub" style="color:${
@@ -385,10 +374,7 @@ export async function exportSkinReport(): Promise<void> {
   });
 }
 
-/**
- * Render the Skin Report to a local PDF file and return its URI.
- * (expo-print v57: printToFileAsync saves into the app cache directory.)
- */
+/** Render the Skin Report to a local PDF file and return its URI. */
 export async function generateSkinReportPdfUri(): Promise<string> {
   const html = await generateSkinReportHtml();
   const { uri } = await Print.printToFileAsync({ html });
@@ -396,15 +382,11 @@ export async function generateSkinReportPdfUri(): Promise<string> {
 }
 
 /**
- * Upload the freshly generated Skin Report PDF to the private `reports`
- * bucket at `reports/<patient_uid>/<appointmentId>.pdf` (see 0002 migration)
- * so the doctor can open it from the appointment queue. Returns the storage
- * path to persist on `appointments.report_pdf_path`. Best-effort: throws on
- * failure so callers can fall back to manual share.
+ * Upload the freshly generated Skin Report PDF to the private `reports` bucket at
+ * `reports/<patient_uid>/<appointmentId>.pdf` (see 0002 migration) so the doctor can open it from
+ * the appointment queue.
  */
-export async function uploadSkinReportForAppointment(
-  appointmentId: string,
-): Promise<string> {
+export async function uploadSkinReportForAppointment(appointmentId: string): Promise<string> {
   const user = await requireUser();
   const localUri = await generateSkinReportPdfUri();
   const {
@@ -413,10 +395,7 @@ export async function uploadSkinReportForAppointment(
   const token = session?.access_token;
   if (!token) throw new Error("You need to be signed in to send the report.");
 
-  // Native multipart-free upload (files/legacy): uploads the PDF bytes
-  // straight from disk. RN's fetch Blob body can't hold an ArrayBuffer
-  // ("Creating blobs from 'ArrayBuffer' ... not supported") and the global
-  // supabase fetch wrapper aborts uploads at 10s — both avoided here.
+  // Native multipart-free upload (files/legacy): uploads the PDF bytes straight from disk.
   const storagePath = `${user.id}/${appointmentId}.pdf`;
   const baseUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/reports`;
   const res = await FileSystem.uploadAsync(`${baseUrl}/${storagePath}`, localUri, {
@@ -456,14 +435,8 @@ function cleanReportKey(reportPath: string): string {
 }
 
 /**
- * Download a report PDF stored at `appointments.report_pdf_path` into the
- * app cache and return its local `file://` URI (shown in ReportViewerModal).
- *
- * Uses a short-lived signed URL + native `File.downloadFileAsync` (SDK 57):
- * the old `storage.download()` path goes through the app's 10s JSON fetch
- * wrapper and `Blob.arrayBuffer()`, both of which fail for binary PDFs on
- * Hermes/slow networks. Falls back to `storage.download()` when signed URLs
- * are unavailable.
+ * Download a report PDF stored at `appointments.report_pdf_path` into the app cache and return its
+ * local `file://` URI (shown in ReportViewerModal).
  */
 export async function downloadAppointmentReport(reportPath: string): Promise<string> {
   const key = cleanReportKey(reportPath);
@@ -476,9 +449,7 @@ export async function downloadAppointmentReport(reportPath: string): Promise<str
 
   // Primary: signed URL + native download (binary-safe, no 10s abort).
   try {
-    const { data, error } = await supabase.storage
-      .from("reports")
-      .createSignedUrl(key, 120);
+    const { data, error } = await supabase.storage.from("reports").createSignedUrl(key, 120);
     if (error) throw new Error(error.message);
     if (!data?.signedUrl) throw new Error("Could not create a report link.");
     const downloaded = await File.downloadFileAsync(data.signedUrl, dest);
@@ -492,9 +463,7 @@ export async function downloadAppointmentReport(reportPath: string): Promise<str
   // Fallback: storage.download() → write base64 to cache (old path).
   if (!localUri) {
     try {
-      const { data, error } = await supabase.storage
-        .from("reports")
-        .download(key);
+      const { data, error } = await supabase.storage.from("reports").download(key);
       if (error || !data) throw new Error(error?.message ?? "Download failed.");
       const arrayBuf = await data.arrayBuffer();
       const base64 = Buffer.from(arrayBuf).toString("base64");
@@ -509,8 +478,7 @@ export async function downloadAppointmentReport(reportPath: string): Promise<str
   }
 
   if (!localUri) {
-    const msg =
-      lastError instanceof Error ? lastError.message : String(lastError ?? "");
+    const msg = lastError instanceof Error ? lastError.message : String(lastError ?? "");
     if (/bucket|not found|object not found|does not exist/i.test(msg)) {
       throw new Error(
         "Report file not found — it may have been booked before PDF upload existed. Ask the patient to re-book.",

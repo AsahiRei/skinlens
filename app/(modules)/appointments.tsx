@@ -74,8 +74,7 @@ function fmtTime(d: Date): string {
 
 /** Whole calendar days from today (0 = today, 1 = tomorrow, -1 = yesterday). */
 function dayDiff(d: Date): number {
-  const start = (x: Date) =>
-    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   return Math.round((start(d) - start(new Date())) / DAY_MS);
 }
 
@@ -257,10 +256,7 @@ export default function AppointmentsScreen() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [appts, verified] = await Promise.all([
-        getMyAppointments(),
-        getVerifiedClinics(),
-      ]);
+      const [appts, verified] = await Promise.all([getMyAppointments(), getVerifiedClinics()]);
       setRows(appts);
       setClinics(Object.fromEntries(verified.map((c) => [c.id, c])));
       const names = await resolveAppointmentNames(appts);
@@ -308,9 +304,7 @@ export default function AppointmentsScreen() {
       notify("Visit cancelled");
     } catch (err) {
       console.error("[appointments] cancel failed:", err);
-      setActionError(
-        err instanceof Error ? err.message : "Couldn't cancel that visit.",
-      );
+      setActionError(err instanceof Error ? err.message : "Couldn't cancel that visit.");
     } finally {
       setActing(false);
       setCancelRow(null);
@@ -388,10 +382,7 @@ export default function AppointmentsScreen() {
             <View className="flex-row items-center gap-3 mt-2">
               <BackChip onPress={() => router.back()} />
               <View className="flex-1">
-                <ScreenHeader
-                  title="My Appointments"
-                  subtitle="Manage your clinic visits"
-                />
+                <ScreenHeader title="My Appointments" subtitle="Manage your clinic visits" />
               </View>
             </View>
           </FadeItem>
@@ -426,10 +417,7 @@ export default function AppointmentsScreen() {
                   title="No appointments yet"
                   copy="Find a verified clinic near you and request your first visit."
                 />
-                <PrimaryButton
-                  label="Find a clinic"
-                  onPress={() => router.push("/(tabs)/derma")}
-                />
+                <PrimaryButton label="Find a clinic" onPress={() => router.push("/(tabs)/derma")} />
               </ClinicalCard>
             </FadeItem>
           ) : (
@@ -437,10 +425,7 @@ export default function AppointmentsScreen() {
               {activeRows.length > 0 ? (
                 <View className="flex-col gap-3">
                   <FadeItem index={1}>
-                    <SectionTitle
-                      title="Upcoming"
-                      meta={`${activeRows.length} active`}
-                    />
+                    <SectionTitle title="Upcoming" meta={`${activeRows.length} active`} />
                   </FadeItem>
                   {activeRows.map((a, i) => {
                     const confirmed = a.status === "scheduled";
@@ -494,9 +479,7 @@ export default function AppointmentsScreen() {
                               <Text
                                 className={`text-[13px] mt-1 ${confirmed ? "font-bold" : ""}`}
                                 style={{
-                                  color: confirmed
-                                    ? theme.colors.primaryDeep
-                                    : theme.colors.body,
+                                  color: confirmed ? theme.colors.primaryDeep : theme.colors.body,
                                 }}
                                 numberOfLines={2}
                               >
@@ -564,9 +547,7 @@ export default function AppointmentsScreen() {
                               disabled={acting}
                               hitSlop={10}
                               accessibilityRole="button"
-                              accessibilityLabel={
-                                confirmed ? "Cancel visit" : "Cancel request"
-                              }
+                              accessibilityLabel={confirmed ? "Cancel visit" : "Cancel request"}
                               className="py-2 px-1 active:opacity-70"
                             >
                               <Text
@@ -706,10 +687,7 @@ export default function AppointmentsScreen() {
             },
           ]}
         />
-        <ReportViewerModal
-          reportPath={reportPath}
-          onClose={() => setReportPath(null)}
-        />
+        <ReportViewerModal reportPath={reportPath} onClose={() => setReportPath(null)} />
       </SafeAreaView>
     </>
   );

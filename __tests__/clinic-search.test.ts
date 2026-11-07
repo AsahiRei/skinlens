@@ -3,7 +3,9 @@ import { classifyPlace, cleanAddress, mapFeatures, sortClinics } from "@/utils/c
 
 describe("classifyPlace", () => {
   it("uses Geoapify's dermatology category even when the name is generic", () => {
-    expect(classifyPlace("Dr. Santos Clinic", ["healthcare", "healthcare.clinic_or_praxis.dermatology"])).toBe("dermatology");
+    expect(
+      classifyPlace("Dr. Santos Clinic", ["healthcare", "healthcare.clinic_or_praxis.dermatology"]),
+    ).toBe("dermatology");
   });
 
   it("detects dermatology from the name", () => {
@@ -27,15 +29,21 @@ describe("classifyPlace", () => {
 
 describe("cleanAddress", () => {
   it("prefers address_line2", () => {
-    expect(cleanAddress("ABC Clinic", { address_line1: "ABC Clinic", address_line2: "Rizal St, Lipa" })).toBe("Rizal St, Lipa");
+    expect(
+      cleanAddress("ABC Clinic", { address_line1: "ABC Clinic", address_line2: "Rizal St, Lipa" }),
+    ).toBe("Rizal St, Lipa");
   });
 
   it("strips a leading name from formatted", () => {
-    expect(cleanAddress("ABC Clinic", { formatted: "ABC Clinic, Rizal St, Lipa" })).toBe("Rizal St, Lipa");
+    expect(cleanAddress("ABC Clinic", { formatted: "ABC Clinic, Rizal St, Lipa" })).toBe(
+      "Rizal St, Lipa",
+    );
   });
 
   it("never repeats the name as the address", () => {
-    expect(cleanAddress("ABC Clinic", { address_line2: "ABC Clinic", formatted: "ABC Clinic" })).toBe("Address unavailable");
+    expect(
+      cleanAddress("ABC Clinic", { address_line2: "ABC Clinic", formatted: "ABC Clinic" }),
+    ).toBe("Address unavailable");
   });
 });
 
@@ -45,7 +53,14 @@ describe("mapFeatures + sortClinics", () => {
       { properties: { place_id: "1", name: "General Clinic", distance: 500 } },
       { properties: { place_id: "2", name: "Kids Pediatric Clinic", distance: 100 } },
       { properties: { place_id: "3", distance: 50 } },
-      { properties: { place_id: "4", name: "City Hospital", categories: ["healthcare.hospital"], distance: 900 } },
+      {
+        properties: {
+          place_id: "4",
+          name: "City Hospital",
+          categories: ["healthcare.hospital"],
+          distance: 900,
+        },
+      },
       { properties: { place_id: "5", name: "Derma Care", distance: 4000 } },
     ];
     const out = sortClinics(mapFeatures(features));

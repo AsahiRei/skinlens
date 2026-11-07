@@ -45,8 +45,7 @@ export function getDeviceTier(): DeviceTier {
   // recent flagships rise a tier.
   if (yearClass !== null) {
     if (yearClass <= 2018 && tier !== "low") tier = "low";
-    else if (yearClass >= 2023 && totalMemory !== null && totalMemory >= 4 * GB)
-      tier = "high";
+    else if (yearClass >= 2023 && totalMemory !== null && totalMemory >= 4 * GB) tier = "high";
   }
 
   // iOS Simulator / Android emulator reports as not-a-device: treat as mid+

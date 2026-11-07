@@ -4,18 +4,8 @@ import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
 import { usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
-import {
-  ClipboardList,
-  House,
-  ScanLine,
-  Stethoscope,
-  UserRound,
-} from "lucide-react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { ClipboardList, House, ScanLine, Stethoscope, UserRound } from "lucide-react-native";
 
 import type { TabBarVariant } from "@/lib/tabs-config";
 import { PRESS_SPRING, useTabFocusStyle } from "@/components/motion";
@@ -23,10 +13,7 @@ import { theme } from "@/lib/theme";
 
 type TabBarProps = {
   state: { index: number; routes: { key: string; name: string }[] };
-  descriptors: Record<
-    string,
-    { options: { title?: string; tabBarAccessibilityLabel?: string } }
-  >;
+  descriptors: Record<string, { options: { title?: string; tabBarAccessibilityLabel?: string } }>;
   navigation: {
     emit: (e: any) => { defaultPrevented: boolean };
     navigate: (name: string) => void;
@@ -97,9 +84,7 @@ function SideTab({
       style={styles.sideWrap}
     >
       {({ pressed }) => (
-        <Animated.View
-          style={[styles.sideCol, pillStyle, pressed && { opacity: 0.7 }]}
-        >
+        <Animated.View style={[styles.sideCol, pillStyle, pressed && { opacity: 0.7 }]}>
           <Animated.View style={iconStyle}>
             <Icon
               size={19}
@@ -107,10 +92,7 @@ function SideTab({
               strokeWidth={focused ? 2.2 : 1.9}
             />
           </Animated.View>
-          <Text
-            style={[styles.sideLabel, focused && styles.sideLabelActive]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.sideLabel, focused && styles.sideLabelActive]} numberOfLines={1}>
             {label}
           </Text>
         </Animated.View>
@@ -157,19 +139,12 @@ function ScanTab({
       <Animated.View style={[styles.fab, fabStyle]}>
         <ScanLine size={22} color={FAB_ICON} strokeWidth={2.4} />
       </Animated.View>
-      <Text style={[styles.scanLabel, focused && styles.scanLabelActive]}>
-        Scan
-      </Text>
+      <Text style={[styles.scanLabel, focused && styles.scanLabelActive]}>Scan</Text>
     </Pressable>
   );
 }
 
-export function AppTabBar({
-  state,
-  descriptors,
-  navigation,
-  variant = "floating",
-}: TabBarProps) {
+export function AppTabBar({ state, descriptors, navigation, variant = "floating" }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const isFloating = variant === "floating";
@@ -198,9 +173,7 @@ export function AppTabBar({
       >
         {state.routes.map((route, index) => {
           const focused =
-            activeByPath != null
-              ? route.name === activeByPath
-              : state.index === index;
+            activeByPath != null ? route.name === activeByPath : state.index === index;
           const options = descriptors[route.key]?.options ?? {};
           const label = options.title ?? LABELS[route.name] ?? route.name;
 

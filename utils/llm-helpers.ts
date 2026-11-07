@@ -8,9 +8,7 @@ export function stripThinkTags(raw: string): string {
     if (firstBrace !== -1) {
       result = result.slice(firstBrace);
     } else {
-      result = result
-        .replace(/<think[\s\S]*$/i, "")
-        .trim();
+      result = result.replace(/<think[\s\S]*$/i, "").trim();
     }
   }
 
@@ -32,9 +30,7 @@ export function extractJsonObject(raw: string): string {
 
   const openBrace = cleaned.indexOf("{");
   if (openBrace === -1) {
-    throw new Error(
-      "No JSON object found in model output: " + raw.slice(0, 200),
-    );
+    throw new Error("No JSON object found in model output: " + raw.slice(0, 200));
   }
 
   const truncated = cleaned.slice(openBrace);

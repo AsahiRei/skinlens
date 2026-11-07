@@ -9,19 +9,10 @@ import { DialogCard, PressableScale } from "@/components/motion";
 import { cardShadow, theme } from "@/lib/theme";
 
 /* ---------- Screen header: title + subtitle, one style everywhere ---------- */
-export function ScreenHeader({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
+export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View className="mt-1">
-      <Text
-        className="text-[24px] font-bold mt-1"
-        style={{ color: theme.colors.ink }}
-      >
+      <Text className="text-[24px] font-bold mt-1" style={{ color: theme.colors.ink }}>
         {title}
       </Text>
       {subtitle ? (
@@ -36,13 +27,7 @@ export function ScreenHeader({
 /* ---------- Back chip: the single back affordance for every stack screen
  * h-9 / icon 18 is the app-wide standard (matches the tab dock rhythm); a few
  * screens used h-10 / icon 20 and read visibly larger than their neighbours. */
-export function BackChip({
-  onPress,
-  label = "Go back",
-}: {
-  onPress: () => void;
-  label?: string;
-}) {
+export function BackChip({ onPress, label = "Go back" }: { onPress: () => void; label?: string }) {
   return (
     <PressableScale
       onPress={onPress}
@@ -58,9 +43,7 @@ export function BackChip({
   );
 }
 
-/* ---------- Back header: back chip + ScreenHeader (+ optional right slot).
- * Wraps ScreenHeader in flex-1 so a right-hand action is pushed to the edge
- * instead of colliding with the title. */
+/** Back header: back chip + ScreenHeader (+ optional right slot). */
 export function BackHeader({
   title,
   subtitle,
@@ -155,10 +138,7 @@ export function IconBadge({
     );
   }
   return (
-    <View
-      className={`${dims} items-center justify-center`}
-      style={{ backgroundColor: bg }}
-    >
+    <View className={`${dims} items-center justify-center`} style={{ backgroundColor: bg }}>
       <Icon size={iconSize} color={iconColor} />
     </View>
   );
@@ -191,11 +171,7 @@ export function PrimaryButton({
       style={{ borderRadius: theme.radius.pill, overflow: "hidden" }}
     >
       <LinearGradient
-        colors={
-          isDisabled
-            ? [...theme.gradients.disabled]
-            : [...theme.gradients.dark]
-        }
+        colors={isDisabled ? [...theme.gradients.disabled] : [...theme.gradients.dark]}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 0.5 }}
         className="py-4 px-5 flex-row items-center justify-center gap-2"
@@ -265,13 +241,7 @@ export function GradientHeroCta({
   );
 }
 
-export function SecondaryButton({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
+export function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <PressableScale
       onPress={onPress}
@@ -280,10 +250,7 @@ export function SecondaryButton({
       className="rounded-full py-4 px-5 flex-row items-center justify-center gap-2 bg-white"
       style={{ borderWidth: 1.5, borderColor: theme.colors.primary }}
     >
-      <Text
-        className="font-bold text-[15px]"
-        style={{ color: theme.colors.primary }}
-      >
+      <Text className="font-bold text-[15px]" style={{ color: theme.colors.primary }}>
         {label}
       </Text>
     </PressableScale>
@@ -311,10 +278,7 @@ export function Pill({
         ? theme.colors.warningText
         : theme.colors.muted;
   return (
-    <View
-      className="rounded-full px-3 py-1 self-start"
-      style={{ backgroundColor: bg }}
-    >
+    <View className="rounded-full px-3 py-1 self-start" style={{ backgroundColor: bg }}>
       <Text className="text-xs font-bold" style={{ color: fg }}>
         {label}
       </Text>
@@ -366,27 +330,15 @@ export function SectionTitle({
 }
 
 /* ---------- Empty state: title + copy ---------- */
-export function EmptyState({
-  title,
-  copy,
-}: {
-  title?: string;
-  copy: string;
-}) {
+export function EmptyState({ title, copy }: { title?: string; copy: string }) {
   return (
     <View className="items-center py-8 px-4">
       {title ? (
-        <Text
-          className="font-bold text-[14px]"
-          style={{ color: theme.colors.ink }}
-        >
+        <Text className="font-bold text-[14px]" style={{ color: theme.colors.ink }}>
           {title}
         </Text>
       ) : null}
-      <Text
-        className="text-xs mt-1 text-center leading-5"
-        style={{ color: theme.colors.muted }}
-      >
+      <Text className="text-xs mt-1 text-center leading-5" style={{ color: theme.colors.muted }}>
         {copy}
       </Text>
     </View>
@@ -409,13 +361,9 @@ export function Notice({
       className="flex-row items-start gap-3 px-4 py-4"
       style={{
         borderRadius: theme.radius.card,
-        backgroundColor: isWarning
-          ? theme.colors.warningBg
-          : theme.colors.primarySoft,
+        backgroundColor: isWarning ? theme.colors.warningBg : theme.colors.primarySoft,
         borderWidth: 1,
-        borderColor: isWarning
-          ? theme.colors.warningBorder
-          : theme.colors.cardBorder,
+        borderColor: isWarning ? theme.colors.warningBorder : theme.colors.cardBorder,
       }}
     >
       <Icon size={18} color={isWarning ? "#B45309" : theme.colors.primary} />
@@ -476,64 +424,83 @@ export function UiModal({
         {/* Inner pressable swallows taps so tapping the card doesn't dismiss */}
         <Pressable onPress={() => {}} className="w-full">
           <DialogCard visible={visible}>
-          <View
-            className="w-full px-5 py-6 items-center"
-            style={{
-              backgroundColor: theme.colors.card,
-              borderRadius: theme.radius.card,
-              borderWidth: 1,
-              borderColor: theme.colors.cardBorder,
-              ...cardShadow,
-            }}
-          >
-            <Text
-              className="font-bold text-[18px] text-center"
-              style={{ color: theme.colors.ink }}
+            <View
+              className="w-full px-5 py-6 items-center"
+              style={{
+                backgroundColor: theme.colors.card,
+                borderRadius: theme.radius.card,
+                borderWidth: 1,
+                borderColor: theme.colors.cardBorder,
+                ...cardShadow,
+              }}
             >
-              {title}
-            </Text>
-            {message ? (
               <Text
-                className="text-[13px] mt-1.5 text-center leading-5"
-                style={{ color: theme.colors.muted }}
+                className="font-bold text-[18px] text-center"
+                style={{ color: theme.colors.ink }}
               >
-                {message}
+                {title}
               </Text>
-            ) : null}
-            {children ? <View className="w-full mt-4">{children}</View> : null}
-            {actions.length > 0 ? (
-              <View className="w-full gap-2 mt-5">
-                {actions.map((action) => {
-                  const kind = action.kind ?? "primary";
-                  if (kind === "secondary") {
-                    return (
-                      <SecondaryButton
-                        key={action.label}
-                        label={action.loading ? "Please wait…" : action.label}
-                        onPress={action.onPress}
-                      />
-                    );
-                  }
-                  if (kind === "ghost") {
-                    return (
-                      <Pressable
-                        key={action.label}
-                        onPress={action.onPress}
-                        disabled={action.disabled || action.loading}
-                        className="rounded-full py-3 px-5 items-center justify-center active:opacity-70"
-                      >
-                        <Text
-                          className="font-bold text-[15px]"
-                          style={{ color: theme.colors.muted }}
+              {message ? (
+                <Text
+                  className="text-[13px] mt-1.5 text-center leading-5"
+                  style={{ color: theme.colors.muted }}
+                >
+                  {message}
+                </Text>
+              ) : null}
+              {children ? <View className="w-full mt-4">{children}</View> : null}
+              {actions.length > 0 ? (
+                <View className="w-full gap-2 mt-5">
+                  {actions.map((action) => {
+                    const kind = action.kind ?? "primary";
+                    if (kind === "secondary") {
+                      return (
+                        <SecondaryButton
+                          key={action.label}
+                          label={action.loading ? "Please wait…" : action.label}
+                          onPress={action.onPress}
+                        />
+                      );
+                    }
+                    if (kind === "ghost") {
+                      return (
+                        <Pressable
+                          key={action.label}
+                          onPress={action.onPress}
+                          disabled={action.disabled || action.loading}
+                          className="rounded-full py-3 px-5 items-center justify-center active:opacity-70"
                         >
-                          {action.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  }
-                  const isDanger = kind === "danger";
-                  const isDisabled = action.disabled || action.loading;
-                  if (isDanger) {
+                          <Text
+                            className="font-bold text-[15px]"
+                            style={{ color: theme.colors.muted }}
+                          >
+                            {action.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    }
+                    const isDanger = kind === "danger";
+                    const isDisabled = action.disabled || action.loading;
+                    if (isDanger) {
+                      return (
+                        <PressableScale
+                          key={action.label}
+                          onPress={action.onPress}
+                          disabled={isDisabled}
+                          accessibilityRole="button"
+                          accessibilityLabel={action.label}
+                          className="rounded-full py-4 px-5 flex-row items-center justify-center gap-2"
+                          style={{
+                            backgroundColor: isDisabled ? "#D1D5DB" : theme.colors.danger,
+                            opacity: isDisabled ? 0.8 : 1,
+                          }}
+                        >
+                          <Text className="font-bold text-white text-[15px]">
+                            {action.loading ? "Please wait…" : action.label}
+                          </Text>
+                        </PressableScale>
+                      );
+                    }
                     return (
                       <PressableScale
                         key={action.label}
@@ -541,54 +508,31 @@ export function UiModal({
                         disabled={isDisabled}
                         accessibilityRole="button"
                         accessibilityLabel={action.label}
-                        className="rounded-full py-4 px-5 flex-row items-center justify-center gap-2"
+                        className="rounded-full"
                         style={{
-                          backgroundColor: isDisabled
-                            ? "#D1D5DB"
-                            : theme.colors.danger,
+                          borderRadius: theme.radius.pill,
+                          overflow: "hidden",
                           opacity: isDisabled ? 0.8 : 1,
                         }}
                       >
-                        <Text className="font-bold text-white text-[15px]">
-                          {action.loading ? "Please wait…" : action.label}
-                        </Text>
+                        <LinearGradient
+                          colors={
+                            isDisabled ? [...theme.gradients.disabled] : [...theme.gradients.dark]
+                          }
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
+                          className="py-4 px-5 flex-row items-center justify-center gap-2"
+                        >
+                          <Text className="font-bold text-white text-[15px]">
+                            {action.loading ? "Please wait…" : action.label}
+                          </Text>
+                        </LinearGradient>
                       </PressableScale>
                     );
-                  }
-                  return (
-                    <PressableScale
-                      key={action.label}
-                      onPress={action.onPress}
-                      disabled={isDisabled}
-                      accessibilityRole="button"
-                      accessibilityLabel={action.label}
-                      className="rounded-full"
-                      style={{
-                        borderRadius: theme.radius.pill,
-                        overflow: "hidden",
-                        opacity: isDisabled ? 0.8 : 1,
-                      }}
-                    >
-                      <LinearGradient
-                        colors={
-                          isDisabled
-                            ? [...theme.gradients.disabled]
-                            : [...theme.gradients.dark]
-                        }
-                        start={{ x: 0, y: 0.5 }}
-                        end={{ x: 1, y: 0.5 }}
-                        className="py-4 px-5 flex-row items-center justify-center gap-2"
-                      >
-                        <Text className="font-bold text-white text-[15px]">
-                          {action.loading ? "Please wait…" : action.label}
-                        </Text>
-                      </LinearGradient>
-                    </PressableScale>
-                  );
-                })}
-              </View>
-            ) : null}
-          </View>
+                  })}
+                </View>
+              ) : null}
+            </View>
           </DialogCard>
         </Pressable>
       </Pressable>

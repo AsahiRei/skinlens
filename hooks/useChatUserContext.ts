@@ -12,9 +12,7 @@ function summarizeRoutine(routineJson: string | null): string | null {
     const parts: string[] = [];
     const formatPeriod = (label: string, steps: { product_type?: string }[] | undefined) => {
       if (!steps || steps.length === 0) return;
-      const names = steps
-        .map((s) => s?.product_type)
-        .filter((n): n is string => !!n);
+      const names = steps.map((s) => s?.product_type).filter((n): n is string => !!n);
       parts.push(`${label}: ${names.length > 0 ? names.join(", ") : `${steps.length} steps`}`);
     };
     formatPeriod("Morning", routine.morning_routine);
@@ -87,18 +85,12 @@ function localDateStr(daysAgo: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/**
- * Progress facts across the user's scans (oldest -> newest) plus routine
- * adherence. Trend compares the latest score with the average of the
- * previous ones so a single noisy scan doesn't flip it.
- */
+/** Progress facts across the user's scans (oldest -> newest) plus routine adherence. */
 function summarizeProgress(
   scansNewestFirst: ScanPoint[],
   routineDays: number | null,
 ): { summary: string | null; trend: ChatUserContext["score_trend"] } {
-  const scans = scansNewestFirst
-    .filter((s) => typeof s.healthscore === "number")
-    .reverse();
+  const scans = scansNewestFirst.filter((s) => typeof s.healthscore === "number").reverse();
   const parts: string[] = [];
   let trend: ChatUserContext["score_trend"] = null;
 
@@ -106,7 +98,9 @@ function summarizeProgress(
     const first = scans[0];
     const latest = scans[scans.length - 1];
     const since = shortDate(first.created_at);
-    parts.push(`${scans.length} scan${scans.length === 1 ? "" : "s"}${since ? ` since ${since}` : ""}`);
+    parts.push(
+      `${scans.length} scan${scans.length === 1 ? "" : "s"}${since ? ` since ${since}` : ""}`,
+    );
     if (scans.length >= 2) {
       const prev = scans.slice(0, -1);
       const prevAvg = prev.reduce((sum, s) => sum + s.healthscore, 0) / prev.length;
@@ -147,53 +141,51 @@ export function useChatUserContext() {
         sensitivityRows,
         scanRows,
         routineDaysRow,
-      ] =
-        await Promise.all([
-          db.getFirstAsync<{ first_name: string; age: string; gender: string }>(
-            `SELECT first_name, age, gender FROM user_profile WHERE id = ?`,
-            [user.id],
-          ),
-          db.getFirstAsync<{ skin_type: string; main_concerns: string }>(
-            `SELECT skin_type, main_concerns FROM skin_profile WHERE id = ?`,
-            [user.id],
-          ),
-          db.getFirstAsync<{
-            sleep_quality: string;
-            water_intake: string;
-            stress_level: string;
-          }>(
-            `SELECT sleep_quality, water_intake, stress_level FROM lifestyle_profile WHERE id = ?`,
-            [user.id],
-          ),
-          db.getFirstAsync<{ routine_json: string }>(
-            `SELECT routine_json FROM routines WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-            [user.id],
-          ),
-          db.getFirstAsync<{
-            healthscore: number;
-            severity: string;
-            description: string;
-            detection_label: string;
-            recommendations: string;
-            validation_status: string | null;
-            doctor_notes: string | null;
-          }>(
-            `SELECT healthscore, severity, description, detection_label, recommendations, validation_status, doctor_notes FROM results WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-            [user.id],
-          ),
-          db.getAllAsync<{ trigger_cause: string; severity: string; notes: string | null }>(
-            `SELECT trigger_cause, severity, notes FROM sensitivity_history WHERE user_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 20`,
-            [user.id],
-          ),
-          db.getAllAsync<ScanPoint>(
-            `SELECT healthscore, created_at FROM results WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 30`,
-            [user.id],
-          ),
-          db.getFirstAsync<{ days: number }>(
-            `SELECT COUNT(DISTINCT completed_date) AS days FROM routine_progress WHERE user_id = ? AND completed_date >= ?`,
-            [user.id, localDateStr(6)],
-          ),
-        ]);
+      ] = await Promise.all([
+        db.getFirstAsync<{ first_name: string; age: string; gender: string }>(
+          `SELECT first_name, age, gender FROM user_profile WHERE id = ?`,
+          [user.id],
+        ),
+        db.getFirstAsync<{ skin_type: string; main_concerns: string }>(
+          `SELECT skin_type, main_concerns FROM skin_profile WHERE id = ?`,
+          [user.id],
+        ),
+        db.getFirstAsync<{
+          sleep_quality: string;
+          water_intake: string;
+          stress_level: string;
+        }>(`SELECT sleep_quality, water_intake, stress_level FROM lifestyle_profile WHERE id = ?`, [
+          user.id,
+        ]),
+        db.getFirstAsync<{ routine_json: string }>(
+          `SELECT routine_json FROM routines WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
+          [user.id],
+        ),
+        db.getFirstAsync<{
+          healthscore: number;
+          severity: string;
+          description: string;
+          detection_label: string;
+          recommendations: string;
+          validation_status: string | null;
+          doctor_notes: string | null;
+        }>(
+          `SELECT healthscore, severity, description, detection_label, recommendations, validation_status, doctor_notes FROM results WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
+          [user.id],
+        ),
+        db.getAllAsync<{ trigger_cause: string; severity: string; notes: string | null }>(
+          `SELECT trigger_cause, severity, notes FROM sensitivity_history WHERE user_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 20`,
+          [user.id],
+        ),
+        db.getAllAsync<ScanPoint>(
+          `SELECT healthscore, created_at FROM results WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 30`,
+          [user.id],
+        ),
+        db.getFirstAsync<{ days: number }>(
+          `SELECT COUNT(DISTINCT completed_date) AS days FROM routine_progress WHERE user_id = ? AND completed_date >= ?`,
+          [user.id, localDateStr(6)],
+        ),
+      ]);
 
       const progress = summarizeProgress(
         scanRows ?? [],
@@ -215,9 +207,7 @@ export function useChatUserContext() {
         water_intake: lifestyleRow?.water_intake,
         stress_level: lifestyleRow?.stress_level,
         routine_summary: summarizeRoutine(routineRow?.routine_json ?? null),
-        recommendations_summary: summarizeRecommendations(
-          resultRow?.recommendations ?? null,
-        ),
+        recommendations_summary: summarizeRecommendations(resultRow?.recommendations ?? null),
         sensitivity_triggers: summarizeSensitivityTriggers(sensitivityRows ?? []),
         progress_summary: progress.summary,
         score_trend: progress.trend,

@@ -1,11 +1,6 @@
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  View,
-} from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { Text } from "@/components/Text";
 import { Sun, CloudSun, Moon, Check } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,27 +12,16 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { CoachTarget } from "@/components/TutorialCoach";
 import { theme, cardShadow } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
-import {
-  ClinicalCard,
-  EmptyState,
-  ScreenHeader,
-} from "@/components/ui";
+import { ClinicalCard, EmptyState, ScreenHeader } from "@/components/ui";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { useCoachScroller } from "@/hooks/useCoachScroller";
-import {
-  getLatestRoutine,
-  getTodayProgress,
-  toggleStep as toggleStepDb,
-} from "@/lib/db";
+import { getLatestRoutine, getTodayProgress, toggleStep as toggleStepDb } from "@/lib/db";
 import type { Period, Routine, RoutineStep } from "@/types/schema";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
 type IconComponent = typeof Sun;
 
-const PERIOD_CONFIG: Record<
-  Period,
-  { label: string; icon: IconComponent; key: keyof Routine }
-> = {
+const PERIOD_CONFIG: Record<Period, { label: string; icon: IconComponent; key: keyof Routine }> = {
   morning: { label: "Morning", icon: Sun, key: "morning_routine" },
   afternoon: {
     label: "Afternoon",
@@ -93,9 +77,8 @@ export default function Routines() {
     }
   };
   useEffect(() => {
-    // Sync-on-focus: tab screens stay mounted between visits, so the
-    // default period must follow the clock whenever the screen regains
-    // focus — unless the user picked one by hand.
+    // Sync-on-focus: tab screens stay mounted between visits, so the default period must follow the
+    // clock whenever the screen regains focus — unless the user picked one by hand.
     if (!manualPeriod.current) setActivePeriod(periodForNow());
     // Fetch-on-focus effect: setState happens in async continuations after
     // awaits, not synchronously — the extra render pass is inherent to loading.
@@ -110,9 +93,7 @@ export default function Routines() {
       setRefreshing(false);
     }
   };
-  const activeSteps = routine
-    ? (routine[PERIOD_CONFIG[activePeriod].key] as RoutineStep[])
-    : [];
+  const activeSteps = routine ? (routine[PERIOD_CONFIG[activePeriod].key] as RoutineStep[]) : [];
   const allSteps = useMemo(() => {
     if (!routine) return [];
     return [
@@ -133,17 +114,14 @@ export default function Routines() {
   const totalSteps = allSteps.length;
   // Only count completions that map to a step in the current routine, so a
   // stale key can never push the count past the total.
-  const doneCount = allSteps.filter((s) =>
-    completedSteps.has(`${s.period}-${s.step}`),
-  ).length;
+  const doneCount = allSteps.filter((s) => completedSteps.has(`${s.period}-${s.step}`)).length;
   // The headline count follows the selected tab (what's on screen); the
   // whole-day total is shown as secondary context.
   const periodTotal = activeSteps.length;
   const periodDone = activeSteps.filter((s) =>
     completedSteps.has(`${activePeriod}-${s.step}`),
   ).length;
-  const progressPct =
-    periodTotal > 0 ? Math.round((periodDone / periodTotal) * 100) : 0;
+  const progressPct = periodTotal > 0 ? Math.round((periodDone / periodTotal) * 100) : 0;
   const handleToggleStep = async (period: Period, step: number) => {
     const key = `${period}-${step}`;
     if (pendingSteps.has(key)) return;
@@ -174,7 +152,11 @@ export default function Routines() {
     }
   };
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <ScrollView
         ref={scrollRef}
@@ -212,15 +194,17 @@ export default function Routines() {
           <>
             <FadeItem index={0}>
               <View className="mt-2">
-                <ScreenHeader
-                  title="My Routine"
-                  subtitle="Today's steps"
-                />
+                <ScreenHeader title="My Routine" subtitle="Today's steps" />
               </View>
             </FadeItem>
 
             <FadeItem index={1}>
-              <CoachTarget id="routine.periods" className="flex-row items-center gap-2 mt-5 p-1 rounded-full bg-white" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }} scrollIntoView={scrollIntoView}>
+              <CoachTarget
+                id="routine.periods"
+                className="flex-row items-center gap-2 mt-5 p-1 rounded-full bg-white"
+                style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, ...cardShadow }}
+                scrollIntoView={scrollIntoView}
+              >
                 {(Object.keys(PERIOD_CONFIG) as Period[]).map((period) => {
                   const { label, icon: Icon } = PERIOD_CONFIG[period];
                   const isActive = activePeriod === period;
@@ -269,14 +253,20 @@ export default function Routines() {
                 <ClinicalCard className="mt-4">
                   <View className="flex-row justify-between items-center">
                     <Text className="font-bold" style={{ color: theme.colors.ink }}>
-                      {periodDone}/{periodTotal} {PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps done
+                      {periodDone}/{periodTotal} {PERIOD_CONFIG[activePeriod].label.toLowerCase()}{" "}
+                      steps done
                     </Text>
                     <Text className="text-xs" style={{ color: theme.colors.muted }}>
                       {doneCount}/{totalSteps} today
                     </Text>
                   </View>
                   <View className="mt-2">
-                    <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
+                    <InlineProgress
+                      progress={progressPct}
+                      height={8}
+                      color={theme.colors.primary}
+                      trackColor={theme.colors.primarySoft}
+                    />
                   </View>
                 </ClinicalCard>
               )}
@@ -286,7 +276,10 @@ export default function Routines() {
             <View className="flex-col gap-3 mt-4">
               {loadError ? (
                 <ClinicalCard>
-                  <EmptyState title="Couldn't load routine" copy="Check your connection and try again." />
+                  <EmptyState
+                    title="Couldn't load routine"
+                    copy="Check your connection and try again."
+                  />
                 </ClinicalCard>
               ) : !routine ? (
                 <ClinicalCard>
@@ -294,7 +287,9 @@ export default function Routines() {
                 </ClinicalCard>
               ) : activeSteps.length === 0 ? (
                 <ClinicalCard>
-                  <EmptyState copy={`No ${PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps in this routine.`} />
+                  <EmptyState
+                    copy={`No ${PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps in this routine.`}
+                  />
                 </ClinicalCard>
               ) : (
                 activeSteps.map((item, stepIdx) => {
@@ -338,9 +333,7 @@ export default function Routines() {
                           </View>
                           <View className="flex-col flex-1 gap-1">
                             <Text
-                              className={`font-bold text-[15px] ${
-                                isDone ? "line-through" : ""
-                              }`}
+                              className={`font-bold text-[15px] ${isDone ? "line-through" : ""}`}
                               style={{ color: theme.colors.ink }}
                             >
                               {item.product_type}
@@ -380,7 +373,10 @@ export default function Routines() {
                               className="rounded-full px-3 py-1"
                               style={{ backgroundColor: theme.colors.primarySoft }}
                             >
-                              <Text className="text-xs font-semibold" style={{ color: theme.colors.primaryDeep }}>
+                              <Text
+                                className="text-xs font-semibold"
+                                style={{ color: theme.colors.primaryDeep }}
+                              >
                                 {ingredient}
                               </Text>
                             </View>

@@ -17,12 +17,12 @@ import {
 } from "@/lib/db/appointments";
 import { friendlyError, isDuplicateKeyError } from "@/lib/db/pg-errors";
 import { supabase, signOutLocal } from "@/utils/supabase";
+import { doctorSetupSchema, firstError } from "@/lib/validation";
 
 /**
- * Finish a doctor sign-up whose invite code wasn't redeemed yet — either
- * email confirmation was pending at sign-up, or the code failed (used up /
- * expired between the pre-check and the redeem). app/index.tsx routes here
- * while auth user_metadata.pending_invite_code is set.
+ * Finish a doctor sign-up whose invite code wasn't redeemed yet — either email confirmation was
+ * pending at sign-up, or the code failed (used up / expired between the pre-check and the redeem).
+ * app/index.tsx routes here while auth user_metadata.pending_invite_code is set.
  */
 export default function DoctorSetup() {
   const router = useRouter();
@@ -71,12 +71,12 @@ export default function DoctorSetup() {
 
   const handleLink = useCallback(async () => {
     setError(null);
-    const cleanName = name.trim();
-    const cleanCode = code.trim().toUpperCase();
-    if (!cleanName || !cleanCode) {
-      setError("Enter your full name and the hospital invite code.");
+    const parsed = doctorSetupSchema.safeParse({ name, code });
+    if (!parsed.success) {
+      setError(firstError(parsed.error));
       return;
     }
+    const { name: cleanName, code: cleanCode } = parsed.data;
     setLinking(true);
     try {
       const { data } = await supabase.auth.getUser();
@@ -100,7 +100,10 @@ export default function DoctorSetup() {
       await clearPendingDoctorSignup().catch((e) =>
         console.warn("[doctor-setup] clear pending marker failed:", e),
       );
-      console.log(`[SkinLens][Auth] ${new Date().toISOString()} doctor-setup linked clinic=`, res.clinic_name);
+      console.log(
+        `[SkinLens][Auth] ${new Date().toISOString()} doctor-setup linked clinic=`,
+        res.clinic_name,
+      );
       router.replace("/doctor");
     } catch (err) {
       console.log(`[SkinLens][Auth] ${new Date().toISOString()} doctor-setup redeem failed:`, err);
@@ -130,7 +133,10 @@ export default function DoctorSetup() {
 
   if (checking) {
     return (
-      <View className="flex-1 items-center justify-center" style={{ backgroundColor: theme.colors.background }}>
+      <View
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: theme.colors.background }}
+      >
         <ScreenGradient />
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
@@ -156,8 +162,17 @@ export default function DoctorSetup() {
           />
 
           <View className="flex-col gap-2">
-            <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Full Name</Text>
-            <View className="flex-row items-center bg-white px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+            <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>
+              Full Name
+            </Text>
+            <View
+              className="flex-row items-center bg-white px-4 py-3 gap-2"
+              style={{
+                borderWidth: 1,
+                borderColor: theme.colors.cardBorder,
+                borderRadius: theme.radius.input,
+              }}
+            >
               <User size={22} color={theme.colors.muted} />
               <TextInput
                 value={name}
@@ -172,8 +187,17 @@ export default function DoctorSetup() {
           </View>
 
           <View className="flex-col gap-2">
-            <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Hospital Invite Code</Text>
-            <View className="flex-row items-center bg-white px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: error ? theme.colors.danger : theme.colors.cardBorder, borderRadius: theme.radius.input }}>
+            <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>
+              Hospital Invite Code
+            </Text>
+            <View
+              className="flex-row items-center bg-white px-4 py-3 gap-2"
+              style={{
+                borderWidth: 1,
+                borderColor: error ? theme.colors.danger : theme.colors.cardBorder,
+                borderRadius: theme.radius.input,
+              }}
+            >
               <Ticket size={22} color={theme.colors.muted} />
               <TextInput
                 value={code}
@@ -190,17 +214,26 @@ export default function DoctorSetup() {
               />
             </View>
             {error ? (
-              <Text className="text-xs" style={{ color: theme.colors.danger }} accessibilityLiveRegion="polite">
+              <Text
+                className="text-xs"
+                style={{ color: theme.colors.danger }}
+                accessibilityLiveRegion="polite"
+              >
                 {error}
               </Text>
             ) : (
               <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                Codes can expire or run out. Ask your hospital for a new one if this one doesn&apos;t work.
+                Codes can expire or run out. Ask your hospital for a new one if this one
+                doesn&apos;t work.
               </Text>
             )}
           </View>
 
-          <PrimaryButton label="Link Hospital" onPress={() => void handleLink()} loading={linking} />
+          <PrimaryButton
+            label="Link Hospital"
+            onPress={() => void handleLink()}
+            loading={linking}
+          />
 
           <Pressable
             onPress={() => void continueAsPatient()}
@@ -217,7 +250,9 @@ export default function DoctorSetup() {
             accessibilityRole="button"
             className="items-center py-1 active:opacity-60"
           >
-            <Text className="text-sm" style={{ color: theme.colors.muted }}>Sign out</Text>
+            <Text className="text-sm" style={{ color: theme.colors.muted }}>
+              Sign out
+            </Text>
           </Pressable>
         </View>
       </KeyboardAwareScroll>

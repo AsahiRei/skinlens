@@ -19,11 +19,7 @@ const PROXIMITY_RE =
 const PRODUCT_CONTEXT_RE =
   /derma\w*[- ](recommended|approved|tested|grade)|\b(serum|sunscreen|cream|cleanser|moisturi[sz]er|product)s?\b/;
 
-/**
- * Deterministic intent check — the on-device LLM is too small for
- * function-calling. Needs BOTH a place word and a proximity/search word,
- * so "should I see a dermatologist?" stays an LLM answer.
- */
+/** Deterministic intent check — the on-device LLM is too small for function-calling. */
 export function isNearbyClinicIntent(message: string): boolean {
   const q = message.toLowerCase();
   if (!PLACE_RE.test(q) || !PROXIMITY_RE.test(q)) return false;
@@ -39,9 +35,7 @@ function haversineKm(a: Coords, b: Coords): number {
   const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
   const lat1 = (a.latitude * Math.PI) / 180;
   const lat2 = (b.latitude * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
@@ -77,9 +71,8 @@ export type NearbyClinicsResult = {
 };
 
 /**
- * Verified clinics (bookable, from Supabase) first, then live
- * dermatology clinics, then other nearby clinics/hospitals.
- * Never throws: falls back to verified clinics without distances.
+ * Verified clinics (bookable, from Supabase) first, then live dermatology clinics, then other
+ * nearby clinics/hospitals. Never throws: falls back to verified clinics without distances.
  */
 export async function findNearbyClinicsForChat(limit = 5): Promise<NearbyClinicsResult> {
   let location: Coords | null = null;
@@ -94,10 +87,12 @@ export async function findNearbyClinicsForChat(limit = 5): Promise<NearbyClinics
 
   const [verifiedRows, live] = await Promise.all([
     getVerifiedClinics().catch(() => []),
-    location ? fetchLiveClinics(location).catch((err) => {
-      console.warn("[chat] nearby clinics failed:", err);
-      return [] as ChatClinic[];
-    }) : Promise.resolve([] as ChatClinic[]),
+    location
+      ? fetchLiveClinics(location).catch((err) => {
+          console.warn("[chat] nearby clinics failed:", err);
+          return [] as ChatClinic[];
+        })
+      : Promise.resolve([] as ChatClinic[]),
   ]);
 
   let verified: ChatClinic[] = verifiedRows.map((c) => ({
@@ -136,10 +131,7 @@ export async function findNearbyClinicsForChat(limit = 5): Promise<NearbyClinics
  * Chat text for the clinic cards, with a personal note when the user's
  * latest scan makes a visit more worthwhile.
  */
-export function formatClinicsReply(
-  result: NearbyClinicsResult,
-  ctx?: ChatUserContext,
-): string {
+export function formatClinicsReply(result: NearbyClinicsResult, ctx?: ChatUserContext): string {
   const { clinics, locationStatus } = result;
   const parts: string[] = [];
 

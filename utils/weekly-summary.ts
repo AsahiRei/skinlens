@@ -19,9 +19,7 @@ function buildFacts(results: Result[]) {
   );
   const latest = byDate[byDate.length - 1];
   const earliest = byDate[0];
-  const avg = Math.round(
-    byDate.reduce((sum, r) => sum + r.healthscore, 0) / byDate.length,
-  );
+  const avg = Math.round(byDate.reduce((sum, r) => sum + r.healthscore, 0) / byDate.length);
 
   const counts = new Map<string, number>();
   for (const r of results) {
@@ -30,8 +28,7 @@ function buildFacts(results: Result[]) {
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   const findings = [...counts.entries()].map(
-    ([label, count]) =>
-      `${formatter(label)} (${count} scan${count === 1 ? "" : "s"})`,
+    ([label, count]) => `${formatter(label)} (${count} scan${count === 1 ? "" : "s"})`,
   );
 
   const lines: string[] = [
@@ -42,8 +39,7 @@ function buildFacts(results: Result[]) {
 
   if (results.length >= 2) {
     const delta = latest.healthscore - earliest.healthscore;
-    const direction =
-      delta > 0 ? "improving" : delta < 0 ? "declining" : "steady";
+    const direction = delta > 0 ? "improving" : delta < 0 ? "declining" : "steady";
     lines.push(
       `Score change since the first scan this week: ${delta > 0 ? "+" : ""}${delta} points (${direction})`,
     );

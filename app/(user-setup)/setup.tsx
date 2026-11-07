@@ -4,10 +4,7 @@ import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import PagerView from "react-native-pager-view";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import {
-  Calendar,
-  Check,
-} from "lucide-react-native";
+import { Calendar, Check } from "lucide-react-native";
 
 import InlineProgress from "@/components/InlineProgress";
 import { KeyboardAvoidingWrapper } from "@/components/KeyboardAwareView";
@@ -32,11 +29,8 @@ export default function Setup() {
   const pagerRef = useRef<PagerView>(null);
   const [page, setPage] = useState(0);
   const router = useRouter();
-  // NOTE: no pre-filled date of birth — `dob` stays null until the user
-  // picks a date in the native picker, so nobody saves themselves as a
-  // newborn by skipping the question. The stored string keeps the
-  // "Month D, YYYY" shape so downstream readers (loading, edit-profile,
-  // report) keep working unchanged.
+  // NOTE: no pre-filled date of birth — `dob` stays null until the user picks a date in the native
+  // picker, so nobody saves themselves as a newborn by skipping the question.
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [dob, setDob] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(Platform.OS === "ios");
@@ -63,14 +57,10 @@ export default function Setup() {
     let maxPoints = 0;
     questions.forEach((question) => {
       if (question.type !== "options" || !question.options?.length) return;
-      const maxOptionPoints = Math.max(
-        ...question.options.map((opt: any) => opt.points),
-      );
+      const maxOptionPoints = Math.max(...question.options.map((opt: any) => opt.points));
       maxPoints += maxOptionPoints;
       const selectedValue = answers[question.id];
-      const selectedOption = question.options.find(
-        (opt: any) => opt.value === selectedValue,
-      );
+      const selectedOption = question.options.find((opt: any) => opt.value === selectedValue);
       if (selectedOption) totalPoints += selectedOption.points;
     });
     if (maxPoints === 0) return 0;
@@ -80,7 +70,6 @@ export default function Setup() {
   const handleSelect = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
-  //next
   const goToFaceEnroll = () => {
     const healthScore = calculateHealthScore(answers, questionPage);
     // skipIntro=1 because the photo ask already showed here.
@@ -101,7 +90,6 @@ export default function Setup() {
     }
     pagerRef.current?.setPage(page + 1);
   };
-  //back
   const handleBack = () => {
     if (page === 0) return;
     pagerRef.current?.setPage(page - 1);
@@ -111,218 +99,251 @@ export default function Setup() {
       <ScreenGradient />
       <View className="px-5 pt-4 gap-2">
         <View className="flex-row items-center justify-between">
-          <Text className="font-bold text-[11px]" style={{ color: theme.colors.primary, letterSpacing: 1 }}>
+          <Text
+            className="font-bold text-[11px]"
+            style={{ color: theme.colors.primary, letterSpacing: 1 }}
+          >
             STEP {page + 1} OF {totalSteps}
           </Text>
-          <Text className="text-xs" style={{ color: theme.colors.muted }}>{progressPct}%</Text>
+          <Text className="text-xs" style={{ color: theme.colors.muted }}>
+            {progressPct}%
+          </Text>
         </View>
-        <InlineProgress progress={progressPct} height={8} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
+        <InlineProgress
+          progress={progressPct}
+          height={8}
+          color={theme.colors.primary}
+          trackColor={theme.colors.primarySoft}
+        />
       </View>
       <KeyboardAvoidingWrapper>
-      <PagerView
-        ref={pagerRef}
-        style={{ flex: 1, marginTop: 18 }}
-        initialPage={0}
-        scrollEnabled={false}
-        onPageSelected={(e) => {
-          setPage(e.nativeEvent.position);
-        }}
-      >
-        {questionPage.map((item, index) => {
-          if (Math.abs(index - page) > 1) return <View key={index} />;
-          return (
-          <View key={index} className="px-5 gap-4">
-            <Text className="text-[22px] font-bold" style={{ color: theme.colors.ink }}>
-              {item.label}
-            </Text>
-            {item.type === "options" && (
-              <ClinicalCard className="flex-col gap-2" style={{ padding: 12 }}>
-                {item.options?.map((option: any, optIndex: number) => {
-                  const isSelected = answers[item.id] === option.value;
-                  return (
-                    <PressableScale
-                      key={optIndex}
-                      onPress={() => handleSelect(item.id, option.value)}
-                      activeScale={0.98}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: isSelected }}
-                      className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border"
-                      style={
-                        isSelected
-                          ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
-                          : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
-                      }
-                    >
-                      <View
-                        className="h-9 w-9 items-center justify-center rounded-full"
-                        style={{
-                          backgroundColor: isSelected ? "rgba(255,255,255,0.2)" : theme.colors.primarySoft,
-                        }}
-                      >
-                        <Text
-                          className="font-bold text-[15px]"
-                          style={{ color: isSelected ? "#FFFFFF" : theme.colors.primary }}
+        <PagerView
+          ref={pagerRef}
+          style={{ flex: 1, marginTop: 18 }}
+          initialPage={0}
+          scrollEnabled={false}
+          onPageSelected={(e) => {
+            setPage(e.nativeEvent.position);
+          }}
+        >
+          {questionPage.map((item, index) => {
+            if (Math.abs(index - page) > 1) return <View key={index} />;
+            return (
+              <View key={index} className="px-5 gap-4">
+                <Text className="text-[22px] font-bold" style={{ color: theme.colors.ink }}>
+                  {item.label}
+                </Text>
+                {item.type === "options" && (
+                  <ClinicalCard className="flex-col gap-2" style={{ padding: 12 }}>
+                    {item.options?.map((option: any, optIndex: number) => {
+                      const isSelected = answers[item.id] === option.value;
+                      return (
+                        <PressableScale
+                          key={optIndex}
+                          onPress={() => handleSelect(item.id, option.value)}
+                          activeScale={0.98}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: isSelected }}
+                          className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border"
+                          style={
+                            isSelected
+                              ? {
+                                  backgroundColor: theme.colors.primary,
+                                  borderColor: theme.colors.primary,
+                                }
+                              : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
+                          }
                         >
-                          {optIndex + 1}
-                        </Text>
-                      </View>
-                      <Text
-                        className="flex-1 font-semibold"
-                        style={{ color: isSelected ? "#FFFFFF" : theme.colors.ink }}
-                      >
-                        {option.label}
-                      </Text>
-                      {isSelected && (
-                        <Animated.View entering={popIn}>
-                          <Check size={20} color="white" />
-                        </Animated.View>
-                      )}
-                    </PressableScale>
-                  );
-                })}
-                {answers[item.id] === "combination" && (
-                  <Animated.View entering={fadeIn} exiting={fadeOut} className="mt-2 gap-2 px-2">
-                    <Text className="text-xs font-medium" style={{ color: theme.colors.muted }}>
-                      Specify combination details:
-                    </Text>
-                    <View className="flex-row flex-wrap gap-2">
-                      {["Oily", "Dry", "Acne", "Sensitive"].map((detail) => {
-                        const detailId = `${item.id}_${detail.toLowerCase()}`;
-                        const isDetailSelected = answers[detailId] === "true";
-                        return (
-                          <PressableScale
-                            key={detail}
-                            activeScale={0.94}
-                            onPress={() => {
-                              setAnswers((prev) => ({
-                                ...prev,
-                                [detailId]: isDetailSelected ? "false" : "true",
-                              }));
-                            }}
-                            className="px-3 py-1.5 rounded-full border"
+                          <View
+                            className="h-9 w-9 items-center justify-center rounded-full"
                             style={{
-                              backgroundColor: isDetailSelected ? theme.colors.primarySoft : "#FFFFFF",
-                              borderColor: isDetailSelected ? theme.colors.primary : theme.colors.cardBorder,
+                              backgroundColor: isSelected
+                                ? "rgba(255,255,255,0.2)"
+                                : theme.colors.primarySoft,
                             }}
                           >
                             <Text
-                              className="text-xs font-semibold"
-                              style={{ color: isDetailSelected ? theme.colors.primary : theme.colors.ink }}
+                              className="font-bold text-[15px]"
+                              style={{ color: isSelected ? "#FFFFFF" : theme.colors.primary }}
                             >
-                              {detail}
+                              {optIndex + 1}
                             </Text>
-                          </PressableScale>
-                        );
-                      })}
-                    </View>
-                  </Animated.View>
+                          </View>
+                          <Text
+                            className="flex-1 font-semibold"
+                            style={{ color: isSelected ? "#FFFFFF" : theme.colors.ink }}
+                          >
+                            {option.label}
+                          </Text>
+                          {isSelected && (
+                            <Animated.View entering={popIn}>
+                              <Check size={20} color="white" />
+                            </Animated.View>
+                          )}
+                        </PressableScale>
+                      );
+                    })}
+                    {answers[item.id] === "combination" && (
+                      <Animated.View
+                        entering={fadeIn}
+                        exiting={fadeOut}
+                        className="mt-2 gap-2 px-2"
+                      >
+                        <Text className="text-xs font-medium" style={{ color: theme.colors.muted }}>
+                          Specify combination details:
+                        </Text>
+                        <View className="flex-row flex-wrap gap-2">
+                          {["Oily", "Dry", "Acne", "Sensitive"].map((detail) => {
+                            const detailId = `${item.id}_${detail.toLowerCase()}`;
+                            const isDetailSelected = answers[detailId] === "true";
+                            return (
+                              <PressableScale
+                                key={detail}
+                                activeScale={0.94}
+                                onPress={() => {
+                                  setAnswers((prev) => ({
+                                    ...prev,
+                                    [detailId]: isDetailSelected ? "false" : "true",
+                                  }));
+                                }}
+                                className="px-3 py-1.5 rounded-full border"
+                                style={{
+                                  backgroundColor: isDetailSelected
+                                    ? theme.colors.primarySoft
+                                    : "#FFFFFF",
+                                  borderColor: isDetailSelected
+                                    ? theme.colors.primary
+                                    : theme.colors.cardBorder,
+                                }}
+                              >
+                                <Text
+                                  className="text-xs font-semibold"
+                                  style={{
+                                    color: isDetailSelected
+                                      ? theme.colors.primary
+                                      : theme.colors.ink,
+                                  }}
+                                >
+                                  {detail}
+                                </Text>
+                              </PressableScale>
+                            );
+                          })}
+                        </View>
+                      </Animated.View>
+                    )}
+                  </ClinicalCard>
                 )}
-              </ClinicalCard>
-            )}
-            {item.type === "text" && (
-              <View className="bg-white rounded-2xl px-4 py-3" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}>
-                <TextInput
-                  value={answers[item.id] || ""}
-                  onChangeText={(text) => handleSelect(item.id, text)}
-                  placeholder="Type here..."
-                  className="text-gray-900"
-                  placeholderTextColor={theme.colors.faint}
-                  autoFocus
-                />
-              </View>
-            )}
-            {item.type === "date" && (
-              <ClinicalCard>
-                {Platform.OS === "ios" ? (
-                  <DateTimePicker
-                    value={dob ?? DOB_FALLBACK}
-                    mode="date"
-                    display="spinner"
-                    minimumDate={MIN_DOB}
-                    maximumDate={new Date()}
-                    onChange={(_event, selected) => {
-                      if (!selected) return;
-                      setDob(selected);
-                      setDateTouched(true);
-                      handleSelect(item.id, formatDob(selected));
-                    }}
-                  />
-                ) : (
-                  <>
-                    <PressableScale
-                      onPress={() => setShowPicker(true)}
-                      activeScale={0.98}
-                      className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border"
-                      style={{ backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }}
-                    >
-                      <View
-                        className="h-9 w-9 items-center justify-center rounded-full"
-                        style={{ backgroundColor: theme.colors.primarySoft }}
-                      >
-                        <Calendar size={18} color={theme.colors.primary} />
-                      </View>
-                      <Text
-                        className="flex-1 font-semibold"
-                        style={{ color: dob ? theme.colors.ink : theme.colors.faint }}
-                      >
-                        {dob ? formatDob(dob) : "Select your date of birth"}
-                      </Text>
-                    </PressableScale>
-                    {showPicker && (
+                {item.type === "text" && (
+                  <View
+                    className="bg-white rounded-2xl px-4 py-3"
+                    style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                  >
+                    <TextInput
+                      value={answers[item.id] || ""}
+                      onChangeText={(text) => handleSelect(item.id, text)}
+                      placeholder="Type here..."
+                      className="text-gray-900"
+                      placeholderTextColor={theme.colors.faint}
+                      autoFocus
+                    />
+                  </View>
+                )}
+                {item.type === "date" && (
+                  <ClinicalCard>
+                    {Platform.OS === "ios" ? (
                       <DateTimePicker
                         value={dob ?? DOB_FALLBACK}
                         mode="date"
-                        display="default"
+                        display="spinner"
                         minimumDate={MIN_DOB}
                         maximumDate={new Date()}
-                        onChange={(event, selected) => {
-                          // Android dialog: dismiss leaves the answer untouched.
-                          if (event?.type === "dismissed") {
-                            setShowPicker(false);
-                            return;
-                          }
-                          if (selected) {
-                            setDob(selected);
-                            setDateTouched(true);
-                            handleSelect(item.id, formatDob(selected));
-                          }
-                          setShowPicker(false);
+                        onChange={(_event, selected) => {
+                          if (!selected) return;
+                          setDob(selected);
+                          setDateTouched(true);
+                          handleSelect(item.id, formatDob(selected));
                         }}
                       />
+                    ) : (
+                      <>
+                        <PressableScale
+                          onPress={() => setShowPicker(true)}
+                          activeScale={0.98}
+                          className="flex-row items-center gap-3 rounded-2xl py-4 px-4 border"
+                          style={{
+                            backgroundColor: "#FFFFFF",
+                            borderColor: theme.colors.cardBorder,
+                          }}
+                        >
+                          <View
+                            className="h-9 w-9 items-center justify-center rounded-full"
+                            style={{ backgroundColor: theme.colors.primarySoft }}
+                          >
+                            <Calendar size={18} color={theme.colors.primary} />
+                          </View>
+                          <Text
+                            className="flex-1 font-semibold"
+                            style={{ color: dob ? theme.colors.ink : theme.colors.faint }}
+                          >
+                            {dob ? formatDob(dob) : "Select your date of birth"}
+                          </Text>
+                        </PressableScale>
+                        {showPicker && (
+                          <DateTimePicker
+                            value={dob ?? DOB_FALLBACK}
+                            mode="date"
+                            display="default"
+                            minimumDate={MIN_DOB}
+                            maximumDate={new Date()}
+                            onChange={(event, selected) => {
+                              // Android dialog: dismiss leaves the answer untouched.
+                              if (event?.type === "dismissed") {
+                                setShowPicker(false);
+                                return;
+                              }
+                              if (selected) {
+                                setDob(selected);
+                                setDateTouched(true);
+                                handleSelect(item.id, formatDob(selected));
+                              }
+                              setShowPicker(false);
+                            }}
+                          />
+                        )}
+                      </>
                     )}
-                  </>
+                  </ClinicalCard>
                 )}
-              </ClinicalCard>
-            )}
-          </View>
-          );
-        })}
-        {/* Final step: profile picture ask. */}
-        {Math.abs(questionPage.length - page) <= 1 ? (
-          <View key="photo" className="px-5 gap-4">
-            <Text className="text-[22px] font-bold" style={{ color: theme.colors.ink }}>
-              Take a profile picture
-            </Text>
-            <Text className="text-sm leading-5" style={{ color: theme.colors.muted }}>
-              You&apos;ll take one photo on the next screen.
-            </Text>
-          </View>
-        ) : (
-          <View key="photo" />
-        )}
-      </PagerView>
-      <View className="gap-3 px-5 pb-6">
-        <PrimaryButton
-          label={isPhotoStep ? "Take Profile Picture" : "Next"}
-          onPress={handleNext}
-          disabled={!isAnswered}
-        />
-        {page !== 0 && (
-          <Animated.View entering={fadeIn} exiting={fadeOut}>
-            <SecondaryButton label="Back" onPress={handleBack} />
-          </Animated.View>
-        )}
-      </View>
+              </View>
+            );
+          })}
+          {/* Final step: profile picture ask. */}
+          {Math.abs(questionPage.length - page) <= 1 ? (
+            <View key="photo" className="px-5 gap-4">
+              <Text className="text-[22px] font-bold" style={{ color: theme.colors.ink }}>
+                Take a profile picture
+              </Text>
+              <Text className="text-sm leading-5" style={{ color: theme.colors.muted }}>
+                You&apos;ll take one photo on the next screen.
+              </Text>
+            </View>
+          ) : (
+            <View key="photo" />
+          )}
+        </PagerView>
+        <View className="gap-3 px-5 pb-6">
+          <PrimaryButton
+            label={isPhotoStep ? "Take Profile Picture" : "Next"}
+            onPress={handleNext}
+            disabled={!isAnswered}
+          />
+          {page !== 0 && (
+            <Animated.View entering={fadeIn} exiting={fadeOut}>
+              <SecondaryButton label="Back" onPress={handleBack} />
+            </Animated.View>
+          )}
+        </View>
       </KeyboardAvoidingWrapper>
     </SafeAreaView>
   );

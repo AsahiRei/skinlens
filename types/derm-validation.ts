@@ -1,9 +1,5 @@
 export type DermValidationLevel =
-  | "guideline"
-  | "regulatory"
-  | "association"
-  | "clinical"
-  | "emerging";
+  "guideline" | "regulatory" | "association" | "clinical" | "emerging";
 
 export type DermValidationSource = {
   name: string;

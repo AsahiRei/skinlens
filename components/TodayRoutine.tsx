@@ -54,7 +54,9 @@ const checkIn = ZoomIn.duration(160)
   .reduceMotion(ReduceMotion.System);
 const quickOut = FadeOut.duration(100).reduceMotion(ReduceMotion.System);
 const numberIn = FadeIn.duration(160).reduceMotion(ReduceMotion.System);
-const panelIn = FadeIn.duration(180).easing(Easing.out(Easing.quad)).reduceMotion(ReduceMotion.System);
+const panelIn = FadeIn.duration(180)
+  .easing(Easing.out(Easing.quad))
+  .reduceMotion(ReduceMotion.System);
 
 /* ---------- Segmented control ---------- */
 
@@ -84,7 +86,10 @@ export function PeriodTabs({
   const translateX = useSharedValue(0);
   const placed = useRef(false);
 
-  const activeIndex = Math.max(0, tabs.findIndex((t) => t.key === activeKey));
+  const activeIndex = Math.max(
+    0,
+    tabs.findIndex((t) => t.key === activeKey),
+  );
   const tabWidth =
     trackWidth > 0 ? (trackWidth - TRACK_PAD * 2 - TAB_GAP * (tabs.length - 1)) / tabs.length : 0;
 
@@ -181,9 +186,8 @@ export function PeriodTabs({
 /* ---------- Panel ---------- */
 
 /**
- * Holds the content for one period. Changing `periodKey` cross-fades the
- * content once; nothing inside re-plays its entrance. The very first render
- * is static, because the surrounding card already has its own entrance.
+ * Holds the content for one period. Changing `periodKey` cross-fades the content once; nothing
+ * inside re-plays its entrance.
  */
 export function PeriodPanel({
   periodKey,
@@ -265,8 +269,16 @@ export function RoutineStepNode({
   }, [isDone, reduceMotion, done]);
 
   const circleStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(done.value, [0, 1], [theme.colors.card, theme.colors.primary]),
-    borderColor: interpolateColor(done.value, [0, 1], [theme.colors.cardBorder, theme.colors.primary]),
+    backgroundColor: interpolateColor(
+      done.value,
+      [0, 1],
+      [theme.colors.card, theme.colors.primary],
+    ),
+    borderColor: interpolateColor(
+      done.value,
+      [0, 1],
+      [theme.colors.cardBorder, theme.colors.primary],
+    ),
   }));
 
   return (

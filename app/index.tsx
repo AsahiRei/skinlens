@@ -15,15 +15,14 @@ import { useTutorial } from "@/components/TutorialCoach";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import { supabase, validateSession } from "@/utils/supabase";
 
-// Every await on cold start can hang forever (never resolve/reject):
-// AsyncStorage locked after a phone restart, SQLite WAL recovery after an
-// unclean shutdown, supabase-js internal lock, or a radio that is still
-// connecting (requests neither fail nor succeed). Without timeouts the
-// splash spinner sticks forever even though the cloud data is already
-// cached in SQLite. So each step races against a timeout and the whole
-// boot is offline-first: local cache decides the route, network only
-// validates in the background / when there is no cache.
-function withTimeout<T>(promise: Promise<T> | PromiseLike<T>, ms: number, label: string): Promise<T> {
+// Every await on cold start can hang forever (never resolve/reject): AsyncStorage locked after a
+// phone restart, SQLite WAL recovery after an unclean shutdown, supabase-js internal lock, or a
+// radio that is still connecting (requests neither fail nor succeed).
+function withTimeout<T>(
+  promise: Promise<T> | PromiseLike<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(`[index] ${label} timed out after ${ms}ms`)), ms);
@@ -108,7 +107,10 @@ export default function Index() {
     }, STUCK_AFTER_MS);
 
     const initialize = async () => {
-      console.log(`[SkinLens][Boot] ${new Date().toISOString()} initialize start attempt=`, attempt);
+      console.log(
+        `[SkinLens][Boot] ${new Date().toISOString()} initialize start attempt=`,
+        attempt,
+      );
       try {
         // 1. Onboarding flag — device-only, fail open to onboarding check.
         let isOnboarded: string | null = null;
@@ -140,16 +142,15 @@ export default function Index() {
         // 3. Cached session (AsyncStorage-only, no network).
         let cachedSession = null;
         try {
-          const { data } = await withTimeout(
-            supabase.auth.getSession(),
-            5000,
-            "cached session",
-          );
+          const { data } = await withTimeout(supabase.auth.getSession(), 5000, "cached session");
           cachedSession = data.session;
         } catch (err) {
           console.warn("[index] cached session read failed:", err);
         }
-        console.log(`[SkinLens][Boot] ${new Date().toISOString()} cached session user=`, cachedSession?.user?.id ?? null);
+        console.log(
+          `[SkinLens][Boot] ${new Date().toISOString()} cached session user=`,
+          cachedSession?.user?.id ?? null,
+        );
         if (!mountedRef.current || routedRef.current) return;
         if (!cachedSession?.user) {
           safeReplace("/welcome");
@@ -157,10 +158,8 @@ export default function Index() {
         }
         const userId = cachedSession.user.id;
 
-        // 3b. Doctor sign-up whose invite code isn't redeemed yet (email
-        // confirmation was pending, or the redeem failed). The marker lives
-        // in the cached session's user_metadata — no network needed here;
-        // /doctor-setup clears it once linked or on "continue as patient".
+        // 3b. Doctor sign-up whose invite code isn't redeemed yet (email confirmation was pending,
+        // or the redeem failed).
         if (readPendingDoctorSignup(cachedSession.user.user_metadata)) {
           safeReplace("/doctor-setup");
           return;
@@ -179,14 +178,14 @@ export default function Index() {
             8000,
             "local profile read",
           );
-          console.log(`[SkinLens][Boot] ${new Date().toISOString()} local user_setup=`, localProfile?.user_setup ?? null);
+          console.log(
+            `[SkinLens][Boot] ${new Date().toISOString()} local user_setup=`,
+            localProfile?.user_setup ?? null,
+          );
           if (!mountedRef.current || routedRef.current) return;
           if (localProfile?.user_setup === 1) {
-            // Cached profile says setup is done — skip the network wait and
-            // go straight to the tabs. An unfinished first-run tour replays
-            // over them. Server re-validation happens in SyncManager /
-            // _layout (they purge + redirect to /welcome if the account is
-            // really gone).
+            // Cached profile says setup is done — skip the network wait and go straight to the
+            // tabs.
             const tutorialPending = await tutorialPendingFor(userId);
             if (!mountedRef.current || routedRef.current) return;
             if (tutorialPending) startTutorial();
@@ -210,7 +209,10 @@ export default function Index() {
           safeReplace("/(tabs)");
           return;
         }
-        console.log(`[SkinLens][Boot] ${new Date().toISOString()} validated session user=`, session?.user?.id ?? null);
+        console.log(
+          `[SkinLens][Boot] ${new Date().toISOString()} validated session user=`,
+          session?.user?.id ?? null,
+        );
         if (!mountedRef.current || routedRef.current) return;
         if (!session?.user) {
           try {
@@ -223,11 +225,7 @@ export default function Index() {
           return;
         }
 
-        // 6. No local cache — check server for user_setup. Offline (error)
-        // still goes to tabs per the original fail-open behavior.
-        // Doctors skip user-setup entirely: role is server-side only
-        // (no offline cache — booking/doctor flows are online-only), so a
-        // doctor with no local profile lands on the scheduling dashboard.
+        // 6. No local cache — check server for user_setup.
         try {
           const setupRes = (await withTimeout(
             supabase
@@ -266,9 +264,8 @@ export default function Index() {
           safeReplace("/(tabs)");
         }
       } catch (err) {
-        // Never leave this as an uncaught promise (was surfacing as
-        // "Uncaught (in promise, id: 0)" with the sqlite NPE). Route
-        // somewhere safe; tabs render empty states when the DB is down.
+        // Never leave this as an uncaught promise (was surfacing as "Uncaught (in promise, id: 0)"
+        // with the sqlite NPE).
         console.error("[index] init failed:", err);
         safeReplace("/(tabs)");
       }
@@ -286,7 +283,10 @@ export default function Index() {
   }, [router, attempt, safeReplace, startTutorial]);
 
   return (
-    <View className="flex-1 items-center justify-center px-8" style={{ backgroundColor: theme.colors.background }}>
+    <View
+      className="flex-1 items-center justify-center px-8"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <ActivityIndicator size="large" color="#214E36" />
       {stuck && (

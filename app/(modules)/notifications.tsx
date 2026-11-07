@@ -7,19 +7,8 @@ import { Check, CheckCheck, ChevronRight, Trash2 } from "lucide-react-native";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { BackHeader, EmptyState, UiModal } from "@/components/ui";
 import { cardShadow, theme } from "@/lib/theme";
-import Animated, {
-  ReduceMotion,
-  SlideInDown,
-  SlideOutDown,
-} from "react-native-reanimated";
-import {
-  enterUp,
-  fadeIn,
-  fadeOut,
-  listLayout,
-  popIn,
-  PressableScale,
-} from "@/components/motion";
+import Animated, { ReduceMotion, SlideInDown, SlideOutDown } from "react-native-reanimated";
+import { enterUp, fadeIn, fadeOut, listLayout, popIn, PressableScale } from "@/components/motion";
 import { useNotifications } from "@/hooks/useNotifications";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import {
@@ -66,8 +55,7 @@ export default function NotificationsScreen() {
   const { scope } = useLocalSearchParams<{ scope?: string }>();
   const isDoctor = scope === "doctor";
   const filters = isDoctor ? DOCTOR_FILTERS : NOTIFICATION_FILTERS;
-  const { notifications, markAllAsRead, deleteNotification, refresh } =
-    useNotifications();
+  const { notifications, markAllAsRead, deleteNotification, refresh } = useNotifications();
   const [refreshing, setRefreshing] = React.useState(false);
   const [filter, setFilter] = React.useState<NotificationFilter>("all");
   const [selecting, setSelecting] = React.useState(false);
@@ -75,13 +63,12 @@ export default function NotificationsScreen() {
   const [confirmVisible, setConfirmVisible] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
-  // Defensive: never render duplicate keys even if the provider briefly holds
-  // two rows with the same id (see generateNotifications guard). Always newest
-  // first so the day groups read top-down.
+  // Defensive: never render duplicate keys even if the provider briefly holds two rows with the
+  // same id (see generateNotifications guard).
   const uniqueNotifications = React.useMemo(
     () =>
-      Array.from(new Map(notifications.map((n) => [n.id, n])).values()).sort(
-        (a, b) => b.created_at.localeCompare(a.created_at),
+      Array.from(new Map(notifications.map((n) => [n.id, n])).values()).sort((a, b) =>
+        b.created_at.localeCompare(a.created_at),
       ),
     [notifications],
   );
@@ -114,8 +101,7 @@ export default function NotificationsScreen() {
     });
   };
 
-  const allVisibleSelected =
-    visible.length > 0 && visible.every((n) => selected.has(n.id));
+  const allVisibleSelected = visible.length > 0 && visible.every((n) => selected.has(n.id));
   const toggleAllVisible = () => {
     setSelected(allVisibleSelected ? new Set() : new Set(visible.map((n) => n.id)));
   };
@@ -154,7 +140,11 @@ export default function NotificationsScreen() {
   const empty = (isDoctor && DOCTOR_EMPTY_COPY[filter]) || EMPTY_COPY[filter];
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <ScrollView
         className="flex-1"
@@ -188,7 +178,10 @@ export default function NotificationsScreen() {
                   accessibilityRole="button"
                   className="h-9 px-3 items-center justify-center rounded-full active:opacity-80"
                 >
-                  <Text className="font-semibold text-[14px]" style={{ color: theme.colors.primary }}>
+                  <Text
+                    className="font-semibold text-[14px]"
+                    style={{ color: theme.colors.primary }}
+                  >
                     {allVisibleSelected ? "Clear" : "Select all"}
                   </Text>
                 </Pressable>
@@ -199,7 +192,10 @@ export default function NotificationsScreen() {
                   accessibilityLabel="Select notifications to delete"
                   className="h-9 px-3 items-center justify-center rounded-full active:opacity-80"
                 >
-                  <Text className="font-semibold text-[14px]" style={{ color: theme.colors.primary }}>
+                  <Text
+                    className="font-semibold text-[14px]"
+                    style={{ color: theme.colors.primary }}
+                  >
                     Edit
                   </Text>
                 </Pressable>
@@ -474,7 +470,7 @@ function NotificationRow({
           {n.title}
         </Text>
         <Text
-          className="text-[13px] leading-[18px] mt-0.5"
+          className="text-[13px] leading-4.5 mt-0.5"
           style={{ color: n.read ? theme.colors.muted : theme.colors.body }}
           numberOfLines={2}
         >

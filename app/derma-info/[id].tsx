@@ -1,25 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  Switch,
-  ToastAndroid,
-  View,
-} from "react-native";
+import { Linking, Platform, Pressable, ScrollView, Switch, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  Building,
-  MapPin,
-  Navigation,
-  Star,
-  Phone,
-  Globe,
-  Clock,
-  Info,
-} from "lucide-react-native";
+import { Building, MapPin, Navigation, Star, Phone, Globe, Clock, Info } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { DateTimeField } from "@/components/DateTimeField";
@@ -54,8 +37,6 @@ type PlaceDetails = {
 };
 
 // Module scope (not render): preferred-slot fallback ≈24h from app load.
-// Constructed here so render never calls Date.now() (purity rules) — the
-// real value always comes from the native picker (event handler).
 const PREFERRED_FALLBACK = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
 export default function DermatologistDetails() {
@@ -82,26 +63,20 @@ export default function DermatologistDetails() {
   const distanceKm = Number(params.distanceKm ?? 0);
   const availableToday = params.availableToday === "true";
 
-  // Verified entries (from the Supabase `clinics` table) arrive with their
-  // contact info as nav params. Unverified (Geoapify) locations are
-  // view-on-map only — no place-details fetch, no booking.
+  // Verified entries (from the Supabase `clinics` table) arrive with their contact info as nav
+  // params.
   const isCustomEntry = params.isCustom === "1";
-  const customDescription =
-    (typeof params.description === "string" && params.description) || "";
+  const customDescription = (typeof params.description === "string" && params.description) || "";
 
   const details: PlaceDetails = {
     phone: (typeof params.phone === "string" && params.phone) || undefined,
-    website:
-      (typeof params.website === "string" && params.website) || undefined,
-    openingHours:
-      (typeof params.hours === "string" && params.hours) || undefined,
+    website: (typeof params.website === "string" && params.website) || undefined,
+    openingHours: (typeof params.hours === "string" && params.hours) || undefined,
   };
 
   const [booking, setBooking] = useState(false);
   const [showBooked, setShowBooked] = useState(false);
-  // The picked slot can go stale while the form sits open (the picker only
-  // clamps at pick-time). When "Book Appointment" is pressed with an already
-  // passed slot we block the request and explain why in a modal.
+  // The picked slot can go stale while the form sits open (the picker only clamps at pick-time).
   const [showPastSlot, setShowPastSlot] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // Real booking (verified clinics only — needs a Supabase clinic UUID).
@@ -183,21 +158,18 @@ export default function DermatologistDetails() {
   const handleBook = async () => {
     if (!isCustomEntry || !params.id) return;
     if (booking) return;
-    // Press-time re-validation: the picker's minimumDate is captured when the
-    // screen renders and only clamps at pick-time, so a slot chosen for "later
-    // today" can already be in the past by the time the user hits Book (or was
-    // picked as an earlier time today on iOS, whose spinner has no time floor).
-    // Never send a request for a schedule that has passed.
+    // Press-time re-validation: the picker's minimumDate is captured when the screen renders and
+    // only clamps at pick-time, so a slot chosen for "later today" can already be in the past by
+    // the time the user hits Book (or was picked as an earlier time today on iOS, whose spinner has
+    // no time floor). Never send a request for a schedule that has passed.
     if (preferredDate && preferredDate.getTime() <= Date.now()) {
       setShowPastSlot(true);
       return;
     }
     setBooking(true);
     try {
-      // 1. Real booking request → appointments (status 'requested').
-      // Requires network (RLS: patient insert own). Offline → error toast.
-      // Snapshot the patient's display name onto the row so the doctor
-      // queue shows it even when user_profile rows aren't doctor-readable.
+      // 1. Real booking request → appointments (status 'requested'). Requires network (RLS: patient
+      // insert own).
       let patientName: string | null = null;
       let patientAvatarUrl: string | null = null;
       try {
@@ -229,21 +201,18 @@ export default function DermatologistDetails() {
       setBookedAppointmentId(row.id);
       setReportAttached(false);
       setReportError(null);
-      // 2. Only when the patient opted in: generate the Skin Report PDF,
-      // upload it to the private `reports` bucket
-      // (reports/<uid>/<appointment_id>.pdf) and link it to the appointment
-      // row so the doctor can open it from their queue.
+      // 2. Only when the patient opted in: generate the Skin Report PDF, upload it to the private
+      // `reports` bucket (reports/<uid>/<appointment_id>.pdf) and link it to the appointment row so
+      // the doctor can open it from their queue.
       let attachError: string | null = null;
       if (shareReport) {
         try {
           await sendReportToClinic(row.id);
         } catch (pdfErr) {
-          // Booking already saved — PDF upload is best-effort, but the user
-          // must SEE the failure (else the doctor's Report button is missing
-          // with no clue why). The modal still offers a retry.
+          // Booking already saved — PDF upload is best-effort, but the user must SEE the failure
+          // (else the doctor's Report button is missing with no clue why).
           console.warn("[book-appointment] pdf upload failed:", pdfErr);
-          attachError =
-            pdfErr instanceof Error ? pdfErr.message : String(pdfErr ?? "");
+          attachError = pdfErr instanceof Error ? pdfErr.message : String(pdfErr ?? "");
         }
       }
       // One message (iOS shows a single inline notice, so a second notify
@@ -306,10 +275,7 @@ export default function DermatologistDetails() {
         {/* Header / back */}
         <FadeItem index={0}>
           <View className="mt-2">
-            <BackHeader
-              title="Details"
-              onBack={() => router.back()}
-            />
+            <BackHeader title="Details" onBack={() => router.back()} />
           </View>
         </FadeItem>
 
@@ -328,10 +294,15 @@ export default function DermatologistDetails() {
               {availableToday && <Pill label="Available today" />}
             </View>
 
-            <View className="flex-col gap-2 pt-3" style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}>
+            <View
+              className="flex-col gap-2 pt-3"
+              style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
+            >
               <View className="flex-row items-center gap-2">
                 <Building size={16} color={theme.colors.faint} />
-                <Text className="text-sm" style={{ color: theme.colors.body }}>{params.clinic}</Text>
+                <Text className="text-sm" style={{ color: theme.colors.body }}>
+                  {params.clinic}
+                </Text>
               </View>
               <View className="flex-row items-center gap-2">
                 <MapPin size={16} color={theme.colors.faint} />
@@ -379,15 +350,18 @@ export default function DermatologistDetails() {
                 <View className="flex-row items-center gap-2">
                   <Phone size={16} color={theme.colors.faint} />
                   {details.phone ? (
-                    <Pressable
-                      onPress={() => Linking.openURL(`tel:${details.phone}`)}
-                    >
-                      <Text className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
+                    <Pressable onPress={() => Linking.openURL(`tel:${details.phone}`)}>
+                      <Text
+                        className="text-sm font-semibold"
+                        style={{ color: theme.colors.primary }}
+                      >
                         {details.phone}
                       </Text>
                     </Pressable>
                   ) : (
-                    <Text className="text-sm" style={{ color: theme.colors.faint }}>Not available</Text>
+                    <Text className="text-sm" style={{ color: theme.colors.faint }}>
+                      Not available
+                    </Text>
                   )}
                 </View>
 
@@ -404,7 +378,9 @@ export default function DermatologistDetails() {
                       </Text>
                     </Pressable>
                   ) : (
-                    <Text className="text-sm" style={{ color: theme.colors.faint }}>Not available</Text>
+                    <Text className="text-sm" style={{ color: theme.colors.faint }}>
+                      Not available
+                    </Text>
                   )}
                 </View>
 
@@ -445,7 +421,10 @@ export default function DermatologistDetails() {
                     className="rounded-full px-4 py-2.5 border active:opacity-80"
                     style={
                       doctorId === null
-                        ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                        ? {
+                            backgroundColor: theme.colors.primary,
+                            borderColor: theme.colors.primary,
+                          }
                         : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
                     }
                   >
@@ -465,7 +444,10 @@ export default function DermatologistDetails() {
                         className="rounded-full px-4 py-2.5 border active:opacity-80"
                         style={
                           selected
-                            ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                            ? {
+                                backgroundColor: theme.colors.primary,
+                                borderColor: theme.colors.primary,
+                              }
                             : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
                         }
                       >
@@ -505,8 +487,8 @@ export default function DermatologistDetails() {
                     </Text>
                     <Text className="text-xs mt-0.5" style={{ color: theme.colors.muted }}>
                       Includes your name, birth date, skin &amp; lifestyle answers, latest scan
-                      photo, scan history and sensitivity log. Only this clinic&apos;s doctors
-                      can open it.
+                      photo, scan history and sensitivity log. Only this clinic&apos;s doctors can
+                      open it.
                     </Text>
                   </View>
                   <Switch
@@ -526,10 +508,7 @@ export default function DermatologistDetails() {
                 loading={booking}
               />
             ) : (
-              <PrimaryButton
-                label="View on Map"
-                onPress={openFullMap}
-              />
+              <PrimaryButton label="View on Map" onPress={openFullMap} />
             )}
           </View>
         </FadeItem>

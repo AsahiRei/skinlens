@@ -3,10 +3,7 @@ import { ScrollView, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useRouter, useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import {
-  ArrowRight,
-  AlertTriangle,
-} from "lucide-react-native";
+import { ArrowRight, AlertTriangle } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -47,10 +44,9 @@ export default function Scan() {
   const scrollRef = useRef<ScrollView>(null);
   const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
 
-  // Focus reset: Expo Router keeps tab screens mounted, so without this the
-  // nav guard stays true forever after the first push — "Use Camera" would
-  // never open the camera again while "Upload Photo" (which doesn't check
-  // navRef) kept working.
+  // Focus reset: Expo Router keeps tab screens mounted, so without this the nav guard stays true
+  // forever after the first push — "Use Camera" would never open the camera again while "Upload
+  // Photo" (which doesn't check navRef) kept working.
   useFocusEffect(
     useCallback(() => {
       navRef.current = false;
@@ -86,14 +82,22 @@ export default function Scan() {
         allowsEditing: true,
         aspect: [1, 1],
       });
-      console.log(`[SkinLens][Scan] ${new Date().toISOString()} picker canceled=`, result.canceled, `assets=`, result.canceled ? 0 : (result.assets?.length ?? 0));
+      console.log(
+        `[SkinLens][Scan] ${new Date().toISOString()} picker canceled=`,
+        result.canceled,
+        `assets=`,
+        result.canceled ? 0 : (result.assets?.length ?? 0),
+      );
       if (!result.canceled && result.assets?.[0]?.uri) {
         const uri = result.assets[0].uri;
         setCheckingPhoto(true);
         const verdict = await measureImageLighting(uri);
         setCheckingPhoto(false);
         if (verdict && blocksCapture(verdict.quality)) {
-          console.log(`[SkinLens][Scan] ${new Date().toISOString()} gallery lighting blocked quality=`, verdict.quality);
+          console.log(
+            `[SkinLens][Scan] ${new Date().toISOString()} gallery lighting blocked quality=`,
+            verdict.quality,
+          );
           setLightingWarning({ message: verdict.message, uri });
           return;
         }
@@ -113,7 +117,11 @@ export default function Scan() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <UiModal
         visible={notice !== null}
@@ -163,20 +171,25 @@ export default function Scan() {
         ref={scrollRef}
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: TAB_BAR_CLEARANCE }}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 8,
+          paddingBottom: TAB_BAR_CLEARANCE,
+        }}
         onScroll={onScroll}
         scrollEventThrottle={32}
       >
         <FadeItem index={0}>
-          <ScreenHeader
-            title="Skin Scan"
-            subtitle="Take a face photo or upload one"
-          />
+          <ScreenHeader title="Skin Scan" subtitle="Take a face photo or upload one" />
         </FadeItem>
 
         {/* Action buttons */}
         <FadeItem index={1}>
-          <CoachTarget id="scan.actions" className="flex-col gap-3 mt-5" scrollIntoView={scrollIntoView}>
+          <CoachTarget
+            id="scan.actions"
+            className="flex-col gap-3 mt-5"
+            scrollIntoView={scrollIntoView}
+          >
             <GradientHeroCta
               className="mt-0"
               title="Use Camera"
@@ -225,14 +238,25 @@ export default function Scan() {
                 <View
                   key={item.title}
                   className="py-4 px-4 flex-row items-start gap-3"
-                  style={index < scanContent.howItWorks.length - 1 ? { borderBottomWidth: 1, borderBottomColor: theme.colors.divider } : {}}
+                  style={
+                    index < scanContent.howItWorks.length - 1
+                      ? { borderBottomWidth: 1, borderBottomColor: theme.colors.divider }
+                      : {}
+                  }
                 >
-                  <View className="h-7 w-7 rounded-full items-center justify-center mt-0.5" style={{ backgroundColor: theme.colors.primary }}>
+                  <View
+                    className="h-7 w-7 rounded-full items-center justify-center mt-0.5"
+                    style={{ backgroundColor: theme.colors.primary }}
+                  >
                     <Text className="text-white font-bold text-xs">{index + 1}</Text>
                   </View>
                   <View className="flex-col flex-1 gap-0.5">
-                    <Text className="font-bold text-[14px]" style={{ color: theme.colors.ink }}>{item.title}</Text>
-                    <Text className="text-xs" style={{ color: theme.colors.muted }}>{item.description}</Text>
+                    <Text className="font-bold text-[14px]" style={{ color: theme.colors.ink }}>
+                      {item.title}
+                    </Text>
+                    <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                      {item.description}
+                    </Text>
                   </View>
                 </View>
               ))}
@@ -244,18 +268,26 @@ export default function Scan() {
         <FadeItem index={3}>
           <View className="mt-6">
             <SectionTitle title="Tips for best results" />
-            <ClinicalCard className="mt-3 !p-0 overflow-hidden" >
+            <ClinicalCard className="mt-3 !p-0 overflow-hidden">
               <View style={{ backgroundColor: theme.colors.primarySoft, borderRadius: 20 }}>
-              {scanContent.captureTips.map((item, index) => (
-                <View
-                  key={item.title}
-                  className="py-3 px-4 flex-col gap-0.5"
-                  style={index < scanContent.captureTips.length - 1 ? { borderBottomWidth: 1, borderBottomColor: "#D8EADD" } : {}}
-                >
-                  <Text className="font-bold text-[14px]" style={{ color: theme.colors.ink }}>{item.title}</Text>
-                  <Text className="text-xs" style={{ color: theme.colors.body }}>{item.description}</Text>
-                </View>
-              ))}
+                {scanContent.captureTips.map((item, index) => (
+                  <View
+                    key={item.title}
+                    className="py-3 px-4 flex-col gap-0.5"
+                    style={
+                      index < scanContent.captureTips.length - 1
+                        ? { borderBottomWidth: 1, borderBottomColor: "#D8EADD" }
+                        : {}
+                    }
+                  >
+                    <Text className="font-bold text-[14px]" style={{ color: theme.colors.ink }}>
+                      {item.title}
+                    </Text>
+                    <Text className="text-xs" style={{ color: theme.colors.body }}>
+                      {item.description}
+                    </Text>
+                  </View>
+                ))}
               </View>
             </ClinicalCard>
           </View>

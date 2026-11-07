@@ -10,9 +10,5 @@ export type TabBarVariant = "floating" | "docked";
 
 export const TAB_BAR_VARIANT = "floating" as TabBarVariant;
 
-/**
- * Bottom clearance (px) for scroll content inside tab screens.
- * The tab bar floats over content, so lists need extra padding
- * to keep the last items reachable. Docked is shorter than floating.
- */
+/** Bottom clearance (px) for scroll content inside tab screens. */
 export const TAB_BAR_CLEARANCE = TAB_BAR_VARIANT === "docked" ? 96 : 120;

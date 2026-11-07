@@ -9,18 +9,9 @@ import { theme } from "@/lib/theme";
 import { downloadAppointmentReport, shareReportFile } from "@/utils/report";
 
 type LoadState =
-  | { kind: "loading" }
-  | { kind: "ready"; uri: string }
-  | { kind: "error"; message: string };
+  { kind: "loading" } | { kind: "ready"; uri: string } | { kind: "error"; message: string };
 
-/**
- * Full-screen in-app viewer for an appointment's Skin Report PDF.
- *
- * Pass the stored `report_pdf_path` to open it and `null` to close it. The
- * modal downloads the file itself (signed URL → app cache) and renders it
- * with react-native-pdf, so it works the same on Android and iOS. Share is
- * still there for anyone who wants to save or forward the file.
- */
+/** Full-screen in-app viewer for an appointment's Skin Report PDF. */
 export function ReportViewerModal({
   reportPath,
   onClose,
@@ -154,9 +145,7 @@ export function ReportViewerModal({
                 setResult({ key: requestKey, error: "This report couldn't be displayed." });
               }
             }}
-            renderActivityIndicator={() => (
-              <ActivityIndicator color={theme.colors.primary} />
-            )}
+            renderActivityIndicator={() => <ActivityIndicator color={theme.colors.primary} />}
           />
         ) : state.kind === "loading" ? (
           <View className="flex-1 items-center justify-center gap-3">
@@ -167,10 +156,7 @@ export function ReportViewerModal({
           </View>
         ) : (
           <View className="flex-1 items-center justify-center gap-4 px-8">
-            <Text
-              className="text-[14px] text-center"
-              style={{ color: theme.colors.body }}
-            >
+            <Text className="text-[14px] text-center" style={{ color: theme.colors.body }}>
               {state.message}
             </Text>
             <Pressable

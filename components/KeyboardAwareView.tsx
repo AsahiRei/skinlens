@@ -1,10 +1,7 @@
 import type { ReactNode, Ref } from "react";
 import { StyleSheet } from "react-native";
 import type { ScrollView, ScrollViewProps } from "react-native";
-import {
-  SafeKeyboardAvoidingView,
-  SafeKeyboardAwareScrollView,
-} from "@/components/keyboard-safe";
+import { SafeKeyboardAvoidingView, SafeKeyboardAwareScrollView } from "@/components/keyboard-safe";
 
 type KeyboardAvoidingWrapperProps = {
   children: ReactNode;
@@ -12,20 +9,13 @@ type KeyboardAvoidingWrapperProps = {
   keyboardVerticalOffset?: number;
 };
 
-/**
- * Non-scrolling keyboard wrapper (chat, pager flows, tab toggles).
- * Uses react-native-keyboard-controller when its native module is linked
- * (dev client rebuilt), otherwise falls back to RN's KeyboardAvoidingView.
- */
+/** Non-scrolling keyboard wrapper (chat, pager flows, tab toggles). */
 export function KeyboardAvoidingWrapper({
   children,
   keyboardVerticalOffset = 0,
 }: KeyboardAvoidingWrapperProps) {
   return (
-    <SafeKeyboardAvoidingView
-      keyboardVerticalOffset={keyboardVerticalOffset}
-      style={styles.flex}
-    >
+    <SafeKeyboardAvoidingView keyboardVerticalOffset={keyboardVerticalOffset} style={styles.flex}>
       {children}
     </SafeKeyboardAvoidingView>
   );

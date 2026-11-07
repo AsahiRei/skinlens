@@ -48,14 +48,8 @@ function rpcError(error: { message: string }): Error {
   return new Error(error.message);
 }
 
-/**
- * Doctor side: one patient's profile data plus the current verdict. The RPC
- * checks the caller is an active doctor whose clinic has an active
- * appointment with this patient.
- */
-export async function getPatientProfileForReview(
-  patientId: string,
-): Promise<PatientProfileReview> {
+/** Doctor side: one patient's profile data plus the current verdict. */
+export async function getPatientProfileForReview(patientId: string): Promise<PatientProfileReview> {
   const { data, error } = await supabase.rpc("get_patient_profile_for_review", {
     p_patient_id: patientId,
   });
@@ -67,10 +61,7 @@ export async function getPatientProfileForReview(
   };
 }
 
-/**
- * Doctor side: confirm the profile or flag it for follow-up. The server
- * snapshots the reviewed data so later patient edits mark it outdated.
- */
+/** Doctor side: confirm the profile or flag it for follow-up. */
 export async function validatePatientProfile(
   patientId: string,
   status: ProfileValidationStatus,
@@ -85,9 +76,8 @@ export async function validatePatientProfile(
 }
 
 /**
- * Patient side: the verdict on their own profile, or null when no
- * dermatologist has reviewed it yet. Throws when offline / not migrated —
- * callers treat that as "unknown" and hide the badge.
+ * Patient side: the verdict on their own profile, or null when no dermatologist has reviewed it
+ * yet.
  */
 export async function getMyProfileValidation(): Promise<ProfileValidation | null> {
   const { data, error } = await supabase.rpc("get_my_profile_validation");

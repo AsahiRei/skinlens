@@ -10,11 +10,7 @@ import {
   formatSearchResultsForPrompt,
 } from "./web-search";
 import type { ProductCard } from "./web-search";
-import {
-  findNearbyClinicsForChat,
-  formatClinicsReply,
-  isNearbyClinicIntent,
-} from "./nearby-derma";
+import { findNearbyClinicsForChat, formatClinicsReply, isNearbyClinicIntent } from "./nearby-derma";
 import { detectRedFlag } from "./red-flags";
 import {
   extractIngredientNames,
@@ -49,8 +45,7 @@ AI: "Hyaluronic acid is a great ingredient that helps your skin hold onto moistu
 User: "My skin is peeling."
 AI: "I'm sorry to hear your skin is feeling that way. It could be due to dryness or a reaction to a product. If it continues or feels painful, it's best to check in with a dermatologist to be safe."`;
 
-export const CHAT_ERROR_REPLY =
-  "Sorry, I ran into a problem answering that. Please try again.";
+export const CHAT_ERROR_REPLY = "Sorry, I ran into a problem answering that. Please try again.";
 
 function hasAnyProfileData(ctx: ChatUserContext): boolean {
   return (
@@ -89,8 +84,7 @@ function buildContextBlock(ctx?: ChatUserContext): string {
   if (ctx.sleep_quality) lines.push(`Sleep quality: ${ctx.sleep_quality}`);
   if (ctx.water_intake) lines.push(`Water intake: ${ctx.water_intake}`);
   if (ctx.stress_level) lines.push(`Stress level: ${ctx.stress_level}`);
-  if (ctx.routine_summary)
-    lines.push(`Current routine: ${ctx.routine_summary}`);
+  if (ctx.routine_summary) lines.push(`Current routine: ${ctx.routine_summary}`);
   if (ctx.recommendations_summary)
     lines.push(`Recommended products: ${ctx.recommendations_summary}`);
   if (ctx.sensitivity_triggers)
@@ -101,7 +95,9 @@ function buildContextBlock(ctx?: ChatUserContext): string {
       `Dermatologist review of latest scan: ${ctx.doctor_review}${ctx.doctor_notes ? ` (notes: ${ctx.doctor_notes.slice(0, 160)})` : ""}`,
     );
   if (ctx.avoid_ingredients && ctx.avoid_ingredients.length > 0)
-    lines.push(`Ingredients to avoid (linked to past flare-ups): ${ctx.avoid_ingredients.join(", ")}`);
+    lines.push(
+      `Ingredients to avoid (linked to past flare-ups): ${ctx.avoid_ingredients.join(", ")}`,
+    );
   if (lines.length === 0) return "";
   return `\n\nUSER PROFILE — facts about this user. Use them to answer questions about the user, and to personalize skincare advice:\n${lines.join("\n")}`;
 }
@@ -136,12 +132,16 @@ export function describeProgress(ctx: ChatUserContext): string {
       "Your score has dropped lately. Think about any new products or changes in stress or sleep. If it keeps dropping, ask me to find a dermatologist near you.",
     );
   } else if (ctx.score_trend === "steady") {
-    parts.push("Your skin is steady. A routine usually shows results after 4 to 6 weeks of consistent use.");
+    parts.push(
+      "Your skin is steady. A routine usually shows results after 4 to 6 weeks of consistent use.",
+    );
   }
   const days = ctx.routine_days_last_week;
   if (days != null) {
     if (days <= 3) {
-      parts.push(`You did your routine on only ${days} of the last 7 days. Doing it every day will help the most.`);
+      parts.push(
+        `You did your routine on only ${days} of the last 7 days. Doing it every day will help the most.`,
+      );
     } else if (days >= 6) {
       parts.push("Your routine consistency is great this week.");
     }
@@ -149,23 +149,15 @@ export function describeProgress(ctx: ChatUserContext): string {
   if (ctx.doctor_review === "confirmed") {
     parts.push("A dermatologist also confirmed your latest scan result.");
   } else if (ctx.doctor_review === "needs_review") {
-    parts.push("A dermatologist flagged your latest scan for follow-up, so consider booking a visit.");
+    parts.push(
+      "A dermatologist flagged your latest scan for follow-up, so consider booking a visit.",
+    );
   }
   return parts.join(" ");
 }
 
-/**
- * Deterministic answers for "about me" questions.
- *
- * The on-device model (Qwen3 0.6B) is too small to reliably follow
- * recall instructions from the system prompt, so self-referential
- * questions are answered directly from the profile. Returns null when
- * the message is not a profile question, letting the LLM handle it.
- */
-export function answerProfileQuestion(
-  question: string,
-  ctx?: ChatUserContext,
-): string | null {
+/** Deterministic answers for "about me" questions. */
+export function answerProfileQuestion(question: string, ctx?: ChatUserContext): string | null {
   if (!ctx || !hasAnyProfileData(ctx)) {
     // Still intercept self-questions so the tiny model doesn't hallucinate.
     const q = question.toLowerCase();
@@ -266,9 +258,7 @@ export function answerProfileQuestion(
 
   if (has("name", "who am i", "call me")) {
     if (q.includes("name") || q.includes("who am i") || q.includes("call me")) {
-      return ctx.first_name
-        ? `Your name is ${ctx.first_name}.`
-        : missing("name");
+      return ctx.first_name ? `Your name is ${ctx.first_name}.` : missing("name");
     }
   }
   if (has("age", "how old")) {
@@ -282,16 +272,11 @@ export function answerProfileQuestion(
     if (!adviceIntent && has("what", "which", "tell", "remind", "know", "type")) {
       // Disambiguate from concern questions mentioning skin too.
       if (!has("concern", "problem", "issue", "condition", "score", "health")) {
-        return ctx.skin_type
-          ? `Your skin type is ${ctx.skin_type}.`
-          : missing("skin type");
+        return ctx.skin_type ? `Your skin type is ${ctx.skin_type}.` : missing("skin type");
       }
     }
   }
-  if (
-    !adviceIntent &&
-    has("concern", "problem", "issue", "condition", "worried", "struggle")
-  ) {
+  if (!adviceIntent && has("concern", "problem", "issue", "condition", "worried", "struggle")) {
     return ctx.main_concerns
       ? `Your main skin concerns are ${ctx.main_concerns}.`
       : missing("skin concerns");
@@ -303,16 +288,7 @@ export function answerProfileQuestion(
   }
   if (
     !adviceIntent &&
-    has(
-      "diagnos",
-      "scan",
-      "result",
-      "finding",
-      "detect",
-      "sever",
-      "last check",
-      "analysis",
-    )
+    has("diagnos", "scan", "result", "finding", "detect", "sever", "last check", "analysis")
   ) {
     const bits: string[] = [];
     if (ctx.detection_label) bits.push(`finding: ${ctx.detection_label}`);
@@ -338,15 +314,15 @@ export function answerProfileQuestion(
       ? `Your stress level is recorded as ${ctx.stress_level}.`
       : missing("stress level");
   }
-  if (
-    !adviceIntent &&
-    has("trigger", "flare", "reaktion", "causes my", "what sets off")
-  ) {
+  if (!adviceIntent && has("trigger", "flare", "reaktion", "causes my", "what sets off")) {
     return ctx.sensitivity_triggers
       ? `Your logged sensitivity triggers: ${ctx.sensitivity_triggers}.`
       : missing("sensitivity trigger log");
   }
-  if (has("lifestyle", "habit", "sleep", "water", "stress") && has("lifestyle", "habit", "all", "every")) {
+  if (
+    has("lifestyle", "habit", "sleep", "water", "stress") &&
+    has("lifestyle", "habit", "all", "every")
+  ) {
     const bits = [
       ctx.sleep_quality ? `sleep: ${ctx.sleep_quality}` : null,
       ctx.water_intake ? `water: ${ctx.water_intake}` : null,
@@ -368,26 +344,19 @@ export function answerProfileQuestion(
     // Skip if user clearly wants to buy/shop online — let web search handle it.
     const wantsOnlineShopping =
       /\b(online|shop|store|buy|lazada|shopee|watsons|website|where to|find)\b/i.test(q);
-    if (!wantsOnlineShopping && (/\bmy\b|\bme\b|\bmine\b|\bfor me\b/.test(q))) {
+    if (!wantsOnlineShopping && /\bmy\b|\bme\b|\bmine\b|\bfor me\b/.test(q)) {
       return ctx.recommendations_summary
         ? `Based on your last scan, recommended products for you: ${ctx.recommendations_summary}`
         : ctx.main_concerns || ctx.skin_type
-        ? null // fall through to the LLM for personalized general advice
-        : missing("product recommendations");
+          ? null // fall through to the LLM for personalized general advice
+          : missing("product recommendations");
     }
   }
 
   return null;
 }
 
-/**
- * Keep the most recent turns that fit a character budget.
- *
- * The model's whole context is 2048 tokens shared with the system prompt
- * (profile + knowledge ≈ 600-900 tokens) and the reply. A fixed turn count
- * can overflow it on chatty users; a budget keeps prefill in bounds while
- * always retaining the latest exchange so the reply has the question.
- */
+/** Keep the most recent turns that fit a character budget. */
 const MAX_HISTORY_CHARS = 2400;
 
 function trimHistoryForPrompt(history: ChatTurn[]): ChatTurn[] {
@@ -413,9 +382,7 @@ export type ChatReply = {
   clinics?: ChatClinic[];
 };
 
-/**
- * Check if we should do a web search for this query
- */
+/** Check if we should do a web search for this query */
 function shouldWebSearch(message: string, userContext?: ChatUserContext): boolean {
   // If user clearly wants to buy/shop online, always trigger web search
   // regardless of profile question fast-path.
@@ -458,10 +425,7 @@ export async function generateChatReply(
   }
 
   if (lastUserMessage && userContext) {
-    const direct = answerProfileQuestion(
-      lastUserMessage.content,
-      userContext,
-    );
+    const direct = answerProfileQuestion(lastUserMessage.content, userContext);
     if (direct) {
       // "What products do you recommend for me?" — answer from the scan,
       // then show PH examples for those recommended ingredients.
@@ -521,13 +485,12 @@ export async function generateChatReply(
   );
 
   // Build system prompt with optional web search results
-  const systemPromptParts = [
-    BASE_SYSTEM_PROMPT,
-    buildContextBlock(userContext),
-  ];
+  const systemPromptParts = [BASE_SYSTEM_PROMPT, buildContextBlock(userContext)];
 
   if (knowledgeBlock) {
-    systemPromptParts.push(`\n\nDERMATOLOGIST KNOWLEDGE (use when relevant to the user's question):\n${knowledgeBlock}`);
+    systemPromptParts.push(
+      `\n\nDERMATOLOGIST KNOWLEDGE (use when relevant to the user's question):\n${knowledgeBlock}`,
+    );
   }
 
   if (phProducts.length > 0) {
@@ -540,7 +503,7 @@ export async function generateChatReply(
   if (searchResultsText) {
     systemPromptParts.push(`\n\n${searchResultsText}`);
     systemPromptParts.push(
-      "\n\nUse the web search results above to recommend specific products available in the Philippines. Mention retailer names (Lazada, Shopee, Watsons, BeautyMNL, etc.) when helpful. Keep responses to 2-4 sentences."
+      "\n\nUse the web search results above to recommend specific products available in the Philippines. Mention retailer names (Lazada, Shopee, Watsons, BeautyMNL, etc.) when helpful. Keep responses to 2-4 sentences.",
     );
   }
 

@@ -77,52 +77,43 @@ type PressableScaleProps = Omit<PressableProps, "style"> & {
   children?: React.ReactNode;
 };
 
-/**
- * Drop-in Pressable that springs down slightly while held. Use for buttons,
- * cards and chips. Function-children / function-style are not supported —
- * pass plain values.
- */
-export const PressableScale = forwardRef<View, PressableScaleProps>(
-  function PressableScale(
-    { activeScale = 0.97, style, onPressIn, onPressOut, disabled, children, ...rest },
-    ref,
-  ) {
-    const reduceMotion = useReducedMotion();
-    const scale = useSharedValue(1);
+/** Drop-in Pressable that springs down slightly while held. */
+export const PressableScale = forwardRef<View, PressableScaleProps>(function PressableScale(
+  { activeScale = 0.97, style, onPressIn, onPressOut, disabled, children, ...rest },
+  ref,
+) {
+  const reduceMotion = useReducedMotion();
+  const scale = useSharedValue(1);
 
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
-    }));
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
-    return (
-      <AnimatedPressable
-        ref={ref}
-        disabled={disabled}
-        onPressIn={(e) => {
-          if (!reduceMotion && !disabled) {
-            scale.set(withSpring(activeScale, PRESS_SPRING));
-          }
-          onPressIn?.(e);
-        }}
-        onPressOut={(e) => {
-          scale.set(withSpring(1, PRESS_SPRING));
-          onPressOut?.(e);
-        }}
-        style={[style, animatedStyle]}
-        {...rest}
-      >
-        {children}
-      </AnimatedPressable>
-    );
-  },
-);
+  return (
+    <AnimatedPressable
+      ref={ref}
+      disabled={disabled}
+      onPressIn={(e) => {
+        if (!reduceMotion && !disabled) {
+          scale.set(withSpring(activeScale, PRESS_SPRING));
+        }
+        onPressIn?.(e);
+      }}
+      onPressOut={(e) => {
+        scale.set(withSpring(1, PRESS_SPRING));
+        onPressOut?.(e);
+      }}
+      style={[style, animatedStyle]}
+      {...rest}
+    >
+      {children}
+    </AnimatedPressable>
+  );
+});
 
 /* ---------- Dialog card entrance ---------- */
 
-/**
- * Wraps a dialog card so it springs in from 0.94 + fades when `visible`
- * flips on. Pairs with <Modal animationType="fade"> (backdrop fade).
- */
+/** Wraps a dialog card so it springs in from 0.94 + fades when `visible` flips on. */
 export function DialogCard({
   visible,
   children,
@@ -139,9 +130,7 @@ export function DialogCard({
   useEffect(() => {
     if (visible) {
       progress.value = 0;
-      progress.value = reduceMotion
-        ? 1
-        : withSpring(1, { damping: 18, stiffness: 240, mass: 0.7 });
+      progress.value = reduceMotion ? 1 : withSpring(1, { damping: 18, stiffness: 240, mass: 0.7 });
     } else {
       progress.value = 0;
     }
@@ -149,10 +138,7 @@ export function DialogCard({
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, progress.value * 1.4),
-    transform: [
-      { scale: 0.94 + progress.value * 0.06 },
-      { translateY: (1 - progress.value) * 10 },
-    ],
+    transform: [{ scale: 0.94 + progress.value * 0.06 }, { translateY: (1 - progress.value) * 10 }],
   }));
 
   return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
@@ -170,23 +156,18 @@ export function useTabFocusStyle(focused: boolean, activeBg: string) {
 
   useEffect(() => {
     progress.value = reduceMotion
-      ? focused ? 1 : 0
+      ? focused
+        ? 1
+        : 0
       : withSpring(focused ? 1 : 0, { damping: 16, stiffness: 260, mass: 0.6 });
   }, [focused, reduceMotion, progress]);
 
   const pillStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      progress.value,
-      [0, 1],
-      ["rgba(255, 255, 255, 0)", activeBg],
-    ),
+    backgroundColor: interpolateColor(progress.value, [0, 1], ["rgba(255, 255, 255, 0)", activeBg]),
   }));
 
   const iconStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: -1.5 * progress.value },
-      { scale: 1 + 0.08 * progress.value },
-    ],
+    transform: [{ translateY: -1.5 * progress.value }, { scale: 1 + 0.08 * progress.value }],
   }));
 
   return { pillStyle, iconStyle };
@@ -195,8 +176,7 @@ export function useTabFocusStyle(focused: boolean, activeBg: string) {
 /* ---------- Progress bar fill ---------- */
 
 /**
- * Horizontal bar fill that grows from 0 → `percent` (0–100) on mount and
- * glides to new values. Render inside a track View with overflow hidden.
+ * Horizontal bar fill that grows from 0 → `percent` (0–100) on mount and glides to new values.
  */
 export function AnimatedBarFill({
   percent,
@@ -216,18 +196,10 @@ export function AnimatedBarFill({
   useEffect(() => {
     width.value = reduceMotion
       ? clamped
-      : withDelay(
-          delay,
-          withTiming(clamped, { duration: 700, easing: Easing.out(Easing.cubic) }),
-        );
+      : withDelay(delay, withTiming(clamped, { duration: 700, easing: Easing.out(Easing.cubic) }));
   }, [clamped, delay, reduceMotion, width]);
 
   const style = useAnimatedStyle(() => ({ width: `${width.value}%` }));
 
-  return (
-    <Animated.View
-      className={className}
-      style={[{ backgroundColor: color }, style]}
-    />
-  );
+  return <Animated.View className={className} style={[{ backgroundColor: color }, style]} />;
 }

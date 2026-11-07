@@ -1,17 +1,7 @@
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
-import {
-  Check,
-  ChevronDown,
-  TriangleAlert,
-  UserRoundCheck,
-} from "lucide-react-native";
+import { Check, ChevronDown, TriangleAlert, UserRoundCheck } from "lucide-react-native";
 
 import { Pill } from "@/components/ui";
 import { theme } from "@/lib/theme";
@@ -60,10 +50,7 @@ function Field({ label, value }: { label: string; value: string }) {
       <Text className="text-xs" style={{ color: theme.colors.muted }}>
         {label}
       </Text>
-      <Text
-        className="text-xs font-semibold flex-1 text-right"
-        style={{ color: theme.colors.ink }}
-      >
+      <Text className="text-xs font-semibold flex-1 text-right" style={{ color: theme.colors.ink }}>
         {value}
       </Text>
     </View>
@@ -71,11 +58,10 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Collapsible panel inside a doctor's appointment card: shows the patient's
- * self-reported profile (age, gender, skin type, concern, lifestyle,
- * sensitivity history) and lets the dermatologist confirm it or flag it for
- * follow-up with notes. Goes through the RPCs in migration 0012, which only
- * write the verdict — never the patient's own profile tables.
+ * Collapsible panel inside a doctor's appointment card: shows the patient's self-reported profile
+ * (age, gender, skin type, concern, lifestyle, sensitivity history) and lets the dermatologist
+ * confirm it or flag it for follow-up with notes. Goes through the RPCs in migration 0012, which
+ * only write the verdict — never the patient's own profile tables.
  */
 export function DoctorProfileValidation({ patientId }: { patientId: string }) {
   const [open, setOpen] = useState(false);
@@ -94,9 +80,7 @@ export function DoctorProfileValidation({ patientId }: { patientId: string }) {
       setReview(data);
       setNotes(data.validation?.doctor_notes ?? "");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Couldn't load the patient profile.",
-      );
+      setError(err instanceof Error ? err.message : "Couldn't load the patient profile.");
     } finally {
       setLoading(false);
     }
@@ -125,18 +109,14 @@ export function DoctorProfileValidation({ patientId }: { patientId: string }) {
   const p = review?.profile;
   const v = review?.validation ?? null;
   const reactions = p?.sensitivity ?? [];
-  const visibleReactions = showAllReactions
-    ? reactions
-    : reactions.slice(0, SENSITIVITY_PREVIEW);
+  const visibleReactions = showAllReactions ? reactions : reactions.slice(0, SENSITIVITY_PREVIEW);
 
   return (
     <View className="flex-col gap-2">
       <Pressable
         onPress={toggle}
         accessibilityRole="button"
-        accessibilityLabel={
-          open ? "Hide patient profile review" : "Review patient profile data"
-        }
+        accessibilityLabel={open ? "Hide patient profile review" : "Review patient profile data"}
         className="flex-row items-center gap-2 rounded-full px-3.5 py-2.5 active:opacity-70"
         style={{
           backgroundColor: theme.colors.background,
@@ -145,10 +125,7 @@ export function DoctorProfileValidation({ patientId }: { patientId: string }) {
         }}
       >
         <UserRoundCheck size={15} color={theme.colors.primary} />
-        <Text
-          className="flex-1 text-[13px] font-semibold"
-          style={{ color: theme.colors.primary }}
-        >
+        <Text className="flex-1 text-[13px] font-semibold" style={{ color: theme.colors.primary }}>
           {open ? "Hide profile review" : "Review patient profile"}
         </Text>
         <ChevronDown
@@ -211,14 +188,20 @@ export function DoctorProfileValidation({ patientId }: { patientId: string }) {
                 <Field label="Skin type" value={show(p.skin_type)} />
                 <Field label="Main concern" value={show(p.main_concerns)} />
 
-                <Text className="text-[11px] font-bold mt-2 mb-1" style={{ color: theme.colors.faint }}>
+                <Text
+                  className="text-[11px] font-bold mt-2 mb-1"
+                  style={{ color: theme.colors.faint }}
+                >
                   LIFESTYLE
                 </Text>
                 <Field label="Sleep quality" value={show(p.sleep_quality)} />
                 <Field label="Water intake" value={show(p.water_intake)} />
                 <Field label="Stress level" value={show(p.stress_level)} />
 
-                <Text className="text-[11px] font-bold mt-2 mb-1" style={{ color: theme.colors.faint }}>
+                <Text
+                  className="text-[11px] font-bold mt-2 mb-1"
+                  style={{ color: theme.colors.faint }}
+                >
                   SENSITIVITY HISTORY ({reactions.length})
                 </Text>
                 {reactions.length === 0 ? (
@@ -306,10 +289,7 @@ export function DoctorProfileValidation({ patientId }: { patientId: string }) {
                   }}
                 >
                   <TriangleAlert size={15} color={theme.colors.danger} />
-                  <Text
-                    className="text-[13px] font-bold"
-                    style={{ color: theme.colors.danger }}
-                  >
+                  <Text className="text-[13px] font-bold" style={{ color: theme.colors.danger }}>
                     Follow-up
                   </Text>
                 </Pressable>

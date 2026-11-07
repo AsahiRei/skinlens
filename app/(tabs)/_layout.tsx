@@ -21,9 +21,7 @@ export default function Layout() {
         }}
         // Switch styles with one flag in lib/tabs-config.ts:
         // TAB_BAR_VARIANT = "floating" | "docked"
-        tabBar={(props: any) => (
-          <AppTabBar {...props} variant={TAB_BAR_VARIANT} />
-        )}
+        tabBar={(props: any) => <AppTabBar {...props} variant={TAB_BAR_VARIANT} />}
       >
         <Tabs.Screen
           name="index"

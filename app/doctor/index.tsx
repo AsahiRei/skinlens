@@ -1,16 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  Bell,
-  CalendarClock,
-  CircleAlert,
-  Inbox,
-  Sun,
-  type LucideIcon,
-} from "lucide-react-native";
+import { Bell, CalendarClock, CircleAlert, Inbox, Sun, type LucideIcon } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { DoctorAppointmentCard, fmtShort } from "@/components/DoctorAppointmentCard";
@@ -68,16 +61,21 @@ type VisitGroup = {
 };
 
 /**
- * Agenda buckets for the Scheduled tile (moved over from the old Schedule
- * tab). Past visits never marked complete land in "Overdue" so they get
- * closed out. Expects rows already sorted soonest first; empty groups drop.
+ * Agenda buckets for the Scheduled tile (moved over from the old Schedule tab). Past visits never
+ * marked complete land in "Overdue" so they get closed out.
  */
 function groupVisits(rows: AppointmentRow[], now = new Date()): VisitGroup[] {
   const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const tomorrow = new Date(startToday);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const groups: VisitGroup[] = [
-    { key: "overdue", label: "Overdue", tone: "warning", hint: "mark complete or cancel", rows: [] },
+    {
+      key: "overdue",
+      label: "Overdue",
+      tone: "warning",
+      hint: "mark complete or cancel",
+      rows: [],
+    },
     { key: "today", label: "Today", tone: "primary", rows: [] },
     { key: "tomorrow", label: "Tomorrow", tone: "primary", rows: [] },
     { key: "upcoming", label: "Upcoming", tone: "neutral", rows: [] },
@@ -99,9 +97,8 @@ function groupVisits(rows: AppointmentRow[], now = new Date()): VisitGroup[] {
 }
 
 /**
- * Stat tile that doubles as a tab: the selected tile takes the dark
- * gradient (same family as the calendar and tab dock) and drives the list
- * below. Unselected tiles keep the flat clinical card look.
+ * Stat tile that doubles as a tab: the selected tile takes the dark gradient (same family as the
+ * calendar and tab dock) and drives the list below.
  */
 function StatTab({
   icon: Icon,
@@ -228,17 +225,19 @@ export default function DoctorHome() {
     try {
       await applyStatus(id, status, scheduledAt);
       const label =
-        status === "scheduled" ? "Visit scheduled"
-        : status === "completed" ? "Visit marked complete"
-        : status === "declined" ? "Request declined"
-        : status === "cancelled" ? "Visit cancelled"
-        : "Status updated";
+        status === "scheduled"
+          ? "Visit scheduled"
+          : status === "completed"
+            ? "Visit marked complete"
+            : status === "declined"
+              ? "Request declined"
+              : status === "cancelled"
+                ? "Visit cancelled"
+                : "Status updated";
       ToastAndroid.show(label, ToastAndroid.SHORT);
     } catch (err) {
       console.error("[doctor/home] action failed:", err);
-      setActionError(
-        err instanceof Error ? err.message : "Couldn't save that change — try again.",
-      );
+      setActionError(err instanceof Error ? err.message : "Couldn't save that change — try again.");
       throw err; // let the card keep its scheduler open
     }
   };
@@ -282,14 +281,11 @@ export default function DoctorHome() {
     return keys;
   }, [fresh]);
 
-  // Pick the default tab once, after the first load — recomputing it live
-  // would yank the doctor from Requests to Today the moment they clear the
-  // last request.
-  useEffect(() => {
-    if (!loading && pickedTab === null) {
-      setPickedTab(fresh.length > 0 ? "requests" : "today");
-    }
-  }, [loading, pickedTab, fresh.length]);
+  // Pick the default tab once, after the first load — recomputing it live would yank the doctor
+  // from Requests to Today the moment they clear the last request.
+  if (!loading && pickedTab === null) {
+    setPickedTab(fresh.length > 0 ? "requests" : "today");
+  }
 
   const tab: HomeTab = pickedTab ?? "requests";
 
@@ -313,7 +309,7 @@ export default function DoctorHome() {
     return d ? sameDay(d, day) : false;
   };
 
-  const nextVisit = scheduled.find((r) => timeOf(r.scheduled_at) > Date.now());
+  const nextVisit = scheduled.find((r) => timeOf(r.scheduled_at) > today.getTime());
 
   // The active list plus its header / empty copy.
   let list: AppointmentRow[];
@@ -383,7 +379,11 @@ export default function DoctorHome() {
   );
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <ScrollView
         className="flex-1 px-5"
@@ -433,7 +433,9 @@ export default function DoctorHome() {
               }}
               onPress={() => router.push("/(modules)/notifications?scope=doctor")}
               accessibilityRole="button"
-              accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+              accessibilityLabel={
+                unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"
+              }
               hitSlop={8}
             >
               <Bell size={20} color={theme.colors.primary} />

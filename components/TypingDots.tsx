@@ -34,10 +34,7 @@ export default function TypingDots({ label = "Thinking" }: { label?: string }) {
       );
     });
     pulse.value = withRepeat(
-      withSequence(
-        withTiming(0.6, { duration: 700 }),
-        withTiming(1, { duration: 700 }),
-      ),
+      withSequence(withTiming(0.6, { duration: 700 }), withTiming(1, { duration: 700 })),
       -1,
     );
   }, [dot1, dot2, dot3, pulse]);
@@ -67,11 +64,7 @@ export default function TypingDots({ label = "Thinking" }: { label?: string }) {
       </Animated.Text>
       <View className="flex-row items-center gap-1">
         {styles.map((style, i) => (
-          <Animated.View
-            key={i}
-            style={style}
-            className="w-1.5 h-1.5 rounded-full bg-[#14532D]"
-          />
+          <Animated.View key={i} style={style} className="w-1.5 h-1.5 rounded-full bg-[#14532D]" />
         ))}
       </View>
     </View>

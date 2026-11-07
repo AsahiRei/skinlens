@@ -2,14 +2,8 @@ import * as FileSystem from "expo-file-system/legacy";
 
 import { supabase } from "@/utils/supabase";
 
-// Signed uploads: the `cloudinary` Edge Function (supabase/functions) holds
-// the API secret and returns a short-lived signature scoped to the caller's
-// own folder (skinlens/users/<uid>/<kind>).
-//
-// LEGACY FALLBACK: while the function isn't deployed, uploads fall back to
-// the unsigned preset if EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET is set. Remove
-// that env var (and disable the preset in Cloudinary) once signing works —
-// an unsigned preset in the APK lets anyone upload to the account.
+// Signed uploads: the `cloudinary` Edge Function (supabase/functions) holds the API secret and
+// returns a short-lived signature scoped to the caller's own folder (skinlens/users/<uid>/<kind>).
 const LEGACY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
 const LEGACY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET ?? "";
 
@@ -33,10 +27,9 @@ function kindFromFolder(folder: string): UploadKind {
 }
 
 async function getSignature(kind: UploadKind): Promise<SignedParams | null> {
-  const { data, error } = await supabase.functions.invoke<SignedParams>(
-    "cloudinary",
-    { body: { action: "sign", kind } },
-  );
+  const { data, error } = await supabase.functions.invoke<SignedParams>("cloudinary", {
+    body: { action: "sign", kind },
+  });
   if (error || !data?.signature) {
     console.warn("[Cloudinary] signing unavailable:", error?.message ?? "no signature");
     return null;
@@ -45,10 +38,10 @@ async function getSignature(kind: UploadKind): Promise<SignedParams | null> {
 }
 
 async function postUpload(cloudName: string, form: FormData): Promise<string | null> {
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-    { method: "POST", body: form },
-  );
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: "POST",
+    body: form,
+  });
   // Read text first: error bodies aren't always JSON.
   const text = await response.text();
   let data: { secure_url?: string; error?: { message?: string } } | null = null;
@@ -95,9 +88,8 @@ async function uploadOnce(localUri: string, kind: UploadKind): Promise<string | 
 }
 
 /**
- * Uploads a local image and returns its HTTPS URL, or null on failure.
- * Never throws and never shows UI: callers already treat null as
- * "keep the local copy" (sync retries later).
+ * Uploads a local image and returns its HTTPS URL, or null on failure. Never throws and never shows
+ * UI: callers already treat null as "keep the local copy" (sync retries later).
  */
 export async function uploadImageToCloudinary(
   localUri: string,
@@ -120,10 +112,7 @@ export async function uploadImageToCloudinary(
   return null;
 }
 
-/**
- * Deletes every image this user uploaded (account deletion). Best effort:
- * returns false when the Edge Function isn't deployed or the call fails.
- */
+/** Deletes every image this user uploaded (account deletion). */
 export async function purgeMyCloudinaryImages(): Promise<boolean> {
   const { error } = await supabase.functions.invoke("cloudinary", {
     body: { action: "purge" },

@@ -1,9 +1,6 @@
 /**
- * Postgres / PostgREST error sniffers shared by the DB layer.
- *
- * The app ships migrations separately from app builds (see supabase/
- * migrations/000X_*.sql), so code must degrade gracefully when the server
- * is still running an older schema instead of failing the whole write.
+ * Postgres / PostgREST error sniffers shared by the DB layer. Migrations ship separately from app
+ * builds, so code must degrade gracefully when the server still runs an older schema.
  */
 
 function errorText(error: unknown): string {
@@ -28,12 +25,11 @@ export function isMissingColumnError(error: unknown): boolean {
 }
 
 /** Unique-violation — e.g. the appointments doctor-slot index (0007). */
-// Transport-level failure (no route, DNS, timeout) — as opposed to a server
-// or data error that is specific to one entry. supabase-js reports these
-// either as thrown errors or as returned `{ message: "TypeError: Network
-// request failed" }` objects, so read `.message` off plain objects too.
-// Deliberately message-based only: a bare TypeError from a bug in this file
-// must not be mistaken for "offline" or it would stall the queue forever.
+// Transport-level failure (no route, DNS, timeout) — as opposed to a server or data error that is
+// specific to one entry. supabase-js reports these either as thrown errors or as returned `{
+// message: "TypeError: Network request failed" }` objects, so read `.message` off plain objects
+// too. Deliberately message-based only: a bare TypeError from a bug in this file must not be
+// mistaken for "offline" or it would stall the queue forever.
 export function isTransportSyncError(err: unknown): boolean {
   const message =
     typeof err === "object" && err !== null && "message" in err
@@ -69,18 +65,12 @@ export function isMissingFunctionError(error: unknown): boolean {
   );
 }
 
-/**
- * Turns any thrown/returned error into text that is safe to show a user.
- * Messages raised on purpose by our SQL functions ("Invalid invite code.")
- * pass through; raw Postgres/PostgREST/network internals are replaced.
- */
+/** Turns any thrown/returned error into text that is safe to show a user. */
 export function friendlyError(
   error: unknown,
   fallback = "Something went wrong. Please try again.",
 ): string {
-  const msg = (
-    error instanceof Error ? error.message : errorText(error)
-  ).trim();
+  const msg = (error instanceof Error ? error.message : errorText(error)).trim();
   if (!msg) return fallback;
   if (/network request failed|failed to fetch|fetch failed|timeout|aborted/i.test(msg)) {
     return "Check your internet connection and try again.";

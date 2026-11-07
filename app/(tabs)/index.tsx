@@ -41,7 +41,14 @@ import {
   getUserProfile,
   toggleStep as toggleStepDb,
 } from "@/lib/db";
-import type { Period, Routine, RoutineStep, Result, SkinProfile, UserProfile } from "@/types/schema";
+import type {
+  Period,
+  Routine,
+  RoutineStep,
+  Result,
+  SkinProfile,
+  UserProfile,
+} from "@/types/schema";
 import { formatter, displayName } from "@/utils/formatter";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { formatScore } from "@/utils/detection-score";
@@ -111,9 +118,8 @@ export default function Home() {
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [routineId, setRoutineId] = useState<number | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
-  // In-flight toggles: a fast second tap would otherwise compute its state
-  // from the stale `completedSteps` closure and land the two DB writes out of
-  // order. Same guard the Routine tab already uses.
+  // In-flight toggles: a fast second tap would otherwise compute its state from the stale
+  // `completedSteps` closure and land the two DB writes out of order.
   const [pendingSteps, setPendingSteps] = useState<Set<string>>(new Set());
   const [loadingRoutine, setLoadingRoutine] = useState(true);
   const [activePeriod, setActivePeriod] = useState<Period>(getCurrentPeriod);
@@ -220,8 +226,7 @@ export default function Home() {
       haptics.soft();
     } else {
       const steps = stepsFor(period);
-      const doneAfter =
-        steps.filter((s) => completedSteps.has(`${period}-${s.step}`)).length + 1;
+      const doneAfter = steps.filter((s) => completedSteps.has(`${period}-${s.step}`)).length + 1;
       if (steps.length > 0 && doneAfter === steps.length) haptics.success();
       else haptics.tap();
     }
@@ -269,7 +274,11 @@ export default function Home() {
     : "";
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <ScrollView
         ref={scrollRef}
@@ -290,33 +299,41 @@ export default function Home() {
         {/* Header */}
         <FadeItem index={0}>
           <CoachTarget id="home.header" scrollIntoView={scrollIntoView}>
-          <View className="flex-row items-center justify-between mt-2">
-            <View className="flex-col">
-              <Text className="font-semibold text-[13px]" style={{ color: theme.colors.muted }}>
-                {getGreeting()}
-              </Text>
-              {loadingUser ? (
-                <Skeleton className="h-7 w-40 mt-1 rounded-lg" />
-              ) : (
-                <Text className="font-bold text-[24px] mt-0.5" style={{ color: theme.colors.ink }}>
-                  {displayName(userProfile?.first_name || userProfile?.username) || "Welcome"}
+            <View className="flex-row items-center justify-between mt-2">
+              <View className="flex-col">
+                <Text className="font-semibold text-[13px]" style={{ color: theme.colors.muted }}>
+                  {getGreeting()}
                 </Text>
-              )}
+                {loadingUser ? (
+                  <Skeleton className="h-7 w-40 mt-1 rounded-lg" />
+                ) : (
+                  <Text
+                    className="font-bold text-[24px] mt-0.5"
+                    style={{ color: theme.colors.ink }}
+                  >
+                    {displayName(userProfile?.first_name || userProfile?.username) || "Welcome"}
+                  </Text>
+                )}
+              </View>
+              <Pressable
+                className="h-11 w-11 items-center justify-center rounded-full bg-white active:opacity-80"
+                style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+                onPress={() => router.push("/(modules)/notifications")}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"
+                }
+                hitSlop={8}
+              >
+                <Bell size={20} color={theme.colors.primary} />
+                {unreadCount > 0 && (
+                  <View
+                    className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full border border-white"
+                    style={{ backgroundColor: theme.colors.danger }}
+                  />
+                )}
+              </Pressable>
             </View>
-            <Pressable
-              className="h-11 w-11 items-center justify-center rounded-full bg-white active:opacity-80"
-              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-              onPress={() => router.push("/(modules)/notifications")}
-              accessibilityRole="button"
-              accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-              hitSlop={8}
-            >
-              <Bell size={20} color={theme.colors.primary} />
-              {unreadCount > 0 && (
-                <View className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full border border-white" style={{ backgroundColor: theme.colors.danger }} />
-              )}
-            </Pressable>
-          </View>
           </CoachTarget>
         </FadeItem>
 
@@ -366,13 +383,19 @@ export default function Home() {
                       <Text className="text-lg font-bold leading-5" style={{ color: "#FFFFFF" }}>
                         {result?.healthscore != null ? Math.round(result.healthscore) : "--"}
                       </Text>
-                      <Text className="text-[10px] font-semibold" style={{ color: "rgba(255,255,255,0.75)" }}>
+                      <Text
+                        className="text-[10px] font-semibold"
+                        style={{ color: "rgba(255,255,255,0.75)" }}
+                      >
                         /100
                       </Text>
                     </View>
                   </CircularProgress>
                   <View className="flex-col flex-1">
-                    <Text className="text-[11px] font-bold uppercase" style={{ color: "#BBF7D0", letterSpacing: 1 }}>
+                    <Text
+                      className="text-[11px] font-bold uppercase"
+                      style={{ color: "#BBF7D0", letterSpacing: 1 }}
+                    >
                       Health Score
                     </Text>
                     <Text className="font-bold text-[16px] mt-0.5" style={{ color: "#FFFFFF" }}>
@@ -391,7 +414,10 @@ export default function Home() {
                       style={{ borderRadius: 999 }}
                       onPress={() => router.push("/(modules)/progress")}
                     >
-                      <Text className="text-xs font-bold" style={{ color: theme.colors.primaryDeep }}>
+                      <Text
+                        className="text-xs font-bold"
+                        style={{ color: theme.colors.primaryDeep }}
+                      >
                         View Progress
                       </Text>
                     </Pressable>
@@ -435,94 +461,94 @@ export default function Home() {
         </FadeItem>
         <FadeItem index={4}>
           <CoachTarget id="home.routine" scrollIntoView={scrollIntoView}>
-          {loadingRoutine ? (
-            <ClinicalCard className="mt-2.5 flex-col gap-4">
-              <Skeleton className="h-12 w-full rounded-2xl" />
-              <Skeleton className="h-16 w-full rounded-2xl" />
-            </ClinicalCard>
-          ) : !routine ? (
-            /* No routine generated yet — point to the scan that creates one */
-            <ClinicalCard className="mt-2.5 items-center">
-              <EmptyState
-                title="No routine yet"
-                copy="Scan your skin and we'll build a morning, afternoon and evening routine for you."
-              />
-              <Pressable
-                onPress={() => router.push("/(tabs)/scan")}
-                accessibilityRole="button"
-                className="rounded-full px-5 py-2 -mt-3 active:opacity-80"
-                style={{ backgroundColor: theme.colors.primary }}
-              >
-                <Text className="text-xs font-bold" style={{ color: "#FFFFFF" }}>
-                  Scan your skin
-                </Text>
-              </Pressable>
-            </ClinicalCard>
-          ) : (
-            <ClinicalCard className="mt-2.5 flex-col gap-4">
-              {/* Segmented control — thumb slides, every period's status visible */}
-              <PeriodTabs
-                activeKey={activePeriod}
-                onChange={(key) => setActivePeriod(key as Period)}
-                tabs={PERIOD_ORDER.map((period) => {
-                  const { done, total } = periodStats[period];
-                  return {
-                    key: period,
-                    label: PERIOD_CONFIG[period].short,
-                    icon: PERIOD_CONFIG[period].icon,
-                    done,
-                    total,
-                    a11yLabel: `${PERIOD_CONFIG[period].label}, ${
-                      total === 0
-                        ? "no steps"
-                        : done === total
-                          ? "complete"
-                          : `${done} of ${total} done`
-                    }`,
-                  };
-                })}
-              />
-
-              {/* One cross-fade per period switch; steps don't re-stagger */}
-              <PeriodPanel periodKey={activePeriod}>
-              {totalCount === 0 ? (
+            {loadingRoutine ? (
+              <ClinicalCard className="mt-2.5 flex-col gap-4">
+                <Skeleton className="h-12 w-full rounded-2xl" />
+                <Skeleton className="h-16 w-full rounded-2xl" />
+              </ClinicalCard>
+            ) : !routine ? (
+              /* No routine generated yet — point to the scan that creates one */
+              <ClinicalCard className="mt-2.5 items-center">
                 <EmptyState
-                  copy={`No ${PERIOD_CONFIG[activePeriod].short.toLowerCase()} steps today.`}
+                  title="No routine yet"
+                  copy="Scan your skin and we'll build a morning, afternoon and evening routine for you."
                 />
-              ) : (
-                <>
-                  <View className="flex-row items-start">
-                    {activeSteps.map((item, index) => {
-                      const isDoneAt = (i: number) =>
-                        completedSteps.has(`${activePeriod}-${activeSteps[i].step}`);
-                      const key = `${activePeriod}-${item.step}`;
-                      const isFirst = index === 0;
-                      const isLast = index === activeSteps.length - 1;
-                      return (
-                        <RoutineStepNode
-                          key={item.step}
-                          index={index}
-                          label={item.product_type}
-                          isDone={completedSteps.has(key)}
-                          isPending={pendingSteps.has(key)}
-                          prevDone={!isFirst && isDoneAt(index - 1)}
-                          nextDone={!isLast && isDoneAt(index + 1)}
-                          isFirst={isFirst}
-                          isLast={isLast}
-                          onPress={() => handleToggleStep(activePeriod, item.step)}
-                        />
-                      );
-                    })}
-                  </View>
+                <Pressable
+                  onPress={() => router.push("/(tabs)/scan")}
+                  accessibilityRole="button"
+                  className="rounded-full px-5 py-2 -mt-3 active:opacity-80"
+                  style={{ backgroundColor: theme.colors.primary }}
+                >
+                  <Text className="text-xs font-bold" style={{ color: "#FFFFFF" }}>
+                    Scan your skin
+                  </Text>
+                </Pressable>
+              </ClinicalCard>
+            ) : (
+              <ClinicalCard className="mt-2.5 flex-col gap-4">
+                {/* Segmented control — thumb slides, every period's status visible */}
+                <PeriodTabs
+                  activeKey={activePeriod}
+                  onChange={(key) => setActivePeriod(key as Period)}
+                  tabs={PERIOD_ORDER.map((period) => {
+                    const { done, total } = periodStats[period];
+                    return {
+                      key: period,
+                      label: PERIOD_CONFIG[period].short,
+                      icon: PERIOD_CONFIG[period].icon,
+                      done,
+                      total,
+                      a11yLabel: `${PERIOD_CONFIG[period].label}, ${
+                        total === 0
+                          ? "no steps"
+                          : done === total
+                            ? "complete"
+                            : `${done} of ${total} done`
+                      }`,
+                    };
+                  })}
+                />
 
-                  {periodComplete ? (
-                    <RoutineCompleteBanner label={PERIOD_CONFIG[activePeriod].short} />
-                  ) : null}
-                </>
-              )}
-              </PeriodPanel>
-            </ClinicalCard>
-          )}
+                {/* One cross-fade per period switch; steps don't re-stagger */}
+                <PeriodPanel periodKey={activePeriod}>
+                  {totalCount === 0 ? (
+                    <EmptyState
+                      copy={`No ${PERIOD_CONFIG[activePeriod].short.toLowerCase()} steps today.`}
+                    />
+                  ) : (
+                    <>
+                      <View className="flex-row items-start">
+                        {activeSteps.map((item, index) => {
+                          const isDoneAt = (i: number) =>
+                            completedSteps.has(`${activePeriod}-${activeSteps[i].step}`);
+                          const key = `${activePeriod}-${item.step}`;
+                          const isFirst = index === 0;
+                          const isLast = index === activeSteps.length - 1;
+                          return (
+                            <RoutineStepNode
+                              key={item.step}
+                              index={index}
+                              label={item.product_type}
+                              isDone={completedSteps.has(key)}
+                              isPending={pendingSteps.has(key)}
+                              prevDone={!isFirst && isDoneAt(index - 1)}
+                              nextDone={!isLast && isDoneAt(index + 1)}
+                              isFirst={isFirst}
+                              isLast={isLast}
+                              onPress={() => handleToggleStep(activePeriod, item.step)}
+                            />
+                          );
+                        })}
+                      </View>
+
+                      {periodComplete ? (
+                        <RoutineCompleteBanner label={PERIOD_CONFIG[activePeriod].short} />
+                      ) : null}
+                    </>
+                  )}
+                </PeriodPanel>
+              </ClinicalCard>
+            )}
           </CoachTarget>
         </FadeItem>
 
@@ -534,21 +560,21 @@ export default function Home() {
         </FadeItem>
         <FadeItem index={6}>
           <CoachTarget id="home.scan" scrollIntoView={scrollIntoView}>
-          <GradientHeroCta
-            title="Scan Your Skin"
-            subtitle="Take or upload a photo"
-            onPress={() => router.push("/(tabs)/scan")}
-            accessibilityLabel="Scan your skin"
-            className="mt-2.5"
-            accessory={
-              <View
-                className="h-9 w-9 items-center justify-center rounded-full"
-                style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
-              >
-                <ArrowRight size={16} color="white" />
-              </View>
-            }
-          />
+            <GradientHeroCta
+              title="Scan Your Skin"
+              subtitle="Take or upload a photo"
+              onPress={() => router.push("/(tabs)/scan")}
+              accessibilityLabel="Scan your skin"
+              className="mt-2.5"
+              accessory={
+                <View
+                  className="h-9 w-9 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+                >
+                  <ArrowRight size={16} color="white" />
+                </View>
+              }
+            />
           </CoachTarget>
         </FadeItem>
 
@@ -561,7 +587,10 @@ export default function Home() {
             >
               <ClinicalCard className="items-center gap-2">
                 <IconBadge icon={MessageSquare} size="lg" tone="soft" />
-                <Text className="font-bold text-[13px] text-center" style={{ color: theme.colors.ink }}>
+                <Text
+                  className="font-bold text-[13px] text-center"
+                  style={{ color: theme.colors.ink }}
+                >
                   Ask Nerma
                 </Text>
                 <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
@@ -571,19 +600,22 @@ export default function Home() {
             </Pressable>
 
             <Pressable
-                className="flex-1 active:opacity-90"
-                onPress={() => router.push("/(modules)/progress")}
-              >
-                <ClinicalCard className="items-center gap-2">
-                  <IconBadge icon={TrendingUp} size="lg" tone="soft" />
-                  <Text className="font-bold text-[13px] text-center" style={{ color: theme.colors.ink }}>
-                    Progress
-                  </Text>
-                  <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
-                    Track your skin
-                  </Text>
-                </ClinicalCard>
-              </Pressable>
+              className="flex-1 active:opacity-90"
+              onPress={() => router.push("/(modules)/progress")}
+            >
+              <ClinicalCard className="items-center gap-2">
+                <IconBadge icon={TrendingUp} size="lg" tone="soft" />
+                <Text
+                  className="font-bold text-[13px] text-center"
+                  style={{ color: theme.colors.ink }}
+                >
+                  Progress
+                </Text>
+                <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
+                  Track your skin
+                </Text>
+              </ClinicalCard>
+            </Pressable>
           </View>
 
           <View className="flex-row gap-3 mt-3">
@@ -593,7 +625,10 @@ export default function Home() {
             >
               <ClinicalCard className="items-center gap-2">
                 <IconBadge icon={ShieldAlert} size="lg" tone="soft" />
-                <Text className="font-bold text-[13px] text-center" style={{ color: theme.colors.ink }}>
+                <Text
+                  className="font-bold text-[13px] text-center"
+                  style={{ color: theme.colors.ink }}
+                >
                   Sensitivity
                 </Text>
                 <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
@@ -608,7 +643,10 @@ export default function Home() {
             >
               <ClinicalCard className="items-center gap-2">
                 <IconBadge icon={CalendarCheck} size="lg" tone="soft" />
-                <Text className="font-bold text-[13px] text-center" style={{ color: theme.colors.ink }}>
+                <Text
+                  className="font-bold text-[13px] text-center"
+                  style={{ color: theme.colors.ink }}
+                >
                   Appointments
                 </Text>
                 <Text className="text-[11px] text-center" style={{ color: theme.colors.muted }}>
@@ -673,16 +711,19 @@ export default function Home() {
                   )}
                   <View className="flex-col flex-1">
                     <Text className="text-sm font-semibold" style={{ color: theme.colors.ink }}>
-                      {formatter(result.detection_label ?? result.severity)} · {formatScore(result.healthscore)}
+                      {formatter(result.detection_label ?? result.severity)} ·{" "}
+                      {formatScore(result.healthscore)}
                     </Text>
                     <Text
-                            className="text-xs mt-0.5"
-                            style={{ color: theme.colors.muted }}
+                      className="text-xs mt-0.5"
+                      style={{ color: theme.colors.muted }}
                       numberOfLines={1}
                     >
                       {[
                         formatter(result.severity),
-                        result.confidence ? `${Math.round(result.confidence * 100)}% AI confidence` : null,
+                        result.confidence
+                          ? `${Math.round(result.confidence * 100)}% AI confidence`
+                          : null,
                       ]
                         .filter(Boolean)
                         .join(" · ")}
@@ -714,9 +755,7 @@ export default function Home() {
                   </Pressable>
                 </View>
               ) : (
-                <EmptyState
-                  copy="No scans yet."
-                />
+                <EmptyState copy="No scans yet." />
               )}
             </ClinicalCard>
           )}

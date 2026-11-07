@@ -8,15 +8,10 @@ import PagerView from "react-native-pager-view";
 import type { ChatImage } from "@/types/chat";
 
 /**
- * Swipeable image carousel. Built on react-native-pager-view (native
- * paging) instead of a nested horizontal ScrollView, so horizontal swipes
- * never trap the outer chat scroll on Android.
+ * Swipeable image carousel. Built on react-native-pager-view (native paging) instead of a nested
+ * horizontal ScrollView, so horizontal swipes never trap the outer chat scroll on Android.
  */
-export default function ChatImageCarousel({
-  images,
-}: {
-  images: ChatImage[];
-}) {
+export default function ChatImageCarousel({ images }: { images: ChatImage[] }) {
   const [page, setPage] = useState(0);
   const [failed, setFailed] = useState<Record<string, boolean>>({});
 
@@ -41,9 +36,7 @@ export default function ChatImageCarousel({
             className="items-center justify-center bg-gray-100 flex-col gap-1"
           >
             <ImageOff size={20} color="#9CA3AF" />
-            <Text className="text-[10px] text-gray-500">
-              Preview unavailable
-            </Text>
+            <Text className="text-[10px] text-gray-500">Preview unavailable</Text>
           </View>
         )}
         <View className="px-2.5 py-1.5">
@@ -85,17 +78,12 @@ export default function ChatImageCarousel({
                   className="items-center justify-center bg-gray-100 flex-col gap-1"
                 >
                   <ImageOff size={22} color="#9CA3AF" />
-                  <Text className="text-[10px] text-gray-500">
-                    Preview unavailable
-                  </Text>
+                  <Text className="text-[10px] text-gray-500">Preview unavailable</Text>
                 </View>
               )}
               <View className="px-2.5 py-1.5 flex-row items-center gap-2">
                 <View className="flex-1">
-                  <Text
-                    className="text-[11px] font-bold text-gray-900"
-                    numberOfLines={1}
-                  >
+                  <Text className="text-[11px] font-bold text-gray-900" numberOfLines={1}>
                     {img.title}
                   </Text>
                   <Text className="text-[10px] text-gray-500" numberOfLines={1}>
@@ -110,9 +98,7 @@ export default function ChatImageCarousel({
           </View>
         ))}
       </PagerView>
-      <View
-        style={{ flexDirection: "row", justifyContent: "center", gap: 6 }}
-      >
+      <View style={{ flexDirection: "row", justifyContent: "center", gap: 6 }}>
         {images.map((img, i) => (
           <View
             key={img.id}

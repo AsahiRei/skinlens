@@ -2,10 +2,7 @@ import { PH_PRODUCTS } from "@/data/ph-products";
 import type { PhProduct } from "@/types/knowledge";
 import type { ChatTurn, ChatUserContext } from "@/types/chat";
 
-/**
- * Ingredient aliases → canonical knowledge-base name. Lets "BHA",
- * "cica", "vit c", "ceramide" etc. map onto the curated PH catalog.
- */
+/** Ingredient aliases → canonical knowledge-base name. */
 const INGREDIENT_ALIASES: [RegExp, string][] = [
   [/\bniacinamide\b|\bvitamin b3\b/, "Niacinamide"],
   [/\bsalicylic\b|\bbha\b/, "Salicylic Acid"],
@@ -57,19 +54,17 @@ const ASK_WORDS =
 const FOLLOW_UP =
   /based on (your|what you|that)|you (suggested|recommended|mentioned)|those (ingredients|products)|from your (suggestion|recommendation)/;
 
-/**
- * Should this message get Philippine product cards? True for product /
- * shopping questions ("best niacinamide serum?", "where to buy in PH",
- * "based on your suggestion, give me products").
- */
+/** Should this message get Philippine product cards? */
 export function isPhProductIntent(message: string): boolean {
   const q = message.toLowerCase();
   if (FOLLOW_UP.test(q)) return true;
   if (/\b(shopee|lazada|watsons|mercury drug)\b/.test(q)) return true;
   if (PRODUCT_NOUNS.test(q) && ASK_WORDS.test(q)) return true;
   // "where can I buy niacinamide?"
-  return /\b(buy|where to get|where can i get|price of)\b/.test(q) &&
-    extractIngredientNames(q).length > 0;
+  return (
+    /\b(buy|where to get|where can i get|price of)\b/.test(q) &&
+    extractIngredientNames(q).length > 0
+  );
 }
 
 /** Ingredients from the user's latest scan recommendations ("Serum (Niacinamide, BHA); ..."). */
@@ -106,7 +101,8 @@ export function resolveSuggestedIngredients(
 
 /** Map free-text profile fields onto the catalog's good_for tags. */
 function profileTags(ctx?: ChatUserContext): Set<string> {
-  const text = `${ctx?.skin_type ?? ""} ${ctx?.main_concerns ?? ""} ${ctx?.detection_label ?? ""}`.toLowerCase();
+  const text =
+    `${ctx?.skin_type ?? ""} ${ctx?.main_concerns ?? ""} ${ctx?.detection_label ?? ""}`.toLowerCase();
   const tags = new Set<string>();
   const add = (re: RegExp, tag: string) => {
     if (re.test(text)) tags.add(tag);
@@ -140,10 +136,9 @@ function requestedType(message: string): string | null {
 }
 
 /**
- * Pick up to `limit` catalog products for the suggested ingredients,
- * skipping anything containing an ingredient from the user's sensitivity
- * log, preferring products tagged for the user's skin type/concerns, and
- * covering as many different ingredients as possible.
+ * Pick up to `limit` catalog products for the suggested ingredients, skipping anything containing
+ * an ingredient from the user's sensitivity log, preferring products tagged for the user's skin
+ * type/concerns, and covering as many different ingredients as possible.
  */
 export function findPhProducts(opts: {
   ingredients: string[];
@@ -166,7 +161,9 @@ export function findPhProducts(opts: {
     if (matched.length === 0) return [];
     let score = matched.length * 10;
     // Earlier (more specific) ingredients win ties.
-    score -= Math.min(...matched.map((m) => ingredients.findIndex((i) => i.toLowerCase() === m.toLowerCase())));
+    score -= Math.min(
+      ...matched.map((m) => ingredients.findIndex((i) => i.toLowerCase() === m.toLowerCase())),
+    );
     score += p.good_for.filter((g) => tags.has(g)).length * 3;
     if (type && p.product_type.toLowerCase().includes(type)) score += 8;
     return [{ product: { ...p, matched }, score }];
@@ -194,7 +191,8 @@ export function findPhProducts(opts: {
 export function formatPhProductsForPrompt(items: PhProduct[]): string {
   if (items.length === 0) return "";
   const lines = items.map(
-    (p) => `- ${p.brand} ${p.name} (${p.product_type}, ${p.key_ingredients.join(", ")}, approx. ${p.price})`,
+    (p) =>
+      `- ${p.brand} ${p.name} (${p.product_type}, ${p.key_ingredients.join(", ")}, approx. ${p.price})`,
   );
   return `PHILIPPINE PRODUCT EXAMPLES (shown to the user as cards below your reply):\n${lines.join("\n")}`;
 }

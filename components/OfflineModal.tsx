@@ -3,11 +3,7 @@ import { useState } from "react";
 import { UiModal } from "@/components/ui";
 import { useNetwork } from "@/hooks/useNetwork";
 
-/**
- * Reminds the user once per offline episode that they're in offline mode.
- * Dismissing won't re-popup until the next offline transition — reconnecting
- * resets the flag so a fresh outage reminds again.
- */
+/** Reminds the user once per offline episode that they're in offline mode. */
 export function OfflineModal() {
   const { isConnected, isInternetReachable } = useNetwork();
   const offline = isConnected === false || isInternetReachable === false;
@@ -26,9 +22,7 @@ export function OfflineModal() {
       onDismiss={() => setDismissed(true)}
       title="You're offline"
       message="You are in offline mode. Changes you make will be saved on this device and synced when you reconnect."
-      actions={[
-        { label: "Continue offline", onPress: () => setDismissed(true) },
-      ]}
+      actions={[{ label: "Continue offline", onPress: () => setDismissed(true) }]}
     />
   );
 }

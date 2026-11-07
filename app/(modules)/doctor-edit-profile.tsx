@@ -94,7 +94,11 @@ export default function DoctorEditProfileScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <FadeItem index={0}>
         <View className="px-5 pt-4 pb-1 mt-2">
@@ -152,7 +156,10 @@ export default function DoctorEditProfileScreen() {
                         className="rounded-full px-4 py-2.5 border active:opacity-80"
                         style={
                           selected
-                            ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                            ? {
+                                backgroundColor: theme.colors.primary,
+                                borderColor: theme.colors.primary,
+                              }
                             : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
                         }
                       >
@@ -191,7 +198,8 @@ export default function DoctorEditProfileScreen() {
                   {clinicName}
                 </Text>
                 <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                  Your hospital is set by invite code. Use “Switch hospital” on the Account tab to change it.
+                  Your hospital is set by invite code. Use “Switch hospital” on the Account tab to
+                  change it.
                 </Text>
               </Section>
             </FadeItem>

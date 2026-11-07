@@ -1,60 +1,45 @@
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
-import { CircleAlert, Search } from "lucide-react-native";
+import { Search } from "lucide-react-native";
 import { FadeItem } from "@/components/FadeItem";
 import { DoctorAppointmentCard } from "@/components/DoctorAppointmentCard";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ScreenGradient } from "@/components/ScreenGradient";
-import {
-  ClinicalCard,
-  EmptyState,
-  Notice,
-  ScreenHeader,
-  SectionTitle,
-} from "@/components/ui";
+import { ClinicalCard, EmptyState, ScreenHeader, SectionTitle } from "@/components/ui";
 import { useDoctorQueue } from "@/hooks/useDoctorQueue";
 import { theme } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
-import {
-  patientAvatarFor,
-  patientDisplayFor,
-} from "@/lib/db/appointments";
+import { patientAvatarFor, patientDisplayFor } from "@/lib/db/appointments";
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function DoctorHistory() {
-  const {
-    doctor,
-    rows,
-    patientNames,
-    patientAvatars,
-    loading,
-    refreshing,
-    error,
-    refresh,
-  } = useDoctorQueue();
+  const { doctor, rows, patientNames, patientAvatars, loading, refreshing, error, refresh } =
+    useDoctorQueue();
 
-  const [quickFilter, setQuickFilter] = useState<"all" | "completed" | "cancelled" | "declined">("all");
+  const [quickFilter, setQuickFilter] = useState<"all" | "completed" | "cancelled" | "declined">(
+    "all",
+  );
   const [searchQuery, setSearchQuery] = useState("");
-  const [actionError, setActionError] = useState<string | null>(null);
 
-  const history = useMemo(() =>
-    rows.filter(
-      (r) => r.status === "completed" || r.status === "cancelled" || r.status === "declined"
-    ),
-    [rows]
+  const history = useMemo(
+    () =>
+      rows.filter(
+        (r) => r.status === "completed" || r.status === "cancelled" || r.status === "declined",
+      ),
+    [rows],
   );
 
-  const matchesQuickFilter = (r: typeof rows[0]) => {
+  const matchesQuickFilter = (r: (typeof rows)[0]) => {
     if (quickFilter === "all") return true;
     return r.status === quickFilter;
   };
 
-  const matchesSearch = (r: typeof rows[0]) => {
+  const matchesSearch = (r: (typeof rows)[0]) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     const patientName = patientDisplayFor(r, patientNames).toLowerCase();
@@ -63,9 +48,7 @@ export default function DoctorHistory() {
     return patientName.includes(query) || status.includes(query) || clinicName.includes(query);
   };
 
-  const filteredHistory = history.filter(
-    (r) => matchesQuickFilter(r) && matchesSearch(r)
-  );
+  const filteredHistory = history.filter((r) => matchesQuickFilter(r) && matchesSearch(r));
 
   const groupedHistory = useMemo(() => {
     const groups: Record<string, typeof history> = {};
@@ -103,7 +86,11 @@ export default function DoctorHistory() {
   );
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <ScrollView
         className="flex-1 px-5"
@@ -125,18 +112,12 @@ export default function DoctorHistory() {
           </View>
         </FadeItem>
 
-        {actionError ? (
-          <FadeItem index={0.5}>
-            <View className="mt-3">
-              <Notice icon={CircleAlert} copy={actionError} />
-            </View>
-          </FadeItem>
-        ) : null}
-
         {/* Search */}
         <FadeItem index={1}>
-          <View className="flex-row items-center gap-2 mt-4 px-4 py-3 rounded-2xl bg-white"
-            style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}>
+          <View
+            className="flex-row items-center gap-2 mt-4 px-4 py-3 rounded-2xl bg-white"
+            style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+          >
             <Search size={18} color={theme.colors.faint} />
             <TextInput
               value={searchQuery}
@@ -150,17 +131,19 @@ export default function DoctorHistory() {
           </View>
         </FadeItem>
 
-        
         {/* Filter status / outcome chips */}
         <FadeItem index={3}>
           <View className="flex-row gap-2 mt-3 flex-wrap">
             {(["all", "completed", "cancelled", "declined"] as const).map((f) => {
               const active = quickFilter === f;
               const label =
-                f === "all" ? "All Visits"
-                : f === "completed" ? "Completed"
-                : f === "cancelled" ? "Cancelled"
-                : "Declined";
+                f === "all"
+                  ? "All Visits"
+                  : f === "completed"
+                    ? "Completed"
+                    : f === "cancelled"
+                      ? "Cancelled"
+                      : "Declined";
               return (
                 <Pressable
                   key={f}
@@ -214,7 +197,10 @@ export default function DoctorHistory() {
           <>
             {groupLabels.map((label) => (
               <View key={label} className="mt-4 flex-col gap-3">
-                <SectionTitle title={label} meta={`${groupedHistory[label].length} visit${groupedHistory[label].length !== 1 ? "s" : ""}`} />
+                <SectionTitle
+                  title={label}
+                  meta={`${groupedHistory[label].length} visit${groupedHistory[label].length !== 1 ? "s" : ""}`}
+                />
                 <View className="flex-col gap-3">
                   {groupedHistory[label].map((a) => (
                     <DoctorAppointmentCard
