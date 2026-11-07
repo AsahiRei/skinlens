@@ -26,7 +26,6 @@ type DoctorTabBarProps = {
 const TABS = [
   { name: "index", label: "Home", Icon: House },
   { name: "history", label: "History", Icon: History },
-  { name: "schedule", label: "Schedule", Icon: CalendarCheck2 },
   { name: "profile", label: "Account", Icon: UserRound },
 ] as const;
 
@@ -147,7 +146,6 @@ export default function DoctorLayout() {
       >
         <Tabs.Screen name="index" options={{ title: "Home" }} />
         <Tabs.Screen name="history" options={{ title: "History" }} />
-        <Tabs.Screen name="schedule" options={{ title: "Schedule" }} />
         <Tabs.Screen name="profile" options={{ title: "Account" }} />
       </Tabs>
     </View>

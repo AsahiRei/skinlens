@@ -1,11 +1,19 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
-import { Bell, CalendarClock, CheckCheck, CircleAlert, Inbox } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  Bell,
+  CalendarClock,
+  CircleAlert,
+  Inbox,
+  Sun,
+  type LucideIcon,
+} from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
-import { DoctorAppointmentCard } from "@/components/DoctorAppointmentCard";
+import { DoctorAppointmentCard, fmtShort } from "@/components/DoctorAppointmentCard";
 import { DoctorWeekCalendar, dayKey, sameDay } from "@/components/DoctorWeekCalendar";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -14,11 +22,13 @@ import {
   ClinicalCard,
   EmptyState,
   Notice,
+  Pill,
+  SecondaryButton,
   SectionTitle,
 } from "@/components/ui";
 import { useDoctorQueue } from "@/hooks/useDoctorQueue";
 import { useNotifications } from "@/hooks/useNotifications";
-import { theme } from "@/lib/theme";
+import { theme, cardShadow } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import {
   patientAvatarFor,
@@ -27,6 +37,11 @@ import {
   type AppointmentStatus,
 } from "@/lib/db/appointments";
 
+type HomeTab = "requests" | "scheduled" | "today";
+
+/** Amber that stays readable on the dark gradient (matches calendar dots). */
+const ON_DARK_AMBER = "#FCD34D";
+
 function greetingFor(date = new Date()): string {
   const h = date.getHours();
   if (h >= 5 && h < 12) return "Good morning";
@@ -34,19 +49,142 @@ function greetingFor(date = new Date()): string {
   return "Good evening";
 }
 
-function isToday(d: Date): boolean {
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
+function parseDate(iso: string | null): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function startOfWeekMonday(base: Date): Date {
-  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d;
+function timeOf(iso: string | null): number {
+  return parseDate(iso)?.getTime() ?? Number.POSITIVE_INFINITY;
+}
+
+type VisitGroup = {
+  key: "overdue" | "today" | "tomorrow" | "upcoming" | "unspecified";
+  label: string;
+  tone: "primary" | "neutral" | "warning";
+  hint?: string;
+  rows: AppointmentRow[];
+};
+
+/**
+ * Agenda buckets for the Scheduled tile (moved over from the old Schedule
+ * tab). Past visits never marked complete land in "Overdue" so they get
+ * closed out. Expects rows already sorted soonest first; empty groups drop.
+ */
+function groupVisits(rows: AppointmentRow[], now = new Date()): VisitGroup[] {
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(startToday);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const groups: VisitGroup[] = [
+    { key: "overdue", label: "Overdue", tone: "warning", hint: "mark complete or cancel", rows: [] },
+    { key: "today", label: "Today", tone: "primary", rows: [] },
+    { key: "tomorrow", label: "Tomorrow", tone: "primary", rows: [] },
+    { key: "upcoming", label: "Upcoming", tone: "neutral", rows: [] },
+    { key: "unspecified", label: "No time set", tone: "neutral", rows: [] },
+  ];
+  const byKey = Object.fromEntries(groups.map((g) => [g.key, g])) as Record<
+    VisitGroup["key"],
+    VisitGroup
+  >;
+  for (const r of rows) {
+    const d = parseDate(r.scheduled_at);
+    if (!d) byKey.unspecified.rows.push(r);
+    else if (d < startToday) byKey.overdue.rows.push(r);
+    else if (sameDay(d, startToday)) byKey.today.rows.push(r);
+    else if (sameDay(d, tomorrow)) byKey.tomorrow.rows.push(r);
+    else byKey.upcoming.rows.push(r);
+  }
+  return groups.filter((g) => g.rows.length > 0);
+}
+
+/**
+ * Stat tile that doubles as a tab: the selected tile takes the dark
+ * gradient (same family as the calendar and tab dock) and drives the list
+ * below. Unselected tiles keep the flat clinical card look.
+ */
+function StatTab({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  selectedIconColor = "#FFFFFF",
+  value,
+  label,
+  selected,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon: LucideIcon;
+  iconBg: string;
+  iconColor: string;
+  selectedIconColor?: string;
+  value: string;
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  const body = (
+    <>
+      <View
+        className="h-9 w-9 rounded-xl items-center justify-center"
+        style={{ backgroundColor: selected ? "rgba(255,255,255,0.16)" : iconBg }}
+      >
+        <Icon size={18} color={selected ? selectedIconColor : iconColor} />
+      </View>
+      <Text
+        className="text-xl font-bold mt-1.5"
+        style={{ color: selected ? "#FFFFFF" : theme.colors.ink }}
+      >
+        {value}
+      </Text>
+      <Text
+        className="text-[11px] font-semibold"
+        style={{ color: selected ? "rgba(255,255,255,0.85)" : theme.colors.muted }}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </>
+  );
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected }}
+      className="flex-1 active:opacity-80"
+    >
+      {selected ? (
+        <LinearGradient
+          colors={[...theme.gradients.dark]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={{
+            borderRadius: theme.radius.card,
+            // Same footprint as ClinicalCard (1px border + padding) so
+            // switching tabs never shifts the layout.
+            borderWidth: 1,
+            borderColor: "transparent",
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+            alignItems: "center",
+            ...cardShadow,
+          }}
+        >
+          {body}
+        </LinearGradient>
+      ) : (
+        <ClinicalCard
+          className="items-center"
+          style={{ paddingHorizontal: 12, paddingVertical: 14 }}
+        >
+          {body}
+        </ClinicalCard>
+      )}
+    </Pressable>
+  );
 }
 
 export default function DoctorHome() {
@@ -76,11 +214,11 @@ export default function DoctorHome() {
     await Promise.all([refresh(), refreshNotifications()]);
   }, [refresh, refreshNotifications]);
 
+  // Active tile. null only until the first load settles the default:
+  // Requests when anything is waiting, otherwise Today.
+  const [pickedTab, setPickedTab] = useState<HomeTab | null>(null);
+  // Calendar day filter — applies to whichever list is active.
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [showAllHistory, setShowAllHistory] = useState(false);
-  // Quick-filter chips (All / Today / This week) — independent of the
-  // calendar day filter; tap a chip to scope the request queue.
-  const [quickFilter, setQuickFilter] = useState<"all" | "today" | "week">("all");
   // Action failures (e.g. slot already booked) surface via the card's
   // confirmation dialog; keep a top-level banner for anything else.
   const [actionError, setActionError] = useState<string | null>(null);
@@ -105,55 +243,129 @@ export default function DoctorHome() {
     }
   };
 
-  const fresh = rows.filter((r) => r.status === "requested");
-  const history = rows.filter(
-    (r) => r.status === "completed" || r.status === "cancelled" || r.status === "declined",
+  const today = new Date();
+
+  // Pending requests, oldest first — the queue reads as triage order.
+  const fresh = useMemo(
+    () =>
+      rows
+        .filter((r) => r.status === "requested")
+        .sort((a, b) => timeOf(a.created_at) - timeOf(b.created_at)),
+    [rows],
   );
 
-  // Days in this week with at least one confirmed visit (dot indicator).
+  // Confirmed visits, soonest first (any without a valid time sort last).
+  const scheduled = useMemo(
+    () =>
+      rows
+        .filter((r) => r.status === "scheduled")
+        .sort((a, b) => timeOf(a.scheduled_at) - timeOf(b.scheduled_at)),
+    [rows],
+  );
+
+  // Calendar dots: white = a scheduled visit, amber = a request prefers it.
   const visitDayKeys = useMemo(() => {
     const keys = new Set<string>();
-    for (const r of rows) {
-      if (!r.scheduled_at) continue;
-      const d = new Date(r.scheduled_at);
-      if (!Number.isNaN(d.getTime())) keys.add(dayKey(d));
+    for (const r of scheduled) {
+      const d = parseDate(r.scheduled_at);
+      if (d) keys.add(dayKey(d));
     }
     return keys;
-  }, [rows]);
+  }, [scheduled]);
 
-  const selectedLabel = selectedDay
+  const requestDayKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const r of fresh) {
+      const d = parseDate(r.preferred_time);
+      if (d) keys.add(dayKey(d));
+    }
+    return keys;
+  }, [fresh]);
+
+  // Pick the default tab once, after the first load — recomputing it live
+  // would yank the doctor from Requests to Today the moment they clear the
+  // last request.
+  useEffect(() => {
+    if (!loading && pickedTab === null) {
+      setPickedTab(fresh.length > 0 ? "requests" : "today");
+    }
+  }, [loading, pickedTab, fresh.length]);
+
+  const tab: HomeTab = pickedTab ?? "requests";
+
+  const selectTab = (next: HomeTab) => {
+    setPickedTab(next);
+    // "Today" is a fixed day — a leftover calendar filter would contradict it.
+    if (next === "today") setSelectedDay(null);
+  };
+
+  const selectDay = (day: Date | null) => {
+    setSelectedDay(day);
+    // Picking another day while on Today means "show me that day's visits".
+    if (day && tab === "today" && !sameDay(day, today)) setPickedTab("scheduled");
+  };
+
+  const dayLabel = selectedDay
     ? selectedDay.toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
-
-  // Calendar day filter: match on visit / preferred date.
-  const matchesDay = (iso: string | null) => {
-    if (!selectedDay) return true;
-    if (!iso) return false;
-    const d = new Date(iso);
-    return !Number.isNaN(d.getTime()) && sameDay(d, selectedDay);
+  const onDay = (iso: string | null, day: Date) => {
+    const d = parseDate(iso);
+    return d ? sameDay(d, day) : false;
   };
 
-  // Quick-filter scope: matches on the visit date, falling back to the
-  // patient's preferred time when the visit hasn't been scheduled yet.
-  const matchesQuickFilter = (r: AppointmentRow) => {
-    const iso = r.scheduled_at ?? r.preferred_time;
-    if (!iso) return quickFilter === "all";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return quickFilter === "all";
-    if (quickFilter === "today") return isToday(d);
-    if (quickFilter === "week") {
-      const monday = startOfWeekMonday(new Date());
-      return d >= monday && d.getTime() < monday.getTime() + 7 * 24 * 60 * 60 * 1000;
-    }
-    return true;
-  };
+  const nextVisit = scheduled.find((r) => timeOf(r.scheduled_at) > Date.now());
 
-  const visibleFresh = fresh.filter((r) => matchesDay(r.scheduled_at ?? r.preferred_time) && matchesQuickFilter(r));
-  const visibleHistory = history.filter((r) => matchesDay(r.scheduled_at ?? r.preferred_time) && matchesQuickFilter(r));
-  const shownHistory = showAllHistory ? visibleHistory : visibleHistory.slice(0, 3);
+  // The active list plus its header / empty copy.
+  let list: AppointmentRow[];
+  let title: string;
+  let meta: string | undefined;
+  let emptyTitle: string;
+  let emptyCopy: string;
+
+  if (tab === "requests") {
+    list = selectedDay ? fresh.filter((r) => onDay(r.preferred_time, selectedDay)) : fresh;
+    title = "New requests";
+    meta = selectedDay
+      ? `${list.length} prefer ${dayLabel}`
+      : `${list.length} waiting · oldest first`;
+    emptyTitle = selectedDay ? `Nothing on ${dayLabel}` : "Inbox zero";
+    emptyCopy = selectedDay
+      ? "No pending requests prefer this day. Tap it again to clear the filter."
+      : "New patient requests for your clinic will appear here.";
+  } else if (tab === "scheduled") {
+    list = selectedDay ? scheduled.filter((r) => onDay(r.scheduled_at, selectedDay)) : scheduled;
+    title = selectedDay ? `Visits · ${dayLabel}` : "Scheduled visits";
+    meta = `${list.length} ${list.length === 1 ? "visit" : "visits"}`;
+    emptyTitle = selectedDay ? `No visits on ${dayLabel}` : "No scheduled visits";
+    emptyCopy = selectedDay
+      ? "Pick another day, or tap it again to clear the filter."
+      : "Visits you schedule from New requests will appear here.";
+  } else {
+    list = scheduled.filter((r) => onDay(r.scheduled_at, today));
+    title = "Today's schedule";
+    meta = `${list.length} ${list.length === 1 ? "visit" : "visits"}`;
+    emptyTitle = "No visits today";
+    emptyCopy = nextVisit
+      ? `Next visit: ${patientDisplayFor(nextVisit, patientNames)} · ${fmtShort(nextVisit.scheduled_at)}`
+      : "Visits you schedule from New requests will appear here.";
+  }
+
+  const statValue = (n: number) => (loading ? "–" : String(n));
+
+  const renderCard = (a: AppointmentRow, idx: number) => (
+    <FadeItem key={a.id} index={Math.min(4 + idx, 8)}>
+      <DoctorAppointmentCard
+        appointment={a}
+        patientName={patientDisplayFor(a, patientNames)}
+        patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
+        onAction={handleAction}
+        compact={tab !== "requests"}
+      />
+    </FadeItem>
+  );
 
   const skeleton = (
-    <View className="flex-col gap-3 mt-3">
+    <View className="flex-col gap-3 mt-5">
       {[0, 1].map((i) => (
         <ClinicalCard key={i} className="flex-col gap-3">
           <View className="flex-row items-center gap-3">
@@ -204,10 +416,21 @@ export default function DoctorHome() {
                   {doctor?.displayName ?? "Doctor"}
                 </Text>
               )}
+              <Text className="text-[12px] mt-0.5" style={{ color: theme.colors.faint }}>
+                {today.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </Text>
             </View>
             <Pressable
-              className="h-11 w-11 items-center justify-center rounded-full bg-white active:opacity-80"
-              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+              className="h-11 w-11 items-center justify-center rounded-full active:opacity-80"
+              style={{
+                backgroundColor: theme.colors.card,
+                borderWidth: 1,
+                borderColor: theme.colors.cardBorder,
+              }}
               onPress={() => router.push("/(modules)/notifications?scope=doctor")}
               accessibilityRole="button"
               accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
@@ -216,8 +439,12 @@ export default function DoctorHome() {
               <Bell size={20} color={theme.colors.primary} />
               {unreadCount > 0 && (
                 <View
-                  className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full border border-white"
-                  style={{ backgroundColor: theme.colors.danger }}
+                  className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full"
+                  style={{
+                    backgroundColor: theme.colors.danger,
+                    borderWidth: 1,
+                    borderColor: theme.colors.card,
+                  }}
                 />
               )}
             </Pressable>
@@ -230,93 +457,51 @@ export default function DoctorHome() {
           </View>
         ) : null}
 
-        {/* Stat strip */}
+        {/* Stat tabs — the selected tile drives the list below */}
         <FadeItem index={1}>
-          <View className="flex-row gap-3 mt-4">
-            <ClinicalCard
-              className="flex-1 items-center"
-              style={{ paddingHorizontal: 12, paddingVertical: 14 }}
-            >
-              <View className="h-9 w-9 rounded-xl items-center justify-center" style={{ backgroundColor: "#FEF3C7" }}>
-                <Inbox size={18} color="#B45309" />
-              </View>
-              <Text className="text-xl font-bold mt-1.5" style={{ color: theme.colors.ink }}>
-                {loading ? "–" : counts.fresh}
-              </Text>
-              <Text className="text-[11px] font-semibold" style={{ color: theme.colors.muted }}>
-                New requests
-              </Text>
-            </ClinicalCard>
-            <ClinicalCard
-              className="flex-1 items-center"
-              style={{ paddingHorizontal: 12, paddingVertical: 14 }}
-            >
-              <View className="h-9 w-9 rounded-xl items-center justify-center" style={{ backgroundColor: theme.colors.primarySoft }}>
-                <CalendarClock size={18} color={theme.colors.primary} />
-              </View>
-              <Text className="text-xl font-bold mt-1.5" style={{ color: theme.colors.ink }}>
-                {loading ? "–" : counts.scheduled}
-              </Text>
-              <Text className="text-[11px] font-semibold" style={{ color: theme.colors.muted }}>
-                Scheduled
-              </Text>
-            </ClinicalCard>
-            <ClinicalCard
-              className="flex-1 items-center"
-              style={{ paddingHorizontal: 12, paddingVertical: 14 }}
-            >
-              <View className="h-9 w-9 rounded-xl items-center justify-center" style={{ backgroundColor: theme.colors.primarySoft }}>
-                <CheckCheck size={18} color={theme.colors.primary} />
-              </View>
-              <Text className="text-xl font-bold mt-1.5" style={{ color: theme.colors.ink }}>
-                {loading ? "–" : counts.today}
-              </Text>
-              <Text className="text-[11px] font-semibold" style={{ color: theme.colors.muted }}>
-                Today
-              </Text>
-            </ClinicalCard>
+          <View className="flex-row gap-3 mt-4" accessibilityRole="tablist">
+            <StatTab
+              icon={Inbox}
+              iconBg={theme.colors.warningSoft}
+              iconColor={theme.colors.warningText}
+              selectedIconColor={ON_DARK_AMBER}
+              value={statValue(counts.fresh)}
+              label="New requests"
+              selected={tab === "requests"}
+              accessibilityLabel={`New requests, ${counts.fresh}`}
+              onPress={() => selectTab("requests")}
+            />
+            <StatTab
+              icon={CalendarClock}
+              iconBg={theme.colors.primarySoft}
+              iconColor={theme.colors.primary}
+              value={statValue(counts.scheduled)}
+              label="Scheduled"
+              selected={tab === "scheduled"}
+              accessibilityLabel={`Scheduled visits, ${counts.scheduled}`}
+              onPress={() => selectTab("scheduled")}
+            />
+            <StatTab
+              icon={Sun}
+              iconBg={theme.colors.primarySoft}
+              iconColor={theme.colors.primary}
+              value={statValue(counts.today)}
+              label="Today's visits"
+              selected={tab === "today"}
+              accessibilityLabel={`Today's visits, ${counts.today}`}
+              onPress={() => selectTab("today")}
+            />
           </View>
         </FadeItem>
 
-        {/* Week calendar */}
+        {/* Week calendar — filters whichever list is active */}
         <FadeItem index={2}>
           <DoctorWeekCalendar
             selectedDay={selectedDay}
-            onSelect={setSelectedDay}
+            onSelect={selectDay}
             visitDayKeys={visitDayKeys}
+            requestDayKeys={requestDayKeys}
           />
-        </FadeItem>
-
-        {/* Quick-filter chips for the request queue */}
-        <FadeItem index={2.5}>
-          <View className="flex-row gap-2 mt-3">
-            {(["all", "today", "week"] as const).map((f) => {
-              const active = quickFilter === f;
-              const label = f === "all" ? "All" : f === "today" ? "Today" : "This week";
-              return (
-                <Pressable
-                  key={f}
-                  onPress={() => setQuickFilter(f)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Filter by ${label}`}
-                  accessibilityState={active ? { selected: true } : {}}
-                  className="rounded-full px-3 py-1.5 active:opacity-70"
-                  style={{
-                    backgroundColor: active ? theme.colors.primarySoft : theme.colors.card,
-                    borderWidth: 1,
-                    borderColor: active ? theme.colors.primary : theme.colors.cardBorder,
-                  }}
-                >
-                  <Text
-                    className="text-xs font-bold"
-                    style={{ color: active ? theme.colors.primaryDeep : theme.colors.muted }}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
         </FadeItem>
 
         {loading ? (
@@ -324,51 +509,46 @@ export default function DoctorHome() {
         ) : error ? (
           <FadeItem index={3}>
             <ClinicalCard className="mt-4">
-              <EmptyState title="Couldn't load" copy={error} />
+              <EmptyState title="Couldn't load your queue" copy={error} />
+              <SecondaryButton label="Try again" onPress={() => void handleRefresh()} />
             </ClinicalCard>
           </FadeItem>
         ) : (
-          <>
-            {/* New requests */}
+          // Keyed by tab + day so the stagger replays when the list swaps.
+          <View key={`${tab}-${selectedDay ? dayKey(selectedDay) : "all"}`}>
             <FadeItem index={3}>
               <View className="mt-5">
-                <SectionTitle
-                  title="New requests"
-                  meta={`${visibleFresh.length} ${quickFilter === "all" ? "waiting" : quickFilter === "today" ? "today" : "this week"}`}
-                />
+                <SectionTitle title={title} meta={meta} />
               </View>
             </FadeItem>
-            {visibleFresh.length === 0 ? (
+            {list.length === 0 ? (
               <FadeItem index={4}>
                 <ClinicalCard className="mt-3">
-                  <EmptyState
-                    title={selectedDay ? `Nothing on ${selectedLabel}` : "Inbox zero"}
-                    copy={
-                      selectedDay
-                        ? "No requests match this day. Tap it again to clear the date filter."
-                        : quickFilter !== "all"
-                          ? "No new requests match this filter. Tap 'All' to see everything."
-                          : "New patient requests for your clinic will appear here."
-                    }
-                  />
+                  <EmptyState title={emptyTitle} copy={emptyCopy} />
                 </ClinicalCard>
               </FadeItem>
-            ) : (
-              <View className="flex-col gap-3 mt-3">
-                {visibleFresh.map((a, idx) => (
-                  <FadeItem key={a.id} index={Math.min(4 + idx, 8)}>
-                    <DoctorAppointmentCard
-                      appointment={a}
-                      patientName={patientDisplayFor(a, patientNames)}
-                      patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
-                      busy={false}
-                      onAction={handleAction}
-                    />
-                  </FadeItem>
+            ) : tab === "scheduled" && !selectedDay ? (
+              // Full agenda: Overdue / Today / Tomorrow / Upcoming.
+              <View className="flex-col gap-5 mt-3">
+                {groupVisits(list).map((g) => (
+                  <View key={g.key} className="flex-col gap-3">
+                    <View className="flex-row items-center gap-2">
+                      <Pill label={g.label} tone={g.tone} />
+                      <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                        {g.rows.length} visit{g.rows.length === 1 ? "" : "s"}
+                        {g.hint ? ` · ${g.hint}` : ""}
+                      </Text>
+                    </View>
+                    {g.rows.map((a, idx) => renderCard(a, idx))}
+                  </View>
                 ))}
               </View>
+            ) : (
+              <View className="flex-col gap-3 mt-3">
+                {list.map((a, idx) => renderCard(a, idx))}
+              </View>
             )}
-          </>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>

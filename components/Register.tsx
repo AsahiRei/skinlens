@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Pressable,
+  Platform,
   TextInput,
   ToastAndroid,
   View,
@@ -380,6 +381,13 @@ export default function Register() {
                 style={{ color: theme.colors.ink }}
                 placeholderTextColor={theme.colors.faint}
                 autoCapitalize="characters"
+                // Uppercasing a controlled value fights the keyboard's predictive
+                // text (duplicated / lowercase-flipping chars on Android), so turn
+                // suggestions off; visible-password is the only reliable way on Gboard.
+                autoCorrect={false}
+                spellCheck={false}
+                autoComplete="off"
+                keyboardType={Platform.OS === "android" ? "visible-password" : "default"}
               />
             </View>
             <Text className="text-xs" style={{ color: theme.colors.muted }}>

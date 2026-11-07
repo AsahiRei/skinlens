@@ -45,7 +45,7 @@ import {
   type AppointmentStatus,
 } from "@/lib/db/appointments";
 import { getVerifiedClinics, type VerifiedClinic } from "@/lib/db/clinics";
-import { openAppointmentReport } from "@/utils/report";
+import { ReportViewerModal } from "@/components/ReportViewerModal";
 
 /* ---------- Date helpers ---------- */
 
@@ -229,6 +229,7 @@ function InlineAction({
 export default function AppointmentsScreen() {
   const router = useRouter();
   const [rows, setRows] = useState<AppointmentRow[]>([]);
+  const [reportPath, setReportPath] = useState<string | null>(null);
   const [doctorNames, setDoctorNames] = useState<Record<string, string>>({});
   const [clinicNames, setClinicNames] = useState<Record<string, string>>({});
   const [clinics, setClinics] = useState<Record<string, VerifiedClinic>>({});
@@ -316,15 +317,7 @@ export default function AppointmentsScreen() {
     }
   };
 
-  const openReport = (path: string) => {
-    void openAppointmentReport(path).catch((err) => {
-      console.warn("[appointments] open report failed:", err);
-      notify(
-        err instanceof Error ? err.message : "Couldn't open the report PDF.",
-        true,
-      );
-    });
-  };
+  const openReport = (path: string) => setReportPath(path);
 
   const openDirections = (c: VerifiedClinic) => {
     const label = encodeURIComponent(c.name);
@@ -712,6 +705,10 @@ export default function AppointmentsScreen() {
               },
             },
           ]}
+        />
+        <ReportViewerModal
+          reportPath={reportPath}
+          onClose={() => setReportPath(null)}
         />
       </SafeAreaView>
     </>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Pressable, ToastAndroid, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -20,7 +20,7 @@ import {
   type AppointmentRow,
   type AppointmentStatus,
 } from "@/lib/db/appointments";
-import { openAppointmentReport } from "@/utils/report";
+import { ReportViewerModal } from "@/components/ReportViewerModal";
 
 const SCHEDULER_FALLBACK = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -65,6 +65,42 @@ function toneFor(status: string): "primary" | "neutral" | "warning" {
   if (status === "requested") return "warning";
   if (status === "scheduled") return "primary";
   return "neutral";
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  requested: "New request",
+  scheduled: "Scheduled",
+  completed: "Completed",
+  declined: "Declined",
+  cancelled: "Cancelled",
+};
+
+/** Requests older than this read "Waiting Nd" so stale ones stand out. */
+const STALE_REQUEST_MS = 48 * 60 * 60 * 1000;
+
+function statusLabelFor(status: string, createdAt: string | null): string {
+  if (status === "requested" && createdAt) {
+    const age = Date.now() - Date.parse(createdAt);
+    if (Number.isFinite(age) && age >= STALE_REQUEST_MS) {
+      return `Waiting ${Math.floor(age / (24 * 60 * 60 * 1000))}d`;
+    }
+  }
+  return STATUS_LABELS[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+/** "just now", "12m ago", "3h ago", "2d ago", then a short date. */
+export function relativeAgo(iso: string | null): string {
+  if (!iso) return "—";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return iso;
+  const mins = Math.floor((Date.now() - t) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function initialOf(name: string): string {
@@ -115,26 +151,14 @@ export function DoctorAppointmentCard({
   const [acting, setActing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<"decline" | "cancel" | "complete">("decline");
-  const [openingReport, setOpeningReport] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const showPhoto = isRemoteImageUrl(patientAvatarUrl);
 
   const avatarSize = compact ? 40 : 48;
   const rowBusy = busy || acting;
 
-  const handleOpenReport = async () => {
-    if (!a.report_pdf_path || openingReport) return;
-    setOpeningReport(true);
-    try {
-      await openAppointmentReport(a.report_pdf_path);
-    } catch (err) {
-      console.warn("[doctor-card] open report failed:", err);
-      ToastAndroid.show(
-        err instanceof Error ? err.message : "Couldn't open the report PDF.",
-        ToastAndroid.LONG,
-      );
-    } finally {
-      setOpeningReport(false);
-    }
+  const handleOpenReport = () => {
+    if (a.report_pdf_path) setReportOpen(true);
   };
 
   const handleSchedule = async () => {
@@ -231,10 +255,10 @@ export function DoctorAppointmentCard({
               style={{ color: theme.colors.muted }}
               numberOfLines={1}
             >
-              Patient · Asked {fmtShort(a.created_at)}
+              Patient · Asked {relativeAgo(a.created_at)}
             </Text>
           </View>
-          <Pill label={a.status} tone={toneFor(a.status)} />
+          <Pill label={statusLabelFor(a.status, a.created_at)} tone={toneFor(a.status)} />
         </View>
 
         {/* Details */}
@@ -280,10 +304,9 @@ export function DoctorAppointmentCard({
             </View>
             {a.report_pdf_path ? (
               <Pressable
-                onPress={() => void handleOpenReport()}
-                disabled={openingReport}
+                onPress={handleOpenReport}
                 accessibilityRole="button"
-                accessibilityLabel="Open skin report PDF"
+                accessibilityLabel="View skin report PDF"
                 className="flex-row items-center gap-1.5 px-1 active:opacity-70"
               >
                 <FileText size={13} color={theme.colors.primary} />
@@ -291,7 +314,7 @@ export function DoctorAppointmentCard({
                   className="text-[13px] font-semibold underline"
                   style={{ color: theme.colors.primary }}
                 >
-                  {openingReport ? "Opening report…" : "Open skin report (PDF)"}
+                  View skin report (PDF)
                 </Text>
               </Pressable>
             ) : null}
@@ -327,10 +350,9 @@ export function DoctorAppointmentCard({
             ) : null}
             {a.report_pdf_path ? (
               <Pressable
-                onPress={() => void handleOpenReport()}
-                disabled={openingReport}
+                onPress={handleOpenReport}
                 accessibilityRole="button"
-                accessibilityLabel="Open skin report PDF"
+                accessibilityLabel="View skin report PDF"
                 className="flex-row items-center gap-2 active:opacity-70"
               >
                 <FileText size={14} color={theme.colors.primary} />
@@ -338,7 +360,7 @@ export function DoctorAppointmentCard({
                   className="text-[13px] font-semibold underline"
                   style={{ color: theme.colors.primary }}
                 >
-                  {openingReport ? "Opening report…" : "Open skin report (PDF)"}
+                  View skin report (PDF)
                 </Text>
               </Pressable>
             ) : null}
@@ -356,29 +378,51 @@ export function DoctorAppointmentCard({
         {/* Actions */}
         {a.status === "requested" ? (
           <View className="flex-col gap-2">
+            {/* Primary action: filled while collapsed; once open it steps
+                back to an outline so "Confirm schedule" is the one filled
+                button on the card. */}
             <Pressable
               onPress={() => setExpanded(!expanded)}
               accessibilityRole="button"
               accessibilityLabel={expanded ? "Hide scheduler" : "Schedule visit"}
-              className="rounded-full py-3 px-5 flex-row items-center justify-center gap-1.5 active:opacity-80 bg-white"
+              accessibilityState={{ expanded }}
+              className="rounded-full overflow-hidden active:opacity-80"
               style={{
-                borderWidth: 1.5,
+                borderRadius: theme.radius.pill,
+                borderWidth: expanded ? 1.5 : 0,
                 borderColor: theme.colors.primary,
+                backgroundColor: theme.colors.card,
                 opacity: rowBusy ? 0.6 : 1,
               }}
             >
-              <CalendarClock size={16} color={theme.colors.primary} />
-              <Text
-                className="font-bold text-[14px]"
-                style={{ color: theme.colors.primary }}
+              <LinearGradient
+                colors={
+                  expanded
+                    ? [theme.colors.card, theme.colors.card]
+                    : [...theme.gradients.dark]
+                }
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                className="px-5 flex-row items-center justify-center gap-1.5"
+                // +1.5 when borderless so toggling doesn't shift the layout
+                style={{ paddingVertical: expanded ? 12 : 13.5 }}
               >
-                {expanded ? "Hide scheduler" : "Schedule visit"}
-              </Text>
-              <ChevronDown
-                size={15}
-                color={theme.colors.primary}
-                style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
-              />
+                <CalendarClock
+                  size={16}
+                  color={expanded ? theme.colors.primary : "#FFFFFF"}
+                />
+                <Text
+                  className="font-bold text-[14px]"
+                  style={{ color: expanded ? theme.colors.primary : "#FFFFFF" }}
+                >
+                  {expanded ? "Hide scheduler" : "Schedule visit"}
+                </Text>
+                <ChevronDown
+                  size={15}
+                  color={expanded ? theme.colors.primary : "#FFFFFF"}
+                  style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
+                />
+              </LinearGradient>
             </Pressable>
 
             {expanded ? (
@@ -450,6 +494,12 @@ export function DoctorAppointmentCard({
           </View>
         ) : null}
       </ClinicalCard>
+
+      <ReportViewerModal
+        reportPath={reportOpen ? a.report_pdf_path : null}
+        onClose={() => setReportOpen(false)}
+        title={`${patientName} · Skin Report`}
+      />
 
       {/* Confirmation dialog for destructive actions */}
       <UiModal

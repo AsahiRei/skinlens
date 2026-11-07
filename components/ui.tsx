@@ -302,13 +302,13 @@ export function Pill({
     tone === "primary"
       ? theme.colors.primarySoft
       : tone === "warning"
-        ? "#FEF3C7"
+        ? theme.colors.warningSoft
         : "#F3F4F6";
   const fg =
     tone === "primary"
       ? theme.colors.primaryDeep
       : tone === "warning"
-        ? "#92400E"
+        ? theme.colors.warningText
         : theme.colors.muted;
   return (
     <View

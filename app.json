@@ -99,7 +99,8 @@
             ]
           }
         }
-      ]
+      ],
+      "react-native-blob-util"
     ],
     "experiments": {
       "typedRoutes": true

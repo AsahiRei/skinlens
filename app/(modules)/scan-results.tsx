@@ -25,7 +25,6 @@ import {
   popIn,
 } from "@/components/motion";
 import {
-  getLatestResultDetail,
   getLifestyleProfile,
   getSensitivityHistory,
   getSkinProfile,
@@ -126,6 +125,8 @@ export default function ScanResults() {
   const ranRef = useRef(false);
   const cancelledRef = useRef(false);
   const busyRef = useRef(false);
+  const savingRef = useRef(false);
+  const routineJsonRef = useRef<string | null>(null);
 
   const showNotice = (message: string, title = "SkinLens") => {
     if (Platform.OS === "android") {
@@ -145,21 +146,20 @@ export default function ScanResults() {
     main_concern: detectionLabel,
   });
 
-  const generateAndSave = async () => {
-    // Re-entry guard: the effect and the "Try Again" button both call this,
-    // and a second entry before the first finishes would insert the SAME
-    // scan twice (insertResult has no dedupe).
+  const decodedUri = imageUri
+    ? (() => {
+        try { return decodeURIComponent(imageUri); } catch { return imageUri; }
+      })()
+    : null;
+
+  // Builds the routine for preview only. Nothing is persisted or uploaded
+  // here — that happens in handleConfirm, so "Scan Again" / back discards it.
+  const generatePreview = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
     try {
       setGenerating(true);
       setError(null);
-
-      const decodedUri = imageUri
-        ? (() => {
-            try { return decodeURIComponent(imageUri); } catch { return imageUri; }
-          })()
-        : null;
 
       // Rule-based routine: no model download — just read profiles, then
       // build the routine deterministically from the knowledge base.
@@ -189,38 +189,18 @@ export default function ScanResults() {
         avoid_ingredients: avoidIngredients,
       });
       if (cancelledRef.current) return;
-      await insertRoutine(routineJson);
       const healthResponse = getHealthScoreResponse(overallScore, {
         skin_type: resolvedSkinType,
         main_concern: detectionLabel,
       });
       const parsedRoutine = JSON.parse(routineJson);
-
-      // Upload image to Cloudinary
-      const cloudinaryUrl = decodedUri
-        ? await uploadImageToCloudinary(decodedUri)
-        : null;
-      if (cancelledRef.current) return;
-
-      if (cloudinaryUrl) {
-        showNotice("Image uploaded to cloud");
-      }
-
-      await insertResult({
+      routineJsonRef.current = routineJson;
+      setResultData({
         severity: healthResponse.severity,
         description: healthResponse.message,
         healthscore: overallScore,
         recommendations: parsedRoutine.recommended_products ?? null,
-        image_url: cloudinaryUrl ?? null,
-        local_image_uri: decodedUri ?? null,
-        source_type: `scan_${sourceType ?? "gallery"}`,
-        confidence: conf > 0 ? conf : null,
-        detection_label: detectionLabel,
-        survey_answers: JSON.stringify(parsedSurveyAnswers),
       });
-      if (cancelledRef.current) return;
-      const latestResult = await getLatestResultDetail();
-      if (latestResult) setResultData(latestResult);
     } catch (e) {
       if (cancelledRef.current) return;
       console.error("[scan-results] Error:", e);
@@ -238,19 +218,47 @@ export default function ScanResults() {
   useEffect(() => {
     if (ranRef.current) return;
     ranRef.current = true;
-    generateAndSave();
+    generatePreview();
     return () => {
       cancelledRef.current = true;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Persist only when the user confirms: save routine, upload the image to
+  // Cloudinary, insert the result. Guarded so a double tap can't insert twice
+  // (insertResult has no dedupe).
   const handleConfirm = async () => {
+    if (savingRef.current || !resultData || !routineJsonRef.current) return;
+    savingRef.current = true;
     setLoading(true);
     try {
+      await insertRoutine(routineJsonRef.current);
+
+      const cloudinaryUrl = decodedUri
+        ? await uploadImageToCloudinary(decodedUri)
+        : null;
+      if (cloudinaryUrl) {
+        showNotice("Image uploaded to cloud");
+      }
+
+      await insertResult({
+        severity: resultData.severity,
+        description: resultData.description,
+        healthscore: resultData.healthscore,
+        recommendations: resultData.recommendations,
+        image_url: cloudinaryUrl ?? null,
+        local_image_uri: decodedUri ?? null,
+        source_type: `scan_${sourceType ?? "gallery"}`,
+        confidence: conf > 0 ? conf : null,
+        detection_label: detectionLabel,
+        survey_answers: JSON.stringify(parsedSurveyAnswers),
+      });
       router.replace("/(tabs)/scan");
-    } catch {
-      showNotice("Something went wrong. Please try again.");
+    } catch (e) {
+      console.error("[scan-results] Save error:", e);
+      savingRef.current = false;
+      showNotice("Couldn't save your result. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -282,7 +290,7 @@ export default function ScanResults() {
                 onPress={() => {
                   if (generating) return;
                   ranRef.current = false;
-                  generateAndSave();
+                  generatePreview();
                 }}
               />
             </View>

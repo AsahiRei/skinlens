@@ -27,19 +27,24 @@ export function dayKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+/** Amber dot for pending requests — readable on the dark gradient. */
+const REQUEST_DOT = "#FCD34D";
+
 /**
  * Dark-green week strip (matches the tab bar gradient). Tap a day to
- * filter, tap again (or the pill) to clear. Dots mark days that have at
- * least one confirmed visit.
+ * filter, tap again (or the pill) to clear. A white dot marks days with a
+ * scheduled visit; an amber dot marks days a pending request prefers.
  */
 export function DoctorWeekCalendar({
   selectedDay,
   onSelect,
   visitDayKeys,
+  requestDayKeys,
 }: {
   selectedDay: Date | null;
   onSelect: (day: Date | null) => void;
   visitDayKeys: Set<string>;
+  requestDayKeys?: Set<string>;
 }) {
   const week = useMemo(() => {
     const monday = startOfWeekMonday(new Date());
@@ -105,12 +110,22 @@ export function DoctorWeekCalendar({
           const isSelected = selectedDay ? sameDay(day, selectedDay) : false;
           const isToday = sameDay(day, today);
           const hasVisit = visitDayKeys.has(dayKey(day));
+          const hasRequest = requestDayKeys?.has(dayKey(day)) ?? false;
+          const dayName = day.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          });
+          const a11yExtras = [
+            hasVisit ? "has visits" : null,
+            hasRequest ? "has requests" : null,
+          ].filter(Boolean);
           return (
             <Pressable
               key={day.toISOString()}
               onPress={() => onSelect(isSelected ? null : day)}
               accessibilityRole="button"
-              accessibilityLabel={`Filter by ${day.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}`}
+              accessibilityLabel={`Filter by ${dayName}${a11yExtras.length ? `, ${a11yExtras.join(", ")}` : ""}`}
               accessibilityState={isSelected ? { selected: true } : {}}
               className="flex-1 items-center active:opacity-70"
             >
@@ -138,17 +153,20 @@ export function DoctorWeekCalendar({
                   {day.getDate()}
                 </Text>
               </View>
-              <View
-                className="h-1 w-1 mt-1"
-                style={{
-                  borderRadius: 999,
-                  backgroundColor: hasVisit
-                    ? isSelected
-                      ? theme.colors.primary
-                      : "#FFFFFF"
-                    : "transparent",
-                }}
-              />
+              <View className="flex-row gap-0.5 mt-1 h-1">
+                {hasVisit ? (
+                  <View
+                    className="h-1 w-1"
+                    style={{ borderRadius: 999, backgroundColor: "#FFFFFF" }}
+                  />
+                ) : null}
+                {hasRequest ? (
+                  <View
+                    className="h-1 w-1"
+                    style={{ borderRadius: 999, backgroundColor: REQUEST_DOT }}
+                  />
+                ) : null}
+              </View>
             </Pressable>
           );
         })}

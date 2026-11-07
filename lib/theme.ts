@@ -18,6 +18,7 @@ export const theme = {
     cardBorder: "#E5EDE8",
     divider: "#EEF2EF",
     warningBg: "#FFFBEB",
+    warningSoft: "#FEF3C7", // amber chip / icon-badge fill (pending requests)
     warningBorder: "#FDE68A",
     warningText: "#92400E",
     danger: "#DC2626",

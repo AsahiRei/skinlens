@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import { Stethoscope, Ticket, User } from "lucide-react-native";
@@ -184,6 +184,9 @@ export default function DoctorSetup() {
                 placeholderTextColor={theme.colors.faint}
                 autoCapitalize="characters"
                 autoCorrect={false}
+                spellCheck={false}
+                autoComplete="off"
+                keyboardType={Platform.OS === "android" ? "visible-password" : "default"}
               />
             </View>
             {error ? (

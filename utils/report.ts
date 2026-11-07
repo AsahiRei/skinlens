@@ -456,8 +456,8 @@ function cleanReportKey(reportPath: string): string {
 }
 
 /**
- * Doctor (or patient) opens a report PDF stored at
- * `appointments.report_pdf_path`.
+ * Download a report PDF stored at `appointments.report_pdf_path` into the
+ * app cache and return its local `file://` URI (shown in ReportViewerModal).
  *
  * Uses a short-lived signed URL + native `File.downloadFileAsync` (SDK 57):
  * the old `storage.download()` path goes through the app's 10s JSON fetch
@@ -465,7 +465,7 @@ function cleanReportKey(reportPath: string): string {
  * Hermes/slow networks. Falls back to `storage.download()` when signed URLs
  * are unavailable.
  */
-export async function openAppointmentReport(reportPath: string): Promise<void> {
+export async function downloadAppointmentReport(reportPath: string): Promise<string> {
   const key = cleanReportKey(reportPath);
   const rawName = key.split("/").pop() || `report-${Date.now()}.pdf`;
   const safeName = rawName.endsWith(".pdf") ? rawName : `${rawName}.pdf`;
@@ -522,6 +522,11 @@ export async function openAppointmentReport(reportPath: string): Promise<void> {
     throw new Error(msg || "Couldn't download the report PDF.");
   }
 
+  return localUri;
+}
+
+/** Hand an already-downloaded report PDF to the system share sheet. */
+export async function shareReportFile(localUri: string): Promise<void> {
   const available = await Sharing.isAvailableAsync();
   if (!available) throw new Error("Sharing is not available on this device.");
   await Sharing.shareAsync(localUri, {
