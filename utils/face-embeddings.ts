@@ -17,7 +17,7 @@ const FACE_SIZE = 112;
 const EMBEDDING_DIM = 192;
 
 // Cosine similarity threshold for "same person".
-export const FACE_MATCH_THRESHOLD = 0.65;
+export const FACE_MATCH_THRESHOLD = 0.5;
 
 let faceModel: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
 
