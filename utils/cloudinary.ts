@@ -4,8 +4,9 @@ import { supabase } from "@/utils/supabase";
 
 // Signed uploads: the `cloudinary` Edge Function (supabase/functions) holds the API secret and
 // returns a short-lived signature scoped to the caller's own folder (skinlens/users/<uid>/<kind>).
-const LEGACY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
-const LEGACY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET ?? "";
+// There is deliberately NO unsigned-preset fallback: an EXPO_PUBLIC_ preset is baked into the app
+// bundle (anyone can extract it), and its uploads would land outside the user's folder where account
+// deletion can't purge them. If signing is unavailable the upload returns null and sync retries.
 
 type UploadKind = "scans" | "faces";
 
@@ -65,26 +66,15 @@ async function uploadOnce(localUri: string, kind: UploadKind): Promise<string | 
   const file = `data:image/jpeg;base64,${base64}`;
 
   const signed = await getSignature(kind);
-  if (signed) {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("api_key", signed.apiKey);
-    form.append("timestamp", String(signed.timestamp));
-    form.append("folder", signed.folder);
-    form.append("signature", signed.signature);
-    return postUpload(signed.cloudName, form);
-  }
+  if (!signed) return null;
 
-  if (LEGACY_CLOUD_NAME && LEGACY_UPLOAD_PRESET) {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("upload_preset", LEGACY_UPLOAD_PRESET);
-    form.append("folder", `skinlens/${kind}`);
-    return postUpload(LEGACY_CLOUD_NAME, form);
-  }
-
-  console.warn("[Cloudinary] no signing function and no legacy preset configured");
-  return null;
+  const form = new FormData();
+  form.append("file", file);
+  form.append("api_key", signed.apiKey);
+  form.append("timestamp", String(signed.timestamp));
+  form.append("folder", signed.folder);
+  form.append("signature", signed.signature);
+  return postUpload(signed.cloudName, form);
 }
 
 /**

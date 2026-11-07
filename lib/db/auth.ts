@@ -1,7 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 
 import { purgeMyCloudinaryImages } from "@/utils/cloudinary";
-import { signOutLocal, supabase } from "@/utils/supabase";
+import { signInWithGoogle, signOutLocal, supabase } from "@/utils/supabase";
 
 import { getDatabase } from "./database";
 
@@ -82,6 +82,75 @@ export async function deleteMyAccount(): Promise<void> {
 
   await signOutLocal();
   await clearLocalUserData();
+}
+
+/* ---------- Re-authentication for sensitive actions ----------
+ * Used before replacing the enrolled face: otherwise anyone holding an unlocked, signed-in phone
+ * could swap in their own face and pass the scan face check. */
+
+export type ReauthMethod = "password" | "google";
+
+export async function getReauthMethod(): Promise<ReauthMethod> {
+  const user = await requireUser();
+  const providers =
+    (user.app_metadata?.providers as string[] | undefined) ??
+    [user.app_metadata?.provider as string | undefined].filter((p): p is string => !!p);
+  // Accounts with an email identity have a password; Google-only accounts don't.
+  return providers.includes("email") || providers.length === 0 ? "password" : "google";
+}
+
+export async function reauthenticateWithPassword(password: string): Promise<void> {
+  const user = await requireUser();
+  if (!user.email) throw new Error("This account has no email address to verify.");
+  if (!password) throw new Error("Please enter your password.");
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+  if (error) {
+    throw new Error(
+      /invalid login credentials/i.test(error.message)
+        ? "Incorrect password. Please try again."
+        : error.message,
+    );
+  }
+  if (data.user?.id !== user.id) throw new Error("Couldn't verify this account.");
+}
+
+/**
+ * Proves a fresh Google sign-in to the SAME account. `signInWithGoogle` falls back to the existing
+ * session when the browser is dismissed, so a matching user id alone isn't proof — we also require
+ * the server's `last_sign_in_at` to have advanced. If a different Google account was chosen, the
+ * original session is restored.
+ */
+export async function reauthenticateWithGoogle(): Promise<void> {
+  const {
+    data: { session: before },
+  } = await supabase.auth.getSession();
+  if (!before) throw new Error("You need to be signed in to continue.");
+  const { data: beforeUser, error: beforeErr } = await supabase.auth.getUser();
+  if (beforeErr || !beforeUser.user) throw new Error("Connect to the internet to verify.");
+  const userId = beforeUser.user.id;
+  const lastSignIn = Date.parse(beforeUser.user.last_sign_in_at ?? "") || 0;
+
+  await signInWithGoogle();
+
+  const { data: afterUser } = await supabase.auth.getUser();
+  const after = afterUser.user;
+  if (!after) throw new Error("Google sign-in was cancelled or failed.");
+
+  if (after.id !== userId) {
+    // A different Google account was picked: put the original session back.
+    await supabase.auth.setSession({
+      access_token: before.access_token,
+      refresh_token: before.refresh_token,
+    });
+    throw new Error("That Google account isn't the one signed in to SkinLens.");
+  }
+  const afterSignIn = Date.parse(after.last_sign_in_at ?? "") || 0;
+  if (!(afterSignIn > lastSignIn)) {
+    throw new Error("Google sign-in was cancelled. Please try again.");
+  }
 }
 
 // Purge everything for an account that no longer exists server-side:

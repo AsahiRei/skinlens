@@ -37,6 +37,6 @@ If you have persistent, severe, or worsening skin concerns, please consult a **l
    supabase secrets set CLOUDINARY_CLOUD_NAME=... CLOUDINARY_API_KEY=... CLOUDINARY_API_SECRET=...
    supabase functions deploy cloudinary
    ```
-   Then remove `EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET` from `.env` / EAS env and disable that unsigned preset in the Cloudinary console.
+   The app has no unsigned-upload fallback, so images stay local (and sync retries) until this function is deployed. Delete any old `EXPO_PUBLIC_CLOUDINARY_*` values from `.env` / EAS env and disable the old unsigned preset in the Cloudinary console.
 3. **Crash reporting (optional)** — set `EXPO_PUBLIC_SENTRY_DSN`. For readable stack traces, add the `@sentry/react-native` config plugin with your `organization`/`project` and set `SENTRY_AUTH_TOKEN` as an EAS secret.
 4. **Checks** — `npm run typecheck && npm run lint && npm test`.

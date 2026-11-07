@@ -19,7 +19,8 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { ScreenGradient } from "@/components/ScreenGradient";
 import { PrimaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
-import { saveFaceIdentity } from "@/lib/db";
+import { ReauthGate } from "@/components/ReauthGate";
+import { getFaceIdentity, saveFaceIdentity } from "@/lib/db";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { embeddingToJson, getFaceEmbedding } from "@/utils/face-embeddings";
 import { evaluateAlignment, getAlignmentGuidance } from "@/utils/face-quality";
@@ -38,6 +39,23 @@ export default function FaceEnroll() {
     skipIntro?: string;
   }>();
   const isReenroll = mode === "reenroll";
+
+  // Replacing an existing face requires re-authentication, whichever way this screen was reached
+  // (profile, edit profile, face mismatch, or a deep link without mode=reenroll). First-time
+  // enrollment during setup has no stored face, so it skips the gate.
+  const [needsReauth, setNeedsReauth] = useState<boolean | null>(isReenroll ? true : null);
+  const [reauthed, setReauthed] = useState(false);
+  useEffect(() => {
+    if (isReenroll) return;
+    let cancelled = false;
+    getFaceIdentity()
+      .then((identity) => !cancelled && setNeedsReauth(!!identity?.face_embedding))
+      .catch(() => !cancelled && setNeedsReauth(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [isReenroll]);
+  const gateOpen = needsReauth === false || reauthed;
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const [cameraPosition, setCameraPosition] = useState<"front" | "back">("front");
@@ -221,7 +239,7 @@ export default function FaceEnroll() {
 
   const handleConfirm = useCallback(async () => {
     const filePath = previewPathRef.current;
-    if (!filePath || saving) return;
+    if (!filePath || saving || !gateOpen) return;
     setSaving(true);
     try {
       const uri = "file://" + filePath;
@@ -255,7 +273,29 @@ export default function FaceEnroll() {
     } finally {
       setSaving(false);
     }
-  }, [answers, healthScore, isReenroll, router, saving]);
+  }, [answers, gateOpen, healthScore, isReenroll, router, saving]);
+
+  if (needsReauth === null) {
+    return (
+      <View
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: theme.colors.background }}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (!gateOpen) {
+    return (
+      <ReauthGate
+        title="Confirm it's you"
+        message="Your face is used to verify that scans on this account are yours. Confirm your identity before replacing it."
+        onVerified={() => setReauthed(true)}
+        onCancel={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/profile"))}
+      />
+    );
+  }
 
   // Same one-question layout as setup step 9 — title, one line, button.
   if (!started) {

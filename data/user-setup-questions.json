@@ -39,7 +39,6 @@
     "type": "options",
     "options": [
       { "label": "None", "value": "none", "points": 5, "icon": "checkmark-circle-outline" },
-      { "label": "Pigmentation", "value": "pigmentation", "points": 3, "icon": "color-palette-outline" },
       { "label": "Acne", "value": "acne", "points": 2, "icon": "flask-outline" },
       { "label": "Eczema", "value": "eczema", "points": 1, "icon": "bandage-outline" },
       { "label": "Dry Skin", "value": "dry", "points": 1, "icon": "water-outline" },
