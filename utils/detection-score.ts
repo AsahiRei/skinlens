@@ -19,9 +19,9 @@ export const DETECTION_BASELINES: Record<string, number> = {
 const DEFAULT_BASELINE = 50;
 
 /** Top-class probability below this is treated as "couldn't tell". */
-export const MIN_CONFIDENCE = 0.45;
+export const MIN_CONFIDENCE = 0.35;
 /** Top-1 vs top-2 gap below this means the model is torn between two classes. */
-export const MIN_MARGIN = 0.1;
+export const MIN_MARGIN = 0.06;
 
 /** Weight of the image detection vs the survey in the final score. */
 const DETECTION_WEIGHT = 0.6;

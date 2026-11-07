@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 
 import { getDatabase } from "@/lib/db";
 import { handleInvalidSession } from "@/lib/db/auth";
+import { readPendingDoctorSignup } from "@/lib/db/appointments";
 import { theme } from "@/lib/theme";
 import Animated from "react-native-reanimated";
 import { enterUp } from "@/components/motion";
@@ -74,6 +75,7 @@ export default function Index() {
         | "/(tabs)"
         | "/(user-setup)"
         | "/doctor"
+        | "/doctor-setup"
         | "/(modules)/appointments",
     ) => {
       if (routedRef.current) return;
@@ -154,6 +156,15 @@ export default function Index() {
           return;
         }
         const userId = cachedSession.user.id;
+
+        // 3b. Doctor sign-up whose invite code isn't redeemed yet (email
+        // confirmation was pending, or the redeem failed). The marker lives
+        // in the cached session's user_metadata — no network needed here;
+        // /doctor-setup clears it once linked or on "continue as patient".
+        if (readPendingDoctorSignup(cachedSession.user.user_metadata)) {
+          safeReplace("/doctor-setup");
+          return;
+        }
 
         // 4. OFFLINE-FIRST: local user_setup decides the route — no network
         // wait on the happy path. validateSession() (network) used to run

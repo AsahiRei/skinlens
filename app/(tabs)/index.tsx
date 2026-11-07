@@ -8,9 +8,7 @@ import {
   Sun,
   CloudSun,
   Moon,
-  ChevronLeft,
   ChevronRight,
-  Check,
   ArrowRight,
   Scan,
   MessageSquare,
@@ -22,7 +20,6 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import CircularProgress from "@/components/CircularProgress";
 import { FadeItem } from "@/components/FadeItem";
-import InlineProgress from "@/components/InlineProgress";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { CoachTarget } from "@/components/TutorialCoach";
@@ -31,7 +28,6 @@ import {
   EmptyState,
   GradientHeroCta,
   IconBadge,
-  Pill,
   SectionTitle,
 } from "@/components/ui";
 import { useCoachScroller, useFocusTrigger } from "@/hooks";
@@ -51,6 +47,13 @@ import { getHealthScoreResponse } from "@/utils/healthscore";
 import { formatScore } from "@/utils/detection-score";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { haptics } from "@/lib/haptics";
+import {
+  PeriodPanel,
+  PeriodTabs,
+  RoutineCompleteBanner,
+  RoutineStepNode,
+} from "@/components/TodayRoutine";
 
 const PERIOD_ORDER: Period[] = ["morning", "afternoon", "evening"];
 
@@ -64,17 +67,28 @@ const PERIOD_CONFIG: Record<
   Period,
   {
     label: string;
+    short: string;
     icon: typeof Sun;
     key: keyof Routine;
   }
 > = {
-  morning: { label: "Morning Routine", icon: Sun, key: "morning_routine" },
+  morning: { label: "Morning Routine", short: "Morning", icon: Sun, key: "morning_routine" },
   afternoon: {
     label: "Afternoon Routine",
+    short: "Afternoon",
     icon: CloudSun,
     key: "afternoon_routine",
   },
-  evening: { label: "Evening Routine", icon: Moon, key: "evening_routine" },
+  evening: { label: "Evening Routine", short: "Evening", icon: Moon, key: "evening_routine" },
+};
+
+// Same boundaries as the header greeting, so "Good evening" opens the
+// evening routine instead of always landing on morning.
+const getCurrentPeriod = (): Period => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "morning";
+  if (hour < 18) return "afternoon";
+  return "evening";
 };
 
 export default function Home() {
@@ -102,7 +116,7 @@ export default function Home() {
   // order. Same guard the Routine tab already uses.
   const [pendingSteps, setPendingSteps] = useState<Set<string>>(new Set());
   const [loadingRoutine, setLoadingRoutine] = useState(true);
-  const [activePeriod, setActivePeriod] = useState<Period>("morning");
+  const [activePeriod, setActivePeriod] = useState<Period>(getCurrentPeriod);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -201,11 +215,23 @@ export default function Home() {
     });
     setPendingSteps((prev) => new Set(prev).add(key));
 
+    // Feedback fires with the optimistic UI, not after the DB round-trip.
+    if (isCurrentlyDone) {
+      haptics.soft();
+    } else {
+      const steps = stepsFor(period);
+      const doneAfter =
+        steps.filter((s) => completedSteps.has(`${period}-${s.step}`)).length + 1;
+      if (steps.length > 0 && doneAfter === steps.length) haptics.success();
+      else haptics.tap();
+    }
+
     try {
       if (routineId == null) throw new Error("Missing routine");
       await toggleStepDb(routineId, period, step, isCurrentlyDone);
     } catch (err) {
       console.error("Error toggling step:", err);
+      haptics.error();
       setCompletedSteps((prev) => {
         const next = new Set(prev);
         if (isCurrentlyDone) next.add(key);
@@ -221,16 +247,19 @@ export default function Home() {
     }
   };
 
-  const activeSteps = routine
-    ? (routine[PERIOD_CONFIG[activePeriod].key] as RoutineStep[])
-    : [];
-  const completedCount = activeSteps.filter((item) =>
-    completedSteps.has(`${activePeriod}-${item.step}`),
-  ).length;
-  const totalCount = activeSteps.length;
-  const routineProgress = totalCount
-    ? Math.round((completedCount / totalCount) * 100)
-    : 0;
+  const stepsFor = (period: Period): RoutineStep[] =>
+    routine ? ((routine[PERIOD_CONFIG[period].key] as RoutineStep[]) ?? []) : [];
+  const periodStats = Object.fromEntries(
+    PERIOD_ORDER.map((period) => {
+      const steps = stepsFor(period);
+      const done = steps.filter((s) => completedSteps.has(`${period}-${s.step}`)).length;
+      return [period, { done, total: steps.length }];
+    }),
+  ) as Record<Period, { done: number; total: number }>;
+
+  const activeSteps = stepsFor(activePeriod);
+  const { done: completedCount, total: totalCount } = periodStats[activePeriod];
+  const periodComplete = totalCount > 0 && completedCount === totalCount;
 
   const scoreExplanation = result
     ? getHealthScoreResponse(Number(result.healthscore) || 0, {
@@ -238,13 +267,6 @@ export default function Home() {
         main_concern: skinProfile?.main_concerns ?? "",
       }).shortMessage
     : "";
-
-  const goToPeriod = (direction: -1 | 1) => {
-    const currentIndex = PERIOD_ORDER.indexOf(activePeriod);
-    const nextIndex =
-      (currentIndex + direction + PERIOD_ORDER.length) % PERIOD_ORDER.length;
-    setActivePeriod(PERIOD_ORDER[nextIndex]);
-  };
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1" style={{ backgroundColor: theme.colors.background }}>
@@ -404,134 +426,101 @@ export default function Home() {
         {/* Routine (paginated: morning / afternoon / evening) */}
         <FadeItem index={3}>
           <View className="mt-5">
-            <SectionTitle title="Today's Routine" />
+            <SectionTitle
+              title="Today's Routine"
+              actionLabel={routine ? "See all" : undefined}
+              onAction={() => router.push("/(tabs)/routine")}
+            />
           </View>
         </FadeItem>
         <FadeItem index={4}>
           <CoachTarget id="home.routine" scrollIntoView={scrollIntoView}>
           {loadingRoutine ? (
-            <ClinicalCard className="mt-2.5 flex-col gap-3">
-              <Skeleton className="h-5 w-36 rounded-md" />
+            <ClinicalCard className="mt-2.5 flex-col gap-4">
+              <Skeleton className="h-12 w-full rounded-2xl" />
               <Skeleton className="h-16 w-full rounded-2xl" />
             </ClinicalCard>
+          ) : !routine ? (
+            /* No routine generated yet — point to the scan that creates one */
+            <ClinicalCard className="mt-2.5 items-center">
+              <EmptyState
+                title="No routine yet"
+                copy="Scan your skin and we'll build a morning, afternoon and evening routine for you."
+              />
+              <Pressable
+                onPress={() => router.push("/(tabs)/scan")}
+                accessibilityRole="button"
+                className="rounded-full px-5 py-2 -mt-3 active:opacity-80"
+                style={{ backgroundColor: theme.colors.primary }}
+              >
+                <Text className="text-xs font-bold" style={{ color: "#FFFFFF" }}>
+                  Scan your skin
+                </Text>
+              </Pressable>
+            </ClinicalCard>
           ) : (
-            <ClinicalCard className="mt-2.5 flex-col gap-3">
-              <View className="flex-row items-center justify-between">
-                <Pressable
-                  onPress={() => goToPeriod(-1)}
-                  hitSlop={8}
-                  className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
-                  style={{ backgroundColor: theme.colors.primarySoft }}
-                >
-                  <ChevronLeft size={16} color={theme.colors.primary} />
-                </Pressable>
+            <ClinicalCard className="mt-2.5 flex-col gap-4">
+              {/* Segmented control — thumb slides, every period's status visible */}
+              <PeriodTabs
+                activeKey={activePeriod}
+                onChange={(key) => setActivePeriod(key as Period)}
+                tabs={PERIOD_ORDER.map((period) => {
+                  const { done, total } = periodStats[period];
+                  return {
+                    key: period,
+                    label: PERIOD_CONFIG[period].short,
+                    icon: PERIOD_CONFIG[period].icon,
+                    done,
+                    total,
+                    a11yLabel: `${PERIOD_CONFIG[period].label}, ${
+                      total === 0
+                        ? "no steps"
+                        : done === total
+                          ? "complete"
+                          : `${done} of ${total} done`
+                    }`,
+                  };
+                })}
+              />
 
-                <View className="flex-row items-center gap-2">
-                  {(() => {
-                    const Icon = PERIOD_CONFIG[activePeriod].icon;
-                    return <Icon size={18} color={theme.colors.primary} />;
-                  })()}
-                  <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
-                    {PERIOD_CONFIG[activePeriod].label}
-                  </Text>
-                </View>
-
-                <Pressable
-                  onPress={() => goToPeriod(1)}
-                  hitSlop={8}
-                  className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
-                  style={{ backgroundColor: theme.colors.primarySoft }}
-                >
-                  <ChevronRight size={16} color={theme.colors.primary} />
-                </Pressable>
-              </View>
-
-              <View className="flex-row items-center justify-center gap-1.5">
-                {PERIOD_ORDER.map((period) => (
-                  <View
-                    key={period}
-                    className={`h-1.5 rounded-full ${
-                      period === activePeriod ? "w-6" : "w-1.5"
-                    }`}
-                    style={{
-                      backgroundColor:
-                        period === activePeriod
-                          ? theme.colors.primary
-                          : theme.colors.cardBorder,
-                    }}
-                  />
-                ))}
-              </View>
-
-              {totalCount > 0 && (
-                <View className="self-center">
-                  <Pill label={`${completedCount} / ${totalCount} done`} />
-                </View>
-              )}
-
+              {/* One cross-fade per period switch; steps don't re-stagger */}
+              <PeriodPanel periodKey={activePeriod}>
               {totalCount === 0 ? (
                 <EmptyState
-                  copy={`No ${PERIOD_CONFIG[activePeriod].label.toLowerCase()} steps.`}
+                  copy={`No ${PERIOD_CONFIG[activePeriod].short.toLowerCase()} steps today.`}
                 />
               ) : (
                 <>
-                  <InlineProgress
-                    progress={routineProgress}
-                    height={8}
-                    color={theme.colors.primary}
-                    trackColor={theme.colors.primarySoft}
-                  />
-
-                  <View className="flex-row items-start justify-between gap-2 mt-1">
-                    {activeSteps.map((item) => {
-                      const isDone = completedSteps.has(
-                        `${activePeriod}-${item.step}`,
-                      );
-                      const isPending = pendingSteps.has(
-                        `${activePeriod}-${item.step}`,
-                      );
+                  <View className="flex-row items-start">
+                    {activeSteps.map((item, index) => {
+                      const isDoneAt = (i: number) =>
+                        completedSteps.has(`${activePeriod}-${activeSteps[i].step}`);
+                      const key = `${activePeriod}-${item.step}`;
+                      const isFirst = index === 0;
+                      const isLast = index === activeSteps.length - 1;
                       return (
-                        <Pressable
+                        <RoutineStepNode
                           key={item.step}
+                          index={index}
+                          label={item.product_type}
+                          isDone={completedSteps.has(key)}
+                          isPending={pendingSteps.has(key)}
+                          prevDone={!isFirst && isDoneAt(index - 1)}
+                          nextDone={!isLast && isDoneAt(index + 1)}
+                          isFirst={isFirst}
+                          isLast={isLast}
                           onPress={() => handleToggleStep(activePeriod, item.step)}
-                          disabled={isPending}
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: isDone }}
-                          accessibilityLabel={`${item.product_type}, ${isDone ? "completed" : "not completed"}`}
-                          className={`flex-col items-center gap-1.5 flex-1 active:opacity-70 ${
-                            isPending ? "opacity-50" : ""
-                          }`}
-                        >
-                          <View
-                            className="h-11 w-11 rounded-full items-center justify-center bg-white"
-                            style={
-                              isDone
-                                ? { backgroundColor: theme.colors.primary }
-                                : { borderWidth: 1.5, borderColor: theme.colors.primary }
-                            }
-                          >
-                            {isDone ? (
-                              <Check size={16} color="white" />
-                            ) : (
-                              <View
-                                className="h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: theme.colors.primary }}
-                              />
-                            )}
-                          </View>
-                          <Text
-                            className="text-[11px] text-center"
-                            style={{ color: theme.colors.muted }}
-                            numberOfLines={1}
-                          >
-                            {item.product_type}
-                          </Text>
-                        </Pressable>
+                        />
                       );
                     })}
                   </View>
+
+                  {periodComplete ? (
+                    <RoutineCompleteBanner label={PERIOD_CONFIG[activePeriod].short} />
+                  ) : null}
                 </>
               )}
+              </PeriodPanel>
             </ClinicalCard>
           )}
           </CoachTarget>

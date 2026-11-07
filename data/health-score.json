@@ -19,8 +19,8 @@
       "minScore": 85,
       "severity": "excellent",
       "label": "Excellent",
-      "color": "#16a34a",
-      "trackColor": "#dcfce7",
+      "color": "#214E36",
+      "trackColor": "#EAF6EE",
       "messageTemplate": "Your skin health is in great shape. We've built a maintenance routine{personalizedClause} to help protect these results long-term.",
       "shortMessageTemplate": "Your skin health is in great shape{personalizedClause}."
     },

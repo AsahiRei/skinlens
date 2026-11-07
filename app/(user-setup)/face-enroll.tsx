@@ -26,6 +26,7 @@ import Animated, {
 import {
   Camera as CameraIcon,
   RefreshCw,
+  RotateCcw,
   Scan,
   ScanFace,
 } from "lucide-react-native";
@@ -64,7 +65,8 @@ export default function FaceEnroll() {
   const isReenroll = mode === "reenroll";
 
   const { hasPermission, requestPermission } = useCameraPermission();
-  const device = useCameraDevice("front");
+  const [cameraPosition, setCameraPosition] = useState<"front" | "back">("front");
+  const device = useCameraDevice(cameraPosition);
   const photoOutput = usePhotoOutput({
     targetResolution: PHOTO_TARGET_RESOLUTION,
     containerFormat: "jpeg",
@@ -207,6 +209,19 @@ export default function FaceEnroll() {
     }
   }, []);
 
+  const handleFlipCamera = useCallback(() => {
+    if (isCapturingRef.current) return;
+    setCameraPosition((prev) => (prev === "front" ? "back" : "front"));
+    // Clear the old camera's face state so the box/score don't linger.
+    // eslint-disable-next-line react-hooks/immutability
+    faceVisible.value = 0;
+    scoreRef.current = 0;
+    canCaptureRef.current = false;
+    setScore(0);
+    setGuidance("");
+    setCanCapture(false);
+  }, [faceVisible]);
+
   const handleCapture = useCallback(async () => {
     if (isCapturingRef.current || !canCaptureRef.current) return;
     isCapturingRef.current = true;
@@ -328,6 +343,7 @@ export default function FaceEnroll() {
         <FaceCamera
           style={CAMERA_STYLE}
           device={device}
+          cameraFacing={cameraPosition}
           isActive={!isPreview}
           performanceMode="fast"
           minFaceSize={0.2}
@@ -429,6 +445,17 @@ export default function FaceEnroll() {
               >
                 <CameraIcon size={26} color={canCapture ? theme.colors.primary : "rgba(255,255,255,0.4)"} />
               </View>
+            </Pressable>
+            <Pressable
+              onPress={handleFlipCamera}
+              accessibilityRole="button"
+              accessibilityLabel={
+                cameraPosition === "front" ? "Switch to back camera" : "Switch to front camera"
+              }
+              className="absolute right-6 w-11 h-11 rounded-full items-center justify-center"
+              style={{ top: (200 - 20) / 2 - 22, backgroundColor: "rgba(255,255,255,0.15)" }}
+            >
+              <RotateCcw size={22} color="white" />
             </Pressable>
           </View>
         ) : (

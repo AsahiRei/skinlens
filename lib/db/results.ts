@@ -413,6 +413,39 @@ export async function getAllResults(): Promise<Result[]> {
   return rows.map(rowToResult);
 }
 
+/**
+ * Like getAllResults, but waits for the server pull to land in the local cache
+ * before reading. getAllResults only refreshes in the background, so a cache
+ * holding just a scan or two (fresh install, new device, or only this week's
+ * rows cached) keeps showing that partial history until the next visit.
+ * Falls back to the cached rows when the server is unreachable.
+ */
+export async function refreshAllResults(): Promise<Result[]> {
+  const user = await requireUser();
+  const db = await getDatabase();
+
+  try {
+    const { data, error } = await supabase
+      .from("results")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(RESULTS_FETCH_LIMIT);
+    if (error) throw error;
+    if (data && data.length > 0) {
+      await upsertServerRows(db, data);
+    }
+  } catch {
+    // Offline or server error — return whatever is cached.
+  }
+
+  const rows = await db.getAllAsync<Parameters<typeof rowToResult>[0]>(
+    `SELECT * FROM results WHERE user_id = ? ORDER BY created_at DESC`,
+    [user.id],
+  );
+  return rows.map(rowToResult);
+}
+
 export async function getThisWeekResults(): Promise<Result[]> {
   const user = await requireUser();
   const db = await getDatabase();

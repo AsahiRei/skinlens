@@ -21,7 +21,7 @@ import { BackHeader, ClinicalCard, EmptyState, Pill, SectionTitle } from "@/comp
 import { theme } from "@/lib/theme";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
-import { getAllResults, getThisWeekResults } from "@/lib/db";
+import { getAllResults, getThisWeekResults, getUserProfile, refreshAllResults } from "@/lib/db";
 import type { Result } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
 import { generateWeeklySummary, getCachedWeeklySummary } from "@/utils/weekly-summary";
@@ -55,6 +55,21 @@ function isSameDay(dateStr: string, ref: Date): boolean {
     d.getMonth() === ref.getMonth() &&
     d.getDate() === ref.getDate()
   );
+}
+
+// Sort key for created_at. Server rows carry Postgres timestamps
+// ("2026-11-07T10:00:00.123456+00:00", sometimes with a space instead of "T")
+// while offline rows use toISOString(); normalise both so a value the JS
+// engine can't parse doesn't return NaN and scramble the sort (which made
+// "before" and "today" pick the wrong scans). Unparseable values sort first.
+function toTime(dateStr: string): number {
+  const normalized = dateStr
+    ?.trim()
+    .replace(" ", "T")
+    .replace(/(\.\d{3})\d+/, "$1")
+    .replace(/([+-]\d{2})$/, "$1:00");
+  const t = new Date(normalized).getTime();
+  return Number.isNaN(t) ? 0 : t;
 }
 
 // Trend charts are fixed-size, so cap them to the most recent N scan-days.
@@ -312,6 +327,8 @@ export default function Progress() {
   const [allResults, setAllResults] = useState<Result[]>([]);
   const [weekResults, setWeekResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [failedImages, setFailedImages] = useState<Set<string>>(() => new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [aiSummary, setAiSummary] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -336,12 +353,23 @@ export default function Progress() {
 
   const fetchData = async () => {
     try {
-      const [all, week] = await Promise.all([
+      // Paint the cached history immediately...
+      const [all, week, profile] = await Promise.all([
         getAllResults(),
         getThisWeekResults(),
+        getUserProfile().catch(() => null),
       ]);
       setAllResults(all);
       setWeekResults(week);
+      setProfileImage(profile?.face_image_url ?? null);
+      setLoading(false);
+      // ...then wait for the server pull. The cache can hold only part of the
+      // history (e.g. just today's scan), which hid "Before vs. Today" until
+      // the next visit because the background refresh never re-rendered.
+      const fresh = await refreshAllResults();
+      if (fresh.length !== all.length || fresh.some((r, i) => r.id !== all[i]?.id)) {
+        setAllResults(fresh);
+      }
     } catch (err) {
       console.error("Error fetching progress data:", err);
     } finally {
@@ -388,7 +416,7 @@ export default function Progress() {
   // Overall improvement: health-score change (in points) from the first scan
   // ever to the latest one.
   const sortedByDate = [...allResults].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    (a, b) => toTime(a.created_at) - toTime(b.created_at),
   );
   const firstScore = sortedByDate[0]?.healthscore ?? 0;
   const latestScore = sortedByDate[sortedByDate.length - 1]?.healthscore ?? 0;
@@ -413,10 +441,21 @@ export default function Progress() {
   // Before vs Today
   const firstResult = sortedByDate[0] ?? null;
   const latestResult = sortedByDate[sortedByDate.length - 1] ?? null;
-  // Oldest scan (other than the latest) that has an image; falls back to the
-  // first scan so the card still renders with a "No image" placeholder.
-  const beforeResult =
-    sortedByDate.find((r) => r.image_url && r.id !== latestResult?.id) ?? firstResult;
+  // Oldest scan (other than the latest) whose image actually loads. An
+  // image_url can be a temp file:// path (cloud upload failed at scan time)
+  // that the OS has since deleted — skip those via onError instead of
+  // rendering an empty box. Falls back to the first scan with the profile
+  // picture (the onboarding baseline was saved without a photo on older
+  // accounts), then to the "No image" placeholder.
+  const beforeScan = sortedByDate.find(
+    (r) => r.image_url && !failedImages.has(r.image_url) && r.id !== latestResult?.id,
+  );
+  const beforeResult = beforeScan ?? firstResult;
+  const beforeImage =
+    beforeScan?.image_url ??
+    (profileImage && !failedImages.has(profileImage) ? profileImage : null);
+  const markImageFailed = (uri: string) =>
+    setFailedImages((prev) => (prev.has(uri) ? prev : new Set(prev).add(uri)));
   const beforeDelta =
     beforeResult && latestResult
       ? Math.round((latestResult.healthscore - beforeResult.healthscore) * 10) / 10
@@ -558,9 +597,11 @@ export default function Progress() {
                 {/* Before */}
                 <View className="items-center flex-1">
                   <View className="w-28 h-28 rounded-2xl overflow-hidden" style={{ backgroundColor: theme.colors.background }}>
-                    {beforeResult.image_url ? (
+                    {beforeImage ? (
                       <Image
-                        source={{ uri: beforeResult.image_url }}
+                        key={beforeImage}
+                        source={{ uri: beforeImage }}
+                        onError={() => markImageFailed(beforeImage)}
                         className="w-full h-full"
                         resizeMode="cover"
                       />

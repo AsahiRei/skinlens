@@ -157,6 +157,7 @@ function RootLayout() {
             <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
             <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
             <Stack.Screen name="doctor" options={{ animation: "fade" }} />
+            <Stack.Screen name="doctor-setup" options={{ animation: "fade" }} />
             <Stack.Screen name="(modules)/camera" options={{ animation: "fade" }} />
             <Stack.Screen name="(modules)/analyzing" options={{ animation: "fade" }} />
             <Stack.Screen

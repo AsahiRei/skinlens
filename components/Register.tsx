@@ -14,8 +14,54 @@ import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import LegalModal from "@/components/LegalModal";
 import { PrimaryButton } from "@/components/ui";
 import { supabase } from "@/utils/supabase";
-import { redeemInviteCode } from "@/lib/db/appointments";
+import {
+  checkInviteCode,
+  clearPendingDoctorSignup,
+  redeemInviteCode,
+} from "@/lib/db/appointments";
 import { friendlyError } from "@/lib/db/pg-errors";
+
+// The doctor name field already shows "Dr.", so drop it if typed or pasted
+// to avoid saving "Dr. Dr. Jane".
+function stripDrPrefix(name: string) {
+  return name.replace(/^\s*dr\.?\s+/i, "");
+}
+
+// Live password checklist shown under the Confirm Password field.
+function getPasswordRules(password: string, confirm: string) {
+  return [
+    { key: "length", label: "At least 8 characters", met: password.length >= 8 },
+    { key: "number", label: "One number", met: /\d/.test(password) },
+    { key: "match", label: "Passwords match", met: password.length > 0 && password === confirm },
+  ];
+}
+
+function RuleItem({ label, met }: { label: string; met: boolean }) {
+  return (
+    <View
+      className="flex-row items-center gap-2"
+      accessible
+      accessibilityLabel={`${label}: ${met ? "done" : "not yet"}`}
+    >
+      <View
+        className="w-5 h-5 rounded-full items-center justify-center"
+        style={
+          met
+            ? { backgroundColor: theme.colors.primary, borderWidth: 1.5, borderColor: theme.colors.primary }
+            : { backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: theme.colors.faint }
+        }
+      >
+        {met && <Check size={12} color="white" strokeWidth={3} />}
+      </View>
+      <Text
+        className="text-xs"
+        style={{ color: met ? theme.colors.primary : theme.colors.muted, fontWeight: met ? "600" : "400" }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
 
 export default function Register() {
   const [displayName, setDisplayName] = useState("");
@@ -30,6 +76,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [legal, setLegal] = useState<null | "terms" | "privacy">(null);
   const router = useRouter();
+  const passwordRules = getPasswordRules(password, confirmPassword);
   //register
   const handleRegister = async () => {
     console.log(`[SkinLens][Auth] ${new Date().toISOString()} handleRegister start`);
@@ -53,18 +100,18 @@ export default function Register() {
       ToastAndroid.show("Password does not match", ToastAndroid.SHORT);
       return;
     }
-    if (password.length < 6) {
-      ToastAndroid.show(
-        "Password must be at least 6 characters",
-        ToastAndroid.SHORT,
-      );
+    const unmet = passwordRules.find((r) => !r.met);
+    if (unmet) {
+      ToastAndroid.show(`Password needs: ${unmet.label.toLowerCase()}`, ToastAndroid.SHORT);
       return;
     }
-    const cleanName = displayName.trim();
-    if (isDoctor && !cleanName) {
+    const bareName = stripDrPrefix(displayName).trim();
+    if (isDoctor && !bareName) {
       ToastAndroid.show("Please enter your name", ToastAndroid.SHORT);
       return;
     }
+    // The field shows a fixed "Dr." prefix; save the full title + name.
+    const cleanName = `Dr. ${bareName}`;
     // Doctors must supply the hospital invite code (Admin → Invite codes).
     const cleanCode = inviteCode.trim().toUpperCase();
     if (isDoctor && !cleanCode) {
@@ -76,12 +123,37 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      // 1. Create Supabase authentication account
+      // 0. Doctor path: validate the invite code BEFORE creating the auth
+      // account. A bad code used to leave an orphan account the doctor
+      // could neither re-register with nor upgrade from.
+      if (isDoctor) {
+        try {
+          await checkInviteCode(cleanCode);
+        } catch (checkErr) {
+          console.log(`[SkinLens][Auth] ${new Date().toISOString()} invite pre-check failed:`, checkErr);
+          ToastAndroid.show(
+            friendlyError(checkErr, "Invalid invite code."),
+            ToastAndroid.LONG,
+          );
+          return;
+        }
+      }
+      // 1. Create Supabase authentication account. Doctors carry the code in
+      // user_metadata so it survives email confirmation / a failed redeem —
+      // app/index.tsx routes such accounts to /doctor-setup to finish.
       console.log(`[SkinLens][Auth] ${new Date().toISOString()} signUp start`);
       const { data: authData, error: registerError } =
         await supabase.auth.signUp({
           email: email.trim(),
           password,
+          options: isDoctor
+            ? {
+                data: {
+                  pending_invite_code: cleanCode,
+                  pending_display_name: cleanName,
+                },
+              }
+            : undefined,
         });
       if (registerError) {
         console.log(`[SkinLens][Auth] ${new Date().toISOString()} signUp failed:`, registerError.message);
@@ -133,20 +205,24 @@ export default function Register() {
         try {
           const res = await redeemInviteCode(cleanCode, cleanName);
           console.log(`[SkinLens][Auth] ${new Date().toISOString()} redeem success clinic=`, res.clinic_name);
+          // Best effort: a stale marker is harmless — /doctor-setup sees the
+          // doctors row and clears it on the next boot.
+          await clearPendingDoctorSignup().catch((e) =>
+            console.warn("[Register] clear pending doctor marker failed:", e),
+          );
           ToastAndroid.show(
             `Doctor account linked to ${res.clinic_name}!`,
             ToastAndroid.LONG,
           );
         } catch (redeemErr) {
+          // The account already exists — keep it signed in and let the
+          // doctor retry with another code instead of stranding it.
           console.log(`[SkinLens][Auth] ${new Date().toISOString()} redeem failed:`, redeemErr);
-          await supabase.from("user_profile").delete().eq("id", user.id);
-          await supabase.auth.signOut();
           ToastAndroid.show(
-            redeemErr instanceof Error
-              ? redeemErr.message
-              : "Invalid invite code.",
+            friendlyError(redeemErr, "Couldn't link your hospital yet."),
             ToastAndroid.LONG,
           );
+          router.replace("/doctor-setup");
           return;
         }
       } else {
@@ -176,10 +252,13 @@ export default function Register() {
             <Text className="text-sm font-medium" style={{ color: theme.colors.ink }}>Full Name</Text>
             <View className="flex-row items-center bg-white rounded-2xl px-4 py-3 gap-2" style={{ borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.input }}>
               <User size={22} color={theme.colors.muted} />
+              <Text className="font-semibold" style={{ color: theme.colors.primary }}>
+                Dr.
+              </Text>
               <TextInput
                 value={displayName}
-                onChangeText={setDisplayName}
-                placeholder="Dr. Jane Cruz"
+                onChangeText={(t) => setDisplayName(stripDrPrefix(t))}
+                placeholder="Jane Cruz"
                 className="flex-1"
                 style={{ color: theme.colors.ink }}
                 placeholderTextColor={theme.colors.faint}
@@ -254,6 +333,19 @@ export default function Register() {
               )}
             </Pressable>
           </View>
+        </View>
+        <View
+          className="rounded-2xl px-4 py-3 gap-2"
+          style={{
+            backgroundColor: theme.colors.card,
+            borderWidth: 1,
+            borderColor: theme.colors.cardBorder,
+            borderRadius: theme.radius.input,
+          }}
+        >
+          {passwordRules.map((r) => (
+            <RuleItem key={r.key} label={r.label} met={r.met} />
+          ))}
         </View>
         <Pressable
           onPress={() => setIsDoctor(!isDoctor)}

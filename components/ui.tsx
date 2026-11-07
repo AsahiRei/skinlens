@@ -326,9 +326,14 @@ export function Pill({
 export function SectionTitle({
   title,
   meta,
+  actionLabel,
+  onAction,
 }: {
   title: string;
   meta?: string;
+  /** Optional trailing link, e.g. "See all". Rendered instead of `meta`. */
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   return (
     <View className="flex-row items-center justify-between">
@@ -339,7 +344,19 @@ export function SectionTitle({
       >
         {title}
       </Text>
-      {meta ? (
+      {actionLabel && onAction ? (
+        <Pressable
+          onPress={onAction}
+          hitSlop={10}
+          accessibilityRole="link"
+          accessibilityLabel={`${actionLabel}: ${title}`}
+          className="ml-2 active:opacity-60"
+        >
+          <Text className="text-xs font-bold" style={{ color: theme.colors.primary }}>
+            {actionLabel}
+          </Text>
+        </Pressable>
+      ) : meta ? (
         <Text className="text-xs ml-2" style={{ color: theme.colors.faint }}>
           {meta}
         </Text>

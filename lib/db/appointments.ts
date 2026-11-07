@@ -1,7 +1,11 @@
 import { supabase } from "@/utils/supabase";
 
 import { requireUser } from "./auth";
-import { isDuplicateKeyError, isMissingColumnError } from "./pg-errors";
+import {
+  isDuplicateKeyError,
+  isMissingColumnError,
+  isMissingFunctionError,
+} from "./pg-errors";
 
 export type AppointmentStatus =
   | "requested"
@@ -61,6 +65,58 @@ export async function getUserRole(): Promise<"patient" | "doctor"> {
   return (data as { role?: string } | null)?.role === "doctor"
     ? "doctor"
     : "patient";
+}
+
+/**
+ * Read-only invite-code check (0014 migration) — run BEFORE signUp so a bad
+ * code never creates an orphan auth account. Does not burn a use.
+ * Returns null when the server doesn't have the function yet (migration not
+ * applied) so registration degrades to the old redeem-after-signup flow.
+ */
+export async function checkInviteCode(
+  code: string,
+): Promise<{ clinic_id: string; clinic_name: string } | null> {
+  const { data, error } = await supabase.rpc("check_clinic_code", {
+    p_code: code.trim(),
+  });
+  if (error) {
+    if (isMissingFunctionError(error)) {
+      console.warn("[appointments] check_clinic_code missing — apply 0014 migration");
+      return null;
+    }
+    throw new Error(error.message);
+  }
+  const row = data as { clinic_id: string; clinic_name: string } | null;
+  if (!row?.clinic_id) throw new Error("Invalid invite code.");
+  return row;
+}
+
+/**
+ * A doctor sign-up whose invite code hasn't been redeemed yet (email
+ * confirmation was pending, or the redeem failed). Stored in auth
+ * user_metadata at signUp so it survives across devices/sign-ins; the
+ * server still validates the code, so this is only a routing hint.
+ */
+export type PendingDoctorSignup = { inviteCode: string; displayName: string };
+
+export function readPendingDoctorSignup(
+  metadata: Record<string, unknown> | null | undefined,
+): PendingDoctorSignup | null {
+  const code = metadata?.pending_invite_code;
+  if (typeof code !== "string" || !code.trim()) return null;
+  const name = metadata?.pending_display_name;
+  return {
+    inviteCode: code.trim().toUpperCase(),
+    displayName: typeof name === "string" ? name.trim() : "",
+  };
+}
+
+/** Drop the pending-doctor marker (after a redeem, or "continue as patient"). */
+export async function clearPendingDoctorSignup(): Promise<void> {
+  const { error } = await supabase.auth.updateUser({
+    data: { pending_invite_code: null, pending_display_name: null },
+  });
+  if (error) throw new Error(error.message);
 }
 
 /**

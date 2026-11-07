@@ -116,11 +116,17 @@ export default function Loading() {
       });
       const parsedRoutine = JSON.parse(routineJson);
       const healthScoreResponse = getHealthScoreResponse(score, parsedAnswers);
+      // Attach the enrollment photo to this baseline result so Progress's
+      // "Before vs. Today" has a "before" image from day one.
+      const baselineImage = await getFaceIdentity()
+        .then((f) => f?.face_image_url ?? null)
+        .catch(() => null);
       await insertResult({
         severity: healthScoreResponse.severity,
         description: healthScoreResponse.message,
         healthscore: score,
         recommendations: parsedRoutine.recommended_products ?? null,
+        image_url: baselineImage,
       });
       await insertRoutine(routineJson);
       if (cancelledRef.current) return;
