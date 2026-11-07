@@ -246,6 +246,10 @@ export default function Index() {
             return;
           }
           if (userSetup?.role === "doctor") {
+            // A freshly linked doctor account (or one that quit mid-tour) gets the doctor tour.
+            const tutorialPending = await tutorialPendingFor(session.user.id);
+            if (!mountedRef.current || routedRef.current) return;
+            if (tutorialPending) startTutorial("doctor");
             safeReplace("/doctor");
             return;
           }

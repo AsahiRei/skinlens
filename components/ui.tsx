@@ -398,11 +398,14 @@ export function UiModal({
   message,
   actions = [],
   children,
+  header,
   dismissOnBackdrop = true,
 }: {
   visible: boolean;
   onDismiss: () => void;
   title: string;
+  /** Rendered above the title, e.g. an illustration. */
+  header?: React.ReactNode;
   message?: string;
   actions?: UiModalAction[];
   children?: React.ReactNode;
@@ -434,6 +437,7 @@ export function UiModal({
                 ...cardShadow,
               }}
             >
+              {header}
               <Text
                 className="font-bold text-[18px] text-center"
                 style={{ color: theme.colors.ink }}

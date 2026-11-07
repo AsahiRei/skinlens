@@ -28,8 +28,8 @@
       "minScore": 70,
       "severity": "good",
       "label": "Good",
-      "color": "#65a30d",
-      "trackColor": "#ecfccb",
+      "color": "#3F7A57",
+      "trackColor": "#EAF6EE",
       "messageTemplate": "You're doing well overall. We've generated a routine{personalizedClause} to fine-tune a few areas and help you reach your best skin yet.",
       "shortMessageTemplate": "You're doing well overall{personalizedClause}."
     },

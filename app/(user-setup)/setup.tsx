@@ -16,10 +16,12 @@ import { fadeIn, fadeOut, popIn, PressableScale } from "@/components/motion";
 import profileOptions from "@/data/profile-options.json";
 import questionPage from "@/data/user-setup-questions.json";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { MIN_AGE, getMaxDob, isOldEnough } from "@/lib/age";
 
 const MONTHS: string[] = profileOptions.months;
 const MIN_DOB = new Date(1950, 0, 1);
-const DOB_FALLBACK = new Date(2000, 0, 1);
+const MAX_DOB = getMaxDob();
+const DOB_FALLBACK = new Date(Math.min(new Date(2000, 0, 1).getTime(), MAX_DOB.getTime()));
 
 function formatDob(date: Date): string {
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
@@ -45,7 +47,7 @@ export default function Setup() {
     : currentQuestion.type === "text"
       ? !!answers[currentQuestion.id]?.trim()
       : currentQuestion.type === "date"
-        ? dateTouched && !!answers[currentQuestion.id]
+        ? dateTouched && !!answers[currentQuestion.id] && !!dob && isOldEnough(dob)
         : !!answers[currentQuestion.id];
   const progressPct = Math.round(((page + 1) / totalSteps) * 100);
   //calculate the health score
@@ -257,7 +259,7 @@ export default function Setup() {
                         mode="date"
                         display="spinner"
                         minimumDate={MIN_DOB}
-                        maximumDate={new Date()}
+                        maximumDate={MAX_DOB}
                         onChange={(_event, selected) => {
                           if (!selected) return;
                           setDob(selected);
@@ -295,7 +297,7 @@ export default function Setup() {
                             mode="date"
                             display="default"
                             minimumDate={MIN_DOB}
-                            maximumDate={new Date()}
+                            maximumDate={MAX_DOB}
                             onChange={(event, selected) => {
                               // Android dialog: dismiss leaves the answer untouched.
                               if (event?.type === "dismissed") {
@@ -313,6 +315,10 @@ export default function Setup() {
                         )}
                       </>
                     )}
+                    <Text className="text-xs mt-2" style={{ color: theme.colors.muted }}>
+                      You must be at least {MIN_AGE} years old to use SkinLens, as stated in our
+                      Terms & Conditions.
+                    </Text>
                   </ClinicalCard>
                 )}
               </View>

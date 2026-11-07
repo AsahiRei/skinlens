@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Linking,
   Platform,
@@ -13,10 +13,20 @@ import {
 import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Camera, Map, Marker } from "@maplibre/maplibre-react-native";
-import { Cross, ExternalLink, Pencil, LogOut, MapPin, ShieldCheck } from "lucide-react-native";
+import {
+  ChevronRight,
+  Cross,
+  ExternalLink,
+  Pencil,
+  LogOut,
+  MapPin,
+  ShieldCheck,
+} from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { FadeItem } from "@/components/FadeItem";
+import { CoachTarget, useTutorial } from "@/components/TutorialCoach";
+import { useCoachScroller } from "@/hooks/useCoachScroller";
 import { InfoCard } from "@/components/Info";
 import LogoutModal from "@/components/LogoutModal";
 import DeleteAccountModal from "@/components/DeleteAccountModal";
@@ -58,6 +68,11 @@ function initialOf(name: string): string {
 
 export default function DoctorProfileScreen() {
   const router = useRouter();
+  const { startTutorial } = useTutorial();
+  // Tab screens keep their scroll offset between visits, so the tutorial
+  // needs to scroll its target back into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   const { settings, updateSettings, refresh: refreshNotifications } = useNotifications();
   const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
   const [email, setEmail] = useState<string>("");
@@ -213,9 +228,12 @@ export default function DoctorProfileScreen() {
       >
         <ScreenGradient />
         <ScrollView
+          ref={scrollRef}
           className="flex-1 px-5"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
+          onScroll={onScroll}
+          scrollEventThrottle={32}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -227,82 +245,84 @@ export default function DoctorProfileScreen() {
         >
           {/* Header + identity hero (mirrors the patient "My Profile" tab) */}
           <FadeItem index={0}>
-            {loading ? (
-              <HeroTextSkeleton />
-            ) : (
-              <View className="mt-2">
-                <View className="flex-row items-start justify-between">
-                  <ScreenHeader title="My Profile" subtitle="Your doctor profile" />
-                  {doctor ? (
-                    <Pressable
-                      onPress={() => router.push("/(modules)/doctor-edit-profile")}
-                      accessibilityRole="button"
-                      accessibilityLabel="Edit profile"
-                      className="flex-row items-center gap-1.5 bg-white rounded-full px-3.5 py-2 active:opacity-70"
-                      style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-                    >
-                      <Pencil size={14} color={theme.colors.primary} />
-                      <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>
-                        Edit
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-                <LinearGradient
-                  colors={[...theme.gradients.dark]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  className="flex-col mt-4 px-4 py-4"
-                  style={{ borderRadius: theme.radius.card, ...cardShadow }}
-                >
-                  <View className="flex-row items-center gap-4">
-                    <LinearGradient
-                      colors={[...theme.gradients.icon]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={{
-                        height: 80,
-                        width: 80,
-                        borderRadius: 999,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text className="text-3xl font-bold text-white">
-                        {initialOf(doctor?.displayName ?? email)}
-                      </Text>
-                    </LinearGradient>
-                    <View className="flex-1">
-                      <Text
-                        className="font-semibold mt-0.5 text-xl"
-                        style={{ color: "#FFFFFF" }}
-                        numberOfLines={1}
+            <CoachTarget id="doctor.profile.card" scrollIntoView={scrollIntoView}>
+              {loading ? (
+                <HeroTextSkeleton />
+              ) : (
+                <View className="mt-2">
+                  <View className="flex-row items-start justify-between">
+                    <ScreenHeader title="My Profile" subtitle="Your doctor profile" />
+                    {doctor ? (
+                      <Pressable
+                        onPress={() => router.push("/(modules)/doctor-edit-profile")}
+                        accessibilityRole="button"
+                        accessibilityLabel="Edit profile"
+                        className="flex-row items-center gap-1.5 bg-white rounded-full px-3.5 py-2 active:opacity-70"
+                        style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
                       >
-                        {doctor?.displayName ?? "Doctor"}
-                      </Text>
-                      {email ? (
+                        <Pencil size={14} color={theme.colors.primary} />
+                        <Text className="text-sm font-bold" style={{ color: theme.colors.primary }}>
+                          Edit
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                  <LinearGradient
+                    colors={[...theme.gradients.dark]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    className="flex-col mt-4 px-4 py-4"
+                    style={{ borderRadius: theme.radius.card, ...cardShadow }}
+                  >
+                    <View className="flex-row items-center gap-4">
+                      <LinearGradient
+                        colors={[...theme.gradients.icon]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={{
+                          height: 80,
+                          width: 80,
+                          borderRadius: 999,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text className="text-3xl font-bold text-white">
+                          {initialOf(doctor?.displayName ?? email)}
+                        </Text>
+                      </LinearGradient>
+                      <View className="flex-1">
                         <Text
-                          className="text-sm mt-0.5"
-                          style={{ color: "rgba(255,255,255,0.8)" }}
+                          className="font-semibold mt-0.5 text-xl"
+                          style={{ color: "#FFFFFF" }}
                           numberOfLines={1}
                         >
-                          {email}
+                          {doctor?.displayName ?? "Doctor"}
                         </Text>
-                      ) : null}
+                        {email ? (
+                          <Text
+                            className="text-sm mt-0.5"
+                            style={{ color: "rgba(255,255,255,0.8)" }}
+                            numberOfLines={1}
+                          >
+                            {email}
+                          </Text>
+                        ) : null}
+                      </View>
                     </View>
-                  </View>
-                  <View className="mt-2 self-start">
-                    <Pill label={doctor?.specialty ?? "Dermatology"} />
-                  </View>
-                  {doctor ? (
-                    <View className="flex-row gap-3 mt-3">
-                      <InfoCard label="Waiting" value={String(waiting)} />
-                      <InfoCard label="Scheduled" value={String(scheduled)} />
+                    <View className="mt-2 self-start">
+                      <Pill label={doctor?.specialty ?? "Dermatology"} />
                     </View>
-                  ) : null}
-                </LinearGradient>
-              </View>
-            )}
+                    {doctor ? (
+                      <View className="flex-row gap-3 mt-3">
+                        <InfoCard label="Waiting" value={String(waiting)} />
+                        <InfoCard label="Scheduled" value={String(scheduled)} />
+                      </View>
+                    ) : null}
+                  </LinearGradient>
+                </View>
+              )}
+            </CoachTarget>
           </FadeItem>
 
           {/* Clinic */}
@@ -483,8 +503,33 @@ export default function DoctorProfileScreen() {
             </FadeItem>
           ) : null}
 
-          {/* Session */}
+          {/* App: replay the doctor tour */}
           <FadeItem index={3}>
+            <ClinicalCard className="mt-4">
+              <SectionTitle title="App" />
+              <Pressable
+                // The tour navigates itself: every step carries its own
+                // screen's href, so it walks back to Home on its own.
+                onPress={() => startTutorial("doctor")}
+                accessibilityRole="button"
+                accessibilityLabel="Replay tutorial"
+                className="flex-row items-center gap-3 pt-3 active:opacity-70"
+              >
+                <View className="flex-1">
+                  <Text className="text-base font-semibold" style={{ color: theme.colors.ink }}>
+                    Replay Tutorial
+                  </Text>
+                  <Text className="text-sm" style={{ color: theme.colors.faint }}>
+                    Watch the app tour again
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={theme.colors.faint} />
+              </Pressable>
+            </ClinicalCard>
+          </FadeItem>
+
+          {/* Session */}
+          <FadeItem index={4}>
             <Pressable
               className="active:opacity-80 py-4 mt-5 rounded-full flex-row items-center justify-center gap-2"
               style={{ backgroundColor: theme.colors.danger }}

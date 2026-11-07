@@ -10,6 +10,7 @@ import LegalModal from "@/components/LegalModal";
 import { PrimaryButton } from "@/components/ui";
 import { supabase } from "@/utils/supabase";
 import { checkInviteCode, clearPendingDoctorSignup, redeemInviteCode } from "@/lib/db/appointments";
+import { setTutorialPending } from "@/lib/tutorial";
 import { friendlyError } from "@/lib/db/pg-errors";
 import { firstError, getPasswordRules, registerSchema, stripDrPrefix } from "@/lib/validation";
 
@@ -175,6 +176,8 @@ export default function Register() {
           await clearPendingDoctorSignup().catch((e) =>
             console.warn("[Register] clear pending doctor marker failed:", e),
           );
+          // Arm the doctor tour; the boot router starts it once it routes to /doctor.
+          await setTutorialPending(user.id);
           ToastAndroid.show(`Doctor account linked to ${res.clinic_name}!`, ToastAndroid.LONG);
         } catch (redeemErr) {
           // The account already exists — keep it signed in and let the

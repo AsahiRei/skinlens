@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import { Image, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { AppState, Image, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { Text } from "@/components/Text";
 import { router } from "expo-router";
 import {
@@ -54,6 +54,13 @@ import { getHealthScoreResponse } from "@/utils/healthscore";
 import { formatScore } from "@/utils/detection-score";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { UrgentCareModal } from "@/components/UrgentCareModal";
+import {
+  markUrgentCareReminded,
+  needsUrgentCare,
+  resetUrgentCareReminder,
+  shouldRemindUrgentCare,
+} from "@/utils/urgent-care";
 import { haptics } from "@/lib/haptics";
 import {
   PeriodPanel,
@@ -114,6 +121,7 @@ export default function Home() {
   // Scan photos are blurred on the dashboard until tapped, so a glance at
   // the phone doesn't expose a close-up of the user's face.
   const [revealPhoto, setRevealPhoto] = useState(false);
+  const [urgentVisible, setUrgentVisible] = useState(false);
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [routineId, setRoutineId] = useState<number | null>(null);
@@ -152,7 +160,20 @@ export default function Home() {
   };
   const fetchResult = async () => {
     try {
-      setResult(await getLatestResult());
+      const latest = await getLatestResult();
+      setResult(latest);
+      // Keep reminding while the latest scan is severe and no dermatologist
+      // has reviewed it yet; a newer non-severe scan or a review stops it.
+      const reviewed =
+        latest?.validation_status === "confirmed" || latest?.validation_status === "needs_review";
+      if (
+        shouldRemindUrgentCare() &&
+        !reviewed &&
+        needsUrgentCare(latest?.detection_label, latest?.survey_answers)
+      ) {
+        markUrgentCareReminded();
+        setUrgentVisible(true);
+      }
     } catch (err) {
       console.error("Error fetching result:", err);
     } finally {
@@ -199,6 +220,20 @@ export default function Home() {
     // re-run when the screen regains focus.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusTrigger]);
+
+  // Re-arm the urgent-care reminder each time the app comes back to the
+  // foreground, so it shows on every app open, not just cold starts.
+  useEffect(() => {
+    let prev = AppState.currentState;
+    const sub = AppState.addEventListener("change", (next) => {
+      if (prev.match(/inactive|background/) && next === "active") {
+        resetUrgentCareReminder();
+        fetchResult();
+      }
+      prev = next;
+    });
+    return () => sub.remove();
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -280,6 +315,7 @@ export default function Home() {
       style={{ backgroundColor: theme.colors.background }}
     >
       <ScreenGradient />
+      <UrgentCareModal visible={urgentVisible} onClose={() => setUrgentVisible(false)} />
       <ScrollView
         ref={scrollRef}
         className="flex-1 px-5"

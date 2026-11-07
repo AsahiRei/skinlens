@@ -9,6 +9,8 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import { PrimaryButton, ScreenHeader } from "@/components/ui";
 import { theme } from "@/lib/theme";
+import { setTutorialPending } from "@/lib/tutorial";
+import { useTutorial } from "@/components/TutorialCoach";
 import {
   clearPendingDoctorSignup,
   getMyDoctorProfile,
@@ -26,6 +28,7 @@ import { doctorSetupSchema, firstError } from "@/lib/validation";
  */
 export default function DoctorSetup() {
   const router = useRouter();
+  const { startTutorial } = useTutorial();
   const [checking, setChecking] = useState(true);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -104,6 +107,9 @@ export default function DoctorSetup() {
         `[SkinLens][Auth] ${new Date().toISOString()} doctor-setup linked clinic=`,
         res.clinic_name,
       );
+      // First time on the doctor tabs: arm the tour (so a restart replays it) and start it.
+      await setTutorialPending(user.id);
+      startTutorial("doctor");
       router.replace("/doctor");
     } catch (err) {
       console.log(`[SkinLens][Auth] ${new Date().toISOString()} doctor-setup redeem failed:`, err);
@@ -111,7 +117,7 @@ export default function DoctorSetup() {
     } finally {
       setLinking(false);
     }
-  }, [name, code, router]);
+  }, [name, code, router, startTutorial]);
 
   const continueAsPatient = useCallback(async () => {
     setError(null);

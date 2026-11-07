@@ -18,7 +18,7 @@ import { PrimaryButton } from "@/components/ui";
 import { requireUser } from "@/lib/db/auth";
 import { cardShadow, theme } from "@/lib/theme";
 import { clearTutorialPending } from "@/lib/tutorial";
-import { TUTORIAL_STEPS, type CoachStep } from "@/lib/tutorial-steps";
+import { TUTORIALS, type CoachStep, type TutorialKind } from "@/lib/tutorial-steps";
 
 export type CoachRect = { x: number; y: number; width: number; height: number };
 
@@ -38,7 +38,8 @@ type CoachTargetEntry = {
 };
 
 type CoachContextValue = {
-  startTutorial: () => void;
+  /** Starts the patient tour by default; doctor accounts pass "doctor". */
+  startTutorial: (kind?: TutorialKind) => void;
   registerTarget: (id: string, entry: CoachTargetEntry) => void;
   unregisterTarget: (id: string) => void;
   reportTarget: (id: string, rect: CoachRect) => void;
@@ -216,26 +217,28 @@ export function TutorialCoachProvider({ children }: { children: React.ReactNode 
     entry.scrollIntoView(r);
   }, []);
 
-  const startTutorial = useCallback(() => {
+  const startTutorial = useCallback((kind: TutorialKind = "patient") => {
     if (activeRef.current) return;
     activeRef.current = true;
     scrolledStepRef.current = -1;
     setIndex(0);
     setRectReport(null);
-    setSteps(TUTORIAL_STEPS);
+    setSteps(TUTORIALS[kind]);
   }, []);
 
   const endTutorial = useCallback(
     (finished: boolean) => {
       if (!activeRef.current) return;
       activeRef.current = false;
+      // Each tour starts on its own home screen (patient tabs or doctor tabs), so finish there too.
+      const home = stepsRef.current?.[0]?.href ?? "/(tabs)";
       scrolledStepRef.current = -1;
       setSteps(null);
       setRectReport(null);
       void requireUser()
         .then((user) => clearTutorialPending(user.id))
         .catch(() => {});
-      if (finished && !sameRoute(pathname, "/(tabs)")) router.push("/(tabs)");
+      if (finished && !sameRoute(pathname, home)) router.push(home as never);
     },
     [pathname, router],
   );

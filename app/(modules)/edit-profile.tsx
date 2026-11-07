@@ -26,10 +26,12 @@ import {
 } from "@/lib/db";
 import { formatter } from "@/utils/formatter";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { MIN_AGE, getMaxDob, isOldEnough } from "@/lib/age";
 
 const MONTHS: string[] = profileOptions.months;
 const MIN_DOB = new Date(1950, 0, 1);
-const DOB_FALLBACK = new Date(2000, 0, 1);
+const MAX_DOB = getMaxDob();
+const DOB_FALLBACK = new Date(Math.min(new Date(2000, 0, 1).getTime(), MAX_DOB.getTime()));
 
 function formatDob(date: Date): string {
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
@@ -173,6 +175,10 @@ export default function EditProfile() {
       ToastAndroid.show("Please fill in all fields before saving.", ToastAndroid.SHORT);
       return;
     }
+    if (dateTouched && dob && !isOldEnough(dob)) {
+      ToastAndroid.show(`You must be at least ${MIN_AGE} years old.`, ToastAndroid.SHORT);
+      return;
+    }
     setSaving(true);
     try {
       await updateUserProfile({
@@ -249,7 +255,7 @@ export default function EditProfile() {
                     mode="date"
                     display="spinner"
                     minimumDate={MIN_DOB}
-                    maximumDate={new Date()}
+                    maximumDate={MAX_DOB}
                     onChange={(_event, selected) => {
                       if (!selected) return;
                       setDob(selected);
@@ -282,7 +288,7 @@ export default function EditProfile() {
                         mode="date"
                         display="default"
                         minimumDate={MIN_DOB}
-                        maximumDate={new Date()}
+                        maximumDate={MAX_DOB}
                         onChange={(event, selected) => {
                           // Android dialog: dismiss leaves the answer untouched.
                           if (event?.type === "dismissed") {

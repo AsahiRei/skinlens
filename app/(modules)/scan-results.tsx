@@ -23,6 +23,8 @@ import { getHealthScoreResponse } from "@/utils/healthscore";
 import { ingredientsAvoidedBySensitivity } from "@/utils/knowledge";
 import { generateRoutine } from "@/utils/routine-generator";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { UrgentCareModal } from "@/components/UrgentCareModal";
+import { markUrgentCareReminded, needsUrgentCare } from "@/utils/urgent-care";
 import { assessDetection, computeOverallScore, prettyLabel } from "@/utils/detection-score";
 
 const detectionDescriptions: Record<string, string> = {
@@ -101,6 +103,10 @@ export default function ScanResults() {
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
+  // Severe survey answers: warn as soon as the results appear.
+  const [urgentVisible, setUrgentVisible] = useState(() =>
+    needsUrgentCare(detectionLabel, parsedSurveyAnswers),
+  );
   const ranRef = useRef(false);
   const cancelledRef = useRef(false);
   const busyRef = useRef(false);
@@ -294,6 +300,14 @@ export default function ScanResults() {
         message={notice?.message}
         actions={[{ label: "Got it", onPress: () => setNotice(null) }]}
       />
+      <UrgentCareModal
+        visible={urgentVisible}
+        showFindDoctor={false}
+        onClose={() => {
+          setUrgentVisible(false);
+          markUrgentCareReminded();
+        }}
+      />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         <View className="flex-1 px-5 gap-5">
           <Animated.View entering={enterUp(0)} className="pt-4 items-center">
@@ -405,7 +419,7 @@ export default function ScanResults() {
                       <AnimatedBarFill
                         percent={pct}
                         delay={350 + index * 120}
-                        color={isTop ? theme.colors.primary : theme.colors.primaryTint}
+                        color={isTop ? theme.colors.primary : "#A7C4B1"}
                       />
                     </View>
                   </View>

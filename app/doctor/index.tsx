@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
@@ -6,6 +6,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Bell, CalendarClock, CircleAlert, Inbox, Sun, type LucideIcon } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
+import { CoachTarget } from "@/components/TutorialCoach";
+import { useCoachScroller } from "@/hooks/useCoachScroller";
 import { DoctorAppointmentCard, fmtShort } from "@/components/DoctorAppointmentCard";
 import { DoctorWeekCalendar, dayKey, sameDay } from "@/components/DoctorWeekCalendar";
 import Skeleton from "@/components/Skeleton";
@@ -198,6 +200,10 @@ export default function DoctorHome() {
     applyStatus,
   } = useDoctorQueue();
   const router = useRouter();
+  // Tab screens keep their scroll offset between visits, so the tutorial
+  // needs to scroll its target back into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   const { unreadCount, refresh: refreshNotifications } = useNotifications();
 
   // Check for new patient bookings whenever Home is shown.
@@ -386,9 +392,12 @@ export default function DoctorHome() {
     >
       <ScreenGradient />
       <ScrollView
+        ref={scrollRef}
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -400,7 +409,11 @@ export default function DoctorHome() {
       >
         {/* Header */}
         <FadeItem index={0}>
-          <View className="flex-row items-center justify-between mt-2">
+          <CoachTarget
+            id="doctor.header"
+            scrollIntoView={scrollIntoView}
+            className="flex-row items-center justify-between mt-2"
+          >
             <View className="flex-col flex-1 pr-3">
               <Text className="font-semibold text-[13px]" style={{ color: theme.colors.muted }}>
                 {greetingFor()}
@@ -450,7 +463,7 @@ export default function DoctorHome() {
                 />
               )}
             </Pressable>
-          </View>
+          </CoachTarget>
         </FadeItem>
 
         {actionError ? (
@@ -461,7 +474,12 @@ export default function DoctorHome() {
 
         {/* Stat tabs — the selected tile drives the list below */}
         <FadeItem index={1}>
-          <View className="flex-row gap-3 mt-4" accessibilityRole="tablist">
+          <CoachTarget
+            id="doctor.stats"
+            scrollIntoView={scrollIntoView}
+            className="flex-row gap-3 mt-4"
+            accessibilityRole="tablist"
+          >
             <StatTab
               icon={Inbox}
               iconBg={theme.colors.warningSoft}
@@ -493,65 +511,69 @@ export default function DoctorHome() {
               accessibilityLabel={`Today's visits, ${counts.today}`}
               onPress={() => selectTab("today")}
             />
-          </View>
+          </CoachTarget>
         </FadeItem>
 
         {/* Week calendar — filters whichever list is active */}
         <FadeItem index={2}>
-          <DoctorWeekCalendar
-            selectedDay={selectedDay}
-            onSelect={selectDay}
-            visitDayKeys={visitDayKeys}
-            requestDayKeys={requestDayKeys}
-          />
+          <CoachTarget id="doctor.calendar" scrollIntoView={scrollIntoView}>
+            <DoctorWeekCalendar
+              selectedDay={selectedDay}
+              onSelect={selectDay}
+              visitDayKeys={visitDayKeys}
+              requestDayKeys={requestDayKeys}
+            />
+          </CoachTarget>
         </FadeItem>
 
-        {loading ? (
-          skeleton
-        ) : error ? (
-          <FadeItem index={3}>
-            <ClinicalCard className="mt-4">
-              <EmptyState title="Couldn't load your queue" copy={error} />
-              <SecondaryButton label="Try again" onPress={() => void handleRefresh()} />
-            </ClinicalCard>
-          </FadeItem>
-        ) : (
-          // Keyed by tab + day so the stagger replays when the list swaps.
-          <View key={`${tab}-${selectedDay ? dayKey(selectedDay) : "all"}`}>
+        <CoachTarget id="doctor.queue" scrollIntoView={scrollIntoView}>
+          {loading ? (
+            skeleton
+          ) : error ? (
             <FadeItem index={3}>
-              <View className="mt-5">
-                <SectionTitle title={title} meta={meta} />
-              </View>
+              <ClinicalCard className="mt-4">
+                <EmptyState title="Couldn't load your queue" copy={error} />
+                <SecondaryButton label="Try again" onPress={() => void handleRefresh()} />
+              </ClinicalCard>
             </FadeItem>
-            {list.length === 0 ? (
-              <FadeItem index={4}>
-                <ClinicalCard className="mt-3">
-                  <EmptyState title={emptyTitle} copy={emptyCopy} />
-                </ClinicalCard>
+          ) : (
+            // Keyed by tab + day so the stagger replays when the list swaps.
+            <View key={`${tab}-${selectedDay ? dayKey(selectedDay) : "all"}`}>
+              <FadeItem index={3}>
+                <View className="mt-5">
+                  <SectionTitle title={title} meta={meta} />
+                </View>
               </FadeItem>
-            ) : tab === "scheduled" && !selectedDay ? (
-              // Full agenda: Overdue / Today / Tomorrow / Upcoming.
-              <View className="flex-col gap-5 mt-3">
-                {groupVisits(list).map((g) => (
-                  <View key={g.key} className="flex-col gap-3">
-                    <View className="flex-row items-center gap-2">
-                      <Pill label={g.label} tone={g.tone} />
-                      <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                        {g.rows.length} visit{g.rows.length === 1 ? "" : "s"}
-                        {g.hint ? ` · ${g.hint}` : ""}
-                      </Text>
+              {list.length === 0 ? (
+                <FadeItem index={4}>
+                  <ClinicalCard className="mt-3">
+                    <EmptyState title={emptyTitle} copy={emptyCopy} />
+                  </ClinicalCard>
+                </FadeItem>
+              ) : tab === "scheduled" && !selectedDay ? (
+                // Full agenda: Overdue / Today / Tomorrow / Upcoming.
+                <View className="flex-col gap-5 mt-3">
+                  {groupVisits(list).map((g) => (
+                    <View key={g.key} className="flex-col gap-3">
+                      <View className="flex-row items-center gap-2">
+                        <Pill label={g.label} tone={g.tone} />
+                        <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                          {g.rows.length} visit{g.rows.length === 1 ? "" : "s"}
+                          {g.hint ? ` · ${g.hint}` : ""}
+                        </Text>
+                      </View>
+                      {g.rows.map((a, idx) => renderCard(a, idx))}
                     </View>
-                    {g.rows.map((a, idx) => renderCard(a, idx))}
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View className="flex-col gap-3 mt-3">
-                {list.map((a, idx) => renderCard(a, idx))}
-              </View>
-            )}
-          </View>
-        )}
+                  ))}
+                </View>
+              ) : (
+                <View className="flex-col gap-3 mt-3">
+                  {list.map((a, idx) => renderCard(a, idx))}
+                </View>
+              )}
+            </View>
+          )}
+        </CoachTarget>
       </ScrollView>
     </SafeAreaView>
   );

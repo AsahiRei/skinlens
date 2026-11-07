@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
 import { Search } from "lucide-react-native";
 import { FadeItem } from "@/components/FadeItem";
+import { CoachTarget } from "@/components/TutorialCoach";
+import { useCoachScroller } from "@/hooks/useCoachScroller";
 import { DoctorAppointmentCard } from "@/components/DoctorAppointmentCard";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -20,6 +22,10 @@ function formatDate(date: Date): string {
 export default function DoctorHistory() {
   const { doctor, rows, patientNames, patientAvatars, loading, refreshing, error, refresh } =
     useDoctorQueue();
+  // Tab screens keep their scroll offset between visits, so the tutorial
+  // needs to scroll its target back into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
 
   const [quickFilter, setQuickFilter] = useState<"all" | "completed" | "cancelled" | "declined">(
     "all",
@@ -93,9 +99,12 @@ export default function DoctorHistory() {
     >
       <ScreenGradient />
       <ScrollView
+        ref={scrollRef}
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -105,70 +114,72 @@ export default function DoctorHistory() {
           />
         }
       >
-        {/* Header */}
-        <FadeItem index={0}>
-          <View className="mt-2">
-            <ScreenHeader title="History" subtitle="Past visits" />
-          </View>
-        </FadeItem>
+        <CoachTarget id="doctor.history" scrollIntoView={scrollIntoView}>
+          {/* Header */}
+          <FadeItem index={0}>
+            <View className="mt-2">
+              <ScreenHeader title="History" subtitle="Past visits" />
+            </View>
+          </FadeItem>
 
-        {/* Search */}
-        <FadeItem index={1}>
-          <View
-            className="flex-row items-center gap-2 mt-4 px-4 py-3 rounded-2xl bg-white"
-            style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
-          >
-            <Search size={18} color={theme.colors.faint} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search by patient name, status..."
-              placeholderTextColor={theme.colors.faint}
-              className="flex-1 text-base"
-              style={{ color: theme.colors.ink }}
-              autoCapitalize="none"
-            />
-          </View>
-        </FadeItem>
+          {/* Search */}
+          <FadeItem index={1}>
+            <View
+              className="flex-row items-center gap-2 mt-4 px-4 py-3 rounded-2xl bg-white"
+              style={{ borderWidth: 1, borderColor: theme.colors.cardBorder }}
+            >
+              <Search size={18} color={theme.colors.faint} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search by patient name, status..."
+                placeholderTextColor={theme.colors.faint}
+                className="flex-1 text-base"
+                style={{ color: theme.colors.ink }}
+                autoCapitalize="none"
+              />
+            </View>
+          </FadeItem>
 
-        {/* Filter status / outcome chips */}
-        <FadeItem index={3}>
-          <View className="flex-row gap-2 mt-3 flex-wrap">
-            {(["all", "completed", "cancelled", "declined"] as const).map((f) => {
-              const active = quickFilter === f;
-              const label =
-                f === "all"
-                  ? "All Visits"
-                  : f === "completed"
-                    ? "Completed"
-                    : f === "cancelled"
-                      ? "Cancelled"
-                      : "Declined";
-              return (
-                <Pressable
-                  key={f}
-                  onPress={() => setQuickFilter(f)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Filter by ${label}`}
-                  accessibilityState={active ? { selected: true } : {}}
-                  className="rounded-full px-3.5 py-1.5 active:opacity-70"
-                  style={{
-                    backgroundColor: active ? theme.colors.primarySoft : theme.colors.card,
-                    borderWidth: 1,
-                    borderColor: active ? theme.colors.primary : theme.colors.cardBorder,
-                  }}
-                >
-                  <Text
-                    className="text-xs font-bold"
-                    style={{ color: active ? theme.colors.primaryDeep : theme.colors.muted }}
+          {/* Filter status / outcome chips */}
+          <FadeItem index={3}>
+            <View className="flex-row gap-2 mt-3 flex-wrap">
+              {(["all", "completed", "cancelled", "declined"] as const).map((f) => {
+                const active = quickFilter === f;
+                const label =
+                  f === "all"
+                    ? "All Visits"
+                    : f === "completed"
+                      ? "Completed"
+                      : f === "cancelled"
+                        ? "Cancelled"
+                        : "Declined";
+                return (
+                  <Pressable
+                    key={f}
+                    onPress={() => setQuickFilter(f)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Filter by ${label}`}
+                    accessibilityState={active ? { selected: true } : {}}
+                    className="rounded-full px-3.5 py-1.5 active:opacity-70"
+                    style={{
+                      backgroundColor: active ? theme.colors.primarySoft : theme.colors.card,
+                      borderWidth: 1,
+                      borderColor: active ? theme.colors.primary : theme.colors.cardBorder,
+                    }}
                   >
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </FadeItem>
+                    <Text
+                      className="text-xs font-bold"
+                      style={{ color: active ? theme.colors.primaryDeep : theme.colors.muted }}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </FadeItem>
+        </CoachTarget>
 
         {loading ? (
           skeleton
