@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
-import { Bell, CalendarClock, CircleAlert, Inbox, Sun, type LucideIcon } from "lucide-react-native";
+import { Bell, CalendarClock, Inbox, Sun, type LucideIcon } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { CoachTarget } from "@/components/TutorialCoach";
@@ -16,16 +16,17 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import {
   ClinicalCard,
   EmptyState,
-  Notice,
   Pill,
   SecondaryButton,
   SectionTitle,
+  UiModal,
 } from "@/components/ui";
 import { useDoctorQueue } from "@/hooks/useDoctorQueue";
 import { useNotifications } from "@/hooks/useNotifications";
 import { theme, cardShadow } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import {
+  isPendingStatus,
   patientAvatarFor,
   patientDisplayFor,
   type AppointmentRow,
@@ -248,13 +249,26 @@ export default function DoctorHome() {
     }
   };
 
+  // Modal title for a failed action, matched to the server's message.
+  const actionErrorTitle = !actionError
+    ? ""
+    : /within 30 minutes|already booked/i.test(actionError)
+      ? "Time not available"
+      : /already passed/i.test(actionError)
+        ? "That time has passed"
+        : /marked done from/i.test(actionError)
+          ? "Too early to mark as done"
+          : /already closed/i.test(actionError)
+            ? "Appointment already closed"
+            : "Couldn't save that change";
+
   const today = new Date();
 
   // Pending requests, oldest first — the queue reads as triage order.
   const fresh = useMemo(
     () =>
       rows
-        .filter((r) => r.status === "requested")
+        .filter((r) => isPendingStatus(r.status))
         .sort((a, b) => timeOf(a.created_at) - timeOf(b.created_at)),
     [rows],
   );
@@ -466,12 +480,6 @@ export default function DoctorHome() {
           </CoachTarget>
         </FadeItem>
 
-        {actionError ? (
-          <View className="mt-3">
-            <Notice icon={CircleAlert} copy={actionError} />
-          </View>
-        ) : null}
-
         {/* Stat tabs — the selected tile drives the list below */}
         <FadeItem index={1}>
           <CoachTarget
@@ -575,6 +583,15 @@ export default function DoctorHome() {
           )}
         </CoachTarget>
       </ScrollView>
+
+      {/* Failed action (e.g. slot already taken) — the card keeps its scheduler open behind it. */}
+      <UiModal
+        visible={actionError !== null}
+        onDismiss={() => setActionError(null)}
+        title={actionErrorTitle}
+        message={actionError ?? ""}
+        actions={[{ label: "OK", kind: "primary", onPress: () => setActionError(null) }]}
+      />
     </SafeAreaView>
   );
 }

@@ -3,7 +3,33 @@ import { supabase } from "@/utils/supabase";
 import { requireUser } from "./auth";
 import { isDuplicateKeyError, isMissingColumnError, isMissingFunctionError } from "./pg-errors";
 
-export type AppointmentStatus = "requested" | "scheduled" | "completed" | "cancelled" | "declined";
+export type AppointmentStatus =
+  | "requested"
+  /** The slot the patient asked for was given to another visit (0015 migration). */
+  | "needs_reschedule"
+  | "scheduled"
+  | "completed"
+  | "cancelled"
+  | "declined";
+
+/** Still waiting on the clinic: a fresh request, or one bumped because its slot was taken. */
+export function isPendingStatus(status: AppointmentStatus): boolean {
+  return status === "requested" || status === "needs_reschedule";
+}
+
+/** Length of one visit slot. Mirrors `appointment_slot_length()` in the 0015 migration. */
+export const SLOT_MINUTES = 30;
+const SLOT_MS = SLOT_MINUTES * 60 * 1000;
+
+/**
+ * When "Mark as done" unlocks: the visit's scheduled time. Null when the row isn't a scheduled visit.
+ * The server enforces the same rule with its own clock.
+ */
+export function completionOpensAt(a: Pick<AppointmentRow, "status" | "scheduled_at">): Date | null {
+  if (a.status !== "scheduled" || !a.scheduled_at) return null;
+  const t = Date.parse(a.scheduled_at);
+  return Number.isFinite(t) ? new Date(t) : null;
+}
 
 export type DoctorRow = {
   user_id: string;
@@ -306,6 +332,57 @@ export async function cancelAppointment(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Patient picks a new preferred time for a request whose slot was taken (needs_reschedule →
+ * requested). The server re-checks that the time is in the future and free.
+ */
+export async function rescheduleRequest(id: string, preferredTime: string): Promise<void> {
+  const at = Date.parse(preferredTime);
+  if (!Number.isFinite(at) || at <= Date.now()) throw new Error(PAST_TIME_MESSAGE);
+  const user = await requireUser();
+  const { data, error } = await supabase
+    .from("appointments")
+    .update({ preferred_time: preferredTime, status: "requested" })
+    .eq("id", id)
+    .eq("patient_id", user.id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error("Couldn't find that request — pull to refresh and try again.");
+  }
+}
+
+/**
+ * Confirmed visit times at a clinic in [from, to] that a new request can't use: taken for that
+ * doctor, or for every doctor when `doctorId` is null. Times only — never who booked them. Empty when
+ * the 0015 migration isn't applied yet (the server then simply doesn't block).
+ */
+export async function getTakenSlots(
+  clinicId: string,
+  doctorId: string | null,
+  from: Date,
+  to: Date,
+): Promise<Date[]> {
+  const { data, error } = await supabase.rpc("get_taken_slots", {
+    p_clinic_id: clinicId,
+    p_doctor_id: doctorId,
+    p_from: from.toISOString(),
+    p_to: to.toISOString(),
+  });
+  if (error) {
+    if (isMissingFunctionError(error)) return [];
+    throw new Error(error.message);
+  }
+  return ((data ?? []) as string[])
+    .map((iso) => new Date(iso))
+    .filter((d) => !Number.isNaN(d.getTime()));
+}
+
+/** True when `at` overlaps any of `taken` (slots are SLOT_MINUTES long). */
+export function overlapsTakenSlot(at: Date, taken: Date[]): boolean {
+  return taken.some((t) => Math.abs(t.getTime() - at.getTime()) < SLOT_MS);
+}
+
 /** Doctor's queue: every appointment at THEIR clinic (RLS: doctor select own clinic). */
 export async function getClinicAppointments(clinicId: string): Promise<AppointmentRow[]> {
   const { data, error } = await supabase
@@ -321,6 +398,9 @@ export async function getClinicAppointments(clinicId: string): Promise<Appointme
 /** Friendly copy for a slot that is already held by another visit. */
 export const SLOT_TAKEN_MESSAGE =
   "That time slot is already booked at your clinic — pick a different date & time.";
+
+/** Patient-side copy for a preferred time that overlaps a confirmed visit. */
+export const BOOKED_SLOT_MESSAGE = "That time is already booked — please pick another date & time.";
 
 /** Friendly copy for a picked slot that has already passed. */
 export const PAST_TIME_MESSAGE = "That time has already passed — please pick a later date & time.";

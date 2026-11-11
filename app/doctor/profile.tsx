@@ -51,6 +51,7 @@ import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import {
   getClinicAppointments,
   getMyDoctorProfile,
+  isPendingStatus,
   redeemInviteCode,
   type DoctorProfile,
 } from "@/lib/db/appointments";
@@ -97,7 +98,7 @@ export default function DoctorProfileScreen() {
       setDoctor(prof);
       if (prof) {
         const appts = await getClinicAppointments(prof.clinicId);
-        setWaiting(appts.filter((a) => a.status === "requested").length);
+        setWaiting(appts.filter((a) => isPendingStatus(a.status)).length);
         setScheduled(appts.filter((a) => a.status === "scheduled").length);
       }
     } catch (err) {

@@ -1,8 +1,15 @@
-import { useState } from "react";
-import { Image, Pressable, View } from "react-native";
+import { useEffect, useState } from "react";
+import { AppState, Image, Pressable, View } from "react-native";
 import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
-import { CalendarCheck2, CalendarClock, ChevronDown, Clock3, FileText } from "lucide-react-native";
+import {
+  CalendarCheck2,
+  CalendarClock,
+  ChevronDown,
+  Clock3,
+  FileText,
+  Lock,
+} from "lucide-react-native";
 
 import { DateTimeField } from "@/components/DateTimeField";
 import { DoctorProfileValidation } from "@/components/DoctorProfileValidation";
@@ -10,6 +17,8 @@ import { DoctorResultValidation } from "@/components/DoctorResultValidation";
 import { ClinicalCard, Pill, PrimaryButton, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import {
+  completionOpensAt,
+  isPendingStatus,
   isRemoteImageUrl,
   type AppointmentRow,
   type AppointmentStatus,
@@ -56,13 +65,14 @@ export function isToday(iso: string | null): boolean {
 }
 
 function toneFor(status: string): "primary" | "neutral" | "warning" {
-  if (status === "requested") return "warning";
+  if (status === "requested" || status === "needs_reschedule") return "warning";
   if (status === "scheduled") return "primary";
   return "neutral";
 }
 
 const STATUS_LABELS: Record<string, string> = {
   requested: "New request",
+  needs_reschedule: "Awaiting new time",
   scheduled: "Scheduled",
   completed: "Completed",
   declined: "Declined",
@@ -95,6 +105,32 @@ export function relativeAgo(iso: string | null): string {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
   return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/**
+ * Re-renders when `at` arrives (and whenever the app returns to the foreground, since JS timers pause
+ * in the background). Returns whether `at` has passed.
+ */
+function useHasArrived(at: Date | null): boolean {
+  const target = at?.getTime() ?? null;
+  // Clock sampled only from timer / AppState callbacks, never during render.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (target === null) return;
+    const sample = () => setNow(Date.now());
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") sample();
+    });
+    // Fires immediately when `target` already passed. setTimeout overflows past ~24.8 days, so
+    // far-off visits re-check daily (each sample re-runs this effect).
+    const wait = Math.max(0, Math.min(target - Date.now() + 250, 24 * 60 * 60 * 1000));
+    const timer = setTimeout(sample, wait);
+    return () => {
+      sub.remove();
+      clearTimeout(timer);
+    };
+  }, [target, now]);
+  return target !== null && now >= target;
 }
 
 function initialOf(name: string): string {
@@ -143,6 +179,10 @@ export function DoctorAppointmentCard({
 
   const avatarSize = compact ? 40 : 48;
   const rowBusy = busy || acting;
+  const pending = isPendingStatus(a.status);
+  // Mark as done unlocks at the visit time (the server enforces the same rule).
+  const completeOpensAt = completionOpensAt(a);
+  const canComplete = useHasArrived(completeOpensAt);
 
   const handleOpenReport = () => {
     if (a.report_pdf_path) setReportOpen(true);
@@ -340,7 +380,7 @@ export function DoctorAppointmentCard({
         )}
 
         {/* AI scan + profile review — open while the visit is still active */}
-        {a.status === "requested" || a.status === "scheduled" ? (
+        {pending || a.status === "scheduled" ? (
           <>
             <DoctorResultValidation patientId={a.patient_id} />
             <DoctorProfileValidation patientId={a.patient_id} />
@@ -348,8 +388,14 @@ export function DoctorAppointmentCard({
         ) : null}
 
         {/* Actions */}
-        {a.status === "requested" ? (
+        {pending ? (
           <View className="flex-col gap-2">
+            {a.status === "needs_reschedule" ? (
+              <Text className="text-xs" style={{ color: theme.colors.muted }}>
+                Their preferred time was booked by another visit, so the patient was asked to pick a
+                new one. You can still schedule them yourself.
+              </Text>
+            ) : null}
             {/* Primary action: filled while collapsed; once open it steps
                 back to an outline so "Confirm schedule" is the one filled
                 button on the card. */}
@@ -429,38 +475,50 @@ export function DoctorAppointmentCard({
             </Pressable>
           </View>
         ) : a.status === "scheduled" ? (
-          <View className="flex-row gap-2">
-            <Pressable
-              onPress={() => requestConfirm("complete")}
-              disabled={rowBusy}
-              accessibilityRole="button"
-              accessibilityLabel="Mark visit complete"
-              className="flex-1 rounded-full py-3 items-center active:opacity-80"
-              style={{
-                backgroundColor: theme.colors.primary,
-                opacity: rowBusy ? 0.7 : 1,
-              }}
-            >
-              <Text className="font-bold text-white text-[14px]">
-                {rowBusy ? "Saving…" : "Complete"}
+          <View className="flex-col gap-2">
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={() => requestConfirm("complete")}
+                disabled={rowBusy || !canComplete}
+                accessibilityRole="button"
+                accessibilityLabel="Mark visit as done"
+                accessibilityState={{ disabled: rowBusy || !canComplete }}
+                className="flex-1 flex-row gap-1.5 rounded-full py-3 items-center justify-center active:opacity-80"
+                style={{
+                  backgroundColor: canComplete ? theme.colors.primary : theme.colors.cardBorder,
+                  opacity: rowBusy ? 0.7 : 1,
+                }}
+              >
+                {!canComplete ? <Lock size={14} color={theme.colors.muted} /> : null}
+                <Text
+                  className="font-bold text-[14px]"
+                  style={{ color: canComplete ? "#FFFFFF" : theme.colors.muted }}
+                >
+                  {rowBusy ? "Saving…" : "Mark as done"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => requestConfirm("cancel")}
+                disabled={rowBusy}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel visit"
+                className="flex-1 rounded-full py-3 items-center active:opacity-70 bg-white"
+                style={{
+                  borderWidth: 1,
+                  borderColor: theme.colors.cardBorder,
+                  opacity: rowBusy ? 0.6 : 1,
+                }}
+              >
+                <Text className="font-bold text-[14px]" style={{ color: theme.colors.danger }}>
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+            {!canComplete && completeOpensAt ? (
+              <Text className="text-xs text-center" style={{ color: theme.colors.muted }}>
+                Mark as done unlocks at the visit time · {fmtShort(completeOpensAt.toISOString())}
               </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => requestConfirm("cancel")}
-              disabled={rowBusy}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel visit"
-              className="flex-1 rounded-full py-3 items-center active:opacity-70 bg-white"
-              style={{
-                borderWidth: 1,
-                borderColor: theme.colors.cardBorder,
-                opacity: rowBusy ? 0.6 : 1,
-              }}
-            >
-              <Text className="font-bold text-[14px]" style={{ color: theme.colors.danger }}>
-                Cancel
-              </Text>
-            </Pressable>
+            ) : null}
           </View>
         ) : null}
       </ClinicalCard>

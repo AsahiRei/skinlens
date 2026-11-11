@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import {
   getClinicAppointments,
   getMyDoctorProfile,
+  isPendingStatus,
   resolveAppointmentNames,
   updateAppointment,
   type AppointmentRow,
@@ -102,7 +103,7 @@ export function useDoctorQueue() {
 
   const counts = useMemo(() => {
     return {
-      fresh: rows.filter((r) => r.status === "requested").length,
+      fresh: rows.filter((r) => isPendingStatus(r.status)).length,
       scheduled: rows.filter((r) => r.status === "scheduled").length,
       today: rows.filter((r) => r.status === "scheduled" && isToday(r.scheduled_at)).length,
     };

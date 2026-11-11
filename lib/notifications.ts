@@ -58,7 +58,7 @@ export function generateDailyTip(): Notification | null {
 // Per-appointment status snapshot (AsyncStorage).
 const APPT_REPLY_ACKS_KEY = "appointment_reply_acks";
 
-const REPLIED_STATUSES = ["scheduled", "declined", "completed"] as const;
+const REPLIED_STATUSES = ["scheduled", "declined", "completed", "needs_reschedule"] as const;
 
 function replyCopy(
   r: AppointmentRow,
@@ -74,6 +74,18 @@ function replyCopy(
         type: "appointment_reply",
         title: "Visit confirmed",
         message: `${doctorName} scheduled your visit for ${when}.`,
+        read: false,
+        created_at: nowIso,
+      };
+    }
+    case "needs_reschedule": {
+      const when = r.preferred_time ? fmtWhen(r.preferred_time) : "the time you asked for";
+      return {
+        // Keyed by the requested time: a second bump (after picking a new time) is a new notice.
+        id: `apptrepl-${r.id}-bumped-${r.preferred_time ?? ""}`,
+        type: "appointment_reply",
+        title: "Pick a new time",
+        message: `${when} was just booked by another patient. Open My Appointments to choose another schedule.`,
         read: false,
         created_at: nowIso,
       };
@@ -187,6 +199,11 @@ export async function syncAppointmentReplies(): Promise<Notification[]> {
 // Appointment ids this device has already turned into a notification, per doctor account.
 const DOCTOR_REQUEST_SEEN_KEY = "doctor_request_seen";
 
+/** Seen-set entry: the original request keeps its bare id; a re-picked time adds `@<time>`. */
+function requestSeenKey(r: AppointmentRow): string {
+  return r.preferred_time ? `${r.id}@${r.preferred_time}` : r.id;
+}
+
 /** Request-notification ids are `apptreq-<appointmentId>`. */
 export function doctorRequestNotificationId(appointmentId: string): string {
   return `apptreq-${appointmentId}`;
@@ -260,13 +277,26 @@ async function runDoctorRequestSync(notify: boolean): Promise<Notification[]> {
     seen = null;
   }
   const firstRun = seen === null;
-  const fresh = pending.filter((r) => !seen?.has(r.id));
+  // A request that was bumped (slot taken) and re-sent with a new time counts as new again.
+  const isSeen = (r: AppointmentRow): boolean => {
+    if (!seen) return false;
+    if (seen.has(requestSeenKey(r))) return true;
+    if (!seen.has(r.id)) return false;
+    // Seen-lists saved before time-keys existed hold only bare ids: treat those as seen.
+    const prefix = `${r.id}@`;
+    return ![...seen].some((key) => key.startsWith(prefix));
+  };
+  const fresh = pending.filter((r) => !isSeen(r));
+  const repicked = new Set(fresh.filter((r) => seen?.has(r.id)).map((r) => r.id));
 
-  // Remember every row still in the window so ids never fire twice.
+  // Remember every row still in the window so ids never fire twice (bare id = "notified once",
+  // id@time = "notified for this time").
   const visibleIds = new Set(rows.map((r) => r.id));
   const nextSeen = [
-    ...[...(seen ?? [])].filter((id) => visibleIds.has(id)),
-    ...fresh.map((r) => r.id),
+    ...new Set([
+      ...[...(seen ?? [])].filter((key) => visibleIds.has(key.split("@")[0])),
+      ...pending.flatMap((r) => [r.id, requestSeenKey(r)]),
+    ]),
   ];
   try {
     await AsyncStorage.setItem(storageKey, JSON.stringify(nextSeen));
@@ -298,6 +328,16 @@ async function runDoctorRequestSync(notify: boolean): Promise<Notification[]> {
         : (r.patient_name ?? "").trim() || "A patient";
     const when = r.preferred_time ? ` for ${fmtWhen(r.preferred_time)}` : "";
     const directed = r.doctor_id === userId;
+    if (repicked.has(r.id)) {
+      return {
+        id: doctorRequestNotificationId(r.id),
+        type: "appointment_request",
+        title: "New time requested",
+        message: `${name} picked a new time${when} after their first choice was booked.`,
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+    }
     return {
       id: doctorRequestNotificationId(r.id),
       type: "appointment_request",

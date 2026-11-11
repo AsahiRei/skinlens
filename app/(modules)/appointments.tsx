@@ -11,6 +11,7 @@ import {
 import { Text } from "@/components/Text";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
+  CalendarClock,
   ChevronRight,
   CircleAlert,
   FileText,
@@ -40,12 +41,14 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import {
   cancelAppointment,
   getMyAppointments,
+  isPendingStatus,
   resolveAppointmentNames,
   type AppointmentRow,
   type AppointmentStatus,
 } from "@/lib/db/appointments";
 import { getVerifiedClinics, type VerifiedClinic } from "@/lib/db/clinics";
 import { ReportViewerModal } from "@/components/ReportViewerModal";
+import { RescheduleModal } from "@/components/RescheduleModal";
 
 /* ---------- Date helpers ---------- */
 
@@ -97,6 +100,11 @@ const STATUS: Record<
     tone: "warning",
     hint: "The clinic will confirm a time with you soon.",
   },
+  needs_reschedule: {
+    label: "Pick a new time",
+    tone: "warning",
+    hint: "Another patient was confirmed for this time. Pick a new schedule so the clinic can review your request.",
+  },
   scheduled: {
     label: "Confirmed",
     tone: "primary",
@@ -115,9 +123,14 @@ function statusMeta(s: AppointmentStatus) {
   return STATUS[s] ?? { label: s, tone: "neutral" as const, hint: "" };
 }
 
-/** Confirmed visits first (soonest first), then pending requests. */
+/** Requests that need a new time first, then confirmed visits (soonest first), then pending ones. */
+const ACTIVE_ORDER: Partial<Record<AppointmentStatus, number>> = {
+  needs_reschedule: 0,
+  scheduled: 1,
+  requested: 2,
+};
 function sortActive(a: AppointmentRow, b: AppointmentRow): number {
-  if (a.status !== b.status) return a.status === "scheduled" ? -1 : 1;
+  if (a.status !== b.status) return (ACTIVE_ORDER[a.status] ?? 3) - (ACTIVE_ORDER[b.status] ?? 3);
   const ta = parse(a.scheduled_at ?? a.preferred_time)?.getTime() ?? Infinity;
   const tb = parse(b.scheduled_at ?? b.preferred_time)?.getTime() ?? Infinity;
   return ta - tb;
@@ -242,6 +255,8 @@ export default function AppointmentsScreen() {
   const [cancelRow, setCancelRow] = useState<AppointmentRow | null>(null);
   const [acting, setActing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Bumped request the patient is picking a new time for.
+  const [rescheduleRow, setRescheduleRow] = useState<AppointmentRow | null>(null);
   // iOS has no ToastAndroid — short confirmations show as an info notice.
   const [info, setInfo] = useState<string | null>(null);
 
@@ -346,12 +361,9 @@ export default function AppointmentsScreen() {
   const clinicName = (a: AppointmentRow) =>
     clinicNames[a.clinic_id] ?? clinics[a.clinic_id]?.name ?? "Clinic";
 
-  const activeRows = rows
-    .filter((a) => a.status === "scheduled" || a.status === "requested")
-    .sort(sortActive);
-  const pastRows = rows
-    .filter((a) => a.status !== "scheduled" && a.status !== "requested")
-    .sort(sortPast);
+  const isActive = (a: AppointmentRow) => a.status === "scheduled" || isPendingStatus(a.status);
+  const activeRows = rows.filter(isActive).sort(sortActive);
+  const pastRows = rows.filter((a) => !isActive(a)).sort(sortPast);
 
   const cancelDate = parse(cancelRow?.scheduled_at ?? null);
   const cancelIsConfirmed = cancelRow?.status === "scheduled";
@@ -429,6 +441,7 @@ export default function AppointmentsScreen() {
                   </FadeItem>
                   {activeRows.map((a, i) => {
                     const confirmed = a.status === "scheduled";
+                    const bumped = a.status === "needs_reschedule";
                     const when = parse(confirmed ? a.scheduled_at : a.preferred_time);
                     const rel = when ? relative(when) : null;
                     const isToday = confirmed && when !== null && dayDiff(when) === 0;
@@ -443,7 +456,9 @@ export default function AppointmentsScreen() {
                           style={
                             isToday
                               ? { borderColor: theme.colors.primary, borderWidth: 1.5 }
-                              : undefined
+                              : bumped
+                                ? { borderColor: theme.colors.warningBorder, borderWidth: 1.5 }
+                                : undefined
                           }
                         >
                           {isToday ? (
@@ -484,7 +499,7 @@ export default function AppointmentsScreen() {
                                 numberOfLines={2}
                               >
                                 {when
-                                  ? `${confirmed ? "" : "Requested for "}${fmtDay(when)} · ${fmtTime(when)}${
+                                  ? `${confirmed ? "" : bumped ? "Booked by someone else: " : "Requested for "}${fmtDay(when)} · ${fmtTime(when)}${
                                       rel && !isToday ? ` · ${rel}` : ""
                                     }`
                                   : "Any time that works for the clinic"}
@@ -536,6 +551,14 @@ export default function AppointmentsScreen() {
                                 icon={Navigation}
                                 label="Directions"
                                 onPress={() => openDirections(clinic)}
+                              />
+                            ) : null}
+                            {bumped ? (
+                              <InlineAction
+                                icon={CalendarClock}
+                                label="Pick a new time"
+                                disabled={acting}
+                                onPress={() => setRescheduleRow(a)}
                               />
                             ) : null}
                             <View className="flex-1" />
@@ -686,6 +709,17 @@ export default function AppointmentsScreen() {
               },
             },
           ]}
+        />
+        <RescheduleModal
+          key={rescheduleRow?.id ?? "closed"}
+          row={rescheduleRow}
+          clinicName={rescheduleRow ? clinicName(rescheduleRow) : ""}
+          onDismiss={() => setRescheduleRow(null)}
+          onDone={async () => {
+            setRescheduleRow(null);
+            await load();
+            notify("New time sent — the clinic will confirm it.");
+          }}
         />
         <ReportViewerModal reportPath={reportPath} onClose={() => setReportPath(null)} />
       </SafeAreaView>

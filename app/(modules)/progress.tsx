@@ -11,13 +11,13 @@ import {
 import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { FileText, ArrowRight, Check } from "lucide-react-native";
-import Svg, { Path, Circle, Line as SvgLine } from "react-native-svg";
+import { FileText } from "lucide-react-native";
+import Svg, { Path, Circle, Line as SvgLine, Text as SvgText } from "react-native-svg";
 
 import { FadeItem } from "@/components/FadeItem";
 import Skeleton from "@/components/Skeleton";
 import TypewriterText from "@/components/TypewriterText";
-import { BackHeader, ClinicalCard, EmptyState, Pill, SectionTitle } from "@/components/ui";
+import { BackHeader, ClinicalCard, EmptyState, SectionTitle } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { useFocusTrigger } from "@/hooks/useFocusTrigger";
@@ -29,39 +29,10 @@ import { generateWeeklySummary, getCachedWeeklySummary } from "@/utils/weekly-su
 import { exportSkinReport } from "@/utils/report";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { weekday: "short" });
-}
+/* ---------- helpers ---------- */
 
-function formatDateFull(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-// Numeric M/D label for chart axes — trend points can span more than a week
-// (days without scans are skipped), so weekday names would repeat ambiguously.
-function getAxisLabel(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-function isSameDay(dateStr: string, ref: Date): boolean {
-  const d = new Date(dateStr);
-  return (
-    d.getFullYear() === ref.getFullYear() &&
-    d.getMonth() === ref.getMonth() &&
-    d.getDate() === ref.getDate()
-  );
-}
-
-// Sort key for created_at. Server rows carry Postgres timestamps
-// ("2026-11-07T10:00:00.123456+00:00", sometimes with a space instead of "T") while offline rows
-// use toISOString(); normalise both so a value the JS engine can't parse doesn't return NaN and
-// scramble the sort (which made "before" and "today" pick the wrong scans).
+// Server rows carry Postgres timestamps ("2026-11-07 10:00:00.123456+00") while offline rows use
+// toISOString(); normalise both so the sort never sees NaN.
 function toTime(dateStr: string): number {
   const normalized = dateStr
     ?.trim()
@@ -72,287 +43,163 @@ function toTime(dateStr: string): number {
   return Number.isNaN(t) ? 0 : t;
 }
 
-// Same window as getThisWeekResults (last 7 days), computed from rows already loaded.
-function filterThisWeek(results: Result[]): Result[] {
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  return results.filter((r) => toTime(r.created_at) >= weekAgo);
+function shortDate(dateStr: string): string {
+  return new Date(toTime(dateStr)).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// Trend charts are fixed-size, so cap them to the most recent N scan-days.
-const TREND_DAYS = 7;
+function isToday(dateStr: string): boolean {
+  const d = new Date(toTime(dateStr));
+  const now = new Date();
+  return d.toDateString() === now.toDateString();
+}
 
-// Trends update at most once per calendar day: if the user scans multiple times on the same day,
-// keep only the latest scan for that day so the Confidence and Symptom charts don't gain extra
-// points intraday.
-function dedupeDailyResults(results: Result[]): Result[] {
+// Plain-word meaning of a 0–100 skin score.
+function scoreLabel(score: number): { word: string; color: string } {
+  if (score >= 75) return { word: "Healthy", color: theme.colors.primary };
+  if (score >= 50) return { word: "Fair", color: "#B45309" };
+  return { word: "Needs care", color: theme.colors.danger };
+}
+
+// One point per calendar day (the latest scan of that day wins), oldest → newest.
+function dailyScores(sortedNewestFirst: Result[], maxDays: number): Result[] {
   const seen = new Map<string, Result>();
-  for (const r of results) {
-    const d = new Date(r.created_at);
-    if (Number.isNaN(d.getTime())) continue;
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  for (const r of sortedNewestFirst) {
+    const key = new Date(toTime(r.created_at)).toDateString();
     if (!seen.has(key)) seen.set(key, r);
   }
-  return [...seen.values()];
+  return [...seen.values()].slice(0, maxDays).reverse();
 }
 
-// Simple line chart using SVG
-function ConfidenceTrendChart({ results }: { results: Result[] }) {
-  const reversed = [...results].reverse();
-  if (reversed.length < 2) {
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function lastSevenDays(results: Result[]): Result[] {
+  const weekAgo = Date.now() - WEEK_MS;
+  return results.filter((r) => toTime(r.created_at) >= weekAgo);
+}
+const CHART_DAYS = 7;
+
+/* ---------- Score chart: one line, numbers printed on each dot ---------- */
+
+function ScoreChart({ points }: { points: Result[] }) {
+  if (points.length < 2) {
     return (
-      <View className="items-center py-6">
-        <Text className="text-xs" style={{ color: theme.colors.faint }}>
-          Need at least 2 scans to show trend
-        </Text>
-      </View>
+      <Text className="text-xs py-6 text-center" style={{ color: theme.colors.muted }}>
+        Scan on at least 2 different days to see your line.
+      </Text>
     );
   }
 
-  const values = reversed.map((r) => (r.confidence ?? 0) * 100);
-  const labels = reversed.map((r) => getAxisLabel(r.created_at));
-  const maxVal = Math.max(...values, 100);
-  const minVal = Math.min(...values, 0);
-  const range = maxVal - minVal || 1;
+  const width = 300;
+  const height = 150;
+  const padX = 20;
+  const padTop = 24; // room for the number above each dot
+  const padBottom = 24; // room for the date under the chart
+  const plotW = width - padX * 2;
+  const plotH = height - padTop - padBottom;
 
-  const chartWidth = 300;
-  const chartHeight = 120;
-  const padding = 20;
-  const plotWidth = chartWidth - padding * 2;
-  const plotHeight = chartHeight - padding * 2;
-
-  const points = values.map((v, i) => ({
-    x: padding + (i / (values.length - 1)) * plotWidth,
-    y: padding + plotHeight - ((v - minVal) / range) * plotHeight,
+  const coords = points.map((r, i) => ({
+    x: padX + (i / (points.length - 1)) * plotW,
+    y: padTop + plotH - (Math.max(0, Math.min(100, r.healthscore)) / 100) * plotH,
+    score: Math.round(r.healthscore),
+    date: shortDate(r.created_at),
   }));
-
-  const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-
-  // Area fill path
-  const areaD = `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding} L ${points[0].x} ${chartHeight - padding} Z`;
-
-  const labelWidth = 36;
+  const line = coords.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
 
   return (
-    <View className="items-center">
-      <Svg width={chartWidth} height={chartHeight + 16}>
-        {/* Grid lines */}
-        {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
-          const y = padding + plotHeight - frac * plotHeight;
-          return (
-            <SvgLine
-              key={frac}
-              x1={padding}
-              y1={y}
-              x2={chartWidth - padding}
-              y2={y}
-              stroke={theme.colors.cardBorder}
-              strokeWidth={0.5}
-              strokeDasharray="4,4"
-            />
-          );
-        })}
-
-        {/* Area fill */}
-        <Path d={areaD} fill={theme.colors.primaryTint} opacity={0.5} />
-
-        {/* Line */}
-        <Path d={pathD} stroke={theme.colors.primary} strokeWidth={2.5} fill="none" />
-
-        {/* Dots */}
-        {points.map((p, i) => (
-          <Circle key={i} cx={p.x} cy={p.y} r={4} fill={theme.colors.primary} />
+    <View className="items-center mt-2">
+      <Svg width={width} height={height}>
+        {/* Baseline */}
+        <SvgLine
+          x1={padX}
+          y1={padTop + plotH}
+          x2={width - padX}
+          y2={padTop + plotH}
+          stroke={theme.colors.cardBorder}
+          strokeWidth={1}
+        />
+        <Path d={line} stroke={theme.colors.primary} strokeWidth={2.5} fill="none" />
+        {coords.map((p, i) => (
+          <Circle key={`c${i}`} cx={p.x} cy={p.y} r={4.5} fill={theme.colors.primary} />
+        ))}
+        {coords.map((p, i) => (
+          <SvgText
+            key={`v${i}`}
+            x={p.x}
+            y={p.y - 9}
+            fontSize={11}
+            fontWeight="bold"
+            fill={theme.colors.ink}
+            textAnchor="middle"
+          >
+            {p.score}
+          </SvgText>
+        ))}
+        {coords.map((p, i) => (
+          <SvgText
+            key={`d${i}`}
+            x={p.x}
+            y={height - 6}
+            fontSize={10}
+            fill={theme.colors.faint}
+            textAnchor="middle"
+          >
+            {p.date}
+          </SvgText>
         ))}
       </Svg>
-
-      {/* X-axis labels, each centered under its point */}
-      <View style={{ width: chartWidth, height: 14 }} className="mt-1">
-        {labels.map((label, i) => (
-          <Text
-            key={i}
-            className="text-[10px]"
-            style={{
-              position: "absolute",
-              left: points[i].x - labelWidth / 2,
-              width: labelWidth,
-              textAlign: "center",
-              color: theme.colors.faint,
-            }}
-          >
-            {label}
-          </Text>
-        ))}
-      </View>
     </View>
   );
 }
 
-// Simple bar chart using View components
-function SymptomTrendChart({ results }: { results: Result[] }) {
-  const reversed = [...results].reverse();
-  if (reversed.length === 0) {
-    return (
-      <View className="items-center py-6">
-        <Text className="text-xs" style={{ color: theme.colors.faint }}>
-          No data yet
-        </Text>
-      </View>
-    );
-  }
-
-  const labels = reversed.map((r) => getAxisLabel(r.created_at));
-  const maxBarHeight = 80;
-  const barWidth = reversed.length > 5 ? 14 : 20;
-
-  const metricLabels = ["Severity", "Duration"];
-
-  const metricData = reversed.map((r) => {
-    if (!r.survey_answers) return { severity: 0, duration: 0 };
-    try {
-      const answers = JSON.parse(r.survey_answers);
-      const type = r.detection_label ?? "normal";
-
-      if (type === "acne") {
-        const severity =
-          answers.severity === "severe"
-            ? 1
-            : answers.severity === "moderate"
-              ? 0.7
-              : answers.severity === "mild"
-                ? 0.4
-                : 0;
-        const duration =
-          answers.duration === "more_than_6_months"
-            ? 1
-            : answers.duration === "3_to_6_months"
-              ? 0.75
-              : answers.duration === "1_to_3_months"
-                ? 0.5
-                : 0.25;
-        return { severity, duration };
-      }
-
-      if (type === "eczema") {
-        const severity =
-          answers.itch_level === "very_itchy"
-            ? 1
-            : answers.itch_level === "moderate"
-              ? 0.7
-              : answers.itch_level === "mild"
-                ? 0.4
-                : 0;
-        const duration =
-          answers.coverage === "large_area" ? 1 : answers.coverage === "medium_area" ? 0.6 : 0.3;
-        return { severity, duration };
-      }
-
-      if (type === "dry") {
-        const severity =
-          answers.severity === "severe"
-            ? 1
-            : answers.severity === "moderate"
-              ? 0.7
-              : answers.severity === "mild"
-                ? 0.4
-                : 0;
-        const duration =
-          answers.duration === "more_than_6_months"
-            ? 1
-            : answers.duration === "3_to_6_months"
-              ? 0.75
-              : answers.duration === "1_to_3_months"
-                ? 0.5
-                : 0.25;
-        return { severity, duration };
-      }
-
-      if (type === "oily") {
-        const severity =
-          answers.severity === "severe"
-            ? 1
-            : answers.severity === "moderate"
-              ? 0.7
-              : answers.severity === "mild"
-                ? 0.4
-                : 0;
-        const duration =
-          answers.breakouts === "frequently" ? 1 : answers.breakouts === "sometimes" ? 0.6 : 0.3;
-        return { severity, duration };
-      }
-
-      const severity =
-        answers.concern === "sensitivity"
-          ? 0.8
-          : answers.concern === "dryness"
-            ? 0.6
-            : answers.concern === "oiliness"
-              ? 0.5
-              : 0;
-      const duration = answers.routine === "no" ? 1 : answers.routine === "sometimes" ? 0.5 : 0;
-      return { severity, duration };
-    } catch {
-      return { severity: 0, duration: 0 };
-    }
-  });
-
-  return (
-    <View>
-      {/* Legend */}
-      <View className="flex-row items-center gap-4 mb-3">
-        {metricLabels.map((label, i) => (
-          <View key={label} className="flex-row items-center gap-1.5">
-            <View
-              style={{ backgroundColor: i === 0 ? theme.colors.primary : theme.colors.primaryTint }}
-              className="h-2.5 w-2.5 rounded-full"
-            />
-            <Text className="text-xs text-gray-500">{label}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Bars */}
-      <View className="flex-row items-end justify-between" style={{ height: maxBarHeight + 20 }}>
-        {metricData.map((data, dayIndex) => (
-          <View key={dayIndex} className="flex-1 items-center">
-            <View className="flex-row items-end" style={{ height: maxBarHeight }}>
-              {[data.severity, data.duration].map((val, symIndex) => {
-                const barH = Math.max(val * maxBarHeight, 2);
-                return (
-                  <View
-                    key={symIndex}
-                    style={{
-                      height: barH,
-                      width: barWidth,
-                      backgroundColor:
-                        symIndex === 0 ? theme.colors.primary : theme.colors.primaryTint,
-                      borderRadius: 3,
-                      marginLeft: symIndex > 0 ? 2 : 0,
-                    }}
-                  />
-                );
-              })}
-            </View>
-            <Text className="text-[10px]" style={{ color: theme.colors.faint, marginTop: 1 }}>
-              {labels[dayIndex]}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
+/* ---------- Screen ---------- */
 
 export default function Progress() {
   const router = useRouter();
-  const [allResults, setAllResults] = useState<Result[]>([]);
-  const [weekResults, setWeekResults] = useState<Result[]>([]);
-  const [loading, setLoading] = useState(true);
+  const focusTrigger = useFocusTrigger();
+  const [results, setResults] = useState<Result[]>([]);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(() => new Set());
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [aiSummary, setAiSummary] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const focusTrigger = useFocusTrigger();
+
+  const fetchData = async () => {
+    try {
+      // Show cached scans immediately, then pull from the server when online.
+      const [cached, profile] = await Promise.all([
+        getAllResults({ backgroundRefresh: false }),
+        getUserProfile().catch(() => null),
+      ]);
+      setResults(cached);
+      setProfileImage(profile?.face_image_url ?? null);
+      setLoading(false);
+      if (!(await isOnlineNow())) return;
+      const fresh = await refreshAllResults();
+      if (
+        fresh.length !== cached.length ||
+        fresh.some((r, i) => r.id !== cached[i]?.id || r.image_url !== cached[i]?.image_url)
+      ) {
+        setResults(fresh);
+      }
+    } catch (err) {
+      console.error("Error fetching progress data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, [focusTrigger]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
 
   const handleExport = async () => {
     if (exporting) return;
@@ -367,48 +214,18 @@ export default function Progress() {
     }
   };
 
-  const fetchData = async () => {
-    try {
-      // Paint the cached history immediately. The week list is derived from the same rows rather
-      // than a second query (each of which used to fire its own background server pull).
-      const [all, profile] = await Promise.all([
-        getAllResults({ backgroundRefresh: false }),
-        getUserProfile().catch(() => null),
-      ]);
-      setAllResults(all);
-      setWeekResults(filterThisWeek(all));
-      setProfileImage(profile?.face_image_url ?? null);
-      setLoading(false);
-      // Offline: the cache is all there is — skip a pull that would only time out.
-      if (!(await isOnlineNow())) return;
-      // ...then wait for the server pull. The cache can hold only part of the
-      // history (e.g. just today's scan), which hid "Before vs. Today" until
-      // the next visit because the background refresh never re-rendered.
-      const fresh = await refreshAllResults();
-      if (
-        fresh.length !== all.length ||
-        fresh.some((r, i) => r.id !== all[i]?.id || r.image_url !== all[i]?.image_url)
-      ) {
-        setAllResults(fresh);
-        setWeekResults(filterThisWeek(fresh));
-      }
-    } catch (err) {
-      console.error("Error fetching progress data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  /* ----- derived data ----- */
+  const newestFirst = [...results].sort((a, b) => toTime(b.created_at) - toTime(a.created_at));
+  const latest = newestFirst[0] ?? null;
+  const first = newestFirst[newestFirst.length - 1] ?? null;
+  const hasTwo = newestFirst.length >= 2 && latest && first && latest.id !== first.id;
+  const change = hasTwo ? Math.round(latest.healthscore - first.healthscore) : 0;
 
-  useEffect(() => {
-    // Fetch-on-focus effect: setState happens in async continuations after
-    // awaits, not synchronously — the extra render pass is inherent to loading.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchData();
-  }, [focusTrigger]);
+  const weekResults = lastSevenDays(newestFirst);
+  const weekKey = weekResults.map((r) => r.id).join(",");
 
+  // Weekly AI summary (cached per set of scans, so the model only reruns when the week changes).
   useEffect(() => {
-    // Clear a stale summary when the week empties out, and skip re-running the
-    // on-device model when the week's scans haven't changed since last time.
     const cached = weekResults.length === 0 ? "" : getCachedWeeklySummary(weekResults) || null;
     if (cached !== null) {
       /* eslint-disable react-hooks/set-state-in-effect */
@@ -418,68 +235,26 @@ export default function Progress() {
       return;
     }
     let cancelled = false;
-    const run = async () => {
-      setSummaryLoading(true);
-      try {
-        const summary = await generateWeeklySummary(weekResults);
-        if (!cancelled) setAiSummary(summary);
-      } catch {
-        if (!cancelled) setAiSummary("");
-      } finally {
-        if (!cancelled) setSummaryLoading(false);
-      }
-    };
-    run();
+    setSummaryLoading(true);
+    generateWeeklySummary(weekResults)
+      .then((s) => !cancelled && setAiSummary(s))
+      .catch(() => !cancelled && setAiSummary(""))
+      .finally(() => !cancelled && setSummaryLoading(false));
     return () => {
       cancelled = true;
     };
-  }, [weekResults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekKey]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
-  };
-
-  // Overall improvement: health-score change (in points) from the first scan
-  // ever to the latest one.
-  const sortedByDate = [...allResults].sort((a, b) => toTime(a.created_at) - toTime(b.created_at));
-  const firstScore = sortedByDate[0]?.healthscore ?? 0;
-  const latestScore = sortedByDate[sortedByDate.length - 1]?.healthscore ?? 0;
-  const improvement =
-    sortedByDate.length >= 2 ? Math.round((latestScore - firstScore) * 10) / 10 : 0;
-  const isImproving = improvement > 0;
-  const formatDelta = (delta: number) => `${delta > 0 ? "+" : ""}${delta.toFixed(1)} pts`;
-
-  // Weekly summary
-  const weekScans = weekResults.length;
-  const weekAvgScore =
-    weekResults.length > 0
-      ? Math.round(weekResults.reduce((sum, r) => sum + r.healthscore, 0) / weekResults.length)
-      : 0;
-
-  // Before vs Today
-  const firstResult = sortedByDate[0] ?? null;
-  const latestResult = sortedByDate[sortedByDate.length - 1] ?? null;
-  // Oldest scan (other than the latest) whose image actually loads.
-  const beforeScan = sortedByDate.find(
-    (r) => r.image_url && !failedImages.has(r.image_url) && r.id !== latestResult?.id,
-  );
-  const beforeResult = beforeScan ?? firstResult;
-  const beforeImage =
-    beforeScan?.image_url ??
-    (profileImage && !failedImages.has(profileImage) ? profileImage : null);
-  const markImageFailed = (uri: string) =>
+  // Before photo: oldest scan (not the latest) whose image loads; fall back to the enrolment photo.
+  const usable = (uri?: string | null) => !!uri && !failedImages.has(uri);
+  const beforeScan = [...newestFirst]
+    .reverse()
+    .find((r) => r.id !== latest?.id && usable(r.image_url));
+  const beforeImage = beforeScan?.image_url ?? (usable(profileImage) ? profileImage : null);
+  const beforeDate = beforeScan?.created_at ?? first?.created_at;
+  const markFailed = (uri: string) =>
     setFailedImages((prev) => (prev.has(uri) ? prev : new Set(prev).add(uri)));
-  const beforeDelta =
-    beforeResult && latestResult
-      ? Math.round((latestResult.healthscore - beforeResult.healthscore) * 10) / 10
-      : 0;
-  const latestIsToday = latestResult ? isSameDay(latestResult.created_at, new Date()) : false;
-
-  // One point per day for the trend charts (latest scan wins intraday),
-  // limited to the most recent days so the fixed-size charts don't overflow.
-  const trendResults = dedupeDailyResults(allResults).slice(0, TREND_DAYS);
 
   if (loading) {
     return (
@@ -487,13 +262,22 @@ export default function Progress() {
         <ScreenGradient />
         <View className="px-5 pt-4 gap-4">
           <Skeleton className="h-7 w-32 rounded-lg" />
+          <Skeleton className="h-40 w-full rounded-[20px]" />
+          <Skeleton className="h-40 w-full rounded-[20px]" />
           <Skeleton className="h-32 w-full rounded-[20px]" />
-          <Skeleton className="h-40 w-full rounded-[20px]" />
-          <Skeleton className="h-40 w-full rounded-[20px]" />
         </View>
       </SafeAreaView>
     );
   }
+
+  const status = latest ? scoreLabel(latest.healthscore) : null;
+  const changeText = !hasTwo
+    ? "Scan on another day to see your progress."
+    : change > 0
+      ? `Up ${change} points since ${shortDate(first.created_at)}`
+      : change < 0
+        ? `Down ${Math.abs(change)} points since ${shortDate(first.created_at)}`
+        : `No change since ${shortDate(first.created_at)}`;
 
   return (
     <SafeAreaView
@@ -505,7 +289,7 @@ export default function Progress() {
       <ScrollView
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -519,9 +303,9 @@ export default function Progress() {
         <FadeItem index={0}>
           <View className="mb-1 mt-2">
             <BackHeader
-              title="Progress"
+              title="My Progress"
               onBack={() => router.back()}
-              rightClassName="flex-row items-center gap-1.5"
+              rightClassName="flex-row items-center"
               right={
                 <Pressable
                   onPress={handleExport}
@@ -543,256 +327,188 @@ export default function Progress() {
           </View>
         </FadeItem>
 
-        {/* Overall Improvement */}
-        <FadeItem index={1}>
-          <ClinicalCard className="mt-4 flex-row items-center justify-between">
-            <View className="flex-col">
-              <Text className="text-sm" style={{ color: theme.colors.muted }}>
-                Overall Improvement
-              </Text>
-              <Text className="font-bold text-3xl mt-1" style={{ color: theme.colors.ink }}>
-                {formatDelta(improvement)}
-              </Text>
-              <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
-                {firstResult && sortedByDate.length >= 2
-                  ? `Since ${formatDateFull(firstResult.created_at)} · ${allResults.length} scans`
-                  : "Scan at least twice to track change"}
-              </Text>
-            </View>
-            <View className="items-end gap-2">{isImproving && <Pill label="Improving" />}</View>
-          </ClinicalCard>
-        </FadeItem>
-
-        {/* Confidence Trend */}
-        <FadeItem index={2}>
-          <ClinicalCard className="mt-4">
-            <SectionTitle title="Confidence Trend" />
-            <ConfidenceTrendChart results={trendResults} />
-          </ClinicalCard>
-        </FadeItem>
-
-        {/* Symptom Trend */}
-        <FadeItem index={3}>
-          <ClinicalCard className="mt-4">
-            <SectionTitle title="Symptom Trend" />
-            <View className="mt-2">
-              <SymptomTrendChart results={trendResults} />
-            </View>
-          </ClinicalCard>
-        </FadeItem>
-
-        {/* Weekly Summary */}
-        <FadeItem index={4}>
-          <LinearGradient
-            colors={[...theme.gradients.dark]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            className="py-4 px-4 mt-4"
-            style={{ borderRadius: theme.radius.card }}
-          >
-            <Text className="font-bold text-white text-base">Weekly summary</Text>
-            <Text className="text-xs mt-1" style={{ color: "#A7C4B2" }}>
-              {weekScans} scans · Avg score: {weekAvgScore}/100
-            </Text>
-            {summaryLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" style={{ marginTop: 10 }} />
-            ) : aiSummary ? (
-              <TypewriterText text={aiSummary} className="text-white text-xs mt-2 leading-5" />
-            ) : null}
-          </LinearGradient>
-        </FadeItem>
-
-        {/* Before vs. Today */}
-        {beforeResult && latestResult && beforeResult.id !== latestResult.id && (
-          <FadeItem index={5}>
+        {!latest ? (
+          <FadeItem index={1}>
             <ClinicalCard className="mt-4">
-              <SectionTitle title="Before vs. Today" />
-              <View className="flex-row items-center justify-between">
-                {/* Before */}
-                <View className="items-center flex-1">
-                  <View
-                    className="w-28 h-28 rounded-2xl overflow-hidden"
-                    style={{ backgroundColor: theme.colors.background }}
-                  >
-                    {beforeImage ? (
-                      <Image
-                        key={beforeImage}
-                        source={{ uri: beforeImage }}
-                        onError={() => markImageFailed(beforeImage)}
-                        className="w-full h-full"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center">
-                        <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                          No image
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text className="text-xs" style={{ color: theme.colors.faint, marginTop: 2 }}>
-                    {formatDateFull(beforeResult.created_at)}
-                  </Text>
-                </View>
-
-                {/* Arrow + improvement */}
-                <View className="items-center px-3 gap-1">
-                  <Text className="font-bold text-lg" style={{ color: theme.colors.primary }}>
-                    {formatDelta(beforeDelta)}
-                  </Text>
-                  <ArrowRight size={18} color={theme.colors.faint} />
-                </View>
-
-                {/* Today */}
-                <View className="items-center flex-1">
-                  <View
-                    className="w-28 h-28 rounded-2xl overflow-hidden"
+              <EmptyState
+                title="No scans yet"
+                copy="Take your first skin scan and your progress will show up here."
+              />
+            </ClinicalCard>
+          </FadeItem>
+        ) : (
+          <>
+            {/* 1. Current score + is it getting better? */}
+            <FadeItem index={1}>
+              <ClinicalCard className="mt-4">
+                <Text className="text-sm" style={{ color: theme.colors.muted }}>
+                  Your skin score today
+                </Text>
+                <View className="flex-row items-center justify-between mt-1">
+                  <Text
                     style={{
-                      backgroundColor: theme.colors.primarySoft,
-                      borderWidth: 2,
-                      borderColor: theme.colors.primary,
+                      fontSize: 44,
+                      lineHeight: 52,
+                      fontWeight: "bold",
+                      color: theme.colors.ink,
                     }}
                   >
-                    {latestResult.image_url ? (
-                      <Image
-                        source={{ uri: latestResult.image_url }}
-                        className="w-full h-full"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center">
-                        <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                          No image
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <View className="flex-row items-center gap-1 mt-2">
-                    <Text className="text-xs font-bold" style={{ color: theme.colors.primary }}>
-                      {latestIsToday ? "Today" : formatDateFull(latestResult.created_at)}
+                    {Math.round(latest.healthscore)}
+                    <Text style={{ fontSize: 16, fontWeight: "normal", color: theme.colors.faint }}>
+                      {" / 100"}
                     </Text>
-                    {latestIsToday && <Check size={12} color={theme.colors.primary} />}
-                  </View>
+                  </Text>
+                  <Text className="text-sm font-bold" style={{ color: status!.color }}>
+                    {status!.word}
+                  </Text>
                 </View>
-              </View>
-            </ClinicalCard>
-          </FadeItem>
-        )}
+                <Text className="text-sm mt-2" style={{ color: theme.colors.body }}>
+                  {changeText}
+                </Text>
+              </ClinicalCard>
+            </FadeItem>
 
-        {/* Scan History */}
-        <FadeItem index={6}>
-          <ClinicalCard className="mt-4">
-            <SectionTitle title="Scan History" />
-            {allResults.length === 0 ? (
-              <EmptyState copy="No scans yet." />
-            ) : (
-              <View className="gap-3">
-                {allResults.slice(0, 3).map((result) => {
-                  const label = formatter(result.detection_label ?? result.severity);
-                  const dayLabel = formatDate(result.created_at);
-                  const conf = result.confidence ? `${(result.confidence * 100).toFixed(0)}%` : "—";
-                  return (
-                    <View
-                      key={result.id}
-                      className="flex-row items-center justify-between py-2"
-                      style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
-                    >
-                      <View className="flex-row items-center gap-3 flex-1">
+            {/* 2. Before and now photos */}
+            {hasTwo && (
+              <FadeItem index={2}>
+                <ClinicalCard className="mt-4">
+                  <SectionTitle title="Before and now" />
+                  <View className="flex-row gap-3 mt-3">
+                    {[
+                      { label: "Before", date: beforeDate, uri: beforeImage, onError: markFailed },
+                      {
+                        label: isToday(latest.created_at) ? "Today" : "Latest",
+                        date: latest.created_at,
+                        uri: latest.image_url,
+                        onError: undefined,
+                      },
+                    ].map((p) => (
+                      <View key={p.label} className="flex-1 items-center">
                         <View
-                          className="h-10 w-10 items-center justify-center rounded-full"
-                          style={{ backgroundColor: theme.colors.primarySoft }}
+                          className="w-full aspect-square rounded-2xl overflow-hidden items-center justify-center"
+                          style={{ backgroundColor: theme.colors.background }}
                         >
-                          <Text
-                            className="text-xs font-bold"
-                            style={{ color: theme.colors.primaryDeep }}
-                          >
-                            {result.confidence ? `${Math.round(result.confidence * 100)}` : "—"}
-                          </Text>
+                          {p.uri ? (
+                            <Image
+                              key={p.uri}
+                              source={{ uri: p.uri }}
+                              onError={p.onError ? () => p.onError!(p.uri!) : undefined}
+                              className="w-full h-full"
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                              No photo
+                            </Text>
+                          )}
                         </View>
-                        <View className="flex-col flex-1 pr-2">
+                        <Text
+                          className="text-sm font-bold mt-2"
+                          style={{ color: theme.colors.ink }}
+                        >
+                          {p.label}
+                        </Text>
+                        {p.date ? (
+                          <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                            {shortDate(p.date)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                </ClinicalCard>
+              </FadeItem>
+            )}
+
+            {/* 3. Score over time */}
+            <FadeItem index={3}>
+              <ClinicalCard className="mt-4">
+                <SectionTitle title="Your score over time" />
+                <Text className="text-xs mt-1" style={{ color: theme.colors.muted }}>
+                  Higher is better.
+                </Text>
+                <ScoreChart points={dailyScores(newestFirst, CHART_DAYS)} />
+              </ClinicalCard>
+            </FadeItem>
+
+            {/* 4. This week, in plain words */}
+            <FadeItem index={4}>
+              <LinearGradient
+                colors={[...theme.gradients.dark]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                className="py-4 px-4 mt-4"
+                style={{ borderRadius: theme.radius.card }}
+              >
+                <Text className="font-bold text-white text-base">This week</Text>
+                <Text className="text-xs mt-1" style={{ color: "#A7C4B2" }}>
+                  {weekResults.length === 0
+                    ? "You haven't scanned this week yet."
+                    : `You scanned ${weekResults.length} ${weekResults.length === 1 ? "time" : "times"} in the last 7 days.`}
+                </Text>
+                {summaryLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" style={{ marginTop: 10 }} />
+                ) : aiSummary ? (
+                  <TypewriterText text={aiSummary} className="text-white text-sm mt-2 leading-5" />
+                ) : null}
+              </LinearGradient>
+            </FadeItem>
+
+            {/* 5. Recent scans */}
+            <FadeItem index={5}>
+              <ClinicalCard className="mt-4">
+                <SectionTitle title="Recent scans" />
+                <View className="mt-2">
+                  {newestFirst.slice(0, 5).map((r, i, arr) => {
+                    const s = scoreLabel(r.healthscore);
+                    const confirmed = r.validation_status === "confirmed";
+                    const flagged = r.validation_status === "needs_review";
+                    return (
+                      <View
+                        key={r.id}
+                        className="flex-row items-center gap-3 py-3"
+                        style={{
+                          borderBottomWidth: i === arr.length - 1 ? 0 : 1,
+                          borderBottomColor: theme.colors.divider,
+                        }}
+                      >
+                        <View className="flex-1">
                           <Text className="font-bold text-sm" style={{ color: theme.colors.ink }}>
-                            {label} Detection · {dayLabel}
+                            {formatter(r.detection_label ?? r.severity)}
                           </Text>
                           <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                            Confidence: {conf}
+                            {isToday(r.created_at) ? "Today" : shortDate(r.created_at)}
                           </Text>
-                          {result.validation_status === "confirmed" ||
-                          result.validation_status === "needs_review" ? (
+                          {confirmed || flagged ? (
                             <Text
-                              className="text-xs font-bold"
-                              style={{
-                                color:
-                                  result.validation_status === "confirmed"
-                                    ? theme.colors.primary
-                                    : "#B45309",
-                              }}
+                              className="text-xs font-bold mt-0.5"
+                              style={{ color: confirmed ? theme.colors.primary : "#B45309" }}
                             >
-                              {result.validation_status === "confirmed"
-                                ? "Dermatologist confirmed"
-                                : "Flagged for follow-up"}
+                              {confirmed ? "Checked by a doctor" : "Doctor wants a follow-up"}
                             </Text>
                           ) : null}
-                          {(result.validation_status === "confirmed" ||
-                            result.validation_status === "needs_review") &&
-                          result.doctor_notes ? (
+                          {(confirmed || flagged) && r.doctor_notes ? (
                             <Text className="text-xs mt-0.5" style={{ color: theme.colors.body }}>
-                              Dermatologist note: {result.doctor_notes}
+                              “{r.doctor_notes}”
                             </Text>
                           ) : null}
                         </View>
+                        <View className="items-end">
+                          <Text className="font-bold text-base" style={{ color: theme.colors.ink }}>
+                            {Math.round(r.healthscore)}
+                          </Text>
+                          <Text className="text-xs font-bold" style={{ color: s.color }}>
+                            {s.word}
+                          </Text>
+                        </View>
                       </View>
-                      <Text className="text-xs font-bold" style={{ color: theme.colors.primary }}>
-                        {Math.round(result.healthscore)}/100
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </ClinicalCard>
-        </FadeItem>
-
-        {/* Weekly detail cards */}
-        {weekResults.length > 0 && (
-          <FadeItem index={7}>
-            <ClinicalCard className="mt-4">
-              <SectionTitle title="This Week's Scans" />
-              <View className="gap-2">
-                {weekResults.slice(0, 3).map((result) => (
-                  <View
-                    key={result.id}
-                    className="flex-row items-center gap-3 py-2"
-                    style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
-                  >
-                    <View className="flex-1">
-                      <Text className="font-bold text-sm" style={{ color: theme.colors.ink }}>
-                        {formatter(result.detection_label ?? result.severity)}
-                      </Text>
-                      <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                        {formatDateFull(result.created_at)} · Score:{" "}
-                        {Math.round(result.healthscore)}/100
-                      </Text>
-                    </View>
-                    {result.image_url && (
-                      <View
-                        className="w-10 h-10 rounded-lg overflow-hidden"
-                        style={{ backgroundColor: theme.colors.background }}
-                      >
-                        <Image
-                          source={{ uri: result.image_url }}
-                          className="w-full h-full"
-                          resizeMode="cover"
-                        />
-                      </View>
-                    )}
-                  </View>
-                ))}
-              </View>
-            </ClinicalCard>
-          </FadeItem>
+                    );
+                  })}
+                </View>
+              </ClinicalCard>
+            </FadeItem>
+          </>
         )}
-
-        <View className="h-4" />
       </ScrollView>
     </SafeAreaView>
   );

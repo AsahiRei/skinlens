@@ -21,9 +21,12 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import { uploadSkinReportForAppointment } from "@/utils/report";
 import {
   attachReportToAppointment,
+  BOOKED_SLOT_MESSAGE,
   formatPatientDisplayName,
   getDoctorsForClinic,
+  getTakenSlots,
   isRemoteImageUrl,
+  overlapsTakenSlot,
   PAST_TIME_MESSAGE,
   requestAppointment,
   type DoctorRow,
@@ -83,6 +86,9 @@ export default function DermatologistDetails() {
   const [doctors, setDoctors] = useState<DoctorRow[]>([]);
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
+  // Confirmed visits on the picked day that this request can't use (times only).
+  // Tagged with the lookup it answers, so a stale list for another day/doctor is simply ignored.
+  const [takenFor, setTakenFor] = useState<{ key: string; slots: Date[] } | null>(null);
   const [bookedDoctorName, setBookedDoctorName] = useState<string | null>(null);
   // The appointment just created + whether its Skin Report is already linked
   // (so the "Request sent" modal only offers to send it when it isn't).
@@ -166,6 +172,10 @@ export default function DermatologistDetails() {
       setShowPastSlot(true);
       return;
     }
+    if (slotTaken) {
+      notify(BOOKED_SLOT_MESSAGE);
+      return;
+    }
     setBooking(true);
     try {
       // 1. Real booking request → appointments (status 'requested'). Requires network (RLS: patient
@@ -242,6 +252,32 @@ export default function DermatologistDetails() {
       setBooking(false);
     }
   };
+
+  // Booked times on the picked day, for the chosen doctor (or every doctor when "any").
+  const preferredDay = preferredDate ? preferredDate.toDateString() : null;
+  const takenKey =
+    isCustomEntry && params.id && preferredDay
+      ? `${params.id}|${doctorId ?? ""}|${preferredDay}`
+      : null;
+  useEffect(() => {
+    if (!takenKey || !params.id || !preferredDay) return;
+    let active = true;
+    const start = new Date(preferredDay);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+    getTakenSlots(params.id, doctorId, start, end)
+      .then((slots) => {
+        if (active) setTakenFor({ key: takenKey, slots });
+      })
+      .catch(() => {
+        // The server still blocks a taken slot on save.
+        if (active) setTakenFor({ key: takenKey, slots: [] });
+      });
+    return () => {
+      active = false;
+    };
+  }, [takenKey, params.id, doctorId, preferredDay]);
+  const takenSlots = takenFor && takenFor.key === takenKey ? takenFor.slots : [];
+  const slotTaken = preferredDate ? overlapsTakenSlot(preferredDate, takenSlots) : false;
 
   // Verified clinic → load its active doctors for the booking picker.
   // doctors starts as [] so there is nothing to reset when the entry
@@ -477,6 +513,19 @@ export default function DermatologistDetails() {
                   fallbackDate={PREFERRED_FALLBACK}
                   onClear={() => setPreferredDate(null)}
                 />
+                {preferredDate && takenSlots.length > 0 ? (
+                  <Text
+                    className="text-xs"
+                    style={{ color: slotTaken ? theme.colors.danger : theme.colors.muted }}
+                  >
+                    {slotTaken ? `${BOOKED_SLOT_MESSAGE} ` : ""}Already booked that day:{" "}
+                    {takenSlots
+                      .map((d) =>
+                        d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+                      )
+                      .join(", ")}
+                  </Text>
+                ) : null}
                 <View
                   className="flex-row items-center justify-between pt-3 mt-1"
                   style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
