@@ -23,6 +23,7 @@ const USER_TABLES = [
   "user_profile",
   "skin_profile",
   "lifestyle_profile",
+  "health_profile",
   "results",
   "routines",
   "routine_progress",

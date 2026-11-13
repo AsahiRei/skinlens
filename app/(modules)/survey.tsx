@@ -22,6 +22,7 @@ import { fadeIn, fadeOut, popIn, PressableScale } from "@/components/motion";
 import detectionMetaJson from "@/data/detection-meta.json";
 import detectionQuestionsJson from "@/data/survey-questions.json";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { scoreQuestionnaire } from "@/utils/questionnaire-score";
 
 const ICON_MAP: Record<string, typeof CheckCircle> = {
   "checkmark-circle-outline": CheckCircle,
@@ -36,6 +37,7 @@ const detectionQuestions: Record<
   {
     id: string;
     label: string;
+    scored?: boolean;
     options: { value: string; label: string; points: number; icon: string }[];
   }[]
 > = detectionQuestionsJson;
@@ -67,39 +69,37 @@ export default function Survey() {
   const isLastPage = page === questions.length - 1;
   const progressPct = Math.round(((page + 1) / questions.length) * 100);
 
-  const calculateSeverityScore = () => {
-    let totalPoints = 0;
-    let maxPoints = 0;
-    questions.forEach((q) => {
-      const maxOpt = Math.max(...q.options.map((o) => o.points));
-      maxPoints += maxOpt;
-      const selected = q.options.find((o) => o.value === answers[q.id]);
-      if (selected) totalPoints += selected.points;
-    });
-    if (maxPoints === 0) return 0;
-    return Math.round((totalPoints / maxPoints) * 100);
-  };
-
   const handleSelect = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
+  const goToResults = (finalAnswers: Record<string, string>) => {
+    // Null (nothing scored answered) is sent as "" so results can tell it apart from a real 0.
+    const severityScore = scoreQuestionnaire(questions, finalAnswers);
+    router.replace({
+      pathname: "/(modules)/scan-results",
+      params: {
+        imageUri: imageUri ?? "",
+        sourceType: sourceType ?? "gallery",
+        label: detectionLabel,
+        confidence: confidence ?? "0",
+        probabilities: probabilities ?? "{}",
+        surveyAnswers: JSON.stringify(finalAnswers),
+        severityScore: severityScore == null ? "" : String(severityScore),
+      },
+    });
+  };
+
   const handleNext = () => {
     if (!isAnswered) return;
+    // "No, that doesn't match": don't make the user rate the severity of something they say they
+    // don't have — the scan is saved as disputed and kept out of progress (see scan-results).
+    if (currentQuestion.id === "match" && answers.match === "no") {
+      goToResults({ match: "no" });
+      return;
+    }
     if (isLastPage) {
-      const severityScore = calculateSeverityScore();
-      router.replace({
-        pathname: "/(modules)/scan-results",
-        params: {
-          imageUri: imageUri ?? "",
-          sourceType: sourceType ?? "gallery",
-          label: detectionLabel,
-          confidence: confidence ?? "0",
-          probabilities: probabilities ?? "{}",
-          surveyAnswers: JSON.stringify(answers),
-          severityScore: String(severityScore),
-        },
-      });
+      goToResults(answers);
       return;
     }
     pagerRef.current?.setPage(page + 1);
@@ -225,7 +225,11 @@ export default function Survey() {
 
       <View className="gap-3 px-5 pb-6">
         <PrimaryButton
-          label={isLastPage ? "See Results" : "Next"}
+          label={
+            isLastPage || (currentQuestion.id === "match" && answers.match === "no")
+              ? "See Results"
+              : "Next"
+          }
           onPress={handleNext}
           disabled={!isAnswered}
         />

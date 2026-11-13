@@ -347,6 +347,58 @@ export const PH_PRODUCTS: PhProduct[] = [
     price: "₱1,000–1,300",
     good_for: ["aging", "normal", "dry"],
   },
+  // ── Added Nov 2026 for the expanded knowledge base. Availability and price from Watsons PH
+  // listings; ingredients from the INCI lists (Watsons PH / Skinsort / Skincarisma).
+  // Adapalene (Differin 0.1%) is deliberately absent: Watsons PH sells it prescription-only.
+  {
+    id: "human-nature-sunflower-oil",
+    brand: "Human Nature",
+    name: "Sunflower Beauty Oil",
+    product_type: "Face & Body Oil",
+    size: "100ml",
+    // Single ingredient: Helianthus Annuus (Sunflower) Seed Oil — fragrance-free.
+    key_ingredients: ["Sunflower Seed Oil"],
+    price: "₱300–330",
+    good_for: ["dry", "eczema", "normal"],
+  },
+  {
+    id: "human-nature-sunflower-bakuchiol",
+    brand: "Human Nature",
+    name: "Sunflower Beauty Oil with Bakuchiol",
+    product_type: "Face Oil",
+    size: "30ml",
+    // INCI: sunflower seed oil, triethyl citrate, bakuchiol, soybean oil, tocopherol, fragrance.
+    key_ingredients: ["Bakuchiol", "Sunflower Seed Oil", "Vitamin E"],
+    price: "₱290–310",
+    good_for: ["normal", "dry", "aging"],
+    contains_fragrance: true,
+    caution: "Contains fragrance — skip it if your skin is sensitive or eczema-prone.",
+  },
+  {
+    id: "johnsons-baby-oil",
+    brand: "Johnson's Baby",
+    name: "Baby Oil (Regular)",
+    product_type: "Body Oil",
+    size: "125ml",
+    // INCI: mineral oil, fragrance.
+    key_ingredients: ["Mineral Oil"],
+    price: "₱120–145",
+    good_for: ["dry", "normal"],
+    contains_fragrance: true,
+    caution:
+      "Contains fragrance — best for body skin; skip it if your skin is sensitive or eczema-prone.",
+  },
+  {
+    id: "magwai-sheer-mineral-spf50",
+    brand: "Magwai",
+    name: "Sheer Mineral Sunscreen SPF50+",
+    product_type: "Sunscreen",
+    size: "30ml",
+    // Mineral filters: zinc oxide + titanium dioxide.
+    key_ingredients: ["Zinc Oxide", "Titanium Dioxide", "Glycerin"],
+    price: "₱330–350",
+    good_for: ["acne", "oily", "combination", "normal"],
+  },
   // ── Sunscreen ─────────────────────────────────────────────────
   {
     id: "biore-aqua-rich",

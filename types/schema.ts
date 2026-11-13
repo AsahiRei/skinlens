@@ -15,6 +15,16 @@ export type SkinProfile = {
   main_concerns: string;
 };
 
+/** Safety context that changes what may be recommended (migration 0016). */
+export type HealthProfile = {
+  /** "no" | "yes" | "prefer_not_to_say" — anything but "no" keeps retinoids out. */
+  pregnancy_status: string | null;
+  /** "none" | "topical" | "oral" | "not_sure" */
+  current_treatment: string | null;
+  /** "daily" | "most_days" | "sometimes" | "rarely" */
+  sunscreen_use: string | null;
+};
+
 /** "pending" until a dermatologist reviews the scan (migration 0007). */
 export type ValidationStatus = "pending" | "confirmed" | "needs_review";
 

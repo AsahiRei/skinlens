@@ -1,90 +1,47 @@
-import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { useState } from "react";
+import { ScrollView, useWindowDimensions, View } from "react-native";
 import { CircleAlert } from "lucide-react-native";
 
-import { Text } from "@/components/Text";
-import { DateTimeField } from "@/components/DateTimeField";
+import { AppointmentSlotPicker } from "@/components/AppointmentSlotPicker";
 import { Notice, UiModal } from "@/components/ui";
-import { theme } from "@/lib/theme";
-import {
-  BOOKED_SLOT_MESSAGE,
-  PAST_TIME_MESSAGE,
-  getTakenSlots,
-  overlapsTakenSlot,
-  rescheduleRequest,
-  type AppointmentRow,
-} from "@/lib/db/appointments";
-
-const FALLBACK = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-function fmtTime(d: Date): string {
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-}
-
-function dayBounds(d: Date): [Date, Date] {
-  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
-  return [start, end];
-}
+import { PAST_TIME_MESSAGE, rescheduleRequest, type AppointmentRow } from "@/lib/db/appointments";
 
 /**
  * Render with `key={row?.id}` so each request opens with a fresh picker.
  *
  * Patient picks a new preferred time for a request whose slot was booked by another visit
- * (needs_reschedule → requested). Shows the day's already-booked times and blocks them before the
- * server does.
+ * (needs_reschedule → requested). The slot picker greys out already-booked times before the server
+ * re-checks on save.
  */
 export function RescheduleModal({
   row,
   clinicName,
+  clinicHours,
   onDismiss,
   onDone,
 }: {
   /** The bumped request, or null when closed. */
   row: AppointmentRow | null;
   clinicName: string;
+  /** Clinic hours text, used to lay out the slot grid. */
+  clinicHours?: string | null;
   onDismiss: () => void;
   onDone: () => void | Promise<void>;
 }) {
+  const { height } = useWindowDimensions();
   const [picked, setPicked] = useState<Date | null>(null);
-  const [taken, setTaken] = useState<Date[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // State resets per request because the parent keys this component by row id.
-  const rowId = row?.id ?? null;
-
-  // Booked times on the picked day (for this doctor, or every doctor when unassigned).
-  const dayKey = picked ? picked.toDateString() : null;
-  useEffect(() => {
-    if (!row || !picked) return;
-    let cancelled = false;
-    const [from, to] = dayBounds(picked);
-    getTakenSlots(row.clinic_id, row.doctor_id, from, to)
-      .then((slots) => {
-        if (!cancelled) setTaken(slots);
-      })
-      .catch(() => {
-        if (!cancelled) setTaken([]); // the server still blocks a taken slot on save
-      });
-    return () => {
-      cancelled = true;
-    };
-    // Only refetch when the row or the picked DAY changes, not every minute tweak.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowId, dayKey]);
-
-  const clash = picked ? overlapsTakenSlot(picked, taken) : false;
-
   const save = async () => {
-    if (!row || !picked || saving) return;
+    if (!row || saving) return;
+    if (!picked) {
+      setError("Pick an open time first.");
+      return;
+    }
     setError(null);
     if (picked.getTime() <= Date.now()) {
       setError(PAST_TIME_MESSAGE);
-      return;
-    }
-    if (clash) {
-      setError(BOOKED_SLOT_MESSAGE);
       return;
     }
     setSaving(true);
@@ -125,24 +82,27 @@ export function RescheduleModal({
         { label: "Not now", kind: "ghost", onPress: onDismiss },
       ]}
     >
-      <View className="flex-col gap-2 w-full">
-        <DateTimeField
-          value={picked}
-          onChange={(d) => {
-            setPicked(d);
-            setError(null);
-          }}
-          placeholder="Pick a new date & time"
-          minimumDate={new Date()}
-          fallbackDate={FALLBACK}
-        />
-        {picked && taken.length > 0 ? (
-          <Text className="text-xs" style={{ color: theme.colors.muted }}>
-            Already booked that day: {taken.map(fmtTime).join(", ")}
-          </Text>
-        ) : null}
-        {error || clash ? <Notice icon={CircleAlert} copy={error ?? BOOKED_SLOT_MESSAGE} /> : null}
-      </View>
+      {row ? (
+        <View className="flex-col gap-3 w-full">
+          <ScrollView
+            style={{ maxHeight: Math.max(280, height * 0.45) }}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={false}
+          >
+            <AppointmentSlotPicker
+              clinicId={row.clinic_id}
+              doctorId={row.doctor_id}
+              hoursText={clinicHours}
+              value={picked}
+              onChange={(d) => {
+                setPicked(d);
+                setError(null);
+              }}
+            />
+          </ScrollView>
+          {error ? <Notice icon={CircleAlert} copy={error} /> : null}
+        </View>
+      ) : null}
     </UiModal>
   );
 }

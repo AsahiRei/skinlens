@@ -24,6 +24,8 @@ import { getFaceIdentity, saveFaceIdentity } from "@/lib/db";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { embeddingToJson, getVerificationEmbedding } from "@/utils/face-embeddings";
 import { evaluateAlignment, getAlignmentGuidance } from "@/utils/face-quality";
+import { cropToFace } from "@/utils/face-crop";
+import { blocksCapture, measureImageLighting } from "@/utils/lighting";
 
 // Module-level on purpose: usePhotoOutput memoizes on targetResolution by reference.
 const PHOTO_TARGET_RESOLUTION = { width: 720, height: 1280 };
@@ -249,6 +251,18 @@ export default function FaceEnroll() {
       if (!embedding) {
         throw new Error("We couldn't find your face in that photo. Please retake it.");
       }
+      // First-time setup also grades this photo for the starting score, so it gets the same
+      // input checks as a scan: crop to the face, then refuse a near-black or blown-out frame
+      // (garbage in would mean a garbage baseline).
+      let gradingUri: string | null = null;
+      if (!isReenroll) {
+        const crop = await cropToFace(uri);
+        const lighting = await measureImageLighting(crop.uri);
+        if (lighting && blocksCapture(lighting.quality)) {
+          throw new Error(`${lighting.message}, then retake the photo.`);
+        }
+        gradingUri = crop.cropped ? crop.uri : null;
+      }
       const cloudUrl = await uploadImageToCloudinary(uri, 2, "skinlens/faces");
       await saveFaceIdentity({
         face_image_url: cloudUrl ?? uri,
@@ -257,15 +271,28 @@ export default function FaceEnroll() {
       previewPathRef.current = null;
       setPreviewUri(null);
       isCapturingRef.current = false;
-      ToastAndroid.show("Profile picture updated", ToastAndroid.SHORT);
+      ToastAndroid.show(
+        isReenroll ? "Profile picture updated" : "Skin scan saved",
+        ToastAndroid.SHORT,
+      );
       if (isReenroll) {
         router.back();
+      } else if (!answers) {
+        // Setup order: skin scan first, then the questionnaire. The graded crop rides along
+        // to setup, which hands it to loading with the answers.
+        router.replace({
+          pathname: "/(user-setup)/setup",
+          params: gradingUri ? { photoUri: gradingUri } : {},
+        });
       } else {
+        // Answers already collected (loading bounced back here because no face was saved).
         router.replace({
           pathname: "/(user-setup)/loading",
           params: {
             healthScore: healthScore ?? "0",
             answers: answers ?? "{}",
+            // Only a real face crop is graded; without one the baseline stays answers-only.
+            ...(gradingUri ? { photoUri: gradingUri } : {}),
           },
         });
       }
@@ -302,23 +329,27 @@ export default function FaceEnroll() {
     );
   }
 
-  // Same one-question layout as setup step 9 — title, one line, button.
+  const title = isReenroll ? "Update your profile picture" : "Scan your skin";
+
+  // Simple intro — title, one line, button.
   if (!started) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <ScreenGradient />
         <View className="flex-1 px-5 pt-8 pb-6">
           <Text className="font-bold text-[22px]" style={{ color: theme.colors.ink }}>
-            {isReenroll ? "Update your profile picture" : "Take a profile picture"}
+            {title}
           </Text>
           <Text className="text-sm leading-5 mt-2" style={{ color: theme.colors.muted }}>
-            You&apos;ll take one photo on the next screen.
+            {isReenroll
+              ? "You'll take one photo on the next screen."
+              : "One photo of your face shows how your skin looks today. It's also your profile picture."}
           </Text>
 
           <View className="flex-1" />
 
           <PrimaryButton
-            label={isReenroll ? "Take New Picture" : "Take Profile Picture"}
+            label={isReenroll ? "Take New Picture" : "Start Skin Scan"}
             onPress={handleStart}
           />
         </View>
@@ -331,7 +362,9 @@ export default function FaceEnroll() {
       <SafeAreaView className="flex-1 items-center justify-center bg-black px-6">
         <Text className="mt-3 text-base text-white text-center">Camera permission required</Text>
         <Text className="mt-1 text-sm text-center text-white/70">
-          We need camera access to take your profile picture.
+          {isReenroll
+            ? "We need camera access to take your profile picture."
+            : "We need camera access to scan your skin."}
         </Text>
         <View className="mt-4 w-full">
           <PrimaryButton label="Allow Camera" onPress={handleStart} />
@@ -393,12 +426,14 @@ export default function FaceEnroll() {
             <View className="bg-white rounded-2xl p-4 gap-1.5">
               <View className="flex-row items-center gap-2">
                 <ScanFace size={20} color={theme.colors.primary} />
-                <Text className="font-bold text-gray-900 text-lg">
-                  {isReenroll ? "Update your profile picture" : "Take a profile picture"}
-                </Text>
+                <Text className="font-bold text-gray-900 text-lg">{title}</Text>
               </View>
               <Text className="text-sm text-gray-500">
-                {isPreview ? "Use this photo?" : "Look straight at the camera and fill the frame."}
+                {isPreview
+                  ? "Use this photo?"
+                  : isReenroll
+                    ? "Look straight at the camera and fill the frame."
+                    : "Face the camera in good light, no makeup or filters, and fill the frame."}
               </Text>
             </View>
           </View>
@@ -495,7 +530,7 @@ export default function FaceEnroll() {
               onPress={handleCapture}
               disabled={!canCapture}
               accessibilityRole="button"
-              accessibilityLabel="Take profile picture"
+              accessibilityLabel={isReenroll ? "Take profile picture" : "Take skin scan photo"}
               style={{
                 width: 72,
                 height: 72,

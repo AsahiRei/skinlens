@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getDatabase } from "@/lib/db/database";
 import { requireUser } from "@/lib/db/auth";
+import { ageFromStoredDob } from "@/lib/age";
+import { PHOTO_BASED_RESULT_SQL } from "@/utils/result-kind";
+import { safetyExclusions } from "@/utils/safety";
+import { setupOptionLabel } from "@/utils/setup-score";
 import type { ChatUserContext } from "@/types/chat";
 import { ingredientsAvoidedBySensitivity } from "@/utils/knowledge";
 
@@ -31,12 +35,20 @@ function summarizeRoutine(routineJson: string | null): string | null {
   }
 }
 
-function summarizeRecommendations(raw: string | null): string | null {
+function summarizeRecommendations(raw: string | null, avoid: string[] = []): string | null {
   if (!raw) return null;
+  const avoidSet = new Set(avoid.map((a) => a.toLowerCase()));
   try {
     const recs = JSON.parse(raw);
     if (!Array.isArray(recs) || recs.length === 0) return null;
-    return recs
+    // A scan's stored recommendations predate any reaction logged since — drop products that
+    // contain a logged trigger so the chatbot never re-suggests them.
+    const safe = recs.filter(
+      (r: { recommended_ingredients?: string[] }) =>
+        !(r.recommended_ingredients ?? []).some((i) => avoidSet.has(i.toLowerCase())),
+    );
+    if (safe.length === 0) return null;
+    return safe
       .slice(0, 6)
       .map((r: { product_type?: string; recommended_ingredients?: string[] }) => {
         const ingredients = r.recommended_ingredients?.length
@@ -141,6 +153,7 @@ export function useChatUserContext() {
         sensitivityRows,
         scanRows,
         routineDaysRow,
+        healthRow,
       ] = await Promise.all([
         db.getFirstAsync<{ first_name: string; age: string; gender: string }>(
           `SELECT first_name, age, gender FROM user_profile WHERE id = ?`,
@@ -174,18 +187,34 @@ export function useChatUserContext() {
           [user.id],
         ),
         db.getAllAsync<{ trigger_cause: string; severity: string; notes: string | null }>(
-          `SELECT trigger_cause, severity, notes FROM sensitivity_history WHERE user_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 20`,
+          // Whole log: an old trigger must still be avoided (the summary below shows the latest 20).
+          `SELECT trigger_cause, severity, notes FROM sensitivity_history WHERE user_id = ? ORDER BY occurred_at DESC, id DESC LIMIT 500`,
           [user.id],
         ),
         db.getAllAsync<ScanPoint>(
-          `SELECT healthscore, created_at FROM results WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 30`,
+          // Trend only over photo-graded results (see utils/result-kind).
+          `SELECT healthscore, created_at FROM results WHERE user_id = ? AND ${PHOTO_BASED_RESULT_SQL} ORDER BY created_at DESC, id DESC LIMIT 30`,
           [user.id],
         ),
         db.getFirstAsync<{ days: number }>(
           `SELECT COUNT(DISTINCT completed_date) AS days FROM routine_progress WHERE user_id = ? AND completed_date >= ?`,
           [user.id, localDateStr(6)],
         ),
+        db
+          .getFirstAsync<{ pregnancy_status: string | null; current_treatment: string | null }>(
+            `SELECT pregnancy_status, current_treatment FROM health_profile WHERE id = ?`,
+            [user.id],
+          )
+          .catch(() => null),
       ]);
+      // Logged triggers plus safety exclusions (pregnancy, prescribed treatment): the chatbot's
+      // product cards and prompt must respect the same rules as the routine.
+      const avoidIngredients = [
+        ...new Set([
+          ...ingredientsAvoidedBySensitivity(sensitivityRows ?? []),
+          ...safetyExclusions(healthRow).map((x) => x.ingredient),
+        ]),
+      ];
 
       const progress = summarizeProgress(
         scanRows ?? [],
@@ -195,7 +224,8 @@ export function useChatUserContext() {
 
       setUserContext({
         first_name: userRow?.first_name,
-        age: userRow?.age,
+        // The `age` column stores a date of birth ("January 5, 2000"); the chatbot needs years.
+        age: ageFromStoredDob(userRow?.age)?.toString() ?? null,
         gender: userRow?.gender,
         skin_type: skinRow?.skin_type,
         main_concerns: skinRow?.main_concerns,
@@ -203,19 +233,31 @@ export function useChatUserContext() {
         last_diagnosis: resultRow?.description,
         detection_label: resultRow?.detection_label,
         severity: resultRow?.severity,
-        sleep_quality: lifestyleRow?.sleep_quality,
-        water_intake: lifestyleRow?.water_intake,
-        stress_level: lifestyleRow?.stress_level,
+        // Readable text ("6–7 glasses", "7 hours"), not stored codes like "1_5_to_2l".
+        sleep_quality: lifestyleRow?.sleep_quality
+          ? `${setupOptionLabel("sleep_quality", lifestyleRow.sleep_quality)} of sleep`
+          : undefined,
+        water_intake: lifestyleRow?.water_intake
+          ? `${setupOptionLabel("water_intake", lifestyleRow.water_intake)} of water a day`
+          : undefined,
+        stress_level: lifestyleRow?.stress_level
+          ? setupOptionLabel("stress_level", lifestyleRow.stress_level).toLowerCase()
+          : undefined,
         routine_summary: summarizeRoutine(routineRow?.routine_json ?? null),
-        recommendations_summary: summarizeRecommendations(resultRow?.recommendations ?? null),
-        sensitivity_triggers: summarizeSensitivityTriggers(sensitivityRows ?? []),
+        recommendations_summary: summarizeRecommendations(
+          resultRow?.recommendations ?? null,
+          avoidIngredients,
+        ),
+        sensitivity_triggers: summarizeSensitivityTriggers((sensitivityRows ?? []).slice(0, 20)),
         progress_summary: progress.summary,
         score_trend: progress.trend,
         scan_count: scanRows?.length ?? 0,
         routine_days_last_week: routineRow ? (routineDaysRow?.days ?? 0) : null,
         doctor_review: resultRow?.validation_status ?? null,
         doctor_notes: resultRow?.doctor_notes ?? null,
-        avoid_ingredients: ingredientsAvoidedBySensitivity(sensitivityRows ?? []),
+        avoid_ingredients: avoidIngredients,
+        // Only the reason sentences (e.g. "Retinoids are left out because…"), deduplicated.
+        safety_notes: [...new Set(safetyExclusions(healthRow).map((x) => x.reason))],
       });
     } catch (err) {
       console.error("Error building chat user context:", err);

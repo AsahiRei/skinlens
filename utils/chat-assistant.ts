@@ -3,6 +3,8 @@ import type { PhProduct } from "@/types/knowledge";
 
 import { getLlamaContext, runExclusive } from "./llama";
 import { formatKnowledgeForPrompt } from "./knowledge";
+import { formatEvidenceReply, ingredientsForEvidenceQuestion } from "./chat-evidence";
+import { evidenceFor } from "@/data/derm-validation";
 import { stripThinkTags } from "./llm-helpers";
 import {
   isSkincareProductQuery,
@@ -34,7 +36,9 @@ Your goal is to provide short, helpful, and encouraging advice.
 - PERSONAL QUESTIONS: When the user asks about themselves (name, age, skin type, health score, etc.), use the facts in the USER PROFILE section below. State the value plainly.
 - PERSONALIZATION: Weave in the user's profile (skin type, concerns) where relevant to make advice more personal.
 - PROGRESS: When advising, consider the user's progress (score trend, routine consistency). Praise improvement; if the score is declining, gently suggest checking the routine or seeing a dermatologist.
-- AVOID: Never suggest an ingredient listed under "Ingredients to avoid".
+- AVOID: Never suggest an ingredient listed under "Ingredients to avoid". If SAFETY NOTES are given, follow them.
+- EVIDENCE: Each ingredient in the KNOWLEDGE section has an evidence tag. Prefer "Dermatology guideline" and "FDA-recognized" ingredients. Describe "Clinical studies" ones as promising, and "Limited evidence" ones as not well proven. Never invent studies, statistics or sources — the app shows the real sources.
+- PRESCRIPTION: Adapalene (Differin) is prescription-only in the Philippines — if it comes up, say a dermatologist can prescribe it; never present it as something to buy over the counter. Never recommend tretinoin, isotretinoin, antibiotics or steroid creams.
 - PHILIPPINES: The user is in the Philippines. When recommending products, prefer the PHILIPPINE PRODUCT EXAMPLES if given.
 - MISSING DATA: If a fact is missing from the USER PROFILE, say you don't have it yet and suggest completing their profile or taking a scan. Do not invent values.
 
@@ -64,6 +68,7 @@ function hasAnyProfileData(ctx: ChatUserContext): boolean {
     ctx.routine_summary != null ||
     ctx.recommendations_summary != null ||
     ctx.sensitivity_triggers != null ||
+    (ctx.safety_notes?.length ?? 0) > 0 ||
     ctx.progress_summary != null
   );
 }
@@ -96,8 +101,10 @@ function buildContextBlock(ctx?: ChatUserContext): string {
     );
   if (ctx.avoid_ingredients && ctx.avoid_ingredients.length > 0)
     lines.push(
-      `Ingredients to avoid (linked to past flare-ups): ${ctx.avoid_ingredients.join(", ")}`,
+      `Ingredients to avoid (past flare-ups and safety rules): ${ctx.avoid_ingredients.join(", ")}`,
     );
+  if (ctx.safety_notes && ctx.safety_notes.length > 0)
+    lines.push(`SAFETY NOTES: ${ctx.safety_notes.join(" ")}`);
   if (lines.length === 0) return "";
   return `\n\nUSER PROFILE — facts about this user. Use them to answer questions about the user, and to personalize skincare advice:\n${lines.join("\n")}`;
 }
@@ -380,6 +387,8 @@ export type ChatReply = {
   phProducts?: PhProduct[];
   /** Nearby / verified dermatology clinics. */
   clinics?: ChatClinic[];
+  /** Ingredients to show an "Evidence & sources" button for (verified dataset). */
+  evidence?: string[];
 };
 
 /** Check if we should do a web search for this query */
@@ -422,6 +431,15 @@ export async function generateChatReply(
       text: formatClinicsReply(result, userContext),
       clinics: result.clinics.length > 0 ? result.clinics : undefined,
     };
+  }
+
+  // "Is X proven? What's the source?" — answered from the verified evidence dataset, never by
+  // the small LLM (which would invent citations).
+  if (lastUserMessage) {
+    const asked = ingredientsForEvidenceQuestion(lastUserMessage.content, history);
+    if (asked.length > 0) {
+      return { text: formatEvidenceReply(asked, userContext), evidence: asked };
+    }
   }
 
   if (lastUserMessage && userContext) {
@@ -478,8 +496,10 @@ export async function generateChatReply(
   }
 
   const context = await getLlamaContext(onModelDownloadProgress);
+  // The condition drives retrieval: latest scan finding, else the stated concern. (Passing the
+  // skin type here sent "sensitive"/"combination" — not conditions — to the generic fallback.)
   const knowledgeBlock = formatKnowledgeForPrompt(
-    userContext?.skin_type ?? userContext?.main_concerns ?? "normal",
+    userContext?.detection_label || userContext?.main_concerns || "normal",
     userContext?.main_concerns ?? undefined,
     userQuery,
   );
@@ -489,7 +509,7 @@ export async function generateChatReply(
 
   if (knowledgeBlock) {
     systemPromptParts.push(
-      `\n\nDERMATOLOGIST KNOWLEDGE (use when relevant to the user's question):\n${knowledgeBlock}`,
+      `\n\nKNOWLEDGE (evidence-rated; use when relevant to the user's question):\n${knowledgeBlock}`,
     );
   }
 
@@ -540,10 +560,16 @@ export async function generateChatReply(
     reply = `${reply}\n\nSample products sold in the Philippines are below. ${PH_PRICE_NOTE}`;
   }
 
+  // Every ingredient the reply mentions gets a link to its verified evidence and sources.
+  const mentioned = extractIngredientNames(reply)
+    .filter((n) => !!evidenceFor(n))
+    .slice(0, 4);
+
   return {
     text: reply,
     productCards: productCards.length > 0 ? productCards : undefined,
     phProducts: phProducts.length > 0 ? phProducts : undefined,
+    evidence: mentioned.length > 0 ? mentioned : undefined,
   };
 }
 

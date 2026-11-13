@@ -1,13 +1,27 @@
 {
   "meta": {
-    "compiled": "2026-11-01",
-    "note": "Compiled from public dermatology sources (AAD, JAAD, FDA/eCFR, NEA) and peer-reviewed literature. dermatologistValidated is true only when a dermatology guideline/consensus, professional-association guidance, or an FDA OTC monograph recognizes the ingredient for the stated use. Cosmetic marketing claims (e.g. 'dermatologist-tested') are not counted.",
+    "compiled": "2026-11-11",
+    "note": "Compiled from public dermatology sources (AAD, JAAD, FDA/eCFR, NEA) and peer-reviewed literature. dermatologistValidated is true only when a dermatology guideline/consensus, professional-association guidance, or an FDA OTC monograph recognizes the ingredient for the stated use. Cosmetic marketing claims (e.g. 'dermatologist-tested') are not counted. IMPORTANT: dermatologistValidated / level describe published evidence (guidelines, regulators, studies). They are NOT a review by this project's dermatologist — that is the separate `review` field, which stays 'pending' until a licensed dermatologist signs off (see scripts/derm-review.js).",
     "levels": {
       "guideline": "Endorsed by a clinical practice guideline or Delphi expert consensus (e.g., AAD, JAAD).",
       "regulatory": "Recognized by FDA as a regulated OTC drug active (monograph / 21 CFR).",
       "association": "Included in professional-association patient guidance (AAD, National Eczema Association).",
       "clinical": "Supported by published clinical studies or systematic reviews without authority-level endorsement.",
       "emerging": "Preliminary, mixed or limited evidence; no endorsement identified."
+    },
+    "sourceCheck": "Every PubMed/PMC id, DOI, eCFR section and FDA page was resolved and its title checked against the claim on 2026-11-11 (NCBI E-utilities, Crossref, eCFR).",
+    "sourceTypes": {
+      "guideline": "Clinical practice guideline or consensus statement",
+      "regulatory": "FDA / eCFR regulatory document",
+      "association": "Professional association patient guidance (AAD, NEA)",
+      "peer_reviewed": "Peer-reviewed journal article",
+      "other": "Non-peer-reviewed source (industry, website) — supporting only"
+    },
+    "reviewStatuses": {
+      "pending": "Not yet reviewed by the project's dermatologist",
+      "approved": "Approved as written by the reviewing dermatologist",
+      "approved_with_changes": "Approved after the reviewer's edits (see notes)",
+      "rejected": "Reviewer does not support this use — excluded from recommendations"
     }
   },
   "ingredients": [
@@ -24,17 +38,32 @@
       "sources": [
         {
           "name": "AAD 2024 Acne Guideline Summary",
-          "url": "https://www.aad.org/member/clinical-quality/guidelines/acne"
+          "url": "https://www.aad.org/member/clinical-quality/guidelines/acne",
+          "type": "guideline"
         },
         {
           "name": "JAAD Delphi Consensus 2025 (PMID 40233838)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/",
+          "type": "peer_reviewed"
         },
         {
           "name": "21 CFR 333.310 - Acne active ingredients",
-          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-333/subpart-D/section-333.310"
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-333/subpart-D/section-333.310",
+          "type": "regulatory"
+        },
+        {
+          "name": "Reynolds RV et al. Guidelines of care for the management of acne vulgaris. J Am Acad Dermatol 2024 (PMID 38300170)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38300170/",
+          "type": "guideline"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Benzoyl Peroxide",
@@ -49,109 +78,175 @@
       "sources": [
         {
           "name": "AAD 2024 Acne Guideline Summary",
-          "url": "https://www.aad.org/member/clinical-quality/guidelines/acne"
+          "url": "https://www.aad.org/member/clinical-quality/guidelines/acne",
+          "type": "guideline"
         },
         {
           "name": "JAAD Delphi Consensus 2025 (PMID 40233838)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/",
+          "type": "peer_reviewed"
         },
         {
           "name": "21 CFR 333.310 - Acne active ingredients",
-          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-333/subpart-D/section-333.310"
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-333/subpart-D/section-333.310",
+          "type": "regulatory"
+        },
+        {
+          "name": "Reynolds RV et al. Guidelines of care for the management of acne vulgaris. J Am Acad Dermatol 2024 (PMID 38300170)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38300170/",
+          "type": "guideline"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Retinol",
       "level": "guideline",
       "dermatologistValidated": true,
       "validatedBy": [
-        "AAD 2024 Acne Vulgaris Guideline (topical retinoids, strong)",
-        "JAAD Delphi Consensus 2025 (retinoids)"
+        "JAAD Delphi Consensus 2025 (retinoids as a class)",
+        "AAD 2024 Acne Vulgaris Guideline (retinoid class, not retinol specifically)"
       ],
-      "evidence": "Topical retinoids are strongly recommended by AAD 2024 and achieved Delphi consensus for fine lines, acne, dark spots, large pores and oily skin. Note: guideline evidence covers the retinoid class (adapalene/tretinoin); OTC retinol is a milder cosmetic precursor. Use at night with sunscreen.",
+      "evidence": "Retinoids as a class reached consensus among 62 dermatologists in the 2025 JAAD Delphi study (fine lines, acne, dark spots, large pores, oily skin). The AAD 2024 acne guideline's strong recommendation covers topical retinoids such as adapalene and tretinoin; evidence specific to cosmetic (OTC) retinol for acne is weaker, as it is a milder precursor. Use at night with sunscreen; avoided in pregnancy.",
       "sources": [
         {
-          "name": "AAD 2024 Acne Guideline Summary",
-          "url": "https://www.aad.org/member/clinical-quality/guidelines/acne"
+          "name": "AAD 2024 Acne Guideline Summary (covers the retinoid class, e.g. adapalene/tretinoin)",
+          "url": "https://www.aad.org/member/clinical-quality/guidelines/acne",
+          "type": "guideline"
         },
         {
           "name": "JAAD Delphi Consensus 2025 (PMID 40233838)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/",
+          "type": "peer_reviewed"
+        },
+        {
+          "name": "Reynolds RV et al. Guidelines of care for the management of acne vulgaris. J Am Acad Dermatol 2024 (PMID 38300170) (covers the retinoid class, e.g. adapalene/tretinoin)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38300170/",
+          "type": "guideline"
+        },
+        {
+          "name": "Kaplan YC et al. Pregnancy outcomes after first-trimester exposure to topical retinoids: systematic review and meta-analysis. Br J Dermatol 2015",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26215715/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Azelaic Acid",
       "level": "guideline",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "AAD 2024 Acne Vulgaris Guideline (conditional)",
-        "JAAD Delphi Consensus 2025"
-      ],
+      "validatedBy": ["AAD 2024 Acne Vulgaris Guideline (conditional)", "JAAD Delphi Consensus 2025"],
       "evidence": "Conditionally recommended by AAD 2024 and Delphi-consensus for acne and dark spots. Randomized trials show 15% gel improves post-acne redness and pigmentation; well suited to sensitive and darker skin tones.",
       "sources": [
         {
           "name": "AAD 2024 Acne Guideline Summary",
-          "url": "https://www.aad.org/member/clinical-quality/guidelines/acne"
+          "url": "https://www.aad.org/member/clinical-quality/guidelines/acne",
+          "type": "guideline"
         },
         {
           "name": "JAAD Delphi Consensus 2025 (PMID 40233838)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/",
+          "type": "peer_reviewed"
         },
         {
           "name": "RCT: 15% Azelaic Acid Gel for PIH (Springer 2024)",
-          "url": "https://link.springer.com/article/10.1007/s13555-024-01176-2"
+          "url": "https://link.springer.com/article/10.1007/s13555-024-01176-2",
+          "type": "peer_reviewed"
+        },
+        {
+          "name": "Reynolds RV et al. Guidelines of care for the management of acne vulgaris. J Am Acad Dermatol 2024 (PMID 38300170)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38300170/",
+          "type": "guideline"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Niacinamide",
       "level": "guideline",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "JAAD Delphi Consensus 2025",
-        "Clinical studies (barrier, pigmentation)"
-      ],
+      "validatedBy": ["JAAD Delphi Consensus 2025", "Clinical studies (barrier, pigmentation)"],
       "evidence": "Delphi consensus among 62 dermatologists for redness and dark spots. Clinical studies show it supports the barrier (increased ceramide synthesis), reduces water loss and helps fade pigmentation; commonly found in NEA-accepted products.",
       "sources": [
         {
           "name": "JAAD Delphi Consensus 2025 (PMID 40233838)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/",
+          "type": "peer_reviewed"
         },
         {
           "name": "Mechanistic Basis & Clinical Evidence for Niacinamide (PMC8389214)",
-          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8389214/"
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8389214/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Glycolic Acid",
       "level": "guideline",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "JAAD Delphi Consensus 2025"
-      ],
+      "validatedBy": ["JAAD Delphi Consensus 2025"],
       "evidence": "Delphi consensus for acne and dark spots; widely used AHA for exfoliation and texture. Evidence-based as part of combination care, but can irritate sensitive skin.",
       "sources": [
         {
           "name": "JAAD Delphi Consensus 2025 (PMID 40233838)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Zinc PCA",
       "level": "emerging",
       "dermatologistValidated": false,
       "validatedBy": [],
-      "evidence": "Sebum-control signal from small studies, but no standalone randomized trial and no guideline or regulatory endorsement; best treated as a supporting cosmetic active for oily skin.",
+      "evidence": "No peer-reviewed clinical study was found for zinc PCA on its own (PubMed search, Nov 2026); sebum-control claims come from manufacturer and cosmetic-industry data. Kept only as a supporting cosmetic ingredient and never ranked as a primary recommendation.",
       "sources": [
         {
           "name": "Cosmetic Science Lab ingredient review",
-          "url": "https://www.cosmeticsciencelab.com/ingredients/zinc-pca"
+          "url": "https://www.cosmeticsciencelab.com/ingredients/zinc-pca",
+          "type": "other"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Tea Tree Oil",
@@ -162,13 +257,22 @@
       "sources": [
         {
           "name": "Tea Tree Oil review - PMC10295805",
-          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10295805/"
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10295805/",
+          "type": "peer_reviewed"
         },
         {
           "name": "PubMed 42098589 (2024)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/42098589/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/42098589/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Green Tea Extract",
@@ -179,44 +283,64 @@
       "sources": [
         {
           "name": "Green Tea & Sebum Production Review (PMC5384166)",
-          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5384166/"
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5384166/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Sulfur",
       "level": "regulatory",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "FDA OTC Monograph M006 (3-10%)"
-      ],
+      "validatedBy": ["FDA OTC Monograph M006 (3-10%)"],
       "evidence": "FDA-permitted OTC acne active at 3-10%; long-standing keratolytic/antibacterial use in cleansers and masks for mild acne and oil control.",
       "sources": [
         {
           "name": "FDA OTC Monograph M006 - Topical Acne Drug Products (PDF)",
-          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/omuf/monographs/OTC%20Monograph_M006-Topical%20Acne%20drug%20products%20for%20OTC%20Human%20Use%2011.23.2021.pdf"
+          "url": "https://www.accessdata.fda.gov/drugsatfda_docs/omuf/monographs/OTC%20Monograph_M006-Topical%20Acne%20drug%20products%20for%20OTC%20Human%20Use%2011.23.2021.pdf",
+          "type": "regulatory"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Hyaluronic Acid",
       "level": "association",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "AAD guidance (board-certified dermatologists)",
-        "Clinical reviews"
-      ],
+      "validatedBy": ["AAD guidance (board-certified dermatologists)", "Clinical reviews"],
       "evidence": "Named by AAD board-certified dermatologists as a moisturizer ingredient to look for; literature reviews and clinical studies support topical HA for hydration and skin quality. Suitable for all skin types including oily and barrier-impaired skin.",
       "sources": [
         {
           "name": "AAD: How to pick the right moisturizer",
-          "url": "https://www.aad.org/public/everyday-care/skin-care-basics/dry/pick-moisturizer"
+          "url": "https://www.aad.org/public/everyday-care/skin-care-basics/dry/pick-moisturizer",
+          "type": "association"
         },
         {
           "name": "Topical HA Clinical Evidence Review (PubMed 36200921)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/36200921/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36200921/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Ceramides",
@@ -231,37 +355,58 @@
       "sources": [
         {
           "name": "AAD: Dry skin treatment",
-          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment"
+          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment",
+          "type": "association"
         },
         {
           "name": "AAD: How to pick the right moisturizer",
-          "url": "https://www.aad.org/public/everyday-care/skin-care-basics/dry/pick-moisturizer"
+          "url": "https://www.aad.org/public/everyday-care/skin-care-basics/dry/pick-moisturizer",
+          "type": "association"
         },
         {
           "name": "Ceramides in skin barrier function (Wiley 2024)",
-          "url": "https://onlinelibrary.wiley.com/doi/10.1111/ics.12972"
+          "url": "https://onlinelibrary.wiley.com/doi/10.1111/ics.12972",
+          "type": "peer_reviewed"
+        },
+        {
+          "name": "Sidbury R et al. AAD guidelines for atopic dermatitis in adults with topical therapies. J Am Acad Dermatol 2023 (PMID 36641009)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36641009/",
+          "type": "guideline"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Glycerin",
       "level": "regulatory",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "FDA OTC skin protectant monograph (20-45%)",
-        "AAD dry-skin guidance"
-      ],
+      "validatedBy": ["FDA OTC skin protectant monograph (20-45%)", "AAD dry-skin guidance"],
       "evidence": "FDA-regulated OTC skin-protectant active (20-45%) and listed by AAD among effective dry-skin moisturizer actives (glycerol); a standard humectant with decades of clinical use.",
       "sources": [
         {
           "name": "21 CFR 347.10 - Skin protectant active ingredients",
-          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10"
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10",
+          "type": "regulatory"
         },
         {
           "name": "AAD: Dry skin treatment",
-          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment"
+          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment",
+          "type": "association"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Squalane",
@@ -269,7 +414,20 @@
       "dermatologistValidated": false,
       "validatedBy": [],
       "evidence": "Lightweight, stable emollient with good tolerability and dermatologist popularity, but no guideline, association-listing or regulatory endorsement was identified for it as an active. Hydration support only.",
-      "sources": []
+      "sources": [
+        {
+          "name": "Huang ZR et al. Biological and pharmacological activities of squalene and related compounds: potential uses in cosmetic dermatology. Molecules 2009",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6253993/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Shea Butter",
@@ -277,82 +435,134 @@
       "dermatologistValidated": false,
       "validatedBy": [],
       "evidence": "Rich fatty-acid emollient with established moisturizing benefit and frequent use in eczema-friendly formulas; not the subject of a dermatology guideline or regulatory monograph.",
-      "sources": []
+      "sources": [
+        {
+          "name": "Vegetable butters and oils as therapeutically and cosmetically active ingredients for dermal use: a review of clinical studies. Front Pharmacol 2022",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9083541/",
+          "type": "peer_reviewed"
+        },
+        {
+          "name": "Hon KL et al. Lipid complex with shea butter extract vs a ceramide product for eczema. Hong Kong Med J 2015",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26314567/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Petrolatum",
       "level": "regulatory",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "FDA OTC skin protectant monograph (30-100%)",
-        "AAD dry-skin guidance"
-      ],
+      "validatedBy": ["FDA OTC skin protectant monograph (30-100%)", "AAD dry-skin guidance"],
       "evidence": "The occlusive gold standard: FDA-regulated OTC skin protectant (30-100%) and recommended by AAD for dry skin, sealing moisture over a damaged barrier.",
       "sources": [
         {
           "name": "21 CFR 347.10 - Skin protectant active ingredients",
-          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10"
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10",
+          "type": "regulatory"
         },
         {
           "name": "AAD: Dry skin treatment",
-          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment"
+          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment",
+          "type": "association"
+        },
+        {
+          "name": "Sidbury R et al. AAD guidelines for atopic dermatitis in adults with topical therapies. J Am Acad Dermatol 2023 (PMID 36641009)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36641009/",
+          "type": "guideline"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Urea",
       "level": "association",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "AAD dry-skin treatment",
-        "Clinical trials"
-      ],
+      "validatedBy": ["AAD dry-skin treatment", "Clinical trials"],
       "evidence": "Listed by AAD among active ingredients dermatologists use for dry skin; multiple clinical trials show urea-containing formulations improve xerosis, scaling and hydration (typically 5-10% in moisturizers).",
       "sources": [
         {
           "name": "AAD: Dry skin treatment",
-          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment"
+          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment",
+          "type": "association"
         },
         {
           "name": "Urea in Dermatology Review (PMC8611129)",
-          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8611129/"
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8611129/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Lactic Acid",
       "level": "association",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "AAD dry-skin treatment"
-      ],
+      "validatedBy": ["AAD dry-skin treatment"],
       "evidence": "Listed by AAD among dry-skin moisturizer actives; gentle AHA/humectant with controlled studies showing improved xerosis (commonly paired with urea).",
       "sources": [
         {
           "name": "AAD: Dry skin treatment",
-          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment"
+          "url": "https://www.aad.org/public/diseases/a-z/dry-skin-treatment",
+          "type": "association"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Colloidal Oatmeal",
       "level": "regulatory",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "FDA OTC skin protectant monograph",
-        "National Eczema Association"
-      ],
+      "validatedBy": ["FDA OTC skin protectant monograph", "National Eczema Association"],
       "evidence": "FDA-recognized OTC skin protectant with clinical evidence for eczema and itch relief; avenanthramides provide anti-inflammatory effect. Common in NEA-accepted products.",
       "sources": [
         {
           "name": "21 CFR 347.10 - Skin protectant active ingredients",
-          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10"
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10",
+          "type": "regulatory"
         },
         {
           "name": "NEA Seal of Acceptance",
-          "url": "https://nationaleczema.org/seal-home/"
+          "url": "https://nationaleczema.org/seal-home/",
+          "type": "association"
+        },
+        {
+          "name": "Capone K et al. Effects of colloidal oatmeal topical atopic dermatitis cream on skin microbiome and skin barrier properties. J Drugs Dermatol 2020",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/32484623/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Panthenol",
@@ -360,7 +570,25 @@
       "dermatologistValidated": false,
       "validatedBy": [],
       "evidence": "Pro-vitamin B5 with controlled studies showing improved hydration, soothing and barrier repair; widely used in dermatology but without formal guideline or monograph endorsement.",
-      "sources": []
+      "sources": [
+        {
+          "name": "Ebner F et al. Topical use of dexpanthenol in skin disorders. Am J Clin Dermatol 2002",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/12113650/",
+          "type": "peer_reviewed"
+        },
+        {
+          "name": "Proksch E et al. Topical use of dexpanthenol: a 70th anniversary article. J Dermatolog Treat 2017",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28503966/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Jojoba Oil",
@@ -368,37 +596,62 @@
       "dermatologistValidated": false,
       "validatedBy": [],
       "evidence": "Wax-ester emollient that mimics sebum and is well tolerated; evidence limited to emolliency and safety data — no dermatology guideline or regulatory endorsement identified.",
-      "sources": []
+      "sources": [
+        {
+          "name": "Pazyar N et al. Jojoba in dermatology: a succinct review. G Ital Dermatol Venereol 2013",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24442052/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Dimethicone",
       "level": "regulatory",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "FDA OTC skin protectant monograph (1-30%)"
-      ],
+      "validatedBy": ["FDA OTC skin protectant monograph (1-30%)"],
       "evidence": "FDA-regulated OTC skin protectant active (1-30%); forms a breathable barrier that reduces water loss and shields sensitive skin from irritants.",
       "sources": [
         {
           "name": "21 CFR 347.10 - Skin protectant active ingredients",
-          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10"
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10",
+          "type": "regulatory"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Allantoin",
       "level": "regulatory",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "FDA OTC skin protectant monograph (0.5-2%)"
-      ],
+      "validatedBy": ["FDA OTC skin protectant monograph (0.5-2%)"],
       "evidence": "FDA-regulated OTC skin protectant active (0.5-2%) with a long cosmetic history of soothing and softening irritated, rough skin.",
       "sources": [
         {
           "name": "21 CFR 347.10 - Skin protectant active ingredients",
-          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10"
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10",
+          "type": "regulatory"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Aloe Vera",
@@ -406,7 +659,20 @@
       "dermatologistValidated": false,
       "validatedBy": [],
       "evidence": "Soothing gel with cooling effect and some anti-inflammatory data, but clinical evidence is limited and contact dermatitis is possible; no guideline or monograph endorsement identified. Not an FDA skin-protectant active.",
-      "sources": []
+      "sources": [
+        {
+          "name": "Surjushe A et al. Aloe vera: a short review. Indian J Dermatol 2008",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2763764/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Centella Asiatica",
@@ -417,9 +683,17 @@
       "sources": [
         {
           "name": "Centella asiatica in wound healing (MDPI 2025)",
-          "url": "https://www.mdpi.com/1999-4923/16/10/1252"
+          "url": "https://www.mdpi.com/1999-4923/16/10/1252",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Vitamin E",
@@ -427,27 +701,46 @@
       "dermatologistValidated": false,
       "validatedBy": [],
       "evidence": "Tocopherol is an antioxidant emollient with supporting evidence for photoprotection in combination formulas; topical monotherapy evidence is mixed. Not an FDA skin-protectant active; found in many NEA-accepted moisturizers.",
-      "sources": []
+      "sources": [
+        {
+          "name": "Keen MA, Hassan I. Vitamin E in dermatology. Indian Dermatol Online J 2016",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4976416/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Clay (Kaolin/Bentonite)",
       "level": "regulatory",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "FDA OTC skin protectant monograph (kaolin 4-20%)",
-        "Clinical studies"
-      ],
+      "validatedBy": ["FDA OTC skin protectant monograph (kaolin 4-20%)", "Clinical studies"],
       "evidence": "Kaolin is an FDA-regulated OTC skin-protectant active (4-20%); randomized studies of kaolin/bentonite clay masks show reduced oiliness and acne with good tolerability. Use 1-2x weekly to avoid over-drying.",
       "sources": [
         {
           "name": "21 CFR 347.10 - Skin protectant active ingredients",
-          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10"
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10",
+          "type": "regulatory"
         },
         {
           "name": "Clay mask RCT for oily/acne skin (PubMed 38009030)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/38009030/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38009030/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Zinc Oxide",
@@ -462,37 +755,53 @@
       "sources": [
         {
           "name": "21 CFR 347.10 - Skin protectant active ingredients",
-          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10"
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10",
+          "type": "regulatory"
         },
         {
           "name": "AAD Sunscreen FAQs",
-          "url": "https://www.aad.org/media/stats-sunscreen"
+          "url": "https://www.aad.org/media/stats-sunscreen",
+          "type": "association"
         },
         {
           "name": "AAD: Choosing the right sunscreen",
-          "url": "https://www.aad.org/public/everyday-care/sun-protection/shade-clothing-sunscreen/choosing-right-sunscreen"
+          "url": "https://www.aad.org/public/everyday-care/sun-protection/shade-clothing-sunscreen/choosing-right-sunscreen",
+          "type": "association"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Vitamin C",
       "level": "guideline",
       "dermatologistValidated": true,
-      "validatedBy": [
-        "JAAD Delphi Consensus 2025",
-        "Systematic reviews"
-      ],
+      "validatedBy": ["JAAD Delphi Consensus 2025", "Systematic reviews"],
       "evidence": "Delphi consensus among 62 dermatologists for fine lines and dark spots; systematic reviews identify L-ascorbic acid as the most clinically validated form for photoaging and pigmentation (best with vitamin E/ferulic). Unstable — low-pH, airtight packaging matters.",
       "sources": [
         {
           "name": "JAAD Delphi Consensus 2025 (PMID 40233838)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40233838/",
+          "type": "peer_reviewed"
         },
         {
           "name": "Clinical Applications of Vitamin C Systematic Review (PubMed 42761976)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/42761976/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/42761976/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     },
     {
       "name": "Peptides",
@@ -503,9 +812,163 @@
       "sources": [
         {
           "name": "Oral & topical peptides meta-analysis (PubMed 41924746)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/41924746/"
+          "url": "https://pubmed.ncbi.nlm.nih.gov/41924746/",
+          "type": "peer_reviewed"
         }
-      ]
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
+    },
+    {
+      "name": "Adapalene",
+      "level": "guideline",
+      "dermatologistValidated": true,
+      "validatedBy": [
+        "AAD 2024 Acne Vulgaris Guideline (topical retinoids, strong)",
+        "FDA OTC approval of adapalene 0.1% gel (2016)"
+      ],
+      "evidence": "A topical retinoid. The AAD 2024 acne guideline strongly recommends topical retinoids, and in 2016 the FDA approved adapalene 0.1% gel as the first retinoid sold over the counter for acne (ages 12+). Start every other night; dryness and irritation are common in the first weeks. A retinoid: avoided in pregnancy, and availability without prescription varies by country. In the Philippines it is prescription-only: Watsons PH lists Differin 0.1% 30g as 'prescription required' (checked Nov 2026).",
+      "sources": [
+        {
+          "name": "Reynolds RV et al. Guidelines of care for the management of acne vulgaris. J Am Acad Dermatol 2024 (PMID 38300170)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38300170/",
+          "type": "guideline"
+        },
+        {
+          "name": "FDA news release: FDA approves Differin Gel 0.1% for over-the-counter use to treat acne (2016)",
+          "url": "https://www.fda.gov/newsevents/newsroom/pressannouncements/ucm510362.htm",
+          "type": "regulatory"
+        },
+        {
+          "name": "Safe use of adapalene 0.1% gel in a non-prescription environment. J Drugs Dermatol 2021",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34898146/",
+          "type": "peer_reviewed"
+        },
+        {
+          "name": "Kaplan YC et al. Pregnancy outcomes after first-trimester exposure to topical retinoids: systematic review and meta-analysis. Br J Dermatol 2015",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26215715/",
+          "type": "peer_reviewed"
+        },
+        {
+          "name": "Watsons PH: Differin Adapalene 0.1% 30g [prescription required] (availability)",
+          "url": "https://www.watsons.com.ph/differin-adapalene-0.1-30g-prescription-required/p/BP_10001423",
+          "type": "other"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
+    },
+    {
+      "name": "Titanium Dioxide",
+      "level": "regulatory",
+      "dermatologistValidated": true,
+      "validatedBy": [
+        "FDA 2021 proposed sunscreen order (proposed GRASE)",
+        "JAAD 2025 sunscreen regulation and safety review"
+      ],
+      "evidence": "One of the two mineral UV filters (with zinc oxide) that the FDA's 2021 proposed sunscreen order would classify as generally recognized as safe and effective; the order was still proposed, not final, when checked. Reviews in JAAD find mineral filters well tolerated, which suits sensitive and acne-prone skin.",
+      "sources": [
+        {
+          "name": "FDA: Questions and answers - deemed final order and proposed order for OTC sunscreen",
+          "url": "https://www.fda.gov/drugs/understanding-over-counter-medicines/questions-and-answers-fda-posts-deemed-final-order-and-proposed-order-over-counter-sunscreen",
+          "type": "regulatory"
+        },
+        {
+          "name": "Abdel Azim S et al. Sunscreens part 2: Regulation and safety. J Am Acad Dermatol 2025",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38777185/",
+          "type": "peer_reviewed"
+        },
+        {
+          "name": "Newman MD et al. The safety of nanosized particles in titanium dioxide- and zinc oxide-based sunscreens. J Am Acad Dermatol 2009",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19646780/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
+    },
+    {
+      "name": "Mineral Oil",
+      "level": "regulatory",
+      "dermatologistValidated": true,
+      "validatedBy": ["FDA OTC skin protectant monograph (50-100%)"],
+      "evidence": "An FDA-recognized OTC skin protectant (21 CFR 347.10: 50-100%, or 30-35% with colloidal oatmeal). A randomized double-blind trial found it as effective and safe as virgin coconut oil for mild-to-moderate dry skin. Cosmetic-grade mineral oil is highly refined and inexpensive.",
+      "sources": [
+        {
+          "name": "21 CFR 347.10 - Skin protectant active ingredients",
+          "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-D/part-347/subpart-B/section-347.10",
+          "type": "regulatory"
+        },
+        {
+          "name": "Agero AL, Verallo-Rowell VM. Randomized double-blind trial comparing virgin coconut oil with mineral oil for mild to moderate xerosis. Dermatitis 2004",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/15724344/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
+    },
+    {
+      "name": "Bakuchiol",
+      "level": "clinical",
+      "dermatologistValidated": false,
+      "validatedBy": [],
+      "evidence": "A plant-derived ingredient that, in one 12-week randomized double-blind trial, improved wrinkles and pigmentation similarly to retinol with less scaling and stinging. Evidence is a single small trial; it is not a retinoid, and its safety in pregnancy has not been established.",
+      "sources": [
+        {
+          "name": "Dhaliwal S et al. Prospective, randomized, double-blind assessment of topical bakuchiol and retinol for facial photoageing. Br J Dermatol 2019",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29947134/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
+    },
+    {
+      "name": "Sunflower Seed Oil",
+      "level": "clinical",
+      "dermatologistValidated": false,
+      "validatedBy": [],
+      "evidence": "In a randomized study on adult skin, sunflower seed oil preserved the skin barrier and improved hydration, whereas olive oil damaged the barrier. A low-cost emollient for dry and eczema-prone skin; not a guideline-endorsed active.",
+      "sources": [
+        {
+          "name": "Danby SG et al. Effect of olive and sunflower seed oil on the adult skin barrier. Pediatr Dermatol 2013",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22995032/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     }
   ]
 }

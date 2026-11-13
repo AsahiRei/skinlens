@@ -18,6 +18,7 @@ import { useCoachScroller } from "@/hooks/useCoachScroller";
 import { getLatestRoutine, getTodayProgress, toggleStep as toggleStepDb } from "@/lib/db";
 import type { Period, Routine, RoutineStep } from "@/types/schema";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { RecommendedProductBody } from "@/components/RecommendedProduct";
 
 type IconComponent = typeof Sun;
 
@@ -358,33 +359,21 @@ export default function Routines() {
               {routine && routine.recommended_products?.length > 0 && (
                 <View className="mt-7 gap-3">
                   <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
-                    Recommended products
+                    Commonly recommended products
+                  </Text>
+                  <Text className="text-xs leading-4 -mt-1" style={{ color: theme.colors.muted }}>
+                    Often used for your concern — skin reacts differently from person to person, so
+                    patch-test first and tap &quot;This irritated my skin&quot; if one doesn&apos;t
+                    suit you.
                   </Text>
                   {routine.recommended_products.map((product, index) => (
                     <FadeItem key={index} index={Math.min(9 + index, 11)}>
                       <ClinicalCard key={index} className="gap-1.5">
-                        <Text className="font-bold text-[15px]" style={{ color: theme.colors.ink }}>
-                          {product.product_type}
-                        </Text>
-                        <View className="flex-row flex-wrap gap-1.5 mt-1">
-                          {product.recommended_ingredients.map((ingredient, i) => (
-                            <View
-                              key={i}
-                              className="rounded-full px-3 py-1"
-                              style={{ backgroundColor: theme.colors.primarySoft }}
-                            >
-                              <Text
-                                className="text-xs font-semibold"
-                                style={{ color: theme.colors.primaryDeep }}
-                              >
-                                {ingredient}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                        <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
-                          {product.reason}
-                        </Text>
+                        <RecommendedProductBody
+                          product={product}
+                          onReported={() => void fetchRoutine()}
+                          showEvidenceLink={false}
+                        />
                       </ClinicalCard>
                     </FadeItem>
                   ))}

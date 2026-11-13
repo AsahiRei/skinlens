@@ -86,7 +86,9 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "derm-review:export": "node scripts/derm-review.js export",
+    "derm-review:import": "node scripts/derm-review.js import"
   },
   "private": true,
   "expo": {

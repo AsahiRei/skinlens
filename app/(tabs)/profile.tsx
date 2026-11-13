@@ -34,6 +34,7 @@ import { getAllProfiles, updateUserProfile } from "@/lib/db";
 import { getMyProfileValidation, type ProfileValidation } from "@/lib/db/profile-review";
 import type { LifestyleProfile, SkinProfile, UserProfile } from "@/types/schema";
 import { formatter } from "@/utils/formatter";
+import { setupOptionLabel } from "@/utils/setup-score";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
 export default function Profile() {
@@ -323,7 +324,9 @@ export default function Profile() {
                       Sleep Quality
                     </Text>
                     <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
-                      {formatter(lifestyleProfile?.sleep_quality || "") || "—"}
+                      {(lifestyleProfile?.sleep_quality || ""
+                        ? setupOptionLabel("sleep_quality", lifestyleProfile?.sleep_quality || "")
+                        : "") || "—"}
                     </Text>
                   </View>
                 </View>
@@ -336,7 +339,9 @@ export default function Profile() {
                       Water Intake
                     </Text>
                     <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
-                      {formatter(lifestyleProfile?.water_intake || "") || "—"}
+                      {(lifestyleProfile?.water_intake || ""
+                        ? setupOptionLabel("water_intake", lifestyleProfile?.water_intake || "")
+                        : "") || "—"}
                     </Text>
                   </View>
                 </View>
@@ -346,7 +351,9 @@ export default function Profile() {
                       Stress Level
                     </Text>
                     <Text className="text-base font-bold" style={{ color: theme.colors.ink }}>
-                      {formatter(lifestyleProfile?.stress_level || "") || "—"}
+                      {(lifestyleProfile?.stress_level || ""
+                        ? setupOptionLabel("stress_level", lifestyleProfile?.stress_level || "")
+                        : "") || "—"}
                     </Text>
                   </View>
                 </View>

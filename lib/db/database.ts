@@ -72,6 +72,14 @@ async function openAndMigrate(useNewConnection: boolean): Promise<SQLite.SQLiteD
         synced_at TEXT
       );
 
+      CREATE TABLE IF NOT EXISTS health_profile (
+        id TEXT PRIMARY KEY,
+        pregnancy_status TEXT,
+        current_treatment TEXT,
+        sunscreen_use TEXT,
+        synced_at TEXT
+      );
+
       CREATE TABLE IF NOT EXISTS results (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id TEXT,

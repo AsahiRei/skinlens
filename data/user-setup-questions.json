@@ -19,19 +19,21 @@
       { "value": "non_binary", "label": "Non-binary", "points": 0, "icon": "person-outline" },
       { "value": "other", "label": "Other", "points": 0, "icon": "ellipsis-horizontal-outline" },
       { "value": "prefer_not_to_say", "label": "Prefer not to say", "points": 0, "icon": "eye-off-outline" }
-    ]
+    ],
+    "scored": false
   },
   {
     "id": "skin_type",
     "label": "What best describes your skin type?",
     "type": "options",
     "options": [
-      { "label": "Normal", "value": "normal", "points": 5, "icon": "leaf-outline" },
-      { "label": "Combination", "value": "combination", "points": 4, "icon": "layers-outline", "isCombination": true },
-      { "label": "Dry", "value": "dry", "points": 3, "icon": "sunny-outline" },
-      { "label": "Oily", "value": "oily", "points": 3, "icon": "water-outline" },
-      { "label": "Sensitive", "value": "sensitive", "points": 2, "icon": "alert-circle-outline" }
-    ]
+      { "label": "Normal", "value": "normal", "points": 0, "icon": "leaf-outline" },
+      { "label": "Combination", "value": "combination", "points": 0, "icon": "layers-outline", "isCombination": true },
+      { "label": "Dry", "value": "dry", "points": 0, "icon": "sunny-outline" },
+      { "label": "Oily", "value": "oily", "points": 0, "icon": "water-outline" },
+      { "label": "Sensitive", "value": "sensitive", "points": 0, "icon": "alert-circle-outline" }
+    ],
+    "scored": false
   },
   {
     "id": "main_concern",
@@ -43,6 +45,52 @@
       { "label": "Eczema", "value": "eczema", "points": 1, "icon": "bandage-outline" },
       { "label": "Dry Skin", "value": "dry", "points": 1, "icon": "water-outline" },
       { "label": "Oily Skin", "value": "oily", "points": 1, "icon": "flask-outline" }
+    ]
+  },
+  {
+    "id": "current_treatment",
+    "label": "Are you using any skin treatment prescribed by a doctor?",
+    "hint": "If you are, we won't add products that clash with it — follow your doctor's instructions first.",
+    "type": "options",
+    "scored": false,
+    "options": [
+      { "value": "none", "label": "No", "points": 0, "icon": "close-circle-outline" },
+      { "value": "topical", "label": "Yes — a cream, gel or ointment", "points": 0, "icon": "bandage-outline" },
+      { "value": "oral", "label": "Yes — tablets or capsules", "points": 0, "icon": "medkit-outline" },
+      { "value": "not_sure", "label": "Not sure", "points": 0, "icon": "help-circle-outline" }
+    ]
+  },
+  {
+    "id": "known_irritants",
+    "label": "Has any of these ever irritated your skin?",
+    "hint": "Pick all that apply. We'll keep them out of your recommendations.",
+    "type": "multi",
+    "scored": false,
+    "options": [
+      { "value": "none", "label": "None / not that I know of", "points": 0, "icon": "checkmark-circle-outline" },
+      { "value": "Salicylic Acid", "label": "Salicylic Acid", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Benzoyl Peroxide", "label": "Benzoyl Peroxide", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Retinol", "label": "Retinol", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Adapalene", "label": "Adapalene (Differin)", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Glycolic Acid", "label": "Glycolic Acid", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Lactic Acid", "label": "Lactic Acid", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Azelaic Acid", "label": "Azelaic Acid", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Tea Tree Oil", "label": "Tea Tree Oil", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Vitamin C", "label": "Vitamin C", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Niacinamide", "label": "Niacinamide", "points": 0, "icon": "alert-circle-outline" },
+      { "value": "Sulfur", "label": "Sulfur", "points": 0, "icon": "alert-circle-outline" }
+    ]
+  },
+  {
+    "id": "pregnancy_status",
+    "label": "Are you pregnant, trying to get pregnant, or breastfeeding?",
+    "hint": "Some ingredients (like retinol) are usually avoided during pregnancy, so this keeps them out of your routine.",
+    "type": "options",
+    "scored": false,
+    "options": [
+      { "value": "no", "label": "No", "points": 0, "icon": "close-circle-outline" },
+      { "value": "yes", "label": "Yes", "points": 0, "icon": "heart-outline" },
+      { "value": "prefer_not_to_say", "label": "Prefer not to say", "points": 0, "icon": "eye-off-outline" }
     ]
   },
   {
@@ -71,14 +119,26 @@
   },
   {
     "id": "water_intake",
-    "label": "How much water do you drink per day?",
+    "label": "How many glasses of water do you drink a day?",
+    "hint": "1 glass is about 250 mL (a regular drinking glass).",
     "type": "options",
     "options": [
-      { "label": "More than 2 liters", "value": "more_than_2l", "points": 5, "icon": "water" },
-      { "label": "1.5–2 liters", "value": "1_5_to_2l", "points": 4, "icon": "water-outline" },
-      { "label": "1–1.5 liters", "value": "1_to_1_5l", "points": 3, "icon": "beaker-outline" },
-      { "label": "500 mL–1 liter", "value": "500ml_to_1l", "points": 2, "icon": "flask-outline" },
-      { "label": "Less than 500 mL", "value": "less_than_500ml", "points": 1, "icon": "warning-outline" }
+      { "label": "8 glasses or more", "value": "more_than_2l", "points": 5, "icon": "water" },
+      { "label": "6–7 glasses", "value": "1_5_to_2l", "points": 4, "icon": "water-outline" },
+      { "label": "4–5 glasses", "value": "1_to_1_5l", "points": 3, "icon": "beaker-outline" },
+      { "label": "2–3 glasses", "value": "500ml_to_1l", "points": 2, "icon": "flask-outline" },
+      { "label": "1 glass or less", "value": "less_than_500ml", "points": 1, "icon": "warning-outline" }
+    ]
+  },
+  {
+    "id": "sunscreen_use",
+    "label": "How often do you wear sunscreen?",
+    "type": "options",
+    "options": [
+      { "value": "daily", "label": "Every day", "points": 4, "icon": "sunny" },
+      { "value": "most_days", "label": "Most days", "points": 3, "icon": "sunny-outline" },
+      { "value": "sometimes", "label": "Sometimes", "points": 2, "icon": "partly-sunny-outline" },
+      { "value": "rarely", "label": "Rarely or never", "points": 1, "icon": "cloud-outline" }
     ]
   }
 ]

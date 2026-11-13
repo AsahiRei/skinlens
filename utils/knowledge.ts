@@ -1,5 +1,32 @@
-import type { Ingredient, ProductEntry, SkinCondition } from "@/types/knowledge";
+import type { Ingredient, PhProduct, ProductEntry, SkinCondition } from "@/types/knowledge";
 import { ingredients, products } from "@/data/knowledge";
+import { PH_PRODUCTS } from "@/data/ph-products";
+import { EVIDENCE_LABEL, evidenceFor, isRejectedByReviewer } from "@/data/derm-validation";
+
+/** How many independent kinds of authority (guideline, regulator, association) back it. */
+function authorityCount(name: string): number {
+  const v = evidenceFor(name);
+  if (!v) return 0;
+  return new Set(
+    v.sources
+      .map((s) => s.type)
+      .filter((t) => t === "guideline" || t === "regulatory" || t === "association"),
+  ).size;
+}
+
+/** Evidence levels as an ordinal, strongest highest. */
+const LEVEL_RANK = {
+  guideline: 5,
+  regulatory: 4,
+  association: 3,
+  clinical: 2,
+  emerging: 1,
+} as const;
+
+/** Knowledge-base ingredients in a drug class, e.g. every "retinoid". */
+export function ingredientsInClass(cls: string): string[] {
+  return ingredients.filter((i) => i.classes?.includes(cls)).map((i) => i.name);
+}
 
 const VALID_CONDITIONS: SkinCondition[] = ["acne", "dry", "eczema", "oily", "normal"];
 
@@ -160,7 +187,12 @@ export function formatKnowledgeForPrompt(
   if (cappedIngredients.length > 0) {
     lines.push("DERMATOLOGIST-RECOMMENDED INGREDIENTS:");
     for (const ing of cappedIngredients) {
-      lines.push(`- ${ing.name}: ${ing.description}`);
+      // Evidence tag so the model can say how well-supported an ingredient is, and not oversell
+      // "limited evidence" ones.
+      const level = evidenceFor(ing.name)?.level;
+      lines.push(
+        `- ${ing.name}${level ? ` [evidence: ${EVIDENCE_LABEL[level]}]` : ""}: ${ing.description}`,
+      );
     }
   }
 
@@ -222,6 +254,8 @@ export function selectForProfile(opts: {
   skin_type?: string | null;
   profile_concerns?: string | null;
   avoid_ingredients?: string[] | null;
+  /** Hard exclusions with a user-facing reason (pregnancy, prescribed treatment). */
+  safety_exclusions?: SafetyExclusion[] | null;
 }): ProfileSelection {
   const primary = normalizeCondition(opts.condition ?? "");
   const skinType = (opts.skin_type ?? "").toLowerCase().trim();
@@ -230,67 +264,91 @@ export function selectForProfile(opts: {
   const avoid = new Set(
     (opts.avoid_ingredients ?? []).map((name) => name.trim().toLowerCase()).filter(Boolean),
   );
+  const safety = opts.safety_exclusions ?? [];
+  const blocked = new Set([
+    ...avoid,
+    ...safety.map((x) => x.ingredient.toLowerCase()),
+    // The project's dermatologist reviewed this use and rejected it (data/derm-validation.json).
+    ...ingredients.filter((i) => isRejectedByReviewer(i.name)).map((i) => i.name.toLowerCase()),
+  ]);
   const notes: string[] = [];
 
-  const ingScore = (ing: Ingredient): number => {
-    let score = 0;
-    if (ing.concerns.includes(primary)) score += 4;
-    if (secondary.some((c) => ing.concerns.includes(c))) score += 2;
-    if (concerns && concerns.includes(ing.name.toLowerCase())) score += 1;
-    return score;
+  // Ranking, most important first:
+  //   1. relevance tier — matches the detected/stated condition (3), only the skin type (2), only
+  //      a free-text concern (1);
+  //   2. evidence level of the ingredient (for a product: its key active, listed first) —
+  //      guideline > regulatory > association > clinical > emerging;
+  //   3. number of independent authorities (guideline, regulator, association) behind it;
+  //   4. also fits the skin type / free-text concerns.
+  // So for acne, first-line actives (benzoyl peroxide, adapalene) outrank a clay mask even for oily
+  // skin, and a limited-evidence ingredient never leads its tier.
+  const rank = (itemConcerns: SkinCondition[], keyIngredient: string, mentioned: boolean) => {
+    const primaryHit = itemConcerns.includes(primary);
+    const secondaryHit = secondary.some((c) => itemConcerns.includes(c));
+    if (!primaryHit && !secondaryHit && !mentioned) return 0;
+    const tier = primaryHit ? 3 : secondaryHit ? 2 : 1;
+    const level = evidenceFor(keyIngredient)?.level;
+    const levelRank = level ? LEVEL_RANK[level] : 0;
+    const authorities = authorityCount(keyIngredient);
+    const fit = (primaryHit && secondaryHit ? 10 : 0) + (mentioned ? 5 : 0);
+    return tier * 1000 + levelRank * 100 + authorities * 20 + fit;
   };
-  const prodScore = (prod: ProductEntry): number => {
-    let score = 0;
-    if (prod.concerns.includes(primary)) score += 4;
-    if (secondary.some((c) => prod.concerns.includes(c))) score += 2;
-    if (
-      concerns &&
-      prod.recommended_ingredients.some((ing) => concerns.includes(ing.toLowerCase()))
-    ) {
-      score += 1;
-    }
-    return score;
-  };
+  const ingScore = (ing: Ingredient): number =>
+    rank(ing.concerns, ing.name, !!concerns && concerns.includes(ing.name.toLowerCase()));
+  const prodScore = (prod: ProductEntry): number =>
+    rank(
+      prod.concerns,
+      prod.recommended_ingredients[0] ?? "",
+      !!concerns &&
+        prod.recommended_ingredients.some((ing) => concerns.includes(ing.toLowerCase())),
+    );
 
   const rankedIngredients = rankBy(ingredients, ingScore);
   const rankedProducts = rankBy(products, prodScore);
 
+  // Logged triggers and safety exclusions are NEVER put back, even when that leaves few options:
+  // recommending something the user reported reacting to is worse than a shorter list.
+  const isBlocked = (name: string) => blocked.has(name.toLowerCase());
   const isAvoided = (name: string) => avoid.has(name.toLowerCase());
 
-  const skippedIngredients = rankedIngredients.filter((i) => isAvoided(i.name));
-  let selectedIngredients = rankedIngredients.filter((i) => !isAvoided(i.name));
-  if (skippedIngredients.length > 0) {
-    if (selectedIngredients.length >= MIN_SELECTED_INGREDIENTS) {
-      const names = skippedIngredients
-        .slice(0, 3)
-        .map((i) => i.name)
-        .join(", ");
-      notes.push(`Skipped ${names} because of your sensitivity log.`);
-    } else {
-      selectedIngredients = rankedIngredients.slice(0, MIN_SELECTED_INGREDIENTS);
-      notes.push(
-        "Some logged triggers stay in the routine in small amounts because it needs them — patch-test first.",
-      );
-    }
+  const selectedIngredients = rankedIngredients.filter((i) => !isBlocked(i.name));
+  const skippedForLog = rankedIngredients.filter((i) => isAvoided(i.name)).map((i) => i.name);
+  if (skippedForLog.length > 0) {
+    notes.push(`Left out ${joinNames(skippedForLog.slice(0, 3))} because of your sensitivity log.`);
+  }
+  for (const reason of new Set(
+    safety
+      .filter((x) => rankedIngredients.some((i) => i.name === x.ingredient))
+      .map((x) => x.reason),
+  )) {
+    notes.push(reason);
   }
 
-  const containsAvoided = (prod: ProductEntry) =>
-    prod.recommended_ingredients.some((ing) => isAvoided(ing));
-  const skippedProducts = rankedProducts.filter(containsAvoided);
-  let selectedProducts = rankedProducts.filter((p) => !containsAvoided(p));
-  if (skippedProducts.length > 0) {
-    if (selectedProducts.length >= MIN_SELECTED_PRODUCTS) {
-      const names = skippedProducts
-        .slice(0, 2)
-        .map((p) => p.product_type)
-        .join(", ");
-      notes.push(`Left out ${names} because of your sensitivity log.`);
-    } else {
-      selectedProducts = rankedProducts.slice(0, MIN_SELECTED_PRODUCTS);
-      notes.push(
-        "One recommended product type may contain a logged trigger — check its ingredient list before buying.",
-      );
-    }
+  const containsBlocked = (prod: ProductEntry) =>
+    prod.recommended_ingredients.some((ing) => isBlocked(ing));
+  // Prescription-only in the Philippines (e.g. adapalene): never in an automatic routine — the
+  // app must not tell someone to buy a prescription drug — but say it exists when it's relevant.
+  const isRxInPh = (name: string) =>
+    ingredients.some((i) => i.name === name && i.prescription_in_ph);
+  const selectedProducts = rankedProducts.filter(
+    (p) => !containsBlocked(p) && !p.recommended_ingredients.some(isRxInPh),
+  );
+  const relevantRx = rankedIngredients
+    .filter((i) => i.prescription_in_ph && i.concerns.includes(primary) && !isBlocked(i.name))
+    .map((i) => i.name);
+  if (relevantRx.length > 0) {
+    notes.push(
+      `${joinNames(relevantRx)} — a guideline-recommended option for this — needs a prescription in the Philippines; ask a dermatologist if your skin doesn't improve.`,
+    );
+  }
+
+  if (
+    selectedIngredients.length < MIN_SELECTED_INGREDIENTS ||
+    selectedProducts.length < MIN_SELECTED_PRODUCTS
+  ) {
+    notes.push(
+      "Few options in our list avoid all of your triggers — a dermatologist can suggest safe alternatives.",
+    );
   }
 
   if (skinType && secondary.length > 0) {
@@ -300,9 +358,74 @@ export function selectForProfile(opts: {
   return { ingredients: selectedIngredients, products: selectedProducts, notes };
 }
 
+/** A hard exclusion with the sentence shown to the user (see utils/safety.ts). */
+export type SafetyExclusion = { ingredient: string; reason: string };
+
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 /**
- * Ingredient names from the knowledge base that appear anywhere in the patient's sensitivity log
- * (trigger cause + notes are free text, so match by substring on the whole corpus).
+ * Everyday names people actually write in a sensitivity note, mapped to knowledge-base
+ * ingredients. Without these, "BHA toner stung" or "purging from tretinoin" matched nothing.
+ */
+const INGREDIENT_ALIASES: Record<string, RegExp> = {
+  "Salicylic Acid": /salicylic|\bbha\b|beta[- ]?hydroxy/,
+  "Benzoyl Peroxide": /benzoyl/,
+  Retinol: /retin(ol|al)\b|\bvitamin a\b/,
+  Adapalene: /adapalene|differin/,
+  "Titanium Dioxide": /titanium/,
+  "Mineral Oil": /mineral oil|baby oil|paraffinum liquidum/,
+  Bakuchiol: /bakuchiol/,
+  "Sunflower Seed Oil": /sunflower/,
+  "Glycolic Acid": /glycolic|\baha\b|alpha[- ]?hydroxy/,
+  "Lactic Acid": /lactic|\baha\b|alpha[- ]?hydroxy/,
+  "Azelaic Acid": /azelaic/,
+  "Tea Tree Oil": /tea ?tree|melaleuca/,
+  "Vitamin C": /\bvitamin c\b|\bvit\.? c\b|ascorbic/,
+  Niacinamide: /niacinamide|nicotinamide|vitamin b3/,
+  Sulfur: /sulfur|sulphur/,
+  "Zinc PCA": /zinc pca/,
+  "Zinc Oxide": /zinc oxide|mineral sunscreen/,
+  "Centella Asiatica": /centella|\bcica\b/,
+  "Hyaluronic Acid": /hyaluronic|hyaluronate/,
+  "Clay (Kaolin/Bentonite)": /\bclay\b|kaolin|bentonite/,
+};
+
+/** Words that name the retinoid class (or a prescription retinoid) rather than one product. */
+const RETINOID_CLASS_WORDS = /retinoids?\b|tretinoin|tazarotene|isotretinoin|retinoic/;
+
+const STOP_WORDS = new Set(["with", "the", "and", "for", "face", "skin", "free"]);
+
+/** Distinctive words of a catalog product name ("Oil-Free Acne Wash (2% …)" → oil, acne, wash). */
+function productKeywords(name: string): string[] {
+  return name
+    .replace(/\([^)]*\)/g, " ")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
+}
+
+/**
+ * Catalog products the note refers to: the brand plus at least two of the product's distinctive
+ * words ("Neutrogena acne wash" → Neutrogena Oil-Free Acne Wash).
+ */
+export function catalogProductsMentioned(text: string): PhProduct[] {
+  const t = text.toLowerCase();
+  return PH_PRODUCTS.filter((p) => {
+    if (!t.includes(p.brand.toLowerCase())) return false;
+    const words = productKeywords(p.name);
+    const hits = words.filter((w) => t.includes(w)).length;
+    return hits >= Math.min(2, words.length);
+  });
+}
+
+/**
+ * Knowledge-base ingredients linked to the patient's sensitivity log. Matches exact names, everyday
+ * aliases (BHA, retinoid, tretinoin, AHA, cica…) and catalog products by name (their key
+ * ingredients). Deliberately conservative: a mention counts even in a sentence like "not sure if
+ * it was the retinol", because wrongly skipping an ingredient is safer than wrongly recommending it.
  */
 export function ingredientsAvoidedBySensitivity(
   entries: { trigger_cause?: string | null; notes?: string | null }[],
@@ -312,12 +435,20 @@ export function ingredientsAvoidedBySensitivity(
     .join(" \n ")
     .toLowerCase();
   if (!corpus.trim()) return [];
-  const avoid: string[] = [];
+  const found = new Set<string>();
   for (const ing of ingredients) {
-    const name = ing.name.toLowerCase();
-    if (corpus.includes(name) && !avoid.some((a) => a.toLowerCase() === name)) {
-      avoid.push(ing.name);
+    const alias = INGREDIENT_ALIASES[ing.name];
+    if (corpus.includes(ing.name.toLowerCase()) || (alias && alias.test(corpus))) {
+      found.add(ing.name);
     }
   }
-  return avoid;
+  // A reaction to "a retinoid" (or a prescription one like tretinoin) means the whole class.
+  if (RETINOID_CLASS_WORDS.test(corpus)) {
+    for (const name of ingredientsInClass("retinoid")) found.add(name);
+  }
+  for (const product of catalogProductsMentioned(corpus)) {
+    for (const k of product.key_ingredients) found.add(k);
+  }
+  // Keep knowledge-base order (stable output) and only names the knowledge base knows.
+  return ingredients.map((i) => i.name).filter((n) => found.has(n));
 }

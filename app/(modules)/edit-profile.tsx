@@ -20,36 +20,22 @@ import { cardShadow, theme } from "@/lib/theme";
 import profileOptions from "@/data/profile-options.json";
 import {
   getAllProfiles,
+  getHealthProfile,
+  upsertHealthProfile,
   upsertLifestyleProfile,
   upsertSkinProfile,
   updateUserProfile,
 } from "@/lib/db";
 import { formatter } from "@/utils/formatter";
 import { ScreenGradient } from "@/components/ScreenGradient";
-import { MIN_AGE, getMaxDob, isOldEnough } from "@/lib/age";
+import { MIN_AGE, formatDob, getMaxDob, isOldEnough, parseDob } from "@/lib/age";
+import { firstNameError, normalizeFirstName } from "@/lib/validation";
+import { refreshRoutineFromProfile } from "@/lib/routine-refresh";
+import { setupOptionLabel, setupOptionValues } from "@/utils/setup-score";
 
-const MONTHS: string[] = profileOptions.months;
 const MIN_DOB = new Date(1950, 0, 1);
 const MAX_DOB = getMaxDob();
 const DOB_FALLBACK = new Date(Math.min(new Date(2000, 0, 1).getTime(), MAX_DOB.getTime()));
-
-function formatDob(date: Date): string {
-  return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-}
-
-function parseDob(age?: string): Date | null {
-  if (!age) return null;
-  const m = age.trim().match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
-  if (!m) return null;
-  const month = MONTHS.indexOf(m[1]);
-  const day = Number(m[2]);
-  const year = Number(m[3]);
-  if (month < 0 || Number.isNaN(day) || Number.isNaN(year)) return null;
-  const date = new Date(year, month, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day)
-    return null;
-  return date;
-}
 
 const GENDER_OPTIONS: string[] = profileOptions.genders;
 const SKIN_TYPE_OPTIONS: string[] = profileOptions.skinTypes;
@@ -84,10 +70,13 @@ function OptionChips({
   options,
   value,
   onChange,
+  questionId,
 }: {
   options: string[];
   value: string;
   onChange: (v: string) => void;
+  /** Setup question id: chips then show the same text as setup ("6–7 glasses", "7 hours"). */
+  questionId?: string;
 }) {
   return (
     <View className="flex-row flex-wrap gap-2">
@@ -108,7 +97,7 @@ function OptionChips({
               className="text-sm font-semibold"
               style={{ color: isSelected ? "#FFFFFF" : theme.colors.body }}
             >
-              {formatter(opt)}
+              {questionId ? setupOptionLabel(questionId, opt) : formatter(opt)}
             </Text>
           </Pressable>
         );
@@ -130,6 +119,10 @@ export default function EditProfile() {
   const [sleepQuality, setSleepQuality] = useState("");
   const [stressLevel, setStressLevel] = useState("");
   const [waterIntake, setWaterIntake] = useState("");
+  const [pregnancyStatus, setPregnancyStatus] = useState("");
+  const [currentTreatment, setCurrentTreatment] = useState("");
+  const [sunscreenUse, setSunscreenUse] = useState("");
+  const [originalSafety, setOriginalSafety] = useState("");
 
   const [dob, setDob] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(Platform.OS === "ios");
@@ -153,6 +146,11 @@ export default function EditProfile() {
         setSleepQuality(lifestyleProfile?.sleep_quality ?? "");
         setStressLevel(lifestyleProfile?.stress_level ?? "");
         setWaterIntake(lifestyleProfile?.water_intake ?? "");
+        const health = await getHealthProfile().catch(() => null);
+        setPregnancyStatus(health?.pregnancy_status ?? "");
+        setCurrentTreatment(health?.current_treatment ?? "");
+        setSunscreenUse(health?.sunscreen_use ?? "");
+        setOriginalSafety(`${health?.pregnancy_status ?? ""}|${health?.current_treatment ?? ""}`);
       } catch (err) {
         console.error("Error loading profile:", err);
       } finally {
@@ -175,6 +173,11 @@ export default function EditProfile() {
       ToastAndroid.show("Please fill in all fields before saving.", ToastAndroid.SHORT);
       return;
     }
+    const nameError = firstNameError(firstName);
+    if (nameError) {
+      ToastAndroid.show(nameError, ToastAndroid.SHORT);
+      return;
+    }
     if (dateTouched && dob && !isOldEnough(dob)) {
       ToastAndroid.show(`You must be at least ${MIN_AGE} years old.`, ToastAndroid.SHORT);
       return;
@@ -182,7 +185,7 @@ export default function EditProfile() {
     setSaving(true);
     try {
       await updateUserProfile({
-        first_name: firstName.trim(),
+        first_name: normalizeFirstName(firstName),
         age: ageString,
         gender,
       });
@@ -195,6 +198,17 @@ export default function EditProfile() {
         stress_level: stressLevel,
         water_intake: waterIntake,
       });
+      await upsertHealthProfile({
+        pregnancy_status: pregnancyStatus || null,
+        current_treatment: currentTreatment || null,
+        sunscreen_use: sunscreenUse || null,
+      });
+      // Pregnancy / treatment change what's safe to recommend — rebuild the routine right away.
+      if (`${pregnancyStatus}|${currentTreatment}` !== originalSafety) {
+        await refreshRoutineFromProfile().catch((err) =>
+          console.warn("[edit-profile] routine refresh failed:", err),
+        );
+      }
       ToastAndroid.show("Profile updated", ToastAndroid.SHORT);
       router.back();
     } catch (err) {
@@ -337,6 +351,7 @@ export default function EditProfile() {
                 <FieldLabel label="Sleep Quality" />
                 <OptionChips
                   options={SLEEP_OPTIONS}
+                  questionId="sleep_quality"
                   value={sleepQuality}
                   onChange={setSleepQuality}
                 />
@@ -345,14 +360,16 @@ export default function EditProfile() {
                 <FieldLabel label="Stress Level" />
                 <OptionChips
                   options={STRESS_OPTIONS}
+                  questionId="stress_level"
                   value={stressLevel}
                   onChange={setStressLevel}
                 />
               </View>
               <View className="gap-1.5">
-                <FieldLabel label="Water Intake" />
+                <FieldLabel label="Water (glasses a day, 1 glass ≈ 250 mL)" />
                 <OptionChips
                   options={WATER_OPTIONS}
+                  questionId="water_intake"
                   value={waterIntake}
                   onChange={setWaterIntake}
                 />
@@ -361,6 +378,42 @@ export default function EditProfile() {
           </FadeItem>
 
           <FadeItem index={4}>
+            <Section title="Health & Safety">
+              <View className="gap-1.5">
+                <FieldLabel label="Pregnant, trying, or breastfeeding?" />
+                <OptionChips
+                  options={setupOptionValues("pregnancy_status")}
+                  value={pregnancyStatus}
+                  onChange={setPregnancyStatus}
+                  questionId="pregnancy_status"
+                />
+              </View>
+              <View className="gap-1.5">
+                <FieldLabel label="Prescribed skin treatment" />
+                <OptionChips
+                  options={setupOptionValues("current_treatment")}
+                  value={currentTreatment}
+                  onChange={setCurrentTreatment}
+                  questionId="current_treatment"
+                />
+              </View>
+              <View className="gap-1.5">
+                <FieldLabel label="Sunscreen" />
+                <OptionChips
+                  options={setupOptionValues("sunscreen_use")}
+                  value={sunscreenUse}
+                  onChange={setSunscreenUse}
+                  questionId="sunscreen_use"
+                />
+              </View>
+              <Text className="text-xs leading-4" style={{ color: theme.colors.muted }}>
+                These keep unsafe ingredients (like retinol during pregnancy) out of your routine.
+                Ingredients that irritated you are managed in Sensitivity History.
+              </Text>
+            </Section>
+          </FadeItem>
+
+          <FadeItem index={5}>
             <View className="mt-5">
               <PrimaryButton
                 label={saving ? "Please wait…" : "Save Changes"}
@@ -370,7 +423,7 @@ export default function EditProfile() {
             </View>
           </FadeItem>
 
-          <FadeItem index={5}>
+          <FadeItem index={6}>
             <View className="mt-3">
               <SecondaryButton
                 label="Update Face Recognition"

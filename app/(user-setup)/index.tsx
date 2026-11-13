@@ -19,13 +19,19 @@ export default function Index() {
           resizeMode="contain"
         />
         <Text className="text-[28px] font-bold text-center" style={{ color: theme.colors.ink }}>
-          Let’s get to know your skin
+          Let’s set up your skin profile
         </Text>
-        <Text className="mt-3 text-center" style={{ color: theme.colors.muted }}>
-          Answer a few quick questions to set up your routine.
+        <Text className="mt-3 text-center leading-5" style={{ color: theme.colors.muted }}>
+          Scan your face, then answer a few quick questions. We use both to build a routine that
+          fits your skin.
         </Text>
         <View className="w-full mt-4">
-          <PrimaryButton label="Continue" onPress={() => router.push("/(user-setup)/setup")} />
+          <PrimaryButton
+            label="Start Skin Scan"
+            onPress={() =>
+              router.push({ pathname: "/(user-setup)/face-enroll", params: { skipIntro: "1" } })
+            }
+          />
         </View>
       </View>
     </SafeAreaView>

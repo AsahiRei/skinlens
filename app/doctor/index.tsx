@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
-import { Bell, CalendarClock, Inbox, Sun, type LucideIcon } from "lucide-react-native";
+import { Bell } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import { CoachTarget } from "@/components/TutorialCoach";
@@ -34,9 +34,6 @@ import {
 } from "@/lib/db/appointments";
 
 type HomeTab = "requests" | "scheduled" | "today";
-
-/** Amber that stays readable on the dark gradient (matches calendar dots). */
-const ON_DARK_AMBER = "#FCD34D";
 
 function greetingFor(date = new Date()): string {
   const h = date.getHours();
@@ -104,20 +101,12 @@ function groupVisits(rows: AppointmentRow[], now = new Date()): VisitGroup[] {
  * calendar and tab dock) and drives the list below.
  */
 function StatTab({
-  icon: Icon,
-  iconBg,
-  iconColor,
-  selectedIconColor = "#FFFFFF",
   value,
   label,
   selected,
   onPress,
   accessibilityLabel,
 }: {
-  icon: LucideIcon;
-  iconBg: string;
-  iconColor: string;
-  selectedIconColor?: string;
   value: string;
   label: string;
   selected: boolean;
@@ -126,14 +115,8 @@ function StatTab({
 }) {
   const body = (
     <>
-      <View
-        className="h-9 w-9 rounded-xl items-center justify-center"
-        style={{ backgroundColor: selected ? "rgba(255,255,255,0.16)" : iconBg }}
-      >
-        <Icon size={18} color={selected ? selectedIconColor : iconColor} />
-      </View>
       <Text
-        className="text-xl font-bold mt-1.5"
+        className="text-2xl font-bold"
         style={{ color: selected ? "#FFFFFF" : theme.colors.ink }}
       >
         {value}
@@ -489,10 +472,6 @@ export default function DoctorHome() {
             accessibilityRole="tablist"
           >
             <StatTab
-              icon={Inbox}
-              iconBg={theme.colors.warningSoft}
-              iconColor={theme.colors.warningText}
-              selectedIconColor={ON_DARK_AMBER}
               value={statValue(counts.fresh)}
               label="New requests"
               selected={tab === "requests"}
@@ -500,9 +479,6 @@ export default function DoctorHome() {
               onPress={() => selectTab("requests")}
             />
             <StatTab
-              icon={CalendarClock}
-              iconBg={theme.colors.primarySoft}
-              iconColor={theme.colors.primary}
               value={statValue(counts.scheduled)}
               label="Scheduled"
               selected={tab === "scheduled"}
@@ -510,9 +486,6 @@ export default function DoctorHome() {
               onPress={() => selectTab("scheduled")}
             />
             <StatTab
-              icon={Sun}
-              iconBg={theme.colors.primarySoft}
-              iconColor={theme.colors.primary}
               value={statValue(counts.today)}
               label="Today's visits"
               selected={tab === "today"}

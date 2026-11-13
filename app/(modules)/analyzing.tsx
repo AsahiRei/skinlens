@@ -25,6 +25,9 @@ import {
   getVerificationEmbedding,
   parseEmbedding,
 } from "@/utils/face-embeddings";
+
+// TEMP: face verification during scans is switched off. Set back to true to re-enable.
+const FACE_VERIFICATION_ENABLED = true;
 import type { ClassificationResult } from "@/types/skin";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import {
@@ -200,7 +203,7 @@ export default function Analyzing() {
         `enrolled=`,
         !!enrolled,
       );
-      if (stored && enrolled) {
+      if (FACE_VERIFICATION_ENABLED && stored && enrolled) {
         try {
           // EVERY photo must contain the enrolled face. Only the detected face region is compared
           // (no whole-photo crops), and a photo with no detectable face counts as a mismatch.

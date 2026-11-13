@@ -12,8 +12,9 @@
     },
     {
       "name": "Retinol",
-      "description": "Topical retinoid class (retinol/adapalene) that normalizes cell turnover, prevents clogged pores and smooths texture and scarring. Cornerstone of acne care per AAD/EuroGuiDerm; use at night with sunscreen and moisturizer due to dryness risk.",
-      "concerns": ["acne", "oily"]
+      "description": "Cosmetic (non-prescription) retinoid that converts to retinoic acid in the skin. Milder and less studied for acne than adapalene or tretinoin, which carry the AAD guideline recommendation. Use at night, start 2-3 times a week, pair with moisturizer and daily sunscreen; avoid in pregnancy.",
+      "concerns": ["acne", "oily"],
+      "classes": ["retinoid"]
     },
     {
       "name": "Azelaic Acid",
@@ -149,83 +150,188 @@
       "name": "Peptides",
       "description": "Signal peptides that support firmness and elasticity as part of a healthy-skin maintenance routine.",
       "concerns": ["normal"]
+    },
+    {
+      "name": "Adapalene",
+      "description": "Topical retinoid that unclogs pores and prevents new breakouts; topical retinoids are strongly recommended by the AAD 2024 acne guideline. Sold over the counter in the US (0.1% gel since 2016) but prescription-only in the Philippines — a dermatologist can prescribe it. Use at night, every other night at first; avoid in pregnancy.",
+      "concerns": ["acne"],
+      "classes": ["retinoid"],
+      "prescription_in_ph": true
+    },
+    {
+      "name": "Titanium Dioxide",
+      "description": "Mineral UV filter that, with zinc oxide, is one of the two sunscreen actives the FDA has proposed as safe and effective. Gentle on sensitive and acne-prone skin; use broad-spectrum SPF 30+ daily.",
+      "concerns": ["oily", "normal"]
+    },
+    {
+      "name": "Mineral Oil",
+      "description": "FDA-recognized skin protectant (50-100%) that forms an occlusive layer to stop water loss; as effective as coconut oil for dry skin in a randomized trial, inexpensive and fragrance-free.",
+      "concerns": ["dry", "eczema"]
+    },
+    {
+      "name": "Bakuchiol",
+      "description": "Plant-derived retinol alternative that matched retinol for fine lines and pigmentation in one 12-week randomized trial, with less stinging. Evidence is limited to a single small study; not a retinoid, and pregnancy safety is not established.",
+      "concerns": ["normal"]
+    },
+    {
+      "name": "Sunflower Seed Oil",
+      "description": "Plant oil rich in linoleic acid that preserved the skin barrier and improved hydration in a randomized study (unlike olive oil, which damaged it). A low-cost emollient for dry and eczema-prone skin.",
+      "concerns": ["dry", "eczema"]
     }
   ],
   "products": [
     {
       "product_type": "Gentle Foaming Cleanser",
       "recommended_ingredients": ["Salicylic Acid", "Tea Tree Oil"],
-      "concerns": ["acne"]
+      "concerns": ["acne"],
+      "role": "cleanser"
     },
     {
       "product_type": "Acne Treatment Gel",
       "recommended_ingredients": ["Benzoyl Peroxide", "Niacinamide", "Azelaic Acid"],
-      "concerns": ["acne"]
+      "concerns": ["acne"],
+      "role": "treatment"
     },
     {
       "product_type": "Oil-Free Moisturizer",
       "recommended_ingredients": ["Niacinamide", "Hyaluronic Acid", "Ceramides"],
-      "concerns": ["acne"]
+      "concerns": ["acne"],
+      "role": "moisturizer"
     },
     {
       "product_type": "Cream Cleanser",
       "recommended_ingredients": ["Ceramides", "Colloidal Oatmeal", "Glycerin"],
-      "concerns": ["eczema"]
+      "concerns": ["eczema"],
+      "role": "cleanser"
     },
     {
       "product_type": "Barrier Repair Cream",
       "recommended_ingredients": ["Ceramides", "Shea Butter", "Squalane"],
-      "concerns": ["eczema"]
+      "concerns": ["eczema"],
+      "role": "moisturizer"
     },
     {
       "product_type": "Soothing Ointment",
       "recommended_ingredients": ["Petrolatum", "Colloidal Oatmeal", "Panthenol"],
-      "concerns": ["eczema"]
+      "concerns": ["eczema"],
+      "role": "moisturizer"
     },
     {
       "product_type": "Hydrating Cleanser",
       "recommended_ingredients": ["Ceramides", "Glycerin", "Allantoin"],
-      "concerns": ["dry"]
+      "concerns": ["dry"],
+      "role": "cleanser"
     },
     {
       "product_type": "Moisture Repair Cream",
       "recommended_ingredients": ["Ceramides", "Shea Butter", "Squalane", "Petrolatum"],
-      "concerns": ["dry"]
+      "concerns": ["dry"],
+      "role": "moisturizer"
     },
     {
       "product_type": "Hydrating Serum",
       "recommended_ingredients": ["Hyaluronic Acid", "Glycerin", "Panthenol"],
-      "concerns": ["dry"]
+      "concerns": ["dry"],
+      "role": "treatment"
     },
     {
       "product_type": "Foaming Cleanser",
       "recommended_ingredients": ["Salicylic Acid", "Green Tea Extract"],
-      "concerns": ["oily"]
+      "concerns": ["oily"],
+      "role": "cleanser"
     },
     {
       "product_type": "Oil-Control Serum",
       "recommended_ingredients": ["Niacinamide", "Zinc PCA", "Green Tea Extract"],
-      "concerns": ["oily"]
+      "concerns": ["oily"],
+      "role": "treatment"
     },
     {
       "product_type": "Lightweight Moisturizer",
       "recommended_ingredients": ["Hyaluronic Acid", "Niacinamide"],
-      "concerns": ["oily"]
+      "concerns": ["oily"],
+      "role": "moisturizer"
     },
     {
       "product_type": "Daily Gentle Cleanser",
       "recommended_ingredients": ["Glycerin", "Panthenol"],
-      "concerns": ["normal"]
+      "concerns": ["normal"],
+      "role": "cleanser"
     },
     {
       "product_type": "Antioxidant Serum",
       "recommended_ingredients": ["Vitamin C", "Vitamin E", "Green Tea Extract"],
-      "concerns": ["normal"]
+      "concerns": ["normal"],
+      "role": "treatment"
     },
     {
       "product_type": "Broad Spectrum Sunscreen",
-      "recommended_ingredients": ["Zinc Oxide"],
-      "concerns": ["normal"]
+      "recommended_ingredients": ["Zinc Oxide", "Titanium Dioxide"],
+      "concerns": ["normal"],
+      "role": "sunscreen"
+    },
+    {
+      "product_type": "Adapalene Gel (Prescription in PH)",
+      "recommended_ingredients": ["Adapalene"],
+      "concerns": ["acne"],
+      "role": "treatment",
+      "night_only": true
+    },
+    {
+      "product_type": "Retinol Night Serum",
+      "recommended_ingredients": ["Retinol", "Squalane"],
+      "concerns": ["acne", "oily"],
+      "role": "treatment",
+      "night_only": true
+    },
+    {
+      "product_type": "Sulfur Spot Treatment",
+      "recommended_ingredients": ["Sulfur"],
+      "concerns": ["acne", "oily"],
+      "role": "treatment"
+    },
+    {
+      "product_type": "Clay Mask (1-2x a week)",
+      "recommended_ingredients": ["Clay (Kaolin/Bentonite)"],
+      "concerns": ["oily", "acne"],
+      "role": "occasional"
+    },
+    {
+      "product_type": "Gentle AHA Exfoliant",
+      "recommended_ingredients": ["Glycolic Acid", "Lactic Acid"],
+      "concerns": ["acne"],
+      "role": "occasional",
+      "night_only": true
+    },
+    {
+      "product_type": "Urea Repair Cream",
+      "recommended_ingredients": ["Urea", "Lactic Acid", "Ceramides"],
+      "concerns": ["dry"],
+      "role": "moisturizer"
+    },
+    {
+      "product_type": "Occlusive Ointment",
+      "recommended_ingredients": ["Petrolatum", "Mineral Oil", "Dimethicone"],
+      "concerns": ["dry", "eczema"],
+      "role": "moisturizer"
+    },
+    {
+      "product_type": "Barrier Oil",
+      "recommended_ingredients": ["Sunflower Seed Oil", "Jojoba Oil"],
+      "concerns": ["dry"],
+      "role": "moisturizer"
+    },
+    {
+      "product_type": "Soothing Gel",
+      "recommended_ingredients": ["Centella Asiatica", "Panthenol", "Aloe Vera"],
+      "concerns": ["normal"],
+      "role": "treatment"
+    },
+    {
+      "product_type": "Bakuchiol Serum (Retinol Alternative)",
+      "recommended_ingredients": ["Bakuchiol", "Squalane"],
+      "concerns": ["normal"],
+      "role": "treatment"
     }
   ]
 }

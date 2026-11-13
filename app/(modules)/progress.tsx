@@ -10,13 +10,10 @@ import {
 } from "react-native";
 import { Text } from "@/components/Text";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { FileText } from "lucide-react-native";
-import Svg, { Path, Circle, Line as SvgLine, Text as SvgText } from "react-native-svg";
+import { ChevronDown, FileText } from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
 import Skeleton from "@/components/Skeleton";
-import TypewriterText from "@/components/TypewriterText";
 import { BackHeader, ClinicalCard, EmptyState, SectionTitle } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
@@ -24,12 +21,12 @@ import { useFocusTrigger } from "@/hooks/useFocusTrigger";
 import { getAllResults, getUserProfile, refreshAllResults } from "@/lib/db";
 import { isOnlineNow } from "@/utils/network";
 import type { Result } from "@/types/schema";
+import type { Severity } from "@/types/health";
 import { formatter } from "@/utils/formatter";
-import { generateWeeklySummary, getCachedWeeklySummary } from "@/utils/weekly-summary";
 import { exportSkinReport } from "@/utils/report";
+import { isPhotoBasedResult } from "@/utils/result-kind";
 import { ScreenGradient } from "@/components/ScreenGradient";
-
-/* ---------- helpers ---------- */
+import { SCORE_BANDS, bandFor, explainScore } from "@/utils/score-guide";
 
 // Server rows carry Postgres timestamps ("2026-11-07 10:00:00.123456+00") while offline rows use
 // toISOString(); normalise both so the sort never sees NaN.
@@ -48,110 +45,199 @@ function shortDate(dateStr: string): string {
 }
 
 function isToday(dateStr: string): boolean {
-  const d = new Date(toTime(dateStr));
-  const now = new Date();
-  return d.toDateString() === now.toDateString();
+  return new Date(toTime(dateStr)).toDateString() === new Date().toDateString();
 }
 
-// Plain-word meaning of a 0–100 skin score.
-function scoreLabel(score: number): { word: string; color: string } {
-  if (score >= 75) return { word: "Healthy", color: theme.colors.primary };
-  if (score >= 50) return { word: "Fair", color: "#B45309" };
-  return { word: "Needs care", color: theme.colors.danger };
+const AMBER = "#B45309";
+
+// Within normal scan-to-scan noise.
+const STEADY_RANGE = 2;
+
+type Trend = "up" | "down" | "same";
+
+function trendOf(change: number): Trend {
+  if (change > STEADY_RANGE) return "up";
+  if (change < -STEADY_RANGE) return "down";
+  return "same";
 }
 
-// One point per calendar day (the latest scan of that day wins), oldest → newest.
-function dailyScores(sortedNewestFirst: Result[], maxDays: number): Result[] {
-  const seen = new Map<string, Result>();
-  for (const r of sortedNewestFirst) {
-    const key = new Date(toTime(r.created_at)).toDateString();
-    if (!seen.has(key)) seen.set(key, r);
-  }
-  return [...seen.values()].slice(0, maxDays).reverse();
+const TREND_STYLE: Record<Trend, { color: string; bg: string }> = {
+  up: { color: theme.colors.primary, bg: theme.colors.primarySoft },
+  down: { color: theme.colors.danger, bg: "#FEE2E2" },
+  same: { color: theme.colors.muted, bg: "#F3F4F6" },
+};
+
+const TREND_COPY: Record<Trend | "start", { headline: string; advice: string }> = {
+  up: {
+    headline: "Your skin is improving",
+    advice: "Keep doing what you're doing. Your routine is working.",
+  },
+  down: {
+    headline: "Your skin needs a bit more care",
+    advice:
+      "Stick to your routine and avoid new products for now. If it keeps dropping, talk to a dermatologist.",
+  },
+  same: {
+    headline: "Your skin is holding steady",
+    advice: "No big change yet. Skin takes 4–6 weeks to show results, so stay consistent.",
+  },
+  start: {
+    headline: "This is your starting point",
+    advice: "Scan again on another day and we'll show you how your skin is changing.",
+  },
+};
+
+function signed(n: number): string {
+  return n === 0 ? "0" : `${n > 0 ? "+" : "−"}${Math.abs(n)}`;
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+// Lowest band first so the bar reads 0 → 100.
+const ZONES = [...SCORE_BANDS].reverse();
+const TICKS = [0, ...ZONES.slice(1).map((z) => z.min), 100];
 
-function lastSevenDays(results: Result[]): Result[] {
-  const weekAgo = Date.now() - WEEK_MS;
-  return results.filter((r) => toTime(r.created_at) >= weekAgo);
-}
-const CHART_DAYS = 7;
-
-/* ---------- Score chart: one line, numbers printed on each dot ---------- */
-
-function ScoreChart({ points }: { points: Result[] }) {
-  if (points.length < 2) {
-    return (
-      <Text className="text-xs py-6 text-center" style={{ color: theme.colors.muted }}>
-        Scan on at least 2 different days to see your line.
-      </Text>
-    );
-  }
-
-  const width = 300;
-  const height = 150;
-  const padX = 20;
-  const padTop = 24; // room for the number above each dot
-  const padBottom = 24; // room for the date under the chart
-  const plotW = width - padX * 2;
-  const plotH = height - padTop - padBottom;
-
-  const coords = points.map((r, i) => ({
-    x: padX + (i / (points.length - 1)) * plotW,
-    y: padTop + plotH - (Math.max(0, Math.min(100, r.healthscore)) / 100) * plotH,
-    score: Math.round(r.healthscore),
-    date: shortDate(r.created_at),
-  }));
-  const line = coords.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-
+function ScoreBar({ score }: { score: number }) {
+  const pct = Math.max(0, Math.min(100, score));
   return (
-    <View className="items-center mt-2">
-      <Svg width={width} height={height}>
-        {/* Baseline */}
-        <SvgLine
-          x1={padX}
-          y1={padTop + plotH}
-          x2={width - padX}
-          y2={padTop + plotH}
-          stroke={theme.colors.cardBorder}
-          strokeWidth={1}
+    <View className="mt-4">
+      <View className="h-6 justify-center">
+        <View className="flex-row h-2.5 rounded-full overflow-hidden">
+          {ZONES.map((z) => (
+            <View
+              key={z.severity}
+              style={{ flex: z.max + 1 - z.min, backgroundColor: z.color, opacity: 0.3 }}
+            />
+          ))}
+        </View>
+        <View
+          className="absolute h-6 w-6 rounded-full"
+          style={{
+            left: `${pct}%`,
+            marginLeft: -12,
+            backgroundColor: theme.colors.card,
+            borderWidth: 4,
+            borderColor: bandFor(pct).color,
+          }}
         />
-        <Path d={line} stroke={theme.colors.primary} strokeWidth={2.5} fill="none" />
-        {coords.map((p, i) => (
-          <Circle key={`c${i}`} cx={p.x} cy={p.y} r={4.5} fill={theme.colors.primary} />
-        ))}
-        {coords.map((p, i) => (
-          <SvgText
-            key={`v${i}`}
-            x={p.x}
-            y={p.y - 9}
-            fontSize={11}
-            fontWeight="bold"
-            fill={theme.colors.ink}
-            textAnchor="middle"
+      </View>
+      <View className="h-4 mt-1">
+        {TICKS.map((t) => (
+          <Text
+            key={t}
+            className="absolute text-[11px]"
+            style={{
+              color: theme.colors.faint,
+              width: 28,
+              left: `${t}%`,
+              marginLeft: t === 0 ? 0 : t === 100 ? -28 : -14,
+              textAlign: t === 0 ? "left" : t === 100 ? "right" : "center",
+            }}
           >
-            {p.score}
-          </SvgText>
+            {t}
+          </Text>
         ))}
-        {coords.map((p, i) => (
-          <SvgText
-            key={`d${i}`}
-            x={p.x}
-            y={height - 6}
-            fontSize={10}
-            fill={theme.colors.faint}
-            textAnchor="middle"
-          >
-            {p.date}
-          </SvgText>
-        ))}
-      </Svg>
+      </View>
     </View>
   );
 }
 
-/* ---------- Screen ---------- */
+function GuideList({ title, items, color }: { title: string; items: string[]; color: string }) {
+  return (
+    <View className="mt-3">
+      <Text className="text-xs font-bold uppercase" style={{ color: theme.colors.faint }}>
+        {title}
+      </Text>
+      {items.map((item) => (
+        <View key={item} className="flex-row mt-1.5 pr-2">
+          <Text className="text-sm leading-5 mr-2" style={{ color }}>
+            •
+          </Text>
+          <Text className="text-sm leading-5 flex-1" style={{ color: theme.colors.body }}>
+            {item}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function ScoreGuide({ score }: { score: number }) {
+  const current = bandFor(score).severity;
+  const [open, setOpen] = useState<Severity | null>(current);
+  return (
+    <View className="mt-2">
+      {SCORE_BANDS.map((b, i) => {
+        const isOpen = open === b.severity;
+        const isYou = current === b.severity;
+        return (
+          <View
+            key={b.severity}
+            style={{ borderTopWidth: i === 0 ? 0 : 1, borderTopColor: theme.colors.divider }}
+          >
+            <Pressable
+              onPress={() => setOpen(isOpen ? null : b.severity)}
+              className="flex-row items-center gap-3 py-3 active:opacity-70"
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isOpen }}
+              accessibilityLabel={`${b.min} to ${b.max}, ${b.label}${isYou ? ", your score" : ""}`}
+            >
+              <View
+                className="rounded-full px-2.5 py-1 items-center"
+                style={{ backgroundColor: b.soft, minWidth: 64 }}
+              >
+                <Text className="text-xs font-bold" style={{ color: b.color }}>
+                  {b.min}–{b.max}
+                </Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-bold" style={{ color: b.color }}>
+                  {b.label}
+                  {isYou ? (
+                    <Text style={{ color: theme.colors.ink }}>{"  · You are here"}</Text>
+                  ) : null}
+                </Text>
+                <Text className="text-xs mt-0.5 leading-4" style={{ color: theme.colors.muted }}>
+                  {b.meaning}
+                </Text>
+              </View>
+              <ChevronDown
+                size={18}
+                color={theme.colors.faint}
+                style={{ transform: [{ rotate: isOpen ? "180deg" : "0deg" }] }}
+              />
+            </Pressable>
+            {isOpen ? (
+              <View
+                className="mb-3 rounded-2xl px-3.5 pb-3.5 pt-0.5"
+                style={{ backgroundColor: b.soft }}
+              >
+                <GuideList title="What it usually looks like" items={b.looksLike} color={b.color} />
+                <GuideList title="Common causes" items={b.triggers} color={b.color} />
+                <GuideList title="What to do" items={b.todo} color={b.color} />
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
+      <Text className="text-xs mt-1 leading-4" style={{ color: theme.colors.faint }}>
+        Your score comes from your photo (60%) and your check-in answers (40%). It is a guide, not a
+        diagnosis.
+      </Text>
+    </View>
+  );
+}
+
+function ChangeChip({ change, since }: { change: number; since: string }) {
+  const trend = trendOf(change);
+  const t = TREND_STYLE[trend];
+  return (
+    <View className="rounded-full px-3 py-1.5 self-start" style={{ backgroundColor: t.bg }}>
+      <Text className="text-xs font-bold" style={{ color: t.color }}>
+        {trend === "same" ? "About the same" : `${signed(change)} points`}
+        <Text style={{ fontWeight: "normal" }}>{` since ${since}`}</Text>
+      </Text>
+    </View>
+  );
+}
 
 export default function Progress() {
   const router = useRouter();
@@ -162,8 +248,6 @@ export default function Progress() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [aiSummary, setAiSummary] = useState("");
-  const [summaryLoading, setSummaryLoading] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -214,37 +298,15 @@ export default function Progress() {
     }
   };
 
-  /* ----- derived data ----- */
-  const newestFirst = [...results].sort((a, b) => toTime(b.created_at) - toTime(a.created_at));
+  // Only photo-graded results form the trend: an answers-only setup score measures something else
+  // and would make the first real scan look like an improvement or a decline.
+  const newestFirst = results
+    .filter(isPhotoBasedResult)
+    .sort((a, b) => toTime(b.created_at) - toTime(a.created_at));
   const latest = newestFirst[0] ?? null;
   const first = newestFirst[newestFirst.length - 1] ?? null;
-  const hasTwo = newestFirst.length >= 2 && latest && first && latest.id !== first.id;
+  const hasTwo = latest && first && latest.id !== first.id;
   const change = hasTwo ? Math.round(latest.healthscore - first.healthscore) : 0;
-
-  const weekResults = lastSevenDays(newestFirst);
-  const weekKey = weekResults.map((r) => r.id).join(",");
-
-  // Weekly AI summary (cached per set of scans, so the model only reruns when the week changes).
-  useEffect(() => {
-    const cached = weekResults.length === 0 ? "" : getCachedWeeklySummary(weekResults) || null;
-    if (cached !== null) {
-      /* eslint-disable react-hooks/set-state-in-effect */
-      setAiSummary(cached);
-      setSummaryLoading(false);
-      /* eslint-enable react-hooks/set-state-in-effect */
-      return;
-    }
-    let cancelled = false;
-    setSummaryLoading(true);
-    generateWeeklySummary(weekResults)
-      .then((s) => !cancelled && setAiSummary(s))
-      .catch(() => !cancelled && setAiSummary(""))
-      .finally(() => !cancelled && setSummaryLoading(false));
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekKey]);
 
   // Before photo: oldest scan (not the latest) whose image loads; fall back to the enrolment photo.
   const usable = (uri?: string | null) => !!uri && !failedImages.has(uri);
@@ -270,14 +332,25 @@ export default function Progress() {
     );
   }
 
-  const status = latest ? scoreLabel(latest.healthscore) : null;
-  const changeText = !hasTwo
-    ? "Scan on another day to see your progress."
-    : change > 0
-      ? `Up ${change} points since ${shortDate(first.created_at)}`
-      : change < 0
-        ? `Down ${Math.abs(change)} points since ${shortDate(first.created_at)}`
-        : `No change since ${shortDate(first.created_at)}`;
+  const { headline, advice } = TREND_COPY[hasTwo ? trendOf(change) : "start"];
+  const band = bandFor(latest?.healthscore ?? 0);
+  const why = latest ? explainScore(latest.healthscore, latest.detection_label) : null;
+  const photos = hasTwo
+    ? [
+        {
+          label: "Before",
+          date: beforeDate,
+          uri: beforeImage,
+          score: beforeScan?.healthscore ?? first.healthscore,
+        },
+        {
+          label: isToday(latest.created_at) ? "Today" : "Now",
+          date: latest.created_at,
+          uri: latest.image_url,
+          score: latest.healthscore,
+        },
+      ]
+    : [];
 
   return (
     <SafeAreaView
@@ -299,7 +372,6 @@ export default function Progress() {
           />
         }
       >
-        {/* Header */}
         <FadeItem index={0}>
           <View className="mb-1 mt-2">
             <BackHeader
@@ -338,129 +410,127 @@ export default function Progress() {
           </FadeItem>
         ) : (
           <>
-            {/* 1. Current score + is it getting better? */}
             <FadeItem index={1}>
               <ClinicalCard className="mt-4">
-                <Text className="text-sm" style={{ color: theme.colors.muted }}>
-                  Your skin score today
+                <Text
+                  className="text-[20px] font-bold leading-7"
+                  style={{ color: theme.colors.ink }}
+                >
+                  {headline}
                 </Text>
-                <View className="flex-row items-center justify-between mt-1">
+                <Text className="text-sm mt-1 leading-5" style={{ color: theme.colors.body }}>
+                  {advice}
+                </Text>
+
+                <View
+                  className="mt-4 pt-4"
+                  style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
+                >
                   <Text
-                    style={{
-                      fontSize: 44,
-                      lineHeight: 52,
-                      fontWeight: "bold",
-                      color: theme.colors.ink,
-                    }}
+                    className="text-xs font-bold uppercase"
+                    style={{ color: theme.colors.faint }}
                   >
-                    {Math.round(latest.healthscore)}
-                    <Text style={{ fontSize: 16, fontWeight: "normal", color: theme.colors.faint }}>
-                      {" / 100"}
+                    Latest skin score
+                  </Text>
+                  <View className="flex-row items-end justify-between mt-1">
+                    <Text
+                      style={{
+                        fontSize: 44,
+                        lineHeight: 50,
+                        fontWeight: "bold",
+                        color: theme.colors.ink,
+                      }}
+                    >
+                      {Math.round(latest.healthscore)}
+                      <Text
+                        style={{ fontSize: 16, fontWeight: "normal", color: theme.colors.faint }}
+                      >
+                        {" / 100"}
+                      </Text>
                     </Text>
-                  </Text>
-                  <Text className="text-sm font-bold" style={{ color: status!.color }}>
-                    {status!.word}
-                  </Text>
+                    <Text className="text-base font-bold mb-2" style={{ color: band.color }}>
+                      {band.label}
+                    </Text>
+                  </View>
+                  <ScoreBar score={latest.healthscore} />
+                  {why ? (
+                    <Text className="text-sm mt-3 leading-5" style={{ color: theme.colors.body }}>
+                      {why}
+                    </Text>
+                  ) : null}
+                  {hasTwo ? (
+                    <View className="mt-4">
+                      <ChangeChip change={change} since={shortDate(first.created_at)} />
+                    </View>
+                  ) : null}
                 </View>
-                <Text className="text-sm mt-2" style={{ color: theme.colors.body }}>
-                  {changeText}
-                </Text>
               </ClinicalCard>
             </FadeItem>
 
-            {/* 2. Before and now photos */}
+            <FadeItem index={2}>
+              <ClinicalCard className="mt-4">
+                <SectionTitle title="What your score means" meta="Tap a range" />
+                <ScoreGuide score={latest.healthscore} />
+              </ClinicalCard>
+            </FadeItem>
+
             {hasTwo && (
-              <FadeItem index={2}>
+              <FadeItem index={3}>
                 <ClinicalCard className="mt-4">
                   <SectionTitle title="Before and now" />
                   <View className="flex-row gap-3 mt-3">
-                    {[
-                      { label: "Before", date: beforeDate, uri: beforeImage, onError: markFailed },
-                      {
-                        label: isToday(latest.created_at) ? "Today" : "Latest",
-                        date: latest.created_at,
-                        uri: latest.image_url,
-                        onError: undefined,
-                      },
-                    ].map((p) => (
-                      <View key={p.label} className="flex-1 items-center">
-                        <View
-                          className="w-full aspect-square rounded-2xl overflow-hidden items-center justify-center"
-                          style={{ backgroundColor: theme.colors.background }}
-                        >
-                          {p.uri ? (
-                            <Image
-                              key={p.uri}
-                              source={{ uri: p.uri }}
-                              onError={p.onError ? () => p.onError!(p.uri!) : undefined}
-                              className="w-full h-full"
-                              resizeMode="cover"
-                            />
-                          ) : (
-                            <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                              No photo
-                            </Text>
-                          )}
-                        </View>
-                        <Text
-                          className="text-sm font-bold mt-2"
-                          style={{ color: theme.colors.ink }}
-                        >
-                          {p.label}
-                        </Text>
-                        {p.date ? (
-                          <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                            {shortDate(p.date)}
+                    {photos.map((p) => {
+                      const b = bandFor(p.score);
+                      return (
+                        <View key={p.label} className="flex-1 items-center">
+                          <View
+                            className="w-full aspect-square rounded-2xl overflow-hidden items-center justify-center"
+                            style={{ backgroundColor: theme.colors.background }}
+                          >
+                            {p.uri ? (
+                              <Image
+                                key={p.uri}
+                                source={{ uri: p.uri }}
+                                onError={() => markFailed(p.uri!)}
+                                className="w-full h-full"
+                                resizeMode="cover"
+                              />
+                            ) : (
+                              <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                                No photo
+                              </Text>
+                            )}
+                          </View>
+                          <Text
+                            className="text-sm font-bold mt-2"
+                            style={{ color: theme.colors.ink }}
+                          >
+                            {p.label}
+                            {p.date ? (
+                              <Text style={{ fontWeight: "normal", color: theme.colors.faint }}>
+                                {` · ${shortDate(p.date)}`}
+                              </Text>
+                            ) : null}
                           </Text>
-                        ) : null}
-                      </View>
-                    ))}
+                          <Text className="text-xs font-bold mt-0.5" style={{ color: b.color }}>
+                            {Math.round(p.score)} · {b.label}
+                          </Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 </ClinicalCard>
               </FadeItem>
             )}
 
-            {/* 3. Score over time */}
-            <FadeItem index={3}>
-              <ClinicalCard className="mt-4">
-                <SectionTitle title="Your score over time" />
-                <Text className="text-xs mt-1" style={{ color: theme.colors.muted }}>
-                  Higher is better.
-                </Text>
-                <ScoreChart points={dailyScores(newestFirst, CHART_DAYS)} />
-              </ClinicalCard>
-            </FadeItem>
-
-            {/* 4. This week, in plain words */}
             <FadeItem index={4}>
-              <LinearGradient
-                colors={[...theme.gradients.dark]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                className="py-4 px-4 mt-4"
-                style={{ borderRadius: theme.radius.card }}
-              >
-                <Text className="font-bold text-white text-base">This week</Text>
-                <Text className="text-xs mt-1" style={{ color: "#A7C4B2" }}>
-                  {weekResults.length === 0
-                    ? "You haven't scanned this week yet."
-                    : `You scanned ${weekResults.length} ${weekResults.length === 1 ? "time" : "times"} in the last 7 days.`}
-                </Text>
-                {summaryLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" style={{ marginTop: 10 }} />
-                ) : aiSummary ? (
-                  <TypewriterText text={aiSummary} className="text-white text-sm mt-2 leading-5" />
-                ) : null}
-              </LinearGradient>
-            </FadeItem>
-
-            {/* 5. Recent scans */}
-            <FadeItem index={5}>
               <ClinicalCard className="mt-4">
-                <SectionTitle title="Recent scans" />
+                <SectionTitle title="Scan history" meta="vs. previous scan" />
                 <View className="mt-2">
                   {newestFirst.slice(0, 5).map((r, i, arr) => {
-                    const s = scoreLabel(r.healthscore);
+                    const b = bandFor(r.healthscore);
+                    const prev = newestFirst[i + 1];
+                    const delta = prev ? Math.round(r.healthscore - prev.healthscore) : null;
                     const confirmed = r.validation_status === "confirmed";
                     const flagged = r.validation_status === "needs_review";
                     return (
@@ -472,17 +542,29 @@ export default function Progress() {
                           borderBottomColor: theme.colors.divider,
                         }}
                       >
+                        <View
+                          className="h-12 w-12 rounded-full items-center justify-center"
+                          style={{ borderWidth: 3, borderColor: b.color }}
+                        >
+                          <Text className="font-bold text-base" style={{ color: theme.colors.ink }}>
+                            {Math.round(r.healthscore)}
+                          </Text>
+                        </View>
+
                         <View className="flex-1">
                           <Text className="font-bold text-sm" style={{ color: theme.colors.ink }}>
-                            {formatter(r.detection_label ?? r.severity)}
-                          </Text>
-                          <Text className="text-xs" style={{ color: theme.colors.faint }}>
                             {isToday(r.created_at) ? "Today" : shortDate(r.created_at)}
+                            <Text
+                              style={{ fontWeight: "normal", color: b.color }}
+                            >{` · ${b.label}`}</Text>
+                          </Text>
+                          <Text className="text-xs mt-0.5" style={{ color: theme.colors.muted }}>
+                            {formatter(r.detection_label ?? r.severity)}
                           </Text>
                           {confirmed || flagged ? (
                             <Text
                               className="text-xs font-bold mt-0.5"
-                              style={{ color: confirmed ? theme.colors.primary : "#B45309" }}
+                              style={{ color: confirmed ? theme.colors.primary : AMBER }}
                             >
                               {confirmed ? "Checked by a doctor" : "Doctor wants a follow-up"}
                             </Text>
@@ -493,14 +575,24 @@ export default function Progress() {
                             </Text>
                           ) : null}
                         </View>
-                        <View className="items-end">
-                          <Text className="font-bold text-base" style={{ color: theme.colors.ink }}>
-                            {Math.round(r.healthscore)}
+
+                        {delta === null ? (
+                          <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                            First scan
                           </Text>
-                          <Text className="text-xs font-bold" style={{ color: s.color }}>
-                            {s.word}
-                          </Text>
-                        </View>
+                        ) : (
+                          <View
+                            className="rounded-full px-2.5 py-1"
+                            style={{ backgroundColor: TREND_STYLE[trendOf(delta)].bg }}
+                          >
+                            <Text
+                              className="text-xs font-bold"
+                              style={{ color: TREND_STYLE[trendOf(delta)].color }}
+                            >
+                              {signed(delta)}
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     );
                   })}

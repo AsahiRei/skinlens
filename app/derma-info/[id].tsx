@@ -1,11 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Linking, Platform, Pressable, ScrollView, Switch, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Building, MapPin, Navigation, Star, Phone, Globe, Clock, Info } from "lucide-react-native";
+import {
+  Building,
+  Check,
+  Clock,
+  Globe,
+  Info,
+  MapPin,
+  Navigation,
+  Phone,
+  Users,
+  type LucideIcon,
+} from "lucide-react-native";
 
 import { FadeItem } from "@/components/FadeItem";
-import { DateTimeField } from "@/components/DateTimeField";
+import { AppointmentSlotPicker } from "@/components/AppointmentSlotPicker";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import {
   BackHeader,
@@ -21,26 +32,26 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import { uploadSkinReportForAppointment } from "@/utils/report";
 import {
   attachReportToAppointment,
-  BOOKED_SLOT_MESSAGE,
   formatPatientDisplayName,
   getDoctorsForClinic,
-  getTakenSlots,
   isRemoteImageUrl,
-  overlapsTakenSlot,
   PAST_TIME_MESSAGE,
   requestAppointment,
   type DoctorRow,
 } from "@/lib/db/appointments";
 import { getUserProfile } from "@/lib/db";
+import {
+  formatMinutes,
+  formatSlotDay,
+  formatSlotTime,
+  parseClinicHours,
+} from "@/utils/booking-slots";
 
 type PlaceDetails = {
   phone?: string;
   website?: string;
   openingHours?: string;
 };
-
-// Module scope (not render): preferred-slot fallback ≈24h from app load.
-const PREFERRED_FALLBACK = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
 export default function DermatologistDetails() {
   const router = useRouter();
@@ -86,9 +97,6 @@ export default function DermatologistDetails() {
   const [doctors, setDoctors] = useState<DoctorRow[]>([]);
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
-  // Confirmed visits on the picked day that this request can't use (times only).
-  // Tagged with the lookup it answers, so a stale list for another day/doctor is simply ignored.
-  const [takenFor, setTakenFor] = useState<{ key: string; slots: Date[] } | null>(null);
   const [bookedDoctorName, setBookedDoctorName] = useState<string | null>(null);
   // The appointment just created + whether its Skin Report is already linked
   // (so the "Request sent" modal only offers to send it when it isn't).
@@ -99,6 +107,8 @@ export default function DermatologistDetails() {
   // Explicit opt-in: the Skin Report holds health data, so it is only
   // uploaded to the clinic when the patient switches this on.
   const [shareReport, setShareReport] = useState(false);
+
+  const clinicHours = useMemo(() => parseClinicHours(details.openingHours), [details.openingHours]);
 
   const notify = (msg: string) => {
     if (Platform.OS === "android") {
@@ -114,14 +124,20 @@ export default function DermatologistDetails() {
     const label = params.name ?? "Clinic location";
     const lat = Number(params.lat);
     const lng = Number(params.lng);
-    if (!params.lat || !params.lng || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-      notify("No map coordinates for this location.");
+    const hasCoords = !!params.lat && !!params.lng && Number.isFinite(lat) && Number.isFinite(lng);
+    // Verified clinics arrive without coordinates — search their address instead.
+    const query = [params.name, params.address].filter(Boolean).join(", ");
+    if (!hasCoords && !query) {
+      notify("No map location for this clinic.");
       return;
     }
-    const url =
-      Platform.OS === "android"
+    const url = hasCoords
+      ? Platform.OS === "android"
         ? `geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(label)})`
-        : `https://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent(label)}`;
+        : `https://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent(label)}`
+      : Platform.OS === "android"
+        ? `geo:0,0?q=${encodeURIComponent(query)}`
+        : `https://maps.apple.com/?q=${encodeURIComponent(query)}`;
     Linking.openURL(url).catch(() => {
       notify("Couldn't open the map app on this device.");
     });
@@ -170,10 +186,6 @@ export default function DermatologistDetails() {
     // no time floor). Never send a request for a schedule that has passed.
     if (preferredDate && preferredDate.getTime() <= Date.now()) {
       setShowPastSlot(true);
-      return;
-    }
-    if (slotTaken) {
-      notify(BOOKED_SLOT_MESSAGE);
       return;
     }
     setBooking(true);
@@ -253,32 +265,6 @@ export default function DermatologistDetails() {
     }
   };
 
-  // Booked times on the picked day, for the chosen doctor (or every doctor when "any").
-  const preferredDay = preferredDate ? preferredDate.toDateString() : null;
-  const takenKey =
-    isCustomEntry && params.id && preferredDay
-      ? `${params.id}|${doctorId ?? ""}|${preferredDay}`
-      : null;
-  useEffect(() => {
-    if (!takenKey || !params.id || !preferredDay) return;
-    let active = true;
-    const start = new Date(preferredDay);
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
-    getTakenSlots(params.id, doctorId, start, end)
-      .then((slots) => {
-        if (active) setTakenFor({ key: takenKey, slots });
-      })
-      .catch(() => {
-        // The server still blocks a taken slot on save.
-        if (active) setTakenFor({ key: takenKey, slots: [] });
-      });
-    return () => {
-      active = false;
-    };
-  }, [takenKey, params.id, doctorId, preferredDay]);
-  const takenSlots = takenFor && takenFor.key === takenKey ? takenFor.slots : [];
-  const slotTaken = preferredDate ? overlapsTakenSlot(preferredDate, takenSlots) : false;
-
   // Verified clinic → load its active doctors for the booking picker.
   // doctors starts as [] so there is nothing to reset when the entry
   // isn't verifiable (no synchronous setState in the effect body).
@@ -300,268 +286,264 @@ export default function DermatologistDetails() {
     };
   }, [isCustomEntry, params.id]);
 
+  const hasRating = rating > 0;
+  const hasDistance = distanceKm > 0;
+  const selectedDoctor = doctors.find((d) => d.user_id === doctorId) ?? null;
+  const summaryWhen = preferredDate
+    ? `${formatSlotDay(preferredDate)} · ${formatSlotTime(preferredDate)}`
+    : "Flexible time";
+  const summaryWho = selectedDoctor?.display_name ?? "First available doctor";
+
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
+    <SafeAreaView
+      edges={["top", "bottom"]}
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+    >
       <ScreenGradient />
       <ScrollView
-        className="flex-1 px-5"
+        className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
       >
-        {/* Header / back */}
         <FadeItem index={0}>
           <View className="mt-2">
-            <BackHeader title="Details" onBack={() => router.back()} />
+            <BackHeader
+              title={isCustomEntry ? "Book a visit" : "Clinic details"}
+              onBack={() => router.back()}
+            />
           </View>
         </FadeItem>
 
-        {/* Profile card */}
+        {/* ── Clinic hero ─────────────────────────────────────────────── */}
         <FadeItem index={1}>
           <ClinicalCard className="mt-5 flex-col gap-4">
-            <View className="flex-row items-center gap-3">
-              <View className="flex-col flex-1">
-                <Text className="font-bold text-lg" style={{ color: theme.colors.ink }}>
+            <View>
+              <View>
+                <Text
+                  className="font-bold text-[18px] leading-6"
+                  style={{ color: theme.colors.ink }}
+                >
                   {params.name}
                 </Text>
-                <Text className="text-xs mt-0.5" style={{ color: theme.colors.muted }}>
-                  {params.specialty}
-                </Text>
+                {params.specialty ? (
+                  <Text className="text-[13px] mt-0.5" style={{ color: theme.colors.muted }}>
+                    {params.specialty}
+                  </Text>
+                ) : null}
+                <View className="flex-row flex-wrap gap-1.5 mt-2">
+                  {isCustomEntry ? (
+                    <Pill label="Verified clinic" />
+                  ) : (
+                    <Pill label="Unverified" tone="neutral" />
+                  )}
+                  {availableToday ? <Pill label="Available today" /> : null}
+                </View>
               </View>
-              {availableToday && <Pill label="Available today" />}
             </View>
 
-            <View
-              className="flex-col gap-2 pt-3"
-              style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
-            >
-              <View className="flex-row items-center gap-2">
-                <Building size={16} color={theme.colors.faint} />
-                <Text className="text-sm" style={{ color: theme.colors.body }}>
-                  {params.clinic}
-                </Text>
+            {hasRating || hasDistance || clinicHours.parsed ? (
+              <View
+                className="flex-row rounded-2xl py-3"
+                style={{ backgroundColor: theme.colors.background }}
+              >
+                {hasRating ? <Stat value={rating.toFixed(1)} label="Rating" /> : null}
+                {hasDistance ? <Stat value={`${distanceKm.toFixed(1)} km`} label="Away" /> : null}
+                {clinicHours.parsed ? (
+                  <Stat
+                    value={formatMinutes(clinicHours.openMin)}
+                    label={`to ${formatMinutes(clinicHours.closeMin)}`}
+                  />
+                ) : null}
               </View>
-              <View className="flex-row items-center gap-2">
-                <MapPin size={16} color={theme.colors.faint} />
-                <Text className="text-sm flex-1" style={{ color: theme.colors.body }}>
-                  {params.address}
-                </Text>
-              </View>
-              <View className="flex-row items-center gap-2">
-                <Navigation size={16} color={theme.colors.faint} />
-                <Text className="text-sm" style={{ color: theme.colors.body }}>
-                  {distanceKm.toFixed(1)} km away
-                </Text>
-              </View>
-              {rating > 0 && (
-                <View className="flex-row items-center gap-2">
-                  <Star size={16} color={theme.colors.star} />
-                  <Text className="text-sm font-semibold" style={{ color: theme.colors.ink }}>
-                    {rating.toFixed(1)} rating
-                  </Text>
-                </View>
-              )}
+            ) : null}
+
+            <View className="flex-col gap-2.5">
+              {params.clinic && params.clinic !== params.name ? (
+                <InfoRow icon={Building} text={params.clinic} />
+              ) : null}
+              {params.address ? <InfoRow icon={MapPin} text={params.address} /> : null}
+              {isCustomEntry && details.openingHours ? (
+                <InfoRow icon={Clock} text={details.openingHours} />
+              ) : null}
             </View>
+
+            {isCustomEntry ? (
+              <View
+                className="flex-row gap-2 pt-4"
+                style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
+              >
+                <QuickAction
+                  icon={Phone}
+                  label="Call"
+                  disabled={!details.phone}
+                  onPress={() => {
+                    if (details.phone) void Linking.openURL(`tel:${details.phone}`);
+                  }}
+                />
+                <QuickAction
+                  icon={Globe}
+                  label="Website"
+                  disabled={!details.website}
+                  onPress={() => {
+                    if (details.website) void Linking.openURL(details.website);
+                  }}
+                />
+                <QuickAction icon={Navigation} label="Directions" onPress={openFullMap} />
+              </View>
+            ) : null}
           </ClinicalCard>
         </FadeItem>
 
-        {/* About card — only for custom JSON entries with a description */}
         {customDescription ? (
           <FadeItem index={2}>
             <ClinicalCard className="mt-4 flex-col gap-2">
               <SectionTitle title="About" />
-              <Text className="text-sm" style={{ color: theme.colors.body }}>
+              <Text className="text-sm leading-5" style={{ color: theme.colors.body }}>
                 {customDescription}
               </Text>
             </ClinicalCard>
           </FadeItem>
         ) : null}
 
-        {/* Contact info card — verified clinics only. Unverified places are
-            view-on-map only, so their (unverified) contact data isn't shown. */}
-        {isCustomEntry ? (
-          <FadeItem index={customDescription ? 3 : 2}>
-            <ClinicalCard className="mt-4 flex-col gap-3">
-              <SectionTitle title="Contact & Hours" />
-              <View className="flex-col gap-2">
-                <View className="flex-row items-center gap-2">
-                  <Phone size={16} color={theme.colors.faint} />
-                  {details.phone ? (
-                    <Pressable onPress={() => Linking.openURL(`tel:${details.phone}`)}>
-                      <Text
-                        className="text-sm font-semibold"
-                        style={{ color: theme.colors.primary }}
-                      >
-                        {details.phone}
-                      </Text>
-                    </Pressable>
-                  ) : (
-                    <Text className="text-sm" style={{ color: theme.colors.faint }}>
-                      Not available
-                    </Text>
-                  )}
-                </View>
-
-                <View className="flex-row items-center gap-2">
-                  <Globe size={16} color={theme.colors.faint} />
-                  {details.website ? (
-                    <Pressable onPress={() => Linking.openURL(details.website!)}>
-                      <Text
-                        className="text-sm font-semibold flex-1"
-                        style={{ color: theme.colors.primary }}
-                        numberOfLines={1}
-                      >
-                        {details.website}
-                      </Text>
-                    </Pressable>
-                  ) : (
-                    <Text className="text-sm" style={{ color: theme.colors.faint }}>
-                      Not available
-                    </Text>
-                  )}
-                </View>
-
-                <View className="flex-row items-center gap-2">
-                  <Clock size={16} color={theme.colors.faint} />
-                  <Text className="text-sm flex-1" style={{ color: theme.colors.body }}>
-                    {details.openingHours ?? "Hours not available"}
-                  </Text>
-                </View>
-              </View>
-            </ClinicalCard>
-          </FadeItem>
+        {notice && Platform.OS !== "android" ? (
+          <View className="mt-4">
+            <Notice icon={Info} tone="info" copy={notice} />
+          </View>
         ) : null}
 
-        {/* Actions — verified clinics book a real visit; unverified places
-            can only be viewed on the full map. */}
-        <FadeItem index={customDescription ? 4 : 3}>
-          <View className="mt-5 gap-3">
-            {!isCustomEntry ? (
+        {!isCustomEntry ? (
+          <FadeItem index={3}>
+            <View className="mt-4">
               <Notice
                 icon={Info}
                 tone="warning"
                 copy="This location is not verified for this app. You can only view it on the map — booking is available at verified clinics only."
               />
-            ) : null}
-            {notice && Platform.OS !== "android" ? (
-              <Notice icon={Info} tone="info" copy={notice} />
-            ) : null}
-            {isCustomEntry ? (
-              <ClinicalCard className="flex-col gap-3">
-                <SectionTitle title="Your visit" />
-                <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                  Doctor (optional)
+            </View>
+          </FadeItem>
+        ) : (
+          <>
+            {/* ── Step 1 · Doctor ────────────────────────────────────── */}
+            <FadeItem index={3}>
+              <StepHeader step={1} title="Choose a doctor" hint="Optional" />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 10, paddingVertical: 2 }}
+              >
+                <DoctorOption
+                  name="First available"
+                  sub="Fastest to confirm"
+                  selected={doctorId === null}
+                  onPress={() => setDoctorId(null)}
+                />
+                {doctors.map((d) => (
+                  <DoctorOption
+                    key={d.user_id}
+                    name={d.display_name}
+                    sub={d.specialty || "Dermatologist"}
+                    selected={doctorId === d.user_id}
+                    onPress={() => setDoctorId(doctorId === d.user_id ? null : d.user_id)}
+                  />
+                ))}
+              </ScrollView>
+              {doctors.length === 0 ? (
+                <Text className="text-xs mt-2" style={{ color: theme.colors.faint }}>
+                  No doctors listed yet — your request still goes to the clinic.
                 </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  <Pressable
-                    onPress={() => setDoctorId(null)}
-                    className="rounded-full px-4 py-2.5 border active:opacity-80"
-                    style={
-                      doctorId === null
-                        ? {
-                            backgroundColor: theme.colors.primary,
-                            borderColor: theme.colors.primary,
-                          }
-                        : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
-                    }
-                  >
-                    <Text
-                      className="text-sm font-semibold"
-                      style={{ color: doctorId === null ? "#FFFFFF" : theme.colors.body }}
-                    >
-                      First available
-                    </Text>
-                  </Pressable>
-                  {doctors.map((d) => {
-                    const selected = doctorId === d.user_id;
-                    return (
-                      <Pressable
-                        key={d.user_id}
-                        onPress={() => setDoctorId(selected ? null : d.user_id)}
-                        className="rounded-full px-4 py-2.5 border active:opacity-80"
-                        style={
-                          selected
-                            ? {
-                                backgroundColor: theme.colors.primary,
-                                borderColor: theme.colors.primary,
-                              }
-                            : { backgroundColor: "#FFFFFF", borderColor: theme.colors.cardBorder }
-                        }
-                      >
-                        <Text
-                          className="text-sm font-semibold"
-                          style={{ color: selected ? "#FFFFFF" : theme.colors.body }}
-                        >
-                          {d.display_name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                {doctors.length === 0 ? (
-                  <Text className="text-xs" style={{ color: theme.colors.faint }}>
-                    No doctors listed yet — your request still goes to the clinic.
-                  </Text>
-                ) : null}
-                <Text className="text-xs mt-1" style={{ color: theme.colors.muted }}>
-                  Preferred date &amp; time (optional)
-                </Text>
-                <DateTimeField
+              ) : null}
+            </FadeItem>
+
+            {/* ── Step 2 · Date & time ───────────────────────────────── */}
+            <FadeItem index={4}>
+              <StepHeader
+                step={2}
+                title="Pick a date & time"
+                hint={preferredDate ? undefined : "Optional"}
+                action={
+                  preferredDate
+                    ? { label: "Clear", onPress: () => setPreferredDate(null) }
+                    : undefined
+                }
+              />
+              <ClinicalCard>
+                <AppointmentSlotPicker
+                  clinicId={params.id}
+                  doctorId={doctorId}
+                  hoursText={details.openingHours}
                   value={preferredDate}
                   onChange={setPreferredDate}
-                  placeholder="Pick a preferred slot"
-                  minimumDate={new Date()}
-                  fallbackDate={PREFERRED_FALLBACK}
-                  onClear={() => setPreferredDate(null)}
                 />
-                {preferredDate && takenSlots.length > 0 ? (
-                  <Text
-                    className="text-xs"
-                    style={{ color: slotTaken ? theme.colors.danger : theme.colors.muted }}
-                  >
-                    {slotTaken ? `${BOOKED_SLOT_MESSAGE} ` : ""}Already booked that day:{" "}
-                    {takenSlots
-                      .map((d) =>
-                        d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
-                      )
-                      .join(", ")}
-                  </Text>
-                ) : null}
-                <View
-                  className="flex-row items-center justify-between pt-3 mt-1"
-                  style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
-                >
-                  <View className="flex-col flex-1 pr-3">
-                    <Text className="text-sm font-semibold" style={{ color: theme.colors.ink }}>
-                      Share my Skin Report with this clinic
-                    </Text>
-                    <Text className="text-xs mt-0.5" style={{ color: theme.colors.muted }}>
-                      Includes your name, birth date, skin &amp; lifestyle answers, latest scan
-                      photo, scan history and sensitivity log. Only this clinic&apos;s doctors can
-                      open it.
-                    </Text>
-                  </View>
-                  <Switch
-                    value={shareReport}
-                    onValueChange={setShareReport}
-                    trackColor={{ false: theme.colors.cardBorder, true: theme.colors.primary }}
-                    thumbColor="#FFFFFF"
-                    accessibilityLabel="Share my Skin Report with this clinic"
-                  />
-                </View>
               </ClinicalCard>
-            ) : null}
-            {isCustomEntry ? (
-              <PrimaryButton
-                label={booking ? "Sending request…" : "Book Appointment"}
-                onPress={handleBook}
-                loading={booking}
-              />
-            ) : (
-              <PrimaryButton label="View on Map" onPress={openFullMap} />
-            )}
-          </View>
-        </FadeItem>
+            </FadeItem>
+
+            {/* ── Step 3 · Skin report ───────────────────────────────── */}
+            <FadeItem index={5}>
+              <StepHeader step={3} title="Share your Skin Report" hint="Optional" />
+              <ClinicalCard className="flex-row items-start gap-3">
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold" style={{ color: theme.colors.ink }}>
+                    Send my report to this clinic
+                  </Text>
+                  <Text className="text-xs mt-1 leading-4" style={{ color: theme.colors.muted }}>
+                    Includes your name, birth date, skin &amp; lifestyle answers, latest scan photo,
+                    scan history and sensitivity log. Only this clinic&apos;s doctors can open it.
+                  </Text>
+                </View>
+                <Switch
+                  value={shareReport}
+                  onValueChange={setShareReport}
+                  trackColor={{ false: theme.colors.cardBorder, true: theme.colors.primary }}
+                  thumbColor="#FFFFFF"
+                  accessibilityLabel="Share my Skin Report with this clinic"
+                />
+              </ClinicalCard>
+            </FadeItem>
+          </>
+        )}
       </ScrollView>
+
+      {/* ── Sticky footer: booking summary + CTA ───────────────────────── */}
+      <View
+        className="px-5 pt-3 pb-3"
+        style={{
+          backgroundColor: theme.colors.card,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.cardBorder,
+        }}
+      >
+        {isCustomEntry ? (
+          <View className="mb-3">
+            <View>
+              <Text
+                className="text-[14px] font-bold"
+                style={{ color: theme.colors.ink }}
+                numberOfLines={1}
+              >
+                {summaryWhen}
+              </Text>
+              <Text
+                className="text-xs mt-0.5"
+                style={{ color: theme.colors.muted }}
+                numberOfLines={1}
+              >
+                {summaryWho}
+                {preferredDate ? " · doctor confirms the time" : " · clinic will propose a time"}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+        {isCustomEntry ? (
+          <PrimaryButton
+            label={booking ? "Sending request…" : "Request appointment"}
+            onPress={handleBook}
+            loading={booking}
+          />
+        ) : (
+          <PrimaryButton label="View on Map" onPress={openFullMap} />
+        )}
+      </View>
 
       <UiModal
         visible={showPastSlot}
@@ -605,5 +587,173 @@ export default function DermatologistDetails() {
         ]}
       />
     </SafeAreaView>
+  );
+}
+
+/* ---------- Layout pieces ---------- */
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <View className="flex-1 items-center">
+      <Text className="text-[14px] font-bold" style={{ color: theme.colors.ink }}>
+        {value}
+      </Text>
+      <Text className="text-[11px] mt-0.5" style={{ color: theme.colors.muted }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function InfoRow({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
+  return (
+    <View className="flex-row items-start gap-2.5">
+      <View className="pt-0.5">
+        <Icon size={15} color={theme.colors.faint} />
+      </View>
+      <Text className="text-[13px] flex-1 leading-5" style={{ color: theme.colors.body }}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+function QuickAction({
+  icon: Icon,
+  label,
+  onPress,
+  disabled,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={disabled ? `${label} (not available)` : label}
+      className="flex-1 items-center gap-1.5 rounded-2xl py-3 active:opacity-70"
+      style={{ backgroundColor: theme.colors.primarySoft, opacity: disabled ? 0.45 : 1 }}
+    >
+      <Icon size={18} color={theme.colors.primary} />
+      <Text className="text-xs font-semibold" style={{ color: theme.colors.primaryDeep }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function StepHeader({
+  step,
+  title,
+  hint,
+  action,
+}: {
+  step: number;
+  title: string;
+  hint?: string;
+  action?: { label: string; onPress: () => void };
+}) {
+  return (
+    <View className="flex-row items-center gap-2.5 mt-7 mb-3">
+      <View
+        className="h-6 w-6 items-center justify-center rounded-full"
+        style={{ backgroundColor: theme.colors.primary }}
+      >
+        <Text className="text-[12px] font-bold text-white">{step}</Text>
+      </View>
+      <Text className="text-[16px] font-bold flex-1" style={{ color: theme.colors.ink }}>
+        {title}
+      </Text>
+      {action ? (
+        <Pressable onPress={action.onPress} hitSlop={8} accessibilityRole="button">
+          <Text className="text-[13px] font-bold" style={{ color: theme.colors.primary }}>
+            {action.label}
+          </Text>
+        </Pressable>
+      ) : hint ? (
+        <Text className="text-xs" style={{ color: theme.colors.faint }}>
+          {hint}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function initials(name: string): string {
+  const parts = name
+    .replace(/^(dr\.?|doctor)\s+/i, "")
+    .split(/\s+/)
+    .filter(Boolean);
+  return (
+    (parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")
+  ).toUpperCase();
+}
+
+function DoctorOption({
+  name,
+  sub,
+  selected,
+  onPress,
+}: {
+  name: string;
+  sub: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const isAny = name === "First available";
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${name}, ${sub}`}
+      className="rounded-2xl px-3.5 py-3.5 active:opacity-80"
+      style={{
+        width: 148,
+        backgroundColor: selected ? theme.colors.primarySoft : theme.colors.card,
+        borderWidth: selected ? 1.5 : 1,
+        borderColor: selected ? theme.colors.primary : theme.colors.cardBorder,
+      }}
+    >
+      <View className="flex-row items-center justify-between">
+        <View
+          className="h-10 w-10 items-center justify-center rounded-full"
+          style={{ backgroundColor: selected ? theme.colors.primary : theme.colors.primarySoft }}
+        >
+          {isAny ? (
+            <Users size={18} color={selected ? "#FFFFFF" : theme.colors.primary} />
+          ) : (
+            <Text
+              className="text-[14px] font-bold"
+              style={{ color: selected ? "#FFFFFF" : theme.colors.primary }}
+            >
+              {initials(name) || "D"}
+            </Text>
+          )}
+        </View>
+        {selected ? (
+          <View
+            className="h-5 w-5 items-center justify-center rounded-full"
+            style={{ backgroundColor: theme.colors.primary }}
+          >
+            <Check size={12} color="#FFFFFF" strokeWidth={3} />
+          </View>
+        ) : null}
+      </View>
+      <Text
+        className="text-[13px] font-bold mt-2.5"
+        style={{ color: theme.colors.ink }}
+        numberOfLines={1}
+      >
+        {name}
+      </Text>
+      <Text className="text-[11px] mt-0.5" style={{ color: theme.colors.muted }} numberOfLines={1}>
+        {sub}
+      </Text>
+    </Pressable>
   );
 }

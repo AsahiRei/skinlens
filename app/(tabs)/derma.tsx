@@ -85,8 +85,8 @@ export default function Derma() {
     }
   }, []);
 
-  // Verified locations come from the Supabase `clinics` table (managed from the website admin
-  // page), cached on-device for offline use.
+  // Verified locations come from the Supabase `clinics` table (managed in the Supabase
+  // Dashboard), cached on-device for offline use.
   useFocusEffect(
     useCallback(() => {
       let active = true;

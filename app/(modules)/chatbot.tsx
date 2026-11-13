@@ -21,6 +21,7 @@ import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaV
 import { BackChip, BackHeader, UiModal } from "@/components/ui";
 import ChatProductCard from "@/components/ChatProductCard";
 import ChatPhProductCard from "@/components/ChatPhProductCard";
+import { ChatEvidenceLink } from "@/components/ChatEvidenceLink";
 import ChatClinicCard from "@/components/ChatClinicCard";
 import { theme } from "@/lib/theme";
 import Animated from "react-native-reanimated";
@@ -139,6 +140,7 @@ export default function Chatbot() {
         relatedProducts: reply.productCards as ProductWithImage[] | undefined,
         phProducts: reply.phProducts,
         clinics: reply.clinics,
+        evidence: reply.evidence,
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
@@ -259,6 +261,9 @@ export default function Chatbot() {
               <ChatPhProductCard key={`${message.id}-ph-${product.id}`} product={product} />
             ))}
           </View>
+        )}
+        {message.evidence && message.evidence.length > 0 && (
+          <ChatEvidenceLink ingredients={message.evidence} />
         )}
         {message.clinics && message.clinics.length > 0 && (
           <View className="flex-col gap-2 mt-1">

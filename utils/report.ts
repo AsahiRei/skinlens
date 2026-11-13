@@ -9,6 +9,8 @@ import { getAllProfiles, getAllResults, getLatestRoutine, getSensitivityHistory 
 import { requireUser } from "@/lib/db/auth";
 import { formatter } from "@/utils/formatter";
 import { getHealthScoreResponse } from "@/utils/healthscore";
+import { isPhotoBasedResult } from "@/utils/result-kind";
+import { setupOptionLabel } from "@/utils/setup-score";
 import { supabase } from "@/utils/supabase";
 
 function escapeHtml(value: string): string {
@@ -75,7 +77,8 @@ export async function generateSkinReportHtml(): Promise<string> {
   // Sequential: single shared SQLite handle — concurrent statements corrupt it on Android
   // (expo#48995).
   const { userProfile, skinProfile, lifestyleProfile } = await getAllProfiles();
-  const results = await getAllResults();
+  // Clinics see photo-graded results only; an answers-only setup score isn't a skin assessment.
+  const results = (await getAllResults()).filter(isPhotoBasedResult);
   const routine = await getLatestRoutine();
   const sensitivity = await getSensitivityHistory();
 
@@ -99,9 +102,27 @@ export async function generateSkinReportHtml(): Promise<string> {
     ["Gender", fmt(userProfile?.gender)],
     ["Skin Type", fmt(skinProfile?.skin_type)],
     ["Primary Concern", fmt(skinProfile?.main_concerns)],
-    ["Sleep Quality", fmt(lifestyleProfile?.sleep_quality)],
-    ["Stress Level", fmt(lifestyleProfile?.stress_level)],
-    ["Water Intake", fmt(lifestyleProfile?.water_intake)],
+    [
+      "Sleep",
+      fmt(
+        lifestyleProfile?.sleep_quality &&
+          setupOptionLabel("sleep_quality", lifestyleProfile.sleep_quality),
+      ),
+    ],
+    [
+      "Stress Level",
+      fmt(
+        lifestyleProfile?.stress_level &&
+          setupOptionLabel("stress_level", lifestyleProfile.stress_level),
+      ),
+    ],
+    [
+      "Water (glasses/day)",
+      fmt(
+        lifestyleProfile?.water_intake &&
+          setupOptionLabel("water_intake", lifestyleProfile.water_intake),
+      ),
+    ],
   ]
     .map(
       ([label, value]) => `

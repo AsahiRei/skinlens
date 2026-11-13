@@ -52,8 +52,10 @@ export type ChatUserContext = {
   /** Dermatologist review of the latest scan, e.g. "confirmed". */
   doctor_review?: string | null;
   doctor_notes?: string | null;
-  /** Knowledge-base ingredients that appear in the sensitivity log. */
+  /** Knowledge-base ingredients to avoid: sensitivity log + safety exclusions. */
   avoid_ingredients?: string[] | null;
+  /** Why some ingredients are excluded (pregnancy, prescribed treatment) — no health details. */
+  safety_notes?: string[] | null;
 };
 
 export type ChatRole = "user" | "assistant";
@@ -75,4 +77,6 @@ export type ChatMessage = {
   relatedProducts?: ProductWithImage[];
   phProducts?: PhProduct[];
   clinics?: ChatClinic[];
+  /** Ingredients whose evidence & sources the bubble links to. */
+  evidence?: string[];
 };

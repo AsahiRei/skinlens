@@ -10,20 +10,16 @@ import { ClinicalCard, Notice, PrimaryButton, SecondaryButton, UiModal } from "@
 import { theme } from "@/lib/theme";
 import Animated from "react-native-reanimated";
 import { AnimatedBarFill, enterUp, fadeIn, fadeOut, listLayout, popIn } from "@/components/motion";
-import {
-  getLifestyleProfile,
-  getSensitivityHistory,
-  getSkinProfile,
-  insertResult,
-  insertRoutine,
-} from "@/lib/db";
+import { insertResult, insertRoutine } from "@/lib/db";
+import { loadRoutineContext, routineInput } from "@/lib/routine-refresh";
+import { RecommendedProductBody } from "@/components/RecommendedProduct";
 import type { ResultData } from "@/types/schema";
 import { requestSync } from "@/components/SyncManager";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { isOnlineNow } from "@/utils/network";
 import { getHealthScoreResponse } from "@/utils/healthscore";
-import { ingredientsAvoidedBySensitivity } from "@/utils/knowledge";
 import { generateRoutine } from "@/utils/routine-generator";
+import { parseScoreParam } from "@/utils/questionnaire-score";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import { UrgentCareModal } from "@/components/UrgentCareModal";
 import { markUrgentCareReminded, needsUrgentCare } from "@/utils/urgent-care";
@@ -39,6 +35,9 @@ const detectionDescriptions: Record<string, string> = {
     "No significant skin conditions were detected. Your skin appears healthy. A good maintenance routine will help keep it that way.",
 };
 
+const DISPUTED_COPY =
+  "You said this result doesn't match your skin, so it isn't scored or counted in your progress, and your routine follows your own profile instead. Try a retake in even, natural light — and if something on your skin worries you, a dermatologist can check it.";
+
 export default function ScanResults() {
   const router = useRouter();
   const { imageUri, sourceType, label, confidence, probabilities, surveyAnswers, severityScore } =
@@ -53,7 +52,8 @@ export default function ScanResults() {
     }>();
 
   const detectionLabel = label ?? "normal";
-  const surveyScore = Number(severityScore) || 50;
+  // A real 0 (all worst answers) must stay 0 — `Number(x) || 50` used to turn it into 50.
+  const surveyScore = parseScoreParam(severityScore, 50);
   const conf = Number(confidence) || 0;
   // probabilities comes from analyzing via survey — never trust it blindly.
   const probabilityMap: Record<string, number> | null = useMemo(() => {
@@ -94,6 +94,10 @@ export default function ScanResults() {
       return {};
     }
   }, [surveyAnswers]);
+
+  // "No, that doesn't match my skin": the detection is not presented as a finding, gets no score,
+  // doesn't drive the routine and is kept out of progress (utils/result-kind).
+  const disputed = parsedSurveyAnswers.match === "no";
 
   // Overall health score: probability-weighted detection baseline blended
   // with the survey severity (see utils/detection-score.ts).
@@ -152,32 +156,20 @@ export default function ScanResults() {
       setGenerating(true);
       setError(null);
 
-      // Rule-based routine: no model download — just read profiles, then
-      // build the routine deterministically from the knowledge base.
-      const [skinProfile, lifestyleProfile] = await Promise.all([
-        getSkinProfile(),
-        getLifestyleProfile(),
-      ]);
+      // Rule-based routine from the shared context: profiles, logged triggers (never recommended)
+      // and the health profile's safety exclusions (pregnancy, prescribed treatment).
+      const ctx = await loadRoutineContext();
       if (cancelledRef.current) return;
-      const resolvedSkinType = skinProfile?.skin_type || "normal";
+      const resolvedSkinType = ctx.skin?.skin_type || "normal";
       setSkinType(resolvedSkinType);
 
-      // Personalisation inputs (best-effort): the profile's free-text
-      // concerns re-rank the knowledge base, and ingredients the patient
-      // logged as triggers are dropped when alternatives exist.
-      const sensitivity = await getSensitivityHistory().catch(() => []);
-      if (cancelledRef.current) return;
-      const avoidIngredients = ingredientsAvoidedBySensitivity(sensitivity);
-
       const routineJson = await generateRoutine({
-        skin_type: resolvedSkinType,
-        main_concern: detectionLabel,
-        sleep_quality: lifestyleProfile?.sleep_quality ?? "fair",
-        stress_level: lifestyleProfile?.stress_level ?? "moderate",
-        water_intake: lifestyleProfile?.water_intake ?? "1_to_1_5l",
-        health_score: overallScore,
-        profile_concerns: skinProfile?.main_concerns ?? null,
-        avoid_ingredients: avoidIngredients,
+        ...routineInput(ctx, {
+          skin_type: resolvedSkinType,
+          // A disputed detection must not pick the treatment — fall back to the user's own concern.
+          main_concern: disputed ? ctx.skin?.main_concerns || "normal" : detectionLabel,
+          health_score: overallScore,
+        }),
       });
       if (cancelledRef.current) return;
       const healthResponse = getHealthScoreResponse(overallScore, {
@@ -188,7 +180,7 @@ export default function ScanResults() {
       routineJsonRef.current = routineJson;
       setResultData({
         severity: healthResponse.severity,
-        description: healthResponse.message,
+        description: disputed ? DISPUTED_COPY : healthResponse.message,
         healthscore: overallScore,
         recommendations: parsedRoutine.recommended_products ?? null,
       });
@@ -350,31 +342,39 @@ export default function ScanResults() {
             )}
           </Animated.View>
 
-          {/* Health score */}
-          <Animated.View entering={enterUp(3)} className="items-center gap-2">
-            <CircularProgress
-              progress={overallScore}
-              size={140}
-              strokeWidth={8}
-              color={color}
-              trackColor={trackColor}
-            >
-              <Text className="text-3xl font-semibold text-gray-700">
-                {overallScore}
-                <Text className="text-base" style={{ color: theme.colors.muted }}>
-                  /100
-                </Text>
-              </Text>
-            </CircularProgress>
-            <View className="flex-row items-center gap-1.5">
-              <View style={{ backgroundColor: color }} className="h-2 w-2 rounded-full" />
-              <Text className="text-sm font-medium" style={{ color: theme.colors.muted }}>
-                {severityLabel}
-              </Text>
-            </View>
-          </Animated.View>
+          {disputed && (
+            <Animated.View entering={enterUp(3)}>
+              <Notice icon={AlertCircle} tone="warning" copy={DISPUTED_COPY} />
+            </Animated.View>
+          )}
 
-          {assessment.inconclusive && (
+          {/* Health score (hidden for a disputed scan — it would score something the user says isn't there) */}
+          {!disputed && (
+            <Animated.View entering={enterUp(3)} className="items-center gap-2">
+              <CircularProgress
+                progress={overallScore}
+                size={140}
+                strokeWidth={8}
+                color={color}
+                trackColor={trackColor}
+              >
+                <Text className="text-3xl font-semibold text-gray-700">
+                  {overallScore}
+                  <Text className="text-base" style={{ color: theme.colors.muted }}>
+                    /100
+                  </Text>
+                </Text>
+              </CircularProgress>
+              <View className="flex-row items-center gap-1.5">
+                <View style={{ backgroundColor: color }} className="h-2 w-2 rounded-full" />
+                <Text className="text-sm font-medium" style={{ color: theme.colors.muted }}>
+                  {severityLabel}
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+
+          {!disputed && assessment.inconclusive && (
             <Animated.View entering={enterUp(4)}>
               <Notice
                 icon={AlertCircle}
@@ -476,37 +476,27 @@ export default function ScanResults() {
           {!generating && resultData?.recommendations && resultData.recommendations.length > 0 && (
             <Animated.View entering={enterUp(1)} layout={listLayout}>
               <ClinicalCard className="gap-4">
-                <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
-                  Recommended Products
-                </Text>
+                <View className="gap-1">
+                  <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
+                    Commonly Recommended
+                  </Text>
+                  <Text className="text-xs leading-4" style={{ color: theme.colors.muted }}>
+                    Product types often used for this concern. Skin reacts differently from person
+                    to person — patch-test first, and tap &quot;This irritated my skin&quot; if one
+                    doesn&apos;t suit you.
+                  </Text>
+                </View>
                 {resultData.recommendations.map((product) => (
                   <View
                     key={product.product_type}
                     className="gap-1.5 pb-3"
                     style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
                   >
-                    <Text className="font-bold" style={{ color: theme.colors.ink }}>
-                      {product.product_type}
-                    </Text>
-                    <View className="flex-row flex-wrap gap-1.5">
-                      {product.recommended_ingredients.map((ingredient, i) => (
-                        <View
-                          key={i}
-                          className="rounded-full px-3 py-1"
-                          style={{ backgroundColor: theme.colors.primarySoft }}
-                        >
-                          <Text
-                            className="text-xs font-semibold"
-                            style={{ color: theme.colors.primaryDeep }}
-                          >
-                            {ingredient}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                    <Text className="text-xs mt-1" style={{ color: theme.colors.muted }}>
-                      {product.reason}
-                    </Text>
+                    <RecommendedProductBody
+                      product={product}
+                      // The preview routine still contains it — rebuild the preview too.
+                      onReported={() => void generatePreview()}
+                    />
                   </View>
                 ))}
               </ClinicalCard>

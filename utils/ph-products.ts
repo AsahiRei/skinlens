@@ -8,7 +8,11 @@ const INGREDIENT_ALIASES: [RegExp, string][] = [
   [/\bsalicylic\b|\bbha\b/, "Salicylic Acid"],
   [/\bbenzoyl\b/, "Benzoyl Peroxide"],
   [/\bazelaic\b/, "Azelaic Acid"],
-  [/\bretinol\b|\bretinoid/, "Retinol"],
+  [/\bretinol\b|\bretinal\b/, "Retinol"],
+  [/\badapalene\b|\bdifferin\b/, "Adapalene"],
+  // A generic "retinoid" means the class; the guideline-backed OTC one is adapalene.
+  [/\bretinoids?\b/, "Adapalene"],
+  [/\bbakuchiol\b/, "Bakuchiol"],
   [/\bglycolic\b|\baha\b/, "Glycolic Acid"],
   [/\blactic acid\b/, "Lactic Acid"],
   [/\bhyaluronic\b|\bsodium hyaluronate\b/, "Hyaluronic Acid"],
@@ -24,7 +28,15 @@ const INGREDIENT_ALIASES: [RegExp, string][] = [
   [/\bgreen tea\b/, "Green Tea Extract"],
   [/\bclay\b|\bkaolin\b|\bbentonite\b/, "Clay (Kaolin/Bentonite)"],
   [/\bsulfur\b|\bsulphur\b/, "Sulfur"],
-  [/\bzinc\b/, "Zinc PCA"],
+  // "zinc oxide" is a sunscreen filter — it must not be read as Zinc PCA.
+  [/\bzinc oxide\b/, "Zinc Oxide"],
+  [/\bzinc pca\b|\bzinc\b(?! oxide)/, "Zinc PCA"],
+  [/\btitanium\b/, "Titanium Dioxide"],
+  [/\bmineral oil\b|\bbaby oil\b/, "Mineral Oil"],
+  [/\bsunflower\b/, "Sunflower Seed Oil"],
+  [/\bjojoba\b/, "Jojoba Oil"],
+  [/\bglycerin\b|\bglycerol\b/, "Glycerin"],
+  [/\bdimethicone\b/, "Dimethicone"],
   [/\bvitamin c\b|\bvit c\b|\bascorbic\b/, "Vitamin C"],
   [/\bvitamin e\b|\btocopherol\b/, "Vitamin E"],
   [/\bpeptides?\b/, "Peptides"],
@@ -154,9 +166,13 @@ export function findPhProducts(opts: {
   const type = requestedType(message);
   const wanted = new Set(ingredients.map((i) => i.toLowerCase()));
 
+  // Sensitive or eczema-prone users never get a fragranced product suggested (fragrance is one
+  // of the most common causes of contact dermatitis).
+  const fragranceSensitive = tags.has("sensitive") || tags.has("eczema");
   const scored = PH_PRODUCTS.flatMap((p) => {
     const keys = p.key_ingredients.map((k) => k.toLowerCase());
     if (keys.some((k) => avoid.has(k))) return [];
+    if (fragranceSensitive && p.contains_fragrance) return [];
     const matched = p.key_ingredients.filter((k) => wanted.has(k.toLowerCase()));
     if (matched.length === 0) return [];
     let score = matched.length * 10;

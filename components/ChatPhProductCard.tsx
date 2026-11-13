@@ -58,6 +58,12 @@ export default function ChatPhProductCard({ product }: { product: PhProduct }) {
         </View>
       </View>
 
+      {product.caution && (
+        <Text className="text-[11px] leading-4" style={{ color: theme.colors.warningText }}>
+          {product.caution}
+        </Text>
+      )}
+
       <View className="flex-row flex-wrap gap-1">
         {highlighted.map((ing) => (
           <View key={ing} className="rounded-full px-2 py-0.5 bg-white">

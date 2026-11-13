@@ -173,6 +173,17 @@ async function processSyncQueueInner(sessionValidated = false): Promise<void> {
           if (error) throw error;
           break;
         }
+        case "health_profile": {
+          const { id, ...profile } = entry.payload as {
+            id: string;
+            [k: string]: unknown;
+          };
+          const { error } = await supabase
+            .from("health_profile")
+            .upsert({ id, ...profile, updated_at: new Date().toISOString() });
+          if (error) throw error;
+          break;
+        }
         case "results": {
           const payload = entry.payload as Record<string, unknown>;
           // A device-path image must be uploaded before it means anything server-side. If the

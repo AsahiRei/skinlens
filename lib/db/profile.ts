@@ -1,4 +1,4 @@
-import type { LifestyleProfile, SkinProfile, UserProfile } from "@/types/schema";
+import type { HealthProfile, LifestyleProfile, SkinProfile, UserProfile } from "@/types/schema";
 import { supabase } from "@/utils/supabase";
 
 import { requireUser } from "./auth";
@@ -353,6 +353,92 @@ export async function upsertLifestyleProfile(
     await removeSyncEntry(queuedId);
   } catch {
     // Will be retried
+  }
+}
+
+// ── Health Profile (pregnancy / treatment / sunscreen — migration 0016) ──
+
+const HEALTH_FIELDS = ["pregnancy_status", "current_treatment", "sunscreen_use"] as const;
+
+function pickHealth(row: Partial<HealthProfile> | null | undefined): HealthProfile {
+  return {
+    pregnancy_status: row?.pregnancy_status ?? null,
+    current_treatment: row?.current_treatment ?? null,
+    sunscreen_use: row?.sunscreen_use ?? null,
+  };
+}
+
+async function writeLocalHealth(id: string, p: HealthProfile, syncedAt: string | null) {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT OR REPLACE INTO health_profile (id, pregnancy_status, current_treatment, sunscreen_use, synced_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [id, p.pregnancy_status, p.current_treatment, p.sunscreen_use, syncedAt],
+  );
+}
+
+/** Local-first; null when the user never answered (accounts created before 0016). */
+export async function getHealthProfile(): Promise<HealthProfile | null> {
+  const user = await requireUser();
+  const db = await getDatabase();
+  const local = await db.getFirstAsync<HealthProfile & { id: string }>(
+    `SELECT * FROM health_profile WHERE id = ?`,
+    [user.id],
+  );
+  if (local) {
+    swallow(
+      (async () => {
+        if (await hasPendingSync("health_profile", user.id)) return;
+        const { data } = await supabase
+          .from("health_profile")
+          .select(HEALTH_FIELDS.join(", "))
+          .eq("id", user.id)
+          .maybeSingle();
+        if (data)
+          await writeLocalHealth(user.id, pickHealth(data as Partial<HealthProfile>), now());
+      })(),
+    );
+    return pickHealth(local);
+  }
+  try {
+    const { data, error } = await supabase
+      .from("health_profile")
+      .select(HEALTH_FIELDS.join(", "))
+      .eq("id", user.id)
+      .maybeSingle();
+    if (error || !data) return null;
+    const profile = pickHealth(data as Partial<HealthProfile>);
+    await writeLocalHealth(user.id, profile, now());
+    return profile;
+  } catch {
+    return null;
+  }
+}
+
+/** Merges the given fields into the stored health profile (other fields are kept). */
+export async function upsertHealthProfile(updates: Partial<HealthProfile>): Promise<void> {
+  const user = await requireUser();
+  const db = await getDatabase();
+  const existing = await db.getFirstAsync<HealthProfile>(
+    `SELECT pregnancy_status, current_treatment, sunscreen_use FROM health_profile WHERE id = ?`,
+    [user.id],
+  );
+  const merged = pickHealth({ ...pickHealth(existing), ...updates });
+  await writeLocalHealth(user.id, merged, null);
+
+  const queuedId = await enqueueSync("health_profile", "upsert", user.id, {
+    ...merged,
+    id: user.id,
+  });
+  try {
+    const { error } = await supabase
+      .from("health_profile")
+      .upsert({ id: user.id, ...merged, updated_at: now() });
+    if (error) throw error;
+    await removeSyncEntry(queuedId);
+    await db.runAsync(`UPDATE health_profile SET synced_at = ? WHERE id = ?`, [now(), user.id]);
+  } catch {
+    // Kept locally and retried by the sync queue (also covers a server without migration 0016).
   }
 }
 

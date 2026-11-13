@@ -12,27 +12,43 @@ import { theme } from "@/lib/theme";
 import Animated from "react-native-reanimated";
 import { enterUp, fadeIn, popIn } from "@/components/motion";
 import {
+  addSensitivityEntry,
+  getSensitivityHistory,
   insertResult,
   insertRoutine,
   requireUser,
+  upsertHealthProfile,
   upsertLifestyleProfile,
   upsertSkinProfile,
   updateUserProfile,
 } from "@/lib/db";
+import { loadRoutineContext, routineInput } from "@/lib/routine-refresh";
 import { getFaceIdentity } from "@/lib/db/profile";
 import stepsData from "@/data/steps.json";
 import { getHealthScoreResponse } from "@/utils/healthscore";
 import { generateRoutine } from "@/utils/routine-generator";
+import {
+  type PhotoClassification,
+  combineSetupBaseline,
+  getSetupProfileResponse,
+  sanitizeSetupAnswers,
+  setupIrritants,
+} from "@/utils/setup-score";
+import { classifyImage } from "@/utils/skin-prediction";
 import { ScreenGradient } from "@/components/ScreenGradient";
 
 const steps = stepsData.userSetup;
 
 export default function Loading() {
   const router = useRouter();
-  const { healthScore, answers } = useLocalSearchParams<{
+  const { healthScore, answers, photoUri } = useLocalSearchParams<{
     healthScore: string;
     answers: string;
+    photoUri?: string;
   }>();
+  // Only a local face crop from face-enroll is graded — never a remote or arbitrary URI.
+  const gradingUri =
+    typeof photoUri === "string" && photoUri.startsWith("file://") ? photoUri : null;
   const [stepIndex, setStepIndex] = useState(0);
   const [progressPct, setProgressPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -46,16 +62,11 @@ export default function Loading() {
   const parsedAnswers: Record<string, string> = useMemo(() => {
     if (!answers) return {};
     try {
-      const parsed: unknown = JSON.parse(answers);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, string>;
-      }
-      return {};
+      return sanitizeSetupAnswers(JSON.parse(answers));
     } catch {
       return {};
     }
   }, [answers]);
-  const score = Number(healthScore) || 0;
 
   const goToStep = (i: number) => {
     setStepIndex(i);
@@ -102,18 +113,52 @@ export default function Loading() {
           water_intake: parsedAnswers.water_intake,
         }),
       ]);
+      // Safety context that changes what may be recommended (pregnancy, prescribed treatment).
+      await upsertHealthProfile({
+        pregnancy_status: parsedAnswers.pregnancy_status ?? null,
+        current_treatment: parsedAnswers.current_treatment ?? null,
+        sunscreen_use: parsedAnswers.sunscreen_use ?? null,
+      });
+      // Known irritants go into the sensitivity log as a structured entry, so every later routine
+      // (scans, rebuilds) and the chatbot keep them out — not just this first routine. Skipped on
+      // "Try Again" when the identical entry already exists.
+      const irritants = setupIrritants(parsedAnswers);
+      if (irritants.length > 0) {
+        const note = `Reported at setup. Ingredients: ${irritants.join(", ")}.`;
+        const history = await getSensitivityHistory().catch(() => []);
+        if (!history.some((e) => e.notes === note)) {
+          await addSensitivityEntry({ trigger_cause: "product", severity: "mild", notes: note });
+        }
+      }
       if (cancelledRef.current) return;
       goToStep(1);
+      // Grade the enrollment photo with the same on-device model as scans. Any failure (model,
+      // unreadable file) falls back to an answers-only baseline instead of blocking setup.
+      let classification: PhotoClassification | null = null;
+      if (gradingUri) {
+        try {
+          classification = await classifyImage(gradingUri);
+        } catch (err) {
+          console.warn("[user-setup] photo grading failed, using answers only:", err);
+        }
+      }
+      if (cancelledRef.current) return;
+      // Score is recomputed from the validated answers (+ photo) — the healthScore param is only
+      // forwarded, never trusted.
+      const baseline = combineSetupBaseline(parsedAnswers, classification);
+      const score = baseline.score;
       goToStep(2);
       if (cancelledRef.current) return;
-      const routineJson = await generateRoutine({
-        skin_type: parsedAnswers.skin_type,
-        main_concern: parsedAnswers.main_concern,
-        sleep_quality: parsedAnswers.sleep_quality,
-        stress_level: parsedAnswers.stress_level,
-        water_intake: parsedAnswers.water_intake,
-        health_score: score,
-      });
+      // Same shared context as scans: the profiles just saved, the irritants just logged and the
+      // safety exclusions. The user's stated concern drives the starter routine.
+      const ctx = await loadRoutineContext();
+      const routineJson = await generateRoutine(
+        routineInput(ctx, {
+          skin_type: parsedAnswers.skin_type,
+          main_concern: parsedAnswers.main_concern,
+          health_score: score,
+        }),
+      );
       const parsedRoutine = JSON.parse(routineJson);
       const healthScoreResponse = getHealthScoreResponse(score, parsedAnswers);
       // Attach the enrollment photo to this baseline result so Progress's
@@ -123,10 +168,16 @@ export default function Loading() {
         .catch(() => null);
       await insertResult({
         severity: healthScoreResponse.severity,
-        description: healthScoreResponse.message,
+        // Guidance wording, not a verdict.
+        description: getSetupProfileResponse(score, parsedAnswers, baseline.photo?.label ?? null)
+          .message,
         healthscore: score,
         recommendations: parsedRoutine.recommended_products ?? null,
         image_url: baselineImage,
+        // A detection label marks this as photo-graded, so Progress compares later scans against
+        // it. Answers-only baselines leave it null and stay out of trends (utils/result-kind).
+        detection_label: baseline.photo?.label ?? null,
+        confidence: baseline.photo?.confidence ?? null,
       });
       await insertRoutine(routineJson);
       if (cancelledRef.current) return;
@@ -203,7 +254,7 @@ export default function Loading() {
               Creating Your Routine
             </Text>
             <Text className="text-center" style={{ color: theme.colors.muted }}>
-              Building your routine from your answers
+              Building your routine from your photo and answers
             </Text>
           </Animated.View>
           <Animated.View entering={enterUp(2)} className="w-full gap-3">

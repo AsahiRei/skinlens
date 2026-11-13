@@ -714,6 +714,7 @@ export default function AppointmentsScreen() {
           key={rescheduleRow?.id ?? "closed"}
           row={rescheduleRow}
           clinicName={rescheduleRow ? clinicName(rescheduleRow) : ""}
+          clinicHours={rescheduleRow ? clinics[rescheduleRow.clinic_id]?.hours : null}
           onDismiss={() => setRescheduleRow(null)}
           onDone={async () => {
             setRescheduleRow(null);

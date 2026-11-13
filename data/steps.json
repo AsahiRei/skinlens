@@ -1,7 +1,7 @@
 {
   "userSetup": [
-    { "label": "Analyzing your skin profile" },
-    { "label": "Reviewing lifestyle factors" },
+    { "label": "Saving your answers" },
+    { "label": "Analyzing your photo" },
     { "label": "Generating your routine" },
     { "label": "Finalizing your results" }
   ],

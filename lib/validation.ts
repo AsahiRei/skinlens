@@ -117,3 +117,28 @@ export function parseJson<T>(raw: string | null, schema: z.ZodType<T>): T | null
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Please check the form";
 }
+
+export const FIRST_NAME_MAX_LENGTH = 50;
+
+/** Trims and collapses inner whitespace so "  ana   marie " is stored as "ana marie". */
+export function normalizeFirstName(name: string): string {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Letters (any script) plus the separators real names use: space, hyphen, apostrophe, period.
+ * Must start with a letter, so "123", "!!" or an emoji-only name are rejected.
+ */
+const FIRST_NAME_PATTERN = /^\p{L}[\p{L}\p{M} .'’-]*$/u;
+
+/** Null when the name is acceptable, otherwise the message to show the user. */
+export function firstNameError(name: string): string | null {
+  const value = normalizeFirstName(name);
+  if (value.length === 0) return "Please enter your first name";
+  if (value.length < 2) return "Please enter at least 2 letters";
+  if (value.length > FIRST_NAME_MAX_LENGTH)
+    return `Please keep your name under ${FIRST_NAME_MAX_LENGTH} characters`;
+  if (!FIRST_NAME_PATTERN.test(value))
+    return "Please use letters only (spaces, hyphens and apostrophes are fine)";
+  return null;
+}

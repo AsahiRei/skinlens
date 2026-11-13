@@ -2,45 +2,52 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, ToastAndroid, View } from "react-native";
 import { Text } from "@/components/Text";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Check } from "lucide-react-native";
+import { Check, Info } from "lucide-react-native";
 
 import CircularProgress from "@/components/CircularProgress";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
-import { ClinicalCard, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { ClinicalCard, Notice, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import Animated from "react-native-reanimated";
 import { enterUp, fadeIn, listLayout, popIn } from "@/components/motion";
-import { getLatestResultDetail, requireUser, updateUserProfile } from "@/lib/db";
+import { getLatestResult, requireUser, updateUserProfile } from "@/lib/db";
 import { useTutorial } from "@/components/TutorialCoach";
 import { setTutorialPending } from "@/lib/tutorial";
-import type { ResultData } from "@/types/schema";
+import type { Result } from "@/types/schema";
 import { getHealthScoreResponse } from "@/utils/healthscore";
-import { formatter } from "@/utils/formatter";
+import {
+  computeSetupScore,
+  describeSetupAnswers,
+  getSetupProfileResponse,
+  sanitizeSetupAnswers,
+  setupDisclaimer,
+} from "@/utils/setup-score";
 import { ScreenGradient } from "@/components/ScreenGradient";
+import { RecommendedProductBody } from "@/components/RecommendedProduct";
 
 export default function Results() {
-  const [resultData, setResultData] = useState<ResultData | null>(null);
+  const [resultData, setResultData] = useState<Result | null>(null);
   const [resultLoading, setResultLoading] = useState(true);
   const [loading, setLoading] = useState(false);
-  const { healthScore, answers } = useLocalSearchParams<{
-    healthScore: string;
-    answers: string;
-  }>();
-  const score = Number(healthScore) || 0;
+  const { answers } = useLocalSearchParams<{ answers: string }>();
   // answers comes from navigation params — never trust it blindly.
   const parsedAnswers: Record<string, string> = useMemo(() => {
     if (!answers) return {};
     try {
-      const parsed: unknown = JSON.parse(answers);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, string>;
-      }
-      return {};
+      return sanitizeSetupAnswers(JSON.parse(answers));
     } catch {
       return {};
     }
   }, [answers]);
-  const { label, message, color, trackColor } = getHealthScoreResponse(score, parsedAnswers);
+  // The saved baseline row is the source of truth (it includes the photo grade when the photo was
+  // clear enough). Params are never trusted for the score; answers-only is the fallback if the row
+  // can't be read.
+  const photoLabel = resultData?.detection_label?.trim() || null;
+  const score = resultData ? Math.round(resultData.healthscore) : computeSetupScore(parsedAnswers);
+  // Colors still come from the shared bands; the words are setup-specific guidance.
+  const { color, trackColor } = getHealthScoreResponse(score, parsedAnswers);
+  const { label, message } = getSetupProfileResponse(score, parsedAnswers, photoLabel);
+  const answerRows = useMemo(() => describeSetupAnswers(parsedAnswers), [parsedAnswers]);
   const router = useRouter();
   const { startTutorial } = useTutorial();
   const getStarted = async () => {
@@ -68,7 +75,7 @@ export default function Results() {
   const fetchResult = useCallback(async () => {
     setResultLoading(true);
     try {
-      const data = await getLatestResultDetail();
+      const data = await getLatestResult();
       if (data) {
         setResultData(data);
       }
@@ -84,7 +91,7 @@ export default function Results() {
     let cancelled = false;
     void (async () => {
       try {
-        const data = await getLatestResultDetail();
+        const data = await getLatestResult();
         if (!cancelled && data) setResultData(data);
       } catch (error) {
         console.error("Result error:", error);
@@ -103,26 +110,39 @@ export default function Results() {
         <View className="flex-1 px-5 gap-5">
           <Animated.View entering={enterUp(0)} className="pt-4 items-center">
             <Text className="font-bold text-[24px]" style={{ color: theme.colors.ink }}>
-              Skin Results
+              Your Skin Profile
             </Text>
-            <Text style={{ color: theme.colors.muted }}>Your skin analysis</Text>
+            <Text style={{ color: theme.colors.muted }}>
+              {photoLabel
+                ? "A starting point from your photo and answers"
+                : "A starting point based on your answers"}
+            </Text>
           </Animated.View>
 
-          <Animated.View entering={enterUp(1)} className="items-center gap-2">
-            <CircularProgress
-              progress={score}
-              size={140}
-              strokeWidth={8}
-              color={color}
-              trackColor={trackColor}
-            >
-              <Text className="text-3xl font-semibold text-gray-700">{score}/100</Text>
-            </CircularProgress>
-            <View className="flex-row items-center gap-1.5">
-              <View style={{ backgroundColor: color }} className="h-2 w-2 rounded-full" />
-              <Text className="text-sm font-medium text-gray-500">{label}</Text>
+          {resultLoading ? (
+            <View className="items-center justify-center" style={{ height: 190 }}>
+              <ActivityIndicator color={theme.colors.primary} />
             </View>
-          </Animated.View>
+          ) : (
+            <Animated.View entering={enterUp(1)} className="items-center gap-2">
+              <CircularProgress
+                progress={score}
+                size={140}
+                strokeWidth={8}
+                color={color}
+                trackColor={trackColor}
+              >
+                <Text className="text-3xl font-semibold text-gray-700">{score}/100</Text>
+              </CircularProgress>
+              <View className="flex-row items-center gap-1.5">
+                <View style={{ backgroundColor: color }} className="h-2 w-2 rounded-full" />
+                <Text className="text-sm font-medium text-gray-500">{label}</Text>
+              </View>
+              <Text className="text-xs" style={{ color: theme.colors.faint }}>
+                {photoLabel ? "Photo 60% · Answers 40%" : "Based on your answers only"}
+              </Text>
+            </Animated.View>
+          )}
 
           <Animated.View entering={enterUp(2)}>
             <ClinicalCard className="gap-3">
@@ -163,7 +183,7 @@ export default function Results() {
               <Animated.View key="products" entering={fadeIn} layout={listLayout}>
                 <ClinicalCard className="gap-4">
                   <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
-                    Recommended Products
+                    Commonly Recommended Products
                   </Text>
                   <Text
                     className="text-sm pb-3"
@@ -181,28 +201,7 @@ export default function Results() {
                       className="gap-1.5 pb-3"
                       style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
                     >
-                      <Text className="font-bold" style={{ color: theme.colors.ink }}>
-                        {product.product_type}
-                      </Text>
-                      <View className="flex-row flex-wrap gap-1.5">
-                        {product.recommended_ingredients.map((ingredient, i) => (
-                          <View
-                            key={i}
-                            className="rounded-full px-3 py-1"
-                            style={{ backgroundColor: theme.colors.primarySoft }}
-                          >
-                            <Text
-                              className="text-xs font-semibold"
-                              style={{ color: theme.colors.primaryDeep }}
-                            >
-                              {ingredient}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                      <Text className="text-xs mt-1" style={{ color: theme.colors.faint }}>
-                        {product.reason}
-                      </Text>
+                      <RecommendedProductBody product={product} />
                     </View>
                   ))}
                 </ClinicalCard>
@@ -210,23 +209,26 @@ export default function Results() {
             )
           )}
 
-          {Object.keys(parsedAnswers).length > 0 && (
+          {answerRows.length > 0 && (
             <Animated.View entering={enterUp(4)} layout={listLayout}>
               <ClinicalCard className="gap-3">
                 <Text className="font-bold text-[16px]" style={{ color: theme.colors.ink }}>
                   Your Answers
                 </Text>
-                {Object.entries(parsedAnswers).map(([question, answer]) => (
+                {answerRows.map((row) => (
                   <View
-                    key={question}
+                    key={row.label}
                     className="flex-row justify-between gap-3 pb-2"
                     style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
                   >
                     <Text className="flex-1 text-sm" style={{ color: theme.colors.muted }}>
-                      {formatter(question)}
+                      {row.label}
                     </Text>
-                    <Text className="text-sm font-bold" style={{ color: theme.colors.ink }}>
-                      {formatter(answer)}
+                    <Text
+                      className="flex-1 text-sm font-bold text-right"
+                      style={{ color: theme.colors.ink }}
+                    >
+                      {row.value}
                     </Text>
                   </View>
                 ))}
@@ -234,12 +236,19 @@ export default function Results() {
             </Animated.View>
           )}
 
+          <Animated.View entering={enterUp(5)} layout={listLayout}>
+            <Notice icon={Info} tone="info" copy={setupDisclaimer(!!photoLabel)} />
+          </Animated.View>
+
           <View className="h-4" />
         </View>
       </ScrollView>
       <View className="py-6 w-full gap-2 px-5">
-        <PrimaryButton label="Confirm Result" onPress={getStarted} loading={loading} />
-        <SecondaryButton label="Retry Again" onPress={fetchResult} />
+        <PrimaryButton label="Continue" onPress={getStarted} loading={loading} />
+        {/* Only offer a reload when the recommendations actually failed to load. */}
+        {!resultLoading && !resultData && (
+          <SecondaryButton label="Reload Recommendations" onPress={fetchResult} />
+        )}
       </View>
     </SafeAreaView>
   );

@@ -2,8 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { supabase } from "@/utils/supabase";
 
-// Verified hospitals — the source of truth is the Supabase `clinics` table (managed from the
-// website admin page).
+// Verified hospitals — the source of truth is the Supabase `clinics` table (managed in the
+// Supabase Dashboard).
 export type VerifiedClinic = {
   id: string;
   name: string;

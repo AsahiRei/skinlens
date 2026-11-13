@@ -35,7 +35,12 @@ async function getModel() {
   return model;
 }
 
-const CLASS_LABELS = ["acne", "dry", "eczema", "normal", "oily"] as const;
+// Must match the training order in skinlens-ml (model_effb0/tflite/labels.txt). The model is the
+// EfficientNet-B0 fp16 export: input float32 [1,224,224,3] RGB in 0..255 (no normalisation — the
+// model rescales internally); two outputs, told apart by length (5 = classes, 3 = severity).
+// Both outputs are already temperature-calibrated softmax probabilities.
+const CLASS_LABELS = ["acne", "eczema", "oily", "dry", "normal"] as const;
+const SEVERITY_LABELS = ["mild", "moderate", "severe"] as const;
 
 function getImageSize(imageUri: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
@@ -186,66 +191,28 @@ export async function classifyImage(imageUri: string): Promise<ClassificationRes
     throw new Error(`Unexpected image size: ${decoded.width}x${decoded.height}`);
   }
 
-  const totalPixels = 224 * 224;
-
-  // Pass 1: compute per-channel averages for white balance + auto-exposure
-  let rSum = 0,
-    gSum = 0,
-    bSum = 0;
-  for (let y = 0; y < 224; y++) {
-    for (let x = 0; x < 224; x++) {
-      const i = (y * 224 + x) * 4;
-      rSum += decoded.data[i];
-      gSum += decoded.data[i + 1];
-      bSum += decoded.data[i + 2];
-    }
-  }
-  const rAvg = rSum / totalPixels;
-  const gAvg = gSum / totalPixels;
-  const bAvg = bSum / totalPixels;
-
-  // Gray-world white balance: equalize channel averages
-  const grayAvg = (rAvg + gAvg + bAvg) / 3;
-  const rGain = rAvg > 0 ? grayAvg / rAvg : 1;
-  const gGain = gAvg > 0 ? grayAvg / gAvg : 1;
-  const bGain = bAvg > 0 ? grayAvg / bAvg : 1;
-
-  // Auto-exposure: shift mean brightness toward mid-gray (127.5)
-  const targetMean = 127.5;
-  const currentMean = grayAvg;
-  const exposureGain = currentMean > 0 ? targetMean / currentMean : 1;
-
+  // Raw RGB pixels, exactly as in training (center-crop + resize only). No white balance or
+  // exposure correction here — the model never saw those during training, so applying them would
+  // shift its inputs. (enhanceImage still does that, but only for the on-screen preview.)
   const input = new Float32Array(1 * 224 * 224 * 3);
   let index = 0;
-  for (let y = 0; y < 224; y++) {
-    for (let x = 0; x < 224; x++) {
-      const i = (y * 224 + x) * 4;
-      let r = decoded.data[i] * rGain * exposureGain;
-      let g = decoded.data[i + 1] * gGain * exposureGain;
-      let b = decoded.data[i + 2] * bGain * exposureGain;
-      if (r > 255) r = 255;
-      if (g > 255) g = 255;
-      if (b > 255) b = 255;
-      if (r < 0) r = 0;
-      if (g < 0) g = 0;
-      if (b < 0) b = 0;
-      input[index++] = r;
-      input[index++] = g;
-      input[index++] = b;
-    }
+  for (let p = 0; p < 224 * 224; p++) {
+    const i = p * 4;
+    input[index++] = decoded.data[i];
+    input[index++] = decoded.data[i + 1];
+    input[index++] = decoded.data[i + 2];
   }
 
-  const inputBuffer = input.buffer.slice(
-    input.byteOffset,
-    input.byteOffset + input.byteLength,
-  ) as ArrayBuffer;
+  const output = await tfliteModel.run([input.buffer as ArrayBuffer]);
+  const outputs = output.map((o) => new Float32Array(o as ArrayBuffer));
+  const probabilities = outputs.find((o) => o.length === CLASS_LABELS.length);
+  const severityProbs = outputs.find((o) => o.length === SEVERITY_LABELS.length);
 
-  const output = await tfliteModel.run([inputBuffer]);
-  const probabilities = new Float32Array(output[0]);
-
-  if (probabilities.length !== CLASS_LABELS.length) {
+  if (!probabilities) {
     throw new Error(
-      `Expected ${CLASS_LABELS.length} outputs, but model returned ${probabilities.length}`,
+      `Expected a ${CLASS_LABELS.length}-class output, but model returned lengths ${outputs
+        .map((o) => o.length)
+        .join(",")}`,
     );
   }
 
@@ -263,15 +230,36 @@ export async function classifyImage(imageUri: string): Promise<ClassificationRes
     probabilityMap[className] = probabilities[idx];
   });
 
+  // Severity head is meaningless for "normal" skin, so only report it for a detected condition.
+  let severity: ClassificationResult["severity"];
+  if (severityProbs && label !== "normal") {
+    let sevIndex = 0;
+    for (let i = 1; i < severityProbs.length; i++) {
+      if (severityProbs[i] > severityProbs[sevIndex]) sevIndex = i;
+    }
+    const severityProbabilities: Record<string, number> = {};
+    SEVERITY_LABELS.forEach((s, idx) => {
+      severityProbabilities[s] = severityProbs[idx];
+    });
+    severity = {
+      label: SEVERITY_LABELS[sevIndex],
+      confidence: severityProbs[sevIndex],
+      probabilities: severityProbabilities,
+    };
+  }
+
   console.log(
     `[SkinLens][Prediction] ${new Date().toISOString()} classifyImage done in ${Date.now() - t0}ms label=`,
     label,
     `conf=`,
     confidence.toFixed(3),
+    `severity=`,
+    severity?.label ?? "-",
   );
   return {
     label,
     confidence,
     probabilities: probabilityMap,
+    severity,
   };
 }

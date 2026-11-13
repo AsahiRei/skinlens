@@ -1,4 +1,26 @@
-import { getIngredientsForCondition, getProductsForCondition, selectForProfile } from "./knowledge";
+import { products as knowledgeProducts } from "@/data/knowledge";
+import type { ProductEntry, ProductRole } from "@/types/knowledge";
+import { type SafetyExclusion, getProductsForCondition, selectForProfile } from "./knowledge";
+import { safetyExclusions } from "./safety";
+
+/** Actives that commonly irritate; recommending any of them adds a patch-test reminder. */
+const ACTIVE_INGREDIENTS = new Set([
+  "Adapalene",
+  "Bakuchiol",
+  "Salicylic Acid",
+  "Benzoyl Peroxide",
+  "Retinol",
+  "Azelaic Acid",
+  "Glycolic Acid",
+  "Lactic Acid",
+  "Tea Tree Oil",
+  "Sulfur",
+  "Vitamin C",
+  "Urea",
+]);
+
+const PATCH_TEST_NOTE =
+  "These are ingredients commonly recommended for your concern, not a guarantee they suit you — patch-test each new product on a small area for 2–3 days, and stop if it stings, burns or itches.";
 
 function parseAndValidateRoutine(jsonStr: string): string {
   let parsed: any;
@@ -93,6 +115,11 @@ const INGREDIENT_ACTION: Record<string, string> = {
   "Clay (Kaolin/Bentonite)": "absorbs excess oil and impurities",
   "Vitamin C": "brightens skin and defends against damage",
   Peptides: "supports firmness and elasticity",
+  Adapalene: "unclogs pores and prevents new breakouts",
+  "Titanium Dioxide": "adds gentle mineral UV protection",
+  "Mineral Oil": "seals in moisture to stop water loss",
+  Bakuchiol: "smooths texture as a gentler retinol alternative",
+  "Sunflower Seed Oil": "supports the barrier and softens dry skin",
 };
 
 const CONCERN_BENEFIT: Record<string, string> = {
@@ -101,7 +128,24 @@ const CONCERN_BENEFIT: Record<string, string> = {
   eczema: "soothe irritation and repair the skin barrier",
   oily: "control excess oil without over-drying",
   normal: "maintain a healthy glow and defend against daily damage",
+  none: "maintain a healthy glow and defend against daily damage",
 };
+
+/** Noun form of a concern for summary text ("a focus on dryness", not "a focus on dry"). */
+const CONCERN_NOUN: Record<string, string> = {
+  acne: "acne",
+  dry: "dryness",
+  eczema: "eczema",
+  oily: "oiliness",
+};
+
+/** Summary wording follows the score so a 24/100 never reads as "looks healthy". */
+function scoreStanding(score: number): string {
+  if (score >= 85) return "is in great shape";
+  if (score >= 70) return "is doing well";
+  if (score >= 50) return "has room to improve";
+  return "needs some extra care";
+}
 
 function concernBenefit(concern: string): string {
   return (
@@ -150,11 +194,14 @@ function lifestyleSentence(
   if (stress.includes("high") || stress.includes("severe")) {
     tips.push("a gentle, consistent routine helps calm stressed skin");
   }
+  // Setup / edit-profile store "less_than_500ml" and "500ml_to_1l" for under a liter a day;
+  // the other checks keep older free-text values working.
   if (
+    water === "less_than_500ml" ||
+    water === "500ml_to_1l" ||
     water.includes("low") ||
     water.includes("<1") ||
-    water.includes("rarely") ||
-    water.includes("0_")
+    water.includes("rarely")
   ) {
     tips.push("extra water plus moisturizer supports hydration");
   }
@@ -178,6 +225,7 @@ export function buildRuleBasedRoutine(
   profile?: {
     profile_concerns?: string | null;
     avoid_ingredients?: string[] | null;
+    safety_exclusions?: SafetyExclusion[] | null;
   },
 ): string {
   const safeSkinType = normalize(skinType, "normal");
@@ -192,22 +240,53 @@ export function buildRuleBasedRoutine(
     skin_type: safeSkinType,
     profile_concerns: profile?.profile_concerns ?? null,
     avoid_ingredients: profile?.avoid_ingredients ?? null,
+    safety_exclusions: profile?.safety_exclusions ?? null,
   });
-  let ingredients = selection.ingredients.slice(0, 8);
-  let products = selection.products.slice(0, 4);
-  // Unknown concern labels fall back to the "normal" maintenance set so the
-  // routine is never empty.
-  if (products.length === 0) {
-    ingredients = getIngredientsForCondition("normal").slice(0, 8);
-    products = getProductsForCondition("normal").slice(0, 4);
-  }
-  const ingNames = ingredients.map((i) => i.name);
-  const pick = (i: number) => ingNames[i % Math.max(ingNames.length, 1)] ?? "Gentle Cleanser";
+  // Products are picked PER ROLE (best-ranked cleanser, treatment, moisturizer…), not by list
+  // position — position-based picking once turned a spot treatment into "the cleanser".
+  // Fallbacks (the "normal" set, then any product of that role) are filtered by the same
+  // triggers and safety exclusions, so they can never bring back something the user reacted to.
+  const blocked = new Set(
+    [
+      ...(profile?.avoid_ingredients ?? []),
+      ...(profile?.safety_exclusions ?? []).map((x) => x.ingredient),
+    ].map((n) => n.toLowerCase()),
+  );
+  const allowed = (p: ProductEntry) =>
+    p.recommended_ingredients.every((i) => !blocked.has(i.toLowerCase()));
+  const pickRole = (role: ProductRole): ProductEntry | null =>
+    selection.products.find((p) => p.role === role) ??
+    getProductsForCondition("normal").find((p) => p.role === role && allowed(p)) ??
+    knowledgeProducts.find((p) => p.role === role && allowed(p)) ??
+    null;
+
+  const cleanserP = pickRole("cleanser");
+  // A treatment step only appears when one is relevant to THIS concern — falling back to an
+  // unrelated serum once gave eczema-prone skin a vitamin C serum. No relevant treatment means
+  // moisturizing is the treatment.
+  const treatmentP = selection.products.find((p) => p.role === "treatment") ?? null;
+  const moisturizerP = pickRole("moisturizer");
+  const sunscreenP = pickRole("sunscreen");
+  // A mask/exfoliant is only suggested when it is specifically relevant (ranked for this concern).
+  // Two evening-only actives (e.g. a retinoid plus an AHA) are a common irritation trap — skip it.
+  const occasionalCandidate =
+    selection.products.slice(0, 6).find((p) => p.role === "occasional") ?? null;
+  const occasionalP =
+    occasionalCandidate && !(occasionalCandidate.night_only && treatmentP?.night_only)
+      ? occasionalCandidate
+      : null;
+
+  const cleanser = cleanserP?.product_type ?? "Gentle Cleanser";
+  const treatment = treatmentP?.product_type ?? "Treatment Serum";
+  const moisturizer = moisturizerP?.product_type ?? "Moisturizer";
+  const sunscreen = sunscreenP?.product_type ?? "Sunscreen";
   const benefit = concernBenefit(safeConcern);
 
-  const cleanser = products[0]?.product_type ?? "Gentle Cleanser";
-  const treatment = products[1]?.product_type ?? "Treatment Serum";
-  const moisturizer = products[2]?.product_type ?? products[0]?.product_type ?? "Moisturizer";
+  /** "Benzoyl Peroxide kills breakout-causing bacteria" — from the product's own key active. */
+  const reasonFor = (p: ProductEntry | null, fallback: string) => {
+    const lead = p?.recommended_ingredients[0];
+    return lead ? `${lead} ${ingredientAction(lead)}` : fallback;
+  };
 
   const step = (n: number, productType: string, instruction: string, reason: string) => ({
     step: n,
@@ -224,14 +303,24 @@ export function buildRuleBasedRoutine(
       )
     : null;
 
-  const summaryBase =
-    safeConcern === "normal"
-      ? `Your ${safeSkinType} skin looks healthy with a score of ${score}/100. This routine works daily to ${benefit}`
-      : `Your ${safeSkinType} skin looks well-managed (${safeConcern}) with a score of ${score}/100. This routine works daily to ${benefit}`;
+  // "none" (setup's "no concern" answer) means the same as "normal": a maintenance routine.
+  const concernKey = safeConcern.toLowerCase();
+  const isMaintenance = concernKey === "normal" || concernKey === "none";
+  const standing = scoreStanding(score);
+  const summaryBase = isMaintenance
+    ? `Your ${safeSkinType} skin ${standing} (score ${score}/100). This routine works daily to ${benefit}`
+    : `Your ${safeSkinType} skin ${standing}, with a focus on ${CONCERN_NOUN[concernKey] ?? safeConcern} (score ${score}/100). This routine works daily to ${benefit}`;
 
   // Personalisation notes (skin type tuning, sensitivity exclusions) come
   // straight from selectForProfile — same deterministic input → output.
-  const summaryTail = [...selection.notes, lifestyleNote ? `Also note: ${lifestyleNote}` : ""]
+  const recommendsActive = [cleanserP, treatmentP, moisturizerP, occasionalP].some((p) =>
+    p?.recommended_ingredients.some((i) => ACTIVE_INGREDIENTS.has(i)),
+  );
+  const summaryTail = [
+    ...selection.notes,
+    lifestyleNote ? `Also note: ${lifestyleNote}` : "",
+    recommendsActive ? PATCH_TEST_NOTE : "",
+  ]
     .filter(Boolean)
     .join(" ");
   const summary = summaryTail ? `${summaryBase}. ${summaryTail}` : `${summaryBase}.`;
@@ -243,26 +332,34 @@ export function buildRuleBasedRoutine(
         1,
         cleanser,
         "Massage onto damp skin, then rinse.",
-        `${pick(0)} ${ingredientAction(pick(0))} to start the day fresh.`,
+        `${reasonFor(cleanserP, "A gentle cleanse")} to start the day fresh.`,
       ),
-      step(
-        2,
-        treatment,
-        "Apply a thin layer after cleansing.",
-        `${pick(1)} ${ingredientAction(pick(1))} where you need it most.`,
-      ),
+      // Evening-only treatments (retinoids, AHAs) never go in the morning: use the moisturizer.
+      treatmentP && !treatmentP.night_only
+        ? step(
+            2,
+            treatment,
+            "Apply a thin layer after cleansing.",
+            `${reasonFor(treatmentP, "It targets your concern")} where you need it most.`,
+          )
+        : step(
+            2,
+            moisturizer,
+            "Apply a thin layer after cleansing.",
+            `${reasonFor(moisturizerP, "It keeps skin hydrated")} through the day.`,
+          ),
       step(
         3,
-        "Sunscreen",
-        "Apply generously before sun exposure.",
-        "Shields skin from UV damage and premature aging.",
+        sunscreen,
+        "Apply generously as the last step, before sun exposure.",
+        `${reasonFor(sunscreenP, "Broad-spectrum SPF 30+ protects against UV damage")}${treatmentP?.night_only ? " — extra important while using a retinoid" : ""}.`,
       ),
     ],
     afternoon_routine: [
       step(
         1,
-        "Sunscreen",
-        "Reapply sunscreen when outdoors.",
+        sunscreen,
+        "Reapply every 2 hours when outdoors.",
         "Maintains UV protection throughout the day.",
       ),
     ],
@@ -273,24 +370,36 @@ export function buildRuleBasedRoutine(
         "Cleanse to remove the day's buildup.",
         "Clean skin absorbs overnight treatment better.",
       ),
+      ...(treatmentP
+        ? [
+            step(
+              2,
+              treatment,
+              treatmentP.night_only
+                ? "Apply a pea-sized amount to dry skin, every other night at first."
+                : "Apply to clean skin before bed.",
+              `${reasonFor(treatmentP, "It targets your concern")} while you sleep.`,
+            ),
+          ]
+        : []),
       step(
-        2,
-        treatment,
-        "Apply to clean skin before bed.",
-        `${pick(1)} ${ingredientAction(pick(1))} while you sleep.`,
-      ),
-      step(
-        3,
+        treatmentP ? 3 : 2,
         moisturizer,
         "Lock in hydration before sleep.",
-        `${pick(2)} ${ingredientAction(pick(2))} overnight.`,
+        `${reasonFor(moisturizerP, "It seals in moisture")} overnight.`,
       ),
     ],
-    recommended_products: products.slice(0, 3).map((p) => ({
-      product_type: p.product_type,
-      recommended_ingredients: p.recommended_ingredients,
-      reason: joinIngredientReasons(p.recommended_ingredients),
-    })),
+    recommended_products: [cleanserP, treatmentP, moisturizerP, occasionalP]
+      .filter((p): p is ProductEntry => !!p)
+      .filter((p, i, arr) => arr.findIndex((x) => x.product_type === p.product_type) === i)
+      .map((p) => ({
+        product_type: p.product_type,
+        recommended_ingredients: p.recommended_ingredients,
+        reason:
+          p.role === "occasional"
+            ? `Use 1-2 times a week, not daily. ${joinIngredientReasons(p.recommended_ingredients)}`
+            : joinIngredientReasons(p.recommended_ingredients),
+      })),
   };
   return parseAndValidateRoutine(JSON.stringify(fallback));
 }
@@ -304,8 +413,11 @@ export type GenerateRoutineInput = {
   health_score: number;
   /** Free-text main concerns from the skin profile (re-ranks knowledge). */
   profile_concerns?: string | null;
-  /** Ingredient names from the sensitivity log (dropped when possible). */
+  /** Ingredient names from the sensitivity log — never recommended. */
   avoid_ingredients?: string[] | null;
+  /** Health profile safety context (pregnancy, prescribed treatment). */
+  pregnancy_status?: string | null;
+  current_treatment?: string | null;
   /**
    * Kept for backward compatibility with callers that streamed LLM tokens.
    * Rule-based generation is instant, so this is never called.
@@ -327,6 +439,8 @@ export async function generateRoutine({
   health_score,
   profile_concerns,
   avoid_ingredients,
+  pregnancy_status,
+  current_treatment,
 }: GenerateRoutineInput): Promise<string> {
   return buildRuleBasedRoutine(
     skin_type,
@@ -337,6 +451,10 @@ export async function generateRoutine({
       stress_level,
       water_intake,
     },
-    { profile_concerns, avoid_ingredients },
+    {
+      profile_concerns,
+      avoid_ingredients,
+      safety_exclusions: safetyExclusions({ pregnancy_status, current_treatment }),
+    },
   );
 }
