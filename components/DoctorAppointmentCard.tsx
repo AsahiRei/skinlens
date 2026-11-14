@@ -1,31 +1,21 @@
 import { useEffect, useState } from "react";
-import { AppState, Image, Pressable, View } from "react-native";
+import { AppState, Pressable, View } from "react-native";
 import { Text } from "@/components/Text";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  CalendarCheck2,
-  CalendarClock,
-  ChevronDown,
-  Clock3,
-  FileText,
-  Lock,
-} from "lucide-react-native";
 
-import { DateTimeField } from "@/components/DateTimeField";
 import { DoctorProfileValidation } from "@/components/DoctorProfileValidation";
 import { DoctorResultValidation } from "@/components/DoctorResultValidation";
-import { ClinicalCard, Pill, PrimaryButton, UiModal } from "@/components/ui";
+import { DoctorScheduleSheet, fmtSlot } from "@/components/DoctorScheduleSheet";
+import { PatientAvatar } from "@/components/DoctorUi";
+import { ClinicalCard, Pill, UiModal } from "@/components/ui";
 import { theme } from "@/lib/theme";
 import {
   completionOpensAt,
   isPendingStatus,
-  isRemoteImageUrl,
   type AppointmentRow,
   type AppointmentStatus,
 } from "@/lib/db/appointments";
 import { ReportViewerModal } from "@/components/ReportViewerModal";
-
-const SCHEDULER_FALLBACK = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
 export function fmtShort(value: string | null): string {
   if (!value) return "—";
@@ -40,57 +30,24 @@ export function fmtShort(value: string | null): string {
   });
 }
 
-export function fmtLong(value: string | null): string {
-  if (!value) return "—";
+/** "Thu, Nov 20 · 10:30 AM" — adds the year only when it isn't this year. */
+function fmtVisit(value: string | null): string {
+  if (!value) return "Any time";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  if (d.getFullYear() !== new Date().getFullYear()) return fmtShort(value);
+  return fmtSlot(d);
 }
 
-export function isToday(iso: string | null): boolean {
-  if (!iso) return false;
-  const d = new Date(iso);
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
-}
-
-function toneFor(status: string): "primary" | "neutral" | "warning" {
-  if (status === "requested" || status === "needs_reschedule") return "warning";
-  if (status === "scheduled") return "primary";
-  return "neutral";
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  requested: "New request",
-  needs_reschedule: "Awaiting new time",
-  scheduled: "Scheduled",
-  completed: "Completed",
-  declined: "Declined",
-  cancelled: "Cancelled",
+/** Only closed visits carry a status chip — open ones say what they are through their actions. */
+const CLOSED_LABELS: Record<string, { label: string; tone: "primary" | "neutral" }> = {
+  completed: { label: "Completed", tone: "primary" },
+  declined: { label: "Declined", tone: "neutral" },
+  cancelled: { label: "Cancelled", tone: "neutral" },
 };
 
-/** Requests older than this read "Waiting Nd" so stale ones stand out. */
+/** Requests older than this get their age highlighted. */
 const STALE_REQUEST_MS = 48 * 60 * 60 * 1000;
-
-function statusLabelFor(status: string, createdAt: string | null): string {
-  if (status === "requested" && createdAt) {
-    const age = Date.now() - Date.parse(createdAt);
-    if (Number.isFinite(age) && age >= STALE_REQUEST_MS) {
-      return `Waiting ${Math.floor(age / (24 * 60 * 60 * 1000))}d`;
-    }
-  }
-  return STATUS_LABELS[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
-}
 
 /** "just now", "12m ago", "3h ago", "2d ago", then a short date. */
 export function relativeAgo(iso: string | null): string {
@@ -133,23 +90,42 @@ function useHasArrived(at: Date | null): boolean {
   return target !== null && now >= target;
 }
 
-function initialOf(name: string): string {
-  const clean = name.trim().replace(/^@/, "");
-  return (clean.charAt(0) || "?").toUpperCase();
-}
+type ConfirmKind = "decline" | "cancel" | "complete";
+
+const CONFIRM_COPY: Record<ConfirmKind, { title: string; message: string; label: string }> = {
+  decline: {
+    title: "Decline request?",
+    message: "The patient will see the update in their Appointments screen.",
+    label: "Decline request",
+  },
+  cancel: {
+    title: "Cancel visit?",
+    message: "The patient will see the update in their Appointments screen.",
+    label: "Cancel visit",
+  },
+  complete: {
+    title: "Mark visit as done?",
+    message: "This closes the patient's appointment.",
+    label: "Mark as done",
+  },
+};
 
 /**
- * One appointment row for the doctor tabs. The card is now self-contained: it manages its own
- * expanded/scheduling state and its own scheduledDate, so scheduling one row never clobbers
- * another.
+ * One appointment for the doctor tabs: who, when, the review panels and the actions its status
+ * allows. Booking happens in DoctorScheduleSheet, on the clinic's slot grid.
  */
 export function DoctorAppointmentCard({
   appointment: a,
   patientName,
   patientAvatarUrl = null,
   busy = false,
+  assignedToOther = null,
+  doctorId = null,
+  clinicHours = null,
+  clinicRows = [],
   onAction,
   compact = false,
+  showTime = true,
 }: {
   appointment: AppointmentRow;
   patientName: string;
@@ -157,53 +133,70 @@ export function DoctorAppointmentCard({
   patientAvatarUrl?: string | null;
   /** Parent-level busy flag (e.g. a different row is mid-action). */
   busy?: boolean;
-  /** Must reject on failure so the card keeps its scheduler open and stops
-   * its spinner only once the write has actually finished. The parent is
-   * responsible for showing the error message. */
+  /** Name of the colleague this request is addressed to — only they can schedule it. */
+  assignedToOther?: string | null;
+  /** The signed-in doctor — whose calendar the slot grid checks. */
+  doctorId?: string | null;
+  /** Clinic opening-hours text for the slot grid. */
+  clinicHours?: string | null;
+  /** Every appointment at the clinic — booked times are greyed out from these. */
+  clinicRows?: AppointmentRow[];
+  /** Must reject on failure (with the server's message) so the scheduler stays open. */
   onAction: (id: string, status: AppointmentStatus, scheduledAt?: string) => Promise<void>;
   compact?: boolean;
+  /** Off when the surrounding list already shows the time (the schedule timeline). */
+  showTime?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  // Start from the patient's preferred slot when it's still ahead; otherwise
-  // ~24h from now (computed per mount, not at module load, so it never goes stale).
-  const [scheduledDate, setScheduledDate] = useState<Date>(() => {
-    const preferred = a.preferred_time ? Date.parse(a.preferred_time) : NaN;
-    if (Number.isFinite(preferred) && preferred > Date.now()) return new Date(preferred);
-    return new Date(Date.now() + 24 * 60 * 60 * 1000);
-  });
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // Bumped per open so the sheet starts fresh from the patient's requested time.
+  const [sheetKey, setSheetKey] = useState(0);
   const [acting, setActing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmKind, setConfirmKind] = useState<"decline" | "cancel" | "complete">("decline");
+  const [confirmKind, setConfirmKind] = useState<ConfirmKind>("decline");
   const [reportOpen, setReportOpen] = useState(false);
-  const showPhoto = isRemoteImageUrl(patientAvatarUrl);
 
-  const avatarSize = compact ? 40 : 48;
   const rowBusy = busy || acting;
   const pending = isPendingStatus(a.status);
-  // Mark as done unlocks at the visit time (the server enforces the same rule).
-  const completeOpensAt = completionOpensAt(a);
-  const canComplete = useHasArrived(completeOpensAt);
+  const isScheduled = a.status === "scheduled";
+  const active = pending || isScheduled;
+  const canAct = !assignedToOther;
+  // Mark as done opens at the visit time (the server enforces the same rule).
+  const visitStarted = useHasArrived(completionOpensAt(a));
+  const preferredMs = a.preferred_time ? Date.parse(a.preferred_time) : NaN;
+  const requestedPassed = useHasArrived(
+    Number.isFinite(preferredMs) ? new Date(preferredMs) : null,
+  );
+  const createdMs = a.created_at ? Date.parse(a.created_at) : NaN;
+  const staleAt = Number.isFinite(createdMs) ? new Date(createdMs + STALE_REQUEST_MS) : null;
+  const stale = useHasArrived(staleAt) && pending;
 
-  const handleOpenReport = () => {
-    if (a.report_pdf_path) setReportOpen(true);
+  const openSheet = () => {
+    if (rowBusy || !canAct) return;
+    setSheetKey((k) => k + 1);
+    setSheetOpen(true);
   };
 
-  const handleSchedule = async () => {
-    if (rowBusy) return;
+  const handleSchedule = async (iso: string) => {
     setActing(true);
     try {
-      await onAction(a.id, "scheduled", scheduledDate.toISOString());
-      setExpanded(false);
-    } catch {
-      // Parent already surfaced the message (e.g. slot taken); keep the
-      // scheduler open so the doctor can pick another time.
+      await onAction(a.id, "scheduled", iso);
+      setSheetOpen(false);
     } finally {
       setActing(false);
     }
   };
 
-  const handleAction = async (status: AppointmentStatus) => {
+  const askConfirm = (kind: ConfirmKind) => {
+    setConfirmKind(kind);
+    setConfirmOpen(true);
+  };
+
+  const runConfirmed = async () => {
+    const kind = confirmKind;
+    setConfirmOpen(false);
     if (rowBusy) return;
+    const status: AppointmentStatus =
+      kind === "complete" ? "completed" : kind === "decline" ? "declined" : "cancelled";
     setActing(true);
     try {
       await onAction(a.id, status);
@@ -214,55 +207,27 @@ export function DoctorAppointmentCard({
     }
   };
 
-  const requestConfirm = (kind: "decline" | "cancel" | "complete") => {
-    setConfirmKind(kind);
-    setConfirmOpen(true);
-  };
-
-  const confirmAction = async () => {
-    setConfirmOpen(false);
-    if (confirmKind === "complete") {
-      handleAction("completed");
-    } else {
-      handleAction(confirmKind === "decline" ? "declined" : "cancelled");
-    }
-  };
+  // One line under the name: the time that matters for this status.
+  const when = isScheduled
+    ? showTime
+      ? fmtVisit(a.scheduled_at)
+      : null
+    : pending
+      ? a.status === "needs_reschedule"
+        ? "Picking a new time"
+        : `${fmtVisit(a.preferred_time)}${requestedPassed ? " · passed" : ""}`
+      : fmtVisit(a.scheduled_at ?? a.preferred_time);
+  const closed = CLOSED_LABELS[a.status];
 
   return (
     <>
       <ClinicalCard
-        className={compact ? "flex-col gap-2" : "flex-col gap-3"}
-        style={compact ? { paddingHorizontal: 12, paddingVertical: 12 } : undefined}
+        className="flex-col gap-3"
+        style={compact ? { paddingHorizontal: 14, paddingVertical: 14 } : undefined}
       >
-        {/* Patient row */}
-        <View className={compact ? "flex-row items-center gap-2.5" : "flex-row items-center gap-3"}>
-          {showPhoto ? (
-            <Image
-              source={{ uri: (patientAvatarUrl as string).trim() }}
-              style={{
-                height: avatarSize,
-                width: avatarSize,
-                borderRadius: 999,
-                backgroundColor: theme.colors.primarySoft,
-              }}
-              accessibilityLabel={`${patientName} profile photo`}
-            />
-          ) : (
-            <LinearGradient
-              colors={[...theme.gradients.icon]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{
-                height: avatarSize,
-                width: avatarSize,
-                borderRadius: 999,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text className="text-lg font-bold text-white">{initialOf(patientName)}</Text>
-            </LinearGradient>
-          )}
+        {/* Who + when */}
+        <View className="flex-row items-center gap-3">
+          <PatientAvatar name={patientName} url={patientAvatarUrl} size={compact ? 40 : 46} />
           <View className="flex-1">
             <Text
               className="font-bold text-[15px]"
@@ -271,257 +236,124 @@ export function DoctorAppointmentCard({
             >
               {patientName}
             </Text>
-            <Text
-              className="text-xs mt-0.5"
-              style={{ color: theme.colors.muted }}
-              numberOfLines={1}
-            >
-              Patient · Asked {relativeAgo(a.created_at)}
-            </Text>
-          </View>
-          <Pill label={statusLabelFor(a.status, a.created_at)} tone={toneFor(a.status)} />
-        </View>
-
-        {/* Details */}
-        {compact ? (
-          <View className="flex-col gap-1.5">
-            <View
-              className="flex-row items-center gap-2 rounded-xl px-3 py-2"
-              style={{ backgroundColor: theme.colors.background }}
-            >
-              {a.scheduled_at ? (
-                <CalendarCheck2 size={13} color={theme.colors.primary} />
-              ) : (
-                <Clock3 size={13} color={theme.colors.muted} />
-              )}
+            {when ? (
               <Text
-                className="text-[13px] flex-1"
-                style={{ color: theme.colors.body }}
+                className="text-[13px] mt-0.5"
+                style={{ color: theme.colors.muted }}
                 numberOfLines={1}
               >
-                {a.scheduled_at ? (
-                  <>
-                    Visit{" "}
-                    <Text className="font-bold" style={{ color: theme.colors.primaryDeep }}>
-                      {fmtShort(a.scheduled_at)}
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    Prefers{" "}
-                    <Text className="font-bold" style={{ color: theme.colors.ink }}>
-                      {fmtShort(a.preferred_time)}
-                    </Text>
-                  </>
-                )}
-                {a.report_pdf_path ? " · Report" : ""}
+                {when}
               </Text>
-            </View>
-            {a.report_pdf_path ? (
-              <Pressable
-                onPress={handleOpenReport}
-                accessibilityRole="button"
-                accessibilityLabel="View skin report PDF"
-                className="flex-row items-center gap-1.5 px-1 active:opacity-70"
-              >
-                <FileText size={13} color={theme.colors.primary} />
-                <Text
-                  className="text-[13px] font-semibold underline"
-                  style={{ color: theme.colors.primary }}
-                >
-                  View skin report (PDF)
-                </Text>
-              </Pressable>
             ) : null}
           </View>
-        ) : (
-          <View
-            className="flex-col gap-2 rounded-2xl px-3.5 py-3"
-            style={{ backgroundColor: theme.colors.background }}
-          >
-            <View className="flex-row items-center gap-2">
-              <Clock3 size={14} color={theme.colors.muted} />
-              <Text className="text-[13px] flex-1" style={{ color: theme.colors.body }}>
-                Prefers{" "}
-                <Text className="font-bold" style={{ color: theme.colors.ink }}>
-                  {fmtShort(a.preferred_time)}
-                </Text>
-              </Text>
-            </View>
-            {a.scheduled_at ? (
-              <View className="flex-row items-center gap-2">
-                <CalendarCheck2 size={14} color={theme.colors.primary} />
-                <Text className="text-[13px] flex-1" style={{ color: theme.colors.body }}>
-                  Visit{" "}
-                  <Text className="font-bold" style={{ color: theme.colors.primaryDeep }}>
-                    {fmtLong(a.scheduled_at)}
-                  </Text>
-                  {isToday(a.scheduled_at) ? " · today" : ""}
-                </Text>
-              </View>
-            ) : null}
-            {a.report_pdf_path ? (
-              <Pressable
-                onPress={handleOpenReport}
-                accessibilityRole="button"
-                accessibilityLabel="View skin report PDF"
-                className="flex-row items-center gap-2 active:opacity-70"
-              >
-                <FileText size={14} color={theme.colors.primary} />
-                <Text
-                  className="text-[13px] font-semibold underline"
-                  style={{ color: theme.colors.primary }}
-                >
-                  View skin report (PDF)
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        )}
+          {pending ? (
+            <Text
+              className="text-xs"
+              style={{ color: stale ? theme.colors.warningText : theme.colors.faint }}
+            >
+              {relativeAgo(a.created_at)}
+            </Text>
+          ) : closed ? (
+            <Pill label={closed.label} tone={closed.tone} />
+          ) : null}
+        </View>
 
-        {/* AI scan + profile review — open while the visit is still active */}
-        {pending || a.status === "scheduled" ? (
-          <>
+        {a.report_pdf_path ? (
+          <Pressable
+            onPress={() => setReportOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="View skin report PDF"
+            hitSlop={6}
+            className="self-start active:opacity-70"
+          >
+            <Text className="text-[13px] font-semibold" style={{ color: theme.colors.primary }}>
+              View skin report
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {/* Review panels — while the visit is still open */}
+        {active ? (
+          <View className="flex-col gap-2">
             <DoctorResultValidation patientId={a.patient_id} />
             <DoctorProfileValidation patientId={a.patient_id} />
-          </>
+          </View>
         ) : null}
 
-        {/* Actions */}
-        {pending ? (
-          <View className="flex-col gap-2">
-            {a.status === "needs_reschedule" ? (
-              <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                Their preferred time was booked by another visit, so the patient was asked to pick a
-                new one. You can still schedule them yourself.
-              </Text>
-            ) : null}
-            {/* Primary action: filled while collapsed; once open it steps
-                back to an outline so "Confirm schedule" is the one filled
-                button on the card. */}
-            <Pressable
-              onPress={() => setExpanded(!expanded)}
-              accessibilityRole="button"
-              accessibilityLabel={expanded ? "Hide scheduler" : "Schedule visit"}
-              accessibilityState={{ expanded }}
-              className="rounded-full overflow-hidden active:opacity-80"
-              style={{
-                borderRadius: theme.radius.pill,
-                borderWidth: expanded ? 1.5 : 0,
-                borderColor: theme.colors.primary,
-                backgroundColor: theme.colors.card,
-                opacity: rowBusy ? 0.6 : 1,
-              }}
-            >
-              <LinearGradient
-                colors={
-                  expanded ? [theme.colors.card, theme.colors.card] : [...theme.gradients.dark]
-                }
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                className="px-5 flex-row items-center justify-center gap-1.5"
-                // +1.5 when borderless so toggling doesn't shift the layout
-                style={{ paddingVertical: expanded ? 12 : 13.5 }}
-              >
-                <CalendarClock size={16} color={expanded ? theme.colors.primary : "#FFFFFF"} />
-                <Text
-                  className="font-bold text-[14px]"
-                  style={{ color: expanded ? theme.colors.primary : "#FFFFFF" }}
-                >
-                  {expanded ? "Hide scheduler" : "Schedule visit"}
-                </Text>
-                <ChevronDown
-                  size={15}
-                  color={expanded ? theme.colors.primary : "#FFFFFF"}
-                  style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
-                />
-              </LinearGradient>
-            </Pressable>
+        {/* Why the doctor can't (or shouldn't yet) act */}
+        {active && assignedToOther ? (
+          <Note copy={`Addressed to ${assignedToOther} — only they can book this visit.`} />
+        ) : a.status === "needs_reschedule" ? (
+          <Note copy="Their time was taken by another visit, so they were asked to pick a new one. You can still book them." />
+        ) : null}
 
-            {expanded ? (
-              <View
-                className="flex-col gap-2 rounded-2xl p-3"
-                style={{ backgroundColor: theme.colors.background }}
-              >
-                <DateTimeField
-                  value={scheduledDate}
-                  onChange={setScheduledDate}
-                  placeholder="Pick visit date & time"
-                  minimumDate={new Date()}
-                  fallbackDate={SCHEDULER_FALLBACK}
-                />
-                <PrimaryButton
-                  label="Confirm schedule"
-                  onPress={handleSchedule}
-                  disabled={rowBusy}
-                  loading={rowBusy}
-                />
-              </View>
-            ) : null}
-
-            <Pressable
-              onPress={() => requestConfirm("decline")}
+        {/* Actions — only the ones this status allows right now */}
+        {canAct && pending ? (
+          <View className="flex-row gap-2">
+            <OutlineButton
+              label="Decline"
+              danger
               disabled={rowBusy}
-              accessibilityRole="button"
-              accessibilityLabel="Decline request"
-              className="items-center py-2 active:opacity-70"
-            >
-              <Text
-                className="text-[13px] font-bold underline"
-                style={{ color: theme.colors.danger }}
-              >
-                {rowBusy ? "Working…" : "Decline request"}
-              </Text>
-            </Pressable>
+              onPress={() => askConfirm("decline")}
+              flex={1}
+            />
+            <FilledButton
+              label={rowBusy ? "Working…" : "Schedule visit"}
+              disabled={rowBusy}
+              onPress={openSheet}
+              flex={2}
+            />
           </View>
-        ) : a.status === "scheduled" ? (
-          <View className="flex-col gap-2">
+        ) : canAct && isScheduled ? (
+          visitStarted ? (
             <View className="flex-row gap-2">
-              <Pressable
-                onPress={() => requestConfirm("complete")}
-                disabled={rowBusy || !canComplete}
-                accessibilityRole="button"
-                accessibilityLabel="Mark visit as done"
-                accessibilityState={{ disabled: rowBusy || !canComplete }}
-                className="flex-1 flex-row gap-1.5 rounded-full py-3 items-center justify-center active:opacity-80"
-                style={{
-                  backgroundColor: canComplete ? theme.colors.primary : theme.colors.cardBorder,
-                  opacity: rowBusy ? 0.7 : 1,
-                }}
-              >
-                {!canComplete ? <Lock size={14} color={theme.colors.muted} /> : null}
-                <Text
-                  className="font-bold text-[14px]"
-                  style={{ color: canComplete ? "#FFFFFF" : theme.colors.muted }}
-                >
-                  {rowBusy ? "Saving…" : "Mark as done"}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => requestConfirm("cancel")}
+              <OutlineButton
+                label="Cancel"
+                danger
                 disabled={rowBusy}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel visit"
-                className="flex-1 rounded-full py-3 items-center active:opacity-70 bg-white"
-                style={{
-                  borderWidth: 1,
-                  borderColor: theme.colors.cardBorder,
-                  opacity: rowBusy ? 0.6 : 1,
-                }}
-              >
-                <Text className="font-bold text-[14px]" style={{ color: theme.colors.danger }}>
-                  Cancel
-                </Text>
-              </Pressable>
+                onPress={() => askConfirm("cancel")}
+                flex={1}
+              />
+              <FilledButton
+                label={rowBusy ? "Saving…" : "Mark as done"}
+                disabled={rowBusy}
+                onPress={() => askConfirm("complete")}
+                flex={2}
+              />
             </View>
-            {!canComplete && completeOpensAt ? (
-              <Text className="text-xs text-center" style={{ color: theme.colors.muted }}>
-                Mark as done unlocks at the visit time · {fmtShort(completeOpensAt.toISOString())}
-              </Text>
-            ) : null}
-          </View>
+          ) : (
+            <View className="flex-row gap-2">
+              <OutlineButton
+                label="Cancel"
+                danger
+                disabled={rowBusy}
+                onPress={() => askConfirm("cancel")}
+                flex={1}
+              />
+              <OutlineButton
+                label={rowBusy ? "Saving…" : "Reschedule"}
+                disabled={rowBusy}
+                onPress={openSheet}
+                flex={1}
+              />
+            </View>
+          )
         ) : null}
       </ClinicalCard>
+
+      {active && canAct ? (
+        <DoctorScheduleSheet
+          key={sheetKey}
+          visible={sheetOpen}
+          appointment={a}
+          patientName={patientName}
+          clinicHours={clinicHours}
+          doctorId={doctorId}
+          clinicRows={clinicRows}
+          onDismiss={() => setSheetOpen(false)}
+          onConfirm={handleSchedule}
+        />
+      ) : null}
 
       <ReportViewerModal
         reportPath={reportOpen ? a.report_pdf_path : null}
@@ -529,40 +361,110 @@ export function DoctorAppointmentCard({
         title={`${patientName} · Skin Report`}
       />
 
-      {/* Confirmation dialog for destructive actions */}
       <UiModal
         visible={confirmOpen}
         onDismiss={() => setConfirmOpen(false)}
-        title={
-          confirmKind === "decline"
-            ? "Decline request?"
-            : confirmKind === "cancel"
-              ? "Cancel visit?"
-              : "Mark complete?"
-        }
-        message={
-          confirmKind === "decline"
-            ? "This will decline the patient's visit request. They'll see the update in their Appointments screen."
-            : confirmKind === "cancel"
-              ? "This will cancel the scheduled visit. The patient will see it in their Appointments screen."
-              : "This will mark the visit as completed. The patient's record will be closed."
-        }
+        title={CONFIRM_COPY[confirmKind].title}
+        message={CONFIRM_COPY[confirmKind].message}
         actions={[
           {
-            label: confirmKind === "complete" ? "Mark Complete" : "Confirm",
-            kind: confirmKind === "complete" ? "secondary" : "primary",
+            label: CONFIRM_COPY[confirmKind].label,
+            kind: confirmKind === "complete" ? "primary" : "danger",
             loading: rowBusy,
-            onPress: confirmAction,
+            onPress: () => void runConfirmed(),
           },
-          {
-            label: "Cancel",
-            kind: "ghost",
-            onPress: () => setConfirmOpen(false),
-          },
+          { label: "Keep it", kind: "ghost", onPress: () => setConfirmOpen(false) },
         ]}
       />
     </>
   );
 }
 
-export { SCHEDULER_FALLBACK };
+function Note({ copy }: { copy: string }) {
+  return (
+    <Text className="text-xs leading-5" style={{ color: theme.colors.muted }}>
+      {copy}
+    </Text>
+  );
+}
+
+function FilledButton({
+  label,
+  disabled,
+  onPress,
+  flex,
+}: {
+  label: string;
+  disabled?: boolean;
+  onPress: () => void;
+  flex: number;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      className="rounded-full overflow-hidden active:opacity-80"
+      style={{ flex, borderRadius: theme.radius.pill }}
+    >
+      <LinearGradient
+        colors={disabled ? [...theme.gradients.disabled] : [...theme.gradients.dark]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        className="items-center justify-center px-4"
+        style={{ paddingVertical: 12.5 }}
+      >
+        <Text
+          className="font-bold text-[14px]"
+          style={{ color: disabled ? theme.colors.muted : "#FFFFFF" }}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
+function OutlineButton({
+  label,
+  danger = false,
+  disabled,
+  onPress,
+  flex,
+}: {
+  label: string;
+  danger?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+  flex: number;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      className="items-center justify-center rounded-full px-4 active:opacity-70"
+      style={{
+        flex,
+        paddingVertical: 11,
+        backgroundColor: theme.colors.card,
+        borderWidth: 1.5,
+        borderColor: theme.colors.cardBorder,
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <Text
+        className="font-bold text-[14px]"
+        style={{ color: danger ? theme.colors.danger : theme.colors.primary }}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}

@@ -32,20 +32,31 @@ import { ScreenGradient } from "@/components/ScreenGradient";
 import { uploadSkinReportForAppointment } from "@/utils/report";
 import {
   attachReportToAppointment,
+  BOOKED_SLOT_MESSAGE,
   formatPatientDisplayName,
+  HELD_SLOT_MESSAGE,
   getDoctorsForClinic,
+  getMyAppointments,
   isRemoteImageUrl,
+  OWN_OVERLAP_MESSAGE,
   PAST_TIME_MESSAGE,
+  PENDING_HERE_MESSAGE,
   requestAppointment,
+  type AppointmentRow,
   type DoctorRow,
 } from "@/lib/db/appointments";
 import { getUserProfile } from "@/lib/db";
 import {
+  findOwnConflict,
   formatMinutes,
   formatSlotDay,
   formatSlotTime,
+  ownBusyTimes,
   parseClinicHours,
 } from "@/utils/booking-slots";
+
+/** Why a request can't be sent as picked (shown in one modal). */
+type BookingIssue = { title: string; message: string; viewRequests?: boolean };
 
 type PlaceDetails = {
   phone?: string;
@@ -93,6 +104,12 @@ export default function DermatologistDetails() {
   // The picked slot can go stale while the form sits open (the picker only clamps at pick-time).
   const [showPastSlot, setShowPastSlot] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [issue, setIssue] = useState<BookingIssue | null>(null);
+  // The patient's own appointments (any clinic): one pending request per clinic, and their own
+  // visits block nearby slots. null until loaded (the server enforces the same rules anyway).
+  const [myRows, setMyRows] = useState<AppointmentRow[] | null>(null);
+  // Bumped to make the slot picker refetch booked times.
+  const [slotsRefresh, setSlotsRefresh] = useState(0);
   // Real booking (verified clinics only — needs a Supabase clinic UUID).
   const [doctors, setDoctors] = useState<DoctorRow[]>([]);
   const [doctorId, setDoctorId] = useState<string | null>(null);
@@ -109,6 +126,40 @@ export default function DermatologistDetails() {
   const [shareReport, setShareReport] = useState(false);
 
   const clinicHours = useMemo(() => parseClinicHours(details.openingHours), [details.openingHours]);
+  const pendingHere = useMemo(
+    () => (myRows && params.id ? findOwnConflict(myRows, params.id, null) : null),
+    [myRows, params.id],
+  );
+  const ownTimes = useMemo(() => (myRows ? ownBusyTimes(myRows) : []), [myRows]);
+
+  const showIssue = (msg: string): boolean => {
+    if (msg === PENDING_HERE_MESSAGE) {
+      setIssue({
+        title: "Request already pending",
+        message:
+          "You already have a request waiting at this clinic. Wait for the doctor to confirm it, or cancel it from My Appointments before booking again.",
+        viewRequests: true,
+      });
+    } else if (msg === OWN_OVERLAP_MESSAGE) {
+      setPreferredDate(null);
+      setIssue({
+        title: "You're busy then",
+        message:
+          "You already have another visit or request within 30 minutes of that time. Please pick a different date & time.",
+      });
+    } else if (msg === BOOKED_SLOT_MESSAGE || msg === HELD_SLOT_MESSAGE) {
+      // Another patient got this slot after the picker loaded — drop it and refetch.
+      setPreferredDate(null);
+      setSlotsRefresh((n) => n + 1);
+      setIssue({
+        title: "Slot just got taken",
+        message: "Another patient took that time a moment ago. Please pick another open time.",
+      });
+    } else {
+      return false;
+    }
+    return true;
+  };
 
   const notify = (msg: string) => {
     if (Platform.OS === "android") {
@@ -188,6 +239,12 @@ export default function DermatologistDetails() {
       setShowPastSlot(true);
       return;
     }
+    // Same rules the server applies (0018) — catch them here for a clear message.
+    const conflict = myRows ? findOwnConflict(myRows, params.id, preferredDate) : null;
+    if (conflict) {
+      showIssue(conflict.kind === "pending_here" ? PENDING_HERE_MESSAGE : OWN_OVERLAP_MESSAGE);
+      return;
+    }
     setBooking(true);
     try {
       // 1. Real booking request → appointments (status 'requested'). Requires network (RLS: patient
@@ -255,6 +312,7 @@ export default function DermatologistDetails() {
         setShowPastSlot(true);
         return;
       }
+      if (showIssue(msg)) return;
       notify(
         /network|fetch|failed/i.test(msg)
           ? "You're offline — connect to book this clinic."
@@ -280,6 +338,22 @@ export default function DermatologistDetails() {
       .catch((err) => {
         console.warn("[book-appointment] doctors fetch failed:", err);
         if (active) setDoctors([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isCustomEntry, params.id]);
+
+  // The patient's own appointments, for the one-pending-per-clinic and no-overlap rules.
+  useEffect(() => {
+    if (!isCustomEntry || !params.id) return;
+    let active = true;
+    getMyAppointments()
+      .then((rows) => {
+        if (active) setMyRows(rows);
+      })
+      .catch((err) => {
+        console.warn("[book-appointment] own appointments fetch failed:", err);
       });
     return () => {
       active = false;
@@ -424,6 +498,13 @@ export default function DermatologistDetails() {
           </FadeItem>
         ) : (
           <>
+            {pendingHere ? (
+              <Notice
+                icon={Info}
+                tone="warning"
+                copy="You already have a request waiting at this clinic. You can book again once the doctor answers it, or after you cancel it."
+              />
+            ) : null}
             {/* ── Step 1 · Doctor ────────────────────────────────────── */}
             <FadeItem index={3}>
               <StepHeader step={1} title="Choose a doctor" hint="Optional" />
@@ -474,6 +555,8 @@ export default function DermatologistDetails() {
                   hoursText={details.openingHours}
                   value={preferredDate}
                   onChange={setPreferredDate}
+                  ownTimes={ownTimes}
+                  refreshKey={slotsRefresh}
                 />
               </ClinicalCard>
             </FadeItem>
@@ -534,7 +617,12 @@ export default function DermatologistDetails() {
             </View>
           </View>
         ) : null}
-        {isCustomEntry ? (
+        {isCustomEntry && pendingHere ? (
+          <PrimaryButton
+            label="View my pending request"
+            onPress={() => router.replace("/(modules)/appointments")}
+          />
+        ) : isCustomEntry ? (
           <PrimaryButton
             label={booking ? "Sending request…" : "Request appointment"}
             onPress={handleBook}
@@ -557,6 +645,34 @@ export default function DermatologistDetails() {
             onPress: () => setShowPastSlot(false),
           },
         ]}
+      />
+
+      <UiModal
+        visible={issue !== null}
+        onDismiss={() => setIssue(null)}
+        title={issue?.title ?? ""}
+        message={issue?.message ?? ""}
+        actions={
+          issue?.viewRequests
+            ? [
+                {
+                  label: "View my appointments",
+                  kind: "primary" as const,
+                  onPress: () => {
+                    setIssue(null);
+                    router.replace("/(modules)/appointments");
+                  },
+                },
+                { label: "Close", kind: "ghost" as const, onPress: () => setIssue(null) },
+              ]
+            : [
+                {
+                  label: "Choose a new time",
+                  kind: "primary" as const,
+                  onPress: () => setIssue(null),
+                },
+              ]
+        }
       />
 
       <UiModal

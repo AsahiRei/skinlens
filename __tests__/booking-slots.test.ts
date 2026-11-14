@@ -1,6 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
 import {
   DEFAULT_HOURS,
+  findOwnConflict,
+  ownBusyTimes,
+  type OwnBooking,
   firstOpenDay,
   openSlotsForDay,
   parseClinicHours,
@@ -64,5 +67,83 @@ describe("slots", () => {
     const late = new Date(2026, 10, 12, 18, 0);
     expect(firstOpenDay(hours, late).getDate()).toBe(13);
     expect(upcomingDays(14, late)).toHaveLength(14);
+  });
+});
+
+describe("parseClinicHours per day", () => {
+  const day = (h: ReturnType<typeof parseClinicHours>, d: number) => {
+    const x = h.byDay[d];
+    return x ? `${hm(x.openMin)}-${hm(x.closeMin)}` : "closed";
+  };
+
+  it("keeps a Saturday half-day instead of closing it", () => {
+    const h = parseClinicHours("Mon-Fri 9AM-5PM, Sat 9AM-12NN");
+    expect(h.parsed).toBe(true);
+    expect(day(h, 1)).toBe("9:00-17:00");
+    expect(day(h, 6)).toBe("9:00-12:00");
+    expect(h.closedDays).toEqual([0]);
+  });
+
+  it("reads closed-first and time-first text", () => {
+    expect(parseClinicHours("Closed on Sundays, 8am-6pm").closedDays).toEqual([0]);
+    const h = parseClinicHours("9-5 Mon-Sat");
+    expect(day(h, 3)).toBe("9:00-17:00");
+    expect(h.closedDays).toEqual([0]);
+  });
+
+  it("wraps day ranges through the week", () => {
+    expect(parseClinicHours("Tue–Sun 10-7").closedDays).toEqual([1]);
+  });
+
+  it("doesn't read '7 days' as an opening hour", () => {
+    const h = parseClinicHours("Open 7 days, 8am-6pm");
+    expect(day(h, 0)).toBe("8:00-18:00");
+    expect(h.closedDays).toEqual([]);
+  });
+
+  it("lists days with their own hours", () => {
+    const h = parseClinicHours("Mon, Wed & Fri 1-6pm");
+    expect(h.closedDays).toEqual([0, 2, 4, 6]);
+    expect(day(h, 3)).toBe("13:00-18:00");
+  });
+
+  it("builds slots from that weekday's hours", () => {
+    const sat = new Date(2026, 10, 14);
+    const h = parseClinicHours("Mon-Fri 9AM-5PM, Sat 9AM-11AM");
+    expect(slotsForDay(sat, h)).toHaveLength(4);
+  });
+});
+
+describe("findOwnConflict", () => {
+  const now = new Date(2026, 10, 12, 8, 0);
+  const at = (h: number, m = 0) => new Date(2026, 10, 13, h, m);
+  const row = (o: Partial<OwnBooking>): OwnBooking => ({
+    id: "r1",
+    clinic_id: "c1",
+    status: "requested",
+    preferred_time: null,
+    scheduled_at: null,
+    ...o,
+  });
+
+  it("blocks a second pending request at the same clinic", () => {
+    expect(findOwnConflict([row({})], "c1", null, { now })?.kind).toBe("pending_here");
+    expect(findOwnConflict([row({ status: "declined" })], "c1", null, { now })).toBeNull();
+  });
+
+  it("blocks a time within 30 minutes of the patient's own visit elsewhere", () => {
+    const visit = row({
+      clinic_id: "c2",
+      status: "scheduled",
+      scheduled_at: at(10).toISOString(),
+    });
+    expect(findOwnConflict([visit], "c1", at(10, 0), { now })?.kind).toBe("overlap");
+    expect(findOwnConflict([visit], "c1", at(10, 30), { now })).toBeNull();
+    expect(ownBusyTimes([visit], now)).toHaveLength(1);
+  });
+
+  it("ignores the row being rescheduled", () => {
+    const self = row({ status: "needs_reschedule", preferred_time: at(10).toISOString() });
+    expect(findOwnConflict([self], "c1", at(10), { now, excludeId: "r1" })).toBeNull();
   });
 });

@@ -1,196 +1,79 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Pressable, RefreshControl, ScrollView, ToastAndroid, View } from "react-native";
-import { Text } from "@/components/Text";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Bell } from "lucide-react-native";
+import {
+  Bell,
+  CalendarCheck2,
+  CalendarDays,
+  ChevronRight,
+  Clock3,
+  Inbox,
+  MapPin,
+  TriangleAlert,
+} from "lucide-react-native";
 
+import { Text } from "@/components/Text";
 import { FadeItem } from "@/components/FadeItem";
 import { CoachTarget } from "@/components/TutorialCoach";
 import { useCoachScroller } from "@/hooks/useCoachScroller";
-import { DoctorAppointmentCard, fmtShort } from "@/components/DoctorAppointmentCard";
-import { DoctorWeekCalendar, dayKey, sameDay } from "@/components/DoctorWeekCalendar";
+import { sameDay, startOfWeekMonday } from "@/components/DoctorWeekCalendar";
+import {
+  PatientAvatar,
+  PatientRow,
+  SectionHeader,
+  fmtCountdown,
+  fmtTime,
+} from "@/components/DoctorUi";
+import { relativeAgo } from "@/components/DoctorAppointmentCard";
 import Skeleton from "@/components/Skeleton";
 import { StyledSafeAreaView as SafeAreaView } from "@/components/StyledSafeAreaView";
 import { ScreenGradient } from "@/components/ScreenGradient";
-import {
-  ClinicalCard,
-  EmptyState,
-  Pill,
-  SecondaryButton,
-  SectionTitle,
-  UiModal,
-} from "@/components/ui";
-import { useDoctorQueue } from "@/hooks/useDoctorQueue";
+import { ClinicalCard, EmptyState, SecondaryButton } from "@/components/ui";
+import { parseIso, useDoctorBoard, useNow } from "@/hooks/useDoctorBoard";
 import { useNotifications } from "@/hooks/useNotifications";
 import { theme, cardShadow } from "@/lib/theme";
 import { TAB_BAR_CLEARANCE } from "@/lib/tabs-config";
 import {
+  SLOT_MINUTES,
   isPendingStatus,
   patientAvatarFor,
   patientDisplayFor,
   type AppointmentRow,
-  type AppointmentStatus,
 } from "@/lib/db/appointments";
+import { formatSlotDay } from "@/utils/booking-slots";
 
-type HomeTab = "requests" | "scheduled" | "today";
+const SLOT_MS = SLOT_MINUTES * 60 * 1000;
+const PREVIEW_COUNT = 3;
+const HERO_SKELETON = "rgba(255,255,255,0.2)";
 
-function greetingFor(date = new Date()): string {
-  const h = date.getHours();
-  if (h >= 5 && h < 12) return "Good morning";
-  if (h >= 12 && h < 18) return "Good afternoon";
+function greetingFor(hour: number): string {
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 18) return "Good afternoon";
   return "Good evening";
 }
 
-function parseDate(iso: string | null): Date | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d;
+/** "Dr. Reyes" from "Maria Reyes" / "Dr. Maria Reyes". */
+function doctorTitle(name: string): string {
+  const clean = name.trim().replace(/^dr\.?\s+/i, "");
+  const parts = clean.split(/\s+/);
+  return `Dr. ${parts[parts.length - 1] || clean}`;
 }
 
-function timeOf(iso: string | null): number {
-  return parseDate(iso)?.getTime() ?? Number.POSITIVE_INFINITY;
-}
+const at = (r: AppointmentRow) => parseIso(r.scheduled_at)?.getTime() ?? Infinity;
 
-type VisitGroup = {
-  key: "overdue" | "today" | "tomorrow" | "upcoming" | "unspecified";
-  label: string;
-  tone: "primary" | "neutral" | "warning";
-  hint?: string;
-  rows: AppointmentRow[];
-};
-
-/**
- * Agenda buckets for the Scheduled tile (moved over from the old Schedule tab). Past visits never
- * marked complete land in "Overdue" so they get closed out.
- */
-function groupVisits(rows: AppointmentRow[], now = new Date()): VisitGroup[] {
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrow = new Date(startToday);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const groups: VisitGroup[] = [
-    {
-      key: "overdue",
-      label: "Overdue",
-      tone: "warning",
-      hint: "mark complete or cancel",
-      rows: [],
-    },
-    { key: "today", label: "Today", tone: "primary", rows: [] },
-    { key: "tomorrow", label: "Tomorrow", tone: "primary", rows: [] },
-    { key: "upcoming", label: "Upcoming", tone: "neutral", rows: [] },
-    { key: "unspecified", label: "No time set", tone: "neutral", rows: [] },
-  ];
-  const byKey = Object.fromEntries(groups.map((g) => [g.key, g])) as Record<
-    VisitGroup["key"],
-    VisitGroup
-  >;
-  for (const r of rows) {
-    const d = parseDate(r.scheduled_at);
-    if (!d) byKey.unspecified.rows.push(r);
-    else if (d < startToday) byKey.overdue.rows.push(r);
-    else if (sameDay(d, startToday)) byKey.today.rows.push(r);
-    else if (sameDay(d, tomorrow)) byKey.tomorrow.rows.push(r);
-    else byKey.upcoming.rows.push(r);
-  }
-  return groups.filter((g) => g.rows.length > 0);
-}
-
-/**
- * Stat tile that doubles as a tab: the selected tile takes the dark gradient (same family as the
- * calendar and tab dock) and drives the list below.
- */
-function StatTab({
-  value,
-  label,
-  selected,
-  onPress,
-  accessibilityLabel,
-}: {
-  value: string;
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-  accessibilityLabel: string;
-}) {
-  const body = (
-    <>
-      <Text
-        className="text-2xl font-bold"
-        style={{ color: selected ? "#FFFFFF" : theme.colors.ink }}
-      >
-        {value}
-      </Text>
-      <Text
-        className="text-[11px] font-semibold"
-        style={{ color: selected ? "rgba(255,255,255,0.85)" : theme.colors.muted }}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-    </>
-  );
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="tab"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ selected }}
-      className="flex-1 active:opacity-80"
-    >
-      {selected ? (
-        <LinearGradient
-          colors={[...theme.gradients.dark]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={{
-            borderRadius: theme.radius.card,
-            // Same footprint as ClinicalCard (1px border + padding) so
-            // switching tabs never shifts the layout.
-            borderWidth: 1,
-            borderColor: "transparent",
-            paddingHorizontal: 12,
-            paddingVertical: 14,
-            alignItems: "center",
-            ...cardShadow,
-          }}
-        >
-          {body}
-        </LinearGradient>
-      ) : (
-        <ClinicalCard
-          className="items-center"
-          style={{ paddingHorizontal: 12, paddingVertical: 14 }}
-        >
-          {body}
-        </ClinicalCard>
-      )}
-    </Pressable>
-  );
-}
-
-export default function DoctorHome() {
-  const {
-    doctor,
-    rows,
-    patientNames,
-    patientAvatars,
-    loading,
-    refreshing,
-    error,
-    counts,
-    refresh,
-    applyStatus,
-  } = useDoctorQueue();
+/** Today: who's next, what needs a decision, and the day's agenda. */
+export default function DoctorToday() {
+  const board = useDoctorBoard();
+  const { doctor, rows, patientNames, patientAvatars, loading, refreshing, error, refresh } = board;
   const router = useRouter();
-  // Tab screens keep their scroll offset between visits, so the tutorial
-  // needs to scroll its target back into view.
   const scrollRef = useRef<ScrollView>(null);
   const { onScroll, scrollIntoView } = useCoachScroller(scrollRef);
   const { unreadCount, refresh: refreshNotifications } = useNotifications();
+  const now = useNow();
+  const today = new Date(now);
 
-  // Check for new patient bookings whenever Home is shown.
+  // Check for new patient bookings whenever Today is shown.
   useFocusEffect(
     useCallback(() => {
       void refreshNotifications();
@@ -201,185 +84,37 @@ export default function DoctorHome() {
     await Promise.all([refresh(), refreshNotifications()]);
   }, [refresh, refreshNotifications]);
 
-  // Active tile. null only until the first load settles the default:
-  // Requests when anything is waiting, otherwise Today.
-  const [pickedTab, setPickedTab] = useState<HomeTab | null>(null);
-  // Calendar day filter — applies to whichever list is active.
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  // Action failures (e.g. slot already booked) surface via the card's
-  // confirmation dialog; keep a top-level banner for anything else.
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const handleAction = async (id: string, status: AppointmentStatus, scheduledAt?: string) => {
-    setActionError(null);
-    try {
-      await applyStatus(id, status, scheduledAt);
-      const label =
-        status === "scheduled"
-          ? "Visit scheduled"
-          : status === "completed"
-            ? "Visit marked complete"
-            : status === "declined"
-              ? "Request declined"
-              : status === "cancelled"
-                ? "Visit cancelled"
-                : "Status updated";
-      ToastAndroid.show(label, ToastAndroid.SHORT);
-    } catch (err) {
-      console.error("[doctor/home] action failed:", err);
-      setActionError(err instanceof Error ? err.message : "Couldn't save that change — try again.");
-      throw err; // let the card keep its scheduler open
-    }
-  };
-
-  // Modal title for a failed action, matched to the server's message.
-  const actionErrorTitle = !actionError
-    ? ""
-    : /within 30 minutes|already booked/i.test(actionError)
-      ? "Time not available"
-      : /already passed/i.test(actionError)
-        ? "That time has passed"
-        : /marked done from/i.test(actionError)
-          ? "Too early to mark as done"
-          : /already closed/i.test(actionError)
-            ? "Appointment already closed"
-            : "Couldn't save that change";
-
-  const today = new Date();
-
-  // Pending requests, oldest first — the queue reads as triage order.
-  const fresh = useMemo(
+  const scheduled = useMemo(
+    () => rows.filter((r) => r.status === "scheduled").sort((a, b) => at(a) - at(b)),
+    [rows],
+  );
+  // Oldest request first — triage order.
+  const pending = useMemo(
     () =>
       rows
         .filter((r) => isPendingStatus(r.status))
-        .sort((a, b) => timeOf(a.created_at) - timeOf(b.created_at)),
+        .sort(
+          (a, b) =>
+            (parseIso(a.created_at)?.getTime() ?? 0) - (parseIso(b.created_at)?.getTime() ?? 0),
+        ),
     [rows],
   );
 
-  // Confirmed visits, soonest first (any without a valid time sort last).
-  const scheduled = useMemo(
-    () =>
-      rows
-        .filter((r) => r.status === "scheduled")
-        .sort((a, b) => timeOf(a.scheduled_at) - timeOf(b.scheduled_at)),
-    [rows],
-  );
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const weekStart = startOfWeekMonday(today).getTime();
+  const weekEnd = weekStart + 7 * 24 * 60 * 60 * 1000;
 
-  // Calendar dots: white = a scheduled visit, amber = a request prefers it.
-  const visitDayKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const r of scheduled) {
-      const d = parseDate(r.scheduled_at);
-      if (d) keys.add(dayKey(d));
-    }
-    return keys;
-  }, [scheduled]);
+  const todays = scheduled.filter((r) => at(r) >= startToday && sameDay(new Date(at(r)), today));
+  const overdue = scheduled.filter((r) => at(r) < startToday);
+  const thisWeek = scheduled.filter((r) => at(r) >= weekStart && at(r) < weekEnd).length;
+  // In session (inside its 30-minute slot), else the next one coming up.
+  const current = scheduled.find((r) => at(r) <= now && now < at(r) + SLOT_MS) ?? null;
+  const next = current ?? scheduled.find((r) => at(r) > now) ?? null;
+  const todayDone = todays.filter((r) => at(r) + SLOT_MS <= now).length;
+  const oldestWait = pending[0] ? relativeAgo(pending[0].created_at) : null;
 
-  const requestDayKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const r of fresh) {
-      const d = parseDate(r.preferred_time);
-      if (d) keys.add(dayKey(d));
-    }
-    return keys;
-  }, [fresh]);
-
-  // Pick the default tab once, after the first load — recomputing it live would yank the doctor
-  // from Requests to Today the moment they clear the last request.
-  if (!loading && pickedTab === null) {
-    setPickedTab(fresh.length > 0 ? "requests" : "today");
-  }
-
-  const tab: HomeTab = pickedTab ?? "requests";
-
-  const selectTab = (next: HomeTab) => {
-    setPickedTab(next);
-    // "Today" is a fixed day — a leftover calendar filter would contradict it.
-    if (next === "today") setSelectedDay(null);
-  };
-
-  const selectDay = (day: Date | null) => {
-    setSelectedDay(day);
-    // Picking another day while on Today means "show me that day's visits".
-    if (day && tab === "today" && !sameDay(day, today)) setPickedTab("scheduled");
-  };
-
-  const dayLabel = selectedDay
-    ? selectedDay.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-    : null;
-  const onDay = (iso: string | null, day: Date) => {
-    const d = parseDate(iso);
-    return d ? sameDay(d, day) : false;
-  };
-
-  const nextVisit = scheduled.find((r) => timeOf(r.scheduled_at) > today.getTime());
-
-  // The active list plus its header / empty copy.
-  let list: AppointmentRow[];
-  let title: string;
-  let meta: string | undefined;
-  let emptyTitle: string;
-  let emptyCopy: string;
-
-  if (tab === "requests") {
-    list = selectedDay ? fresh.filter((r) => onDay(r.preferred_time, selectedDay)) : fresh;
-    title = "New requests";
-    meta = selectedDay
-      ? `${list.length} prefer ${dayLabel}`
-      : `${list.length} waiting · oldest first`;
-    emptyTitle = selectedDay ? `Nothing on ${dayLabel}` : "Inbox zero";
-    emptyCopy = selectedDay
-      ? "No pending requests prefer this day. Tap it again to clear the filter."
-      : "New patient requests for your clinic will appear here.";
-  } else if (tab === "scheduled") {
-    list = selectedDay ? scheduled.filter((r) => onDay(r.scheduled_at, selectedDay)) : scheduled;
-    title = selectedDay ? `Visits · ${dayLabel}` : "Scheduled visits";
-    meta = `${list.length} ${list.length === 1 ? "visit" : "visits"}`;
-    emptyTitle = selectedDay ? `No visits on ${dayLabel}` : "No scheduled visits";
-    emptyCopy = selectedDay
-      ? "Pick another day, or tap it again to clear the filter."
-      : "Visits you schedule from New requests will appear here.";
-  } else {
-    list = scheduled.filter((r) => onDay(r.scheduled_at, today));
-    title = "Today's schedule";
-    meta = `${list.length} ${list.length === 1 ? "visit" : "visits"}`;
-    emptyTitle = "No visits today";
-    emptyCopy = nextVisit
-      ? `Next visit: ${patientDisplayFor(nextVisit, patientNames)} · ${fmtShort(nextVisit.scheduled_at)}`
-      : "Visits you schedule from New requests will appear here.";
-  }
-
-  const statValue = (n: number) => (loading ? "–" : String(n));
-
-  const renderCard = (a: AppointmentRow, idx: number) => (
-    <FadeItem key={a.id} index={Math.min(4 + idx, 8)}>
-      <DoctorAppointmentCard
-        appointment={a}
-        patientName={patientDisplayFor(a, patientNames)}
-        patientAvatarUrl={patientAvatarFor(a, patientAvatars)}
-        onAction={handleAction}
-        compact={tab !== "requests"}
-      />
-    </FadeItem>
-  );
-
-  const skeleton = (
-    <View className="flex-col gap-3 mt-5">
-      {[0, 1].map((i) => (
-        <ClinicalCard key={i} className="flex-col gap-3">
-          <View className="flex-row items-center gap-3">
-            <Skeleton className="h-12 w-12 rounded-full" />
-            <View className="flex-1 gap-1.5">
-              <Skeleton className="h-4 w-32 rounded-md" />
-              <Skeleton className="h-3 w-44 rounded-md" />
-            </View>
-            <Skeleton className="h-6 w-20 rounded-full" />
-          </View>
-          <Skeleton className="h-11 w-full rounded-full" />
-        </ClinicalCard>
-      ))}
-    </View>
-  );
+  const goSchedule = () => router.navigate("/doctor/schedule");
+  const goRequests = () => router.navigate("/doctor/requests");
 
   return (
     <SafeAreaView
@@ -409,30 +144,42 @@ export default function DoctorHome() {
           <CoachTarget
             id="doctor.header"
             scrollIntoView={scrollIntoView}
-            className="flex-row items-center justify-between mt-2"
+            className="flex-row items-start justify-between mt-2"
           >
-            <View className="flex-col flex-1 pr-3">
-              <Text className="font-semibold text-[13px]" style={{ color: theme.colors.muted }}>
-                {greetingFor()}
-              </Text>
-              {loading && !doctor ? (
-                <Skeleton className="h-7 w-40 mt-1 rounded-lg" />
-              ) : (
-                <Text
-                  className="font-bold text-[24px] mt-0.5"
-                  style={{ color: theme.colors.ink }}
-                  numberOfLines={1}
-                >
-                  {doctor?.displayName ?? "Doctor"}
-                </Text>
-              )}
-              <Text className="text-[12px] mt-0.5" style={{ color: theme.colors.faint }}>
+            <View className="flex-1 pr-3">
+              <Text
+                className="text-[11px] font-bold uppercase"
+                style={{ color: theme.colors.muted, letterSpacing: 0.8 }}
+              >
                 {today.toLocaleDateString("en-US", {
                   weekday: "long",
-                  month: "short",
+                  month: "long",
                   day: "numeric",
                 })}
               </Text>
+              {loading && !doctor ? (
+                <Skeleton className="h-7 w-48 mt-1.5 rounded-lg" />
+              ) : (
+                <Text
+                  className="font-bold text-[23px] mt-1"
+                  style={{ color: theme.colors.ink }}
+                  numberOfLines={1}
+                >
+                  {greetingFor(today.getHours())}, {doctorTitle(doctor?.displayName ?? "Doctor")}
+                </Text>
+              )}
+              {doctor ? (
+                <View className="flex-row items-center gap-1 mt-1">
+                  <MapPin size={12} color={theme.colors.faint} />
+                  <Text
+                    className="text-xs flex-1"
+                    style={{ color: theme.colors.faint }}
+                    numberOfLines={1}
+                  >
+                    {doctor.clinicName} · {doctor.specialty}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <Pressable
               className="h-11 w-11 items-center justify-center rounded-full active:opacity-80"
@@ -449,7 +196,7 @@ export default function DoctorHome() {
               hitSlop={8}
             >
               <Bell size={20} color={theme.colors.primary} />
-              {unreadCount > 0 && (
+              {unreadCount > 0 ? (
                 <View
                   className="absolute top-1.5 right-1.5 h-3 w-3 rounded-full"
                   style={{
@@ -458,113 +205,416 @@ export default function DoctorHome() {
                     borderColor: theme.colors.card,
                   }}
                 />
-              )}
+              ) : null}
             </Pressable>
           </CoachTarget>
         </FadeItem>
 
-        {/* Stat tabs — the selected tile drives the list below */}
+        {/* Next patient */}
         <FadeItem index={1}>
+          <Pressable
+            onPress={goSchedule}
+            accessibilityRole="button"
+            accessibilityLabel={
+              next
+                ? `${current ? "In session" : "Next patient"}: ${patientDisplayFor(next, patientNames)}. Open schedule.`
+                : "Open schedule"
+            }
+            className="mt-5 active:opacity-90"
+          >
+            <LinearGradient
+              colors={[...theme.gradients.dark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 24, padding: 18, ...cardShadow }}
+            >
+              {loading ? (
+                <View className="flex-row items-center gap-3.5">
+                  <View
+                    className="h-14 w-14 rounded-full"
+                    style={{ backgroundColor: HERO_SKELETON }}
+                  />
+                  <View className="flex-1 gap-2">
+                    <View className="h-3 w-24 rounded" style={{ backgroundColor: HERO_SKELETON }} />
+                    <View className="h-5 w-40 rounded" style={{ backgroundColor: HERO_SKELETON }} />
+                    <View className="h-3 w-28 rounded" style={{ backgroundColor: HERO_SKELETON }} />
+                  </View>
+                </View>
+              ) : next ? (
+                <NextPatient
+                  row={next}
+                  live={next === current}
+                  name={patientDisplayFor(next, patientNames)}
+                  avatarUrl={patientAvatarFor(next, patientAvatars)}
+                  now={now}
+                />
+              ) : (
+                <View className="flex-row items-center gap-3.5">
+                  <View
+                    className="h-14 w-14 rounded-full items-center justify-center"
+                    style={{ backgroundColor: "rgba(255,255,255,0.14)" }}
+                  >
+                    <CalendarCheck2 size={24} color="#FFFFFF" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-bold text-[17px] text-white">No upcoming visits</Text>
+                    <Text className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>
+                      {pending.length > 0
+                        ? "Book a patient from your requests to fill your calendar."
+                        : "Your calendar is clear."}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              <View
+                className="flex-row items-center mt-4 pt-3"
+                style={{ borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.14)" }}
+              >
+                <Text className="text-xs flex-1" style={{ color: "rgba(255,255,255,0.8)" }}>
+                  {loading
+                    ? " "
+                    : todays.length === 0
+                      ? "No visits today"
+                      : `${todays.length} ${todays.length === 1 ? "visit" : "visits"} today${
+                          todayDone > 0 ? ` · ${todayDone} to close` : ""
+                        }`}
+                </Text>
+                <Text className="text-xs font-bold text-white">Open schedule</Text>
+                <ChevronRight size={14} color="#FFFFFF" />
+              </View>
+            </LinearGradient>
+          </Pressable>
+        </FadeItem>
+
+        {/* Numbers */}
+        <FadeItem index={2}>
           <CoachTarget
             id="doctor.stats"
             scrollIntoView={scrollIntoView}
             className="flex-row gap-3 mt-4"
-            accessibilityRole="tablist"
           >
-            <StatTab
-              value={statValue(counts.fresh)}
-              label="New requests"
-              selected={tab === "requests"}
-              accessibilityLabel={`New requests, ${counts.fresh}`}
-              onPress={() => selectTab("requests")}
+            <StatTile
+              icon={<CalendarCheck2 size={16} color={theme.colors.primary} />}
+              value={loading ? "–" : String(todays.length)}
+              label="Today"
+              onPress={goSchedule}
             />
-            <StatTab
-              value={statValue(counts.scheduled)}
-              label="Scheduled"
-              selected={tab === "scheduled"}
-              accessibilityLabel={`Scheduled visits, ${counts.scheduled}`}
-              onPress={() => selectTab("scheduled")}
+            <StatTile
+              icon={<Inbox size={16} color={theme.colors.warningText} />}
+              value={loading ? "–" : String(pending.length)}
+              label="Requests"
+              tone={!loading && pending.length > 0 ? "warning" : "neutral"}
+              onPress={goRequests}
             />
-            <StatTab
-              value={statValue(counts.today)}
-              label="Today's visits"
-              selected={tab === "today"}
-              accessibilityLabel={`Today's visits, ${counts.today}`}
-              onPress={() => selectTab("today")}
+            <StatTile
+              icon={<CalendarDays size={16} color={theme.colors.primary} />}
+              value={loading ? "–" : String(thisWeek)}
+              label="This week"
+              onPress={goSchedule}
             />
           </CoachTarget>
         </FadeItem>
 
-        {/* Week calendar — filters whichever list is active */}
-        <FadeItem index={2}>
-          <CoachTarget id="doctor.calendar" scrollIntoView={scrollIntoView}>
-            <DoctorWeekCalendar
-              selectedDay={selectedDay}
-              onSelect={selectDay}
-              visitDayKeys={visitDayKeys}
-              requestDayKeys={requestDayKeys}
-            />
-          </CoachTarget>
-        </FadeItem>
-
-        <CoachTarget id="doctor.queue" scrollIntoView={scrollIntoView}>
-          {loading ? (
-            skeleton
-          ) : error ? (
+        {error ? (
+          <FadeItem index={3}>
+            <ClinicalCard className="mt-5">
+              <EmptyState title="Couldn't load your clinic" copy={error} />
+              <SecondaryButton label="Try again" onPress={() => void handleRefresh()} />
+            </ClinicalCard>
+          </FadeItem>
+        ) : (
+          <>
+            {/* Needs attention */}
             <FadeItem index={3}>
-              <ClinicalCard className="mt-4">
-                <EmptyState title="Couldn't load your queue" copy={error} />
-                <SecondaryButton label="Try again" onPress={() => void handleRefresh()} />
-              </ClinicalCard>
-            </FadeItem>
-          ) : (
-            // Keyed by tab + day so the stagger replays when the list swaps.
-            <View key={`${tab}-${selectedDay ? dayKey(selectedDay) : "all"}`}>
-              <FadeItem index={3}>
-                <View className="mt-5">
-                  <SectionTitle title={title} meta={meta} />
-                </View>
-              </FadeItem>
-              {list.length === 0 ? (
-                <FadeItem index={4}>
-                  <ClinicalCard className="mt-3">
-                    <EmptyState title={emptyTitle} copy={emptyCopy} />
+              <CoachTarget id="doctor.queue" scrollIntoView={scrollIntoView} className="mt-6 gap-3">
+                <SectionHeader
+                  title="Needs attention"
+                  pill
+                  count={loading ? undefined : pending.length + overdue.length}
+                  actionLabel={pending.length > 0 ? "All requests" : undefined}
+                  onAction={goRequests}
+                />
+                {loading ? (
+                  <ClinicalCard className="gap-3">
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                    <Skeleton className="h-10 w-full rounded-xl" />
                   </ClinicalCard>
-                </FadeItem>
-              ) : tab === "scheduled" && !selectedDay ? (
-                // Full agenda: Overdue / Today / Tomorrow / Upcoming.
-                <View className="flex-col gap-5 mt-3">
-                  {groupVisits(list).map((g) => (
-                    <View key={g.key} className="flex-col gap-3">
-                      <View className="flex-row items-center gap-2">
-                        <Pill label={g.label} tone={g.tone} />
-                        <Text className="text-xs" style={{ color: theme.colors.muted }}>
-                          {g.rows.length} visit{g.rows.length === 1 ? "" : "s"}
-                          {g.hint ? ` · ${g.hint}` : ""}
+                ) : pending.length === 0 && overdue.length === 0 ? (
+                  <ClinicalCard>
+                    <EmptyState
+                      title="All caught up"
+                      copy="New visit requests will show up here."
+                    />
+                  </ClinicalCard>
+                ) : (
+                  <ClinicalCard style={{ paddingVertical: 6 }}>
+                    {overdue.length > 0 ? (
+                      <Pressable
+                        onPress={goSchedule}
+                        accessibilityRole="button"
+                        className="flex-row items-center gap-3 rounded-2xl px-3 py-2.5 my-1.5 active:opacity-80"
+                        style={{ backgroundColor: theme.colors.warningBg }}
+                      >
+                        <TriangleAlert size={16} color={theme.colors.warningText} />
+                        <Text
+                          className="text-[13px] font-semibold flex-1"
+                          style={{ color: theme.colors.warningText }}
+                        >
+                          {overdue.length} past {overdue.length === 1 ? "visit" : "visits"} not
+                          marked done
                         </Text>
-                      </View>
-                      {g.rows.map((a, idx) => renderCard(a, idx))}
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <View className="flex-col gap-3 mt-3">
-                  {list.map((a, idx) => renderCard(a, idx))}
-                </View>
-              )}
-            </View>
-          )}
-        </CoachTarget>
-      </ScrollView>
+                        <ChevronRight size={15} color={theme.colors.warningText} />
+                      </Pressable>
+                    ) : null}
+                    {pending.slice(0, PREVIEW_COUNT).map((r, i) => {
+                      const t = parseIso(r.preferred_time);
+                      return (
+                        <PatientRow
+                          key={r.id}
+                          name={patientDisplayFor(r, patientNames)}
+                          avatarUrl={patientAvatarFor(r, patientAvatars)}
+                          detail={
+                            r.status === "needs_reschedule"
+                              ? "Picking a new time"
+                              : t
+                                ? `Wants ${formatSlotDay(t)} · ${fmtTime(t)}`
+                                : "Any time"
+                          }
+                          meta={relativeAgo(r.created_at)}
+                          metaTone="warning"
+                          chevron
+                          divider={i > 0 || overdue.length > 0}
+                          onPress={goRequests}
+                        />
+                      );
+                    })}
+                    {pending.length > PREVIEW_COUNT ? (
+                      <Pressable
+                        onPress={goRequests}
+                        accessibilityRole="button"
+                        className="items-center py-3 active:opacity-70"
+                        style={{ borderTopWidth: 1, borderTopColor: theme.colors.divider }}
+                      >
+                        <Text className="text-xs font-bold" style={{ color: theme.colors.primary }}>
+                          +{pending.length - PREVIEW_COUNT} more · oldest waiting since {oldestWait}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </ClinicalCard>
+                )}
+              </CoachTarget>
+            </FadeItem>
 
-      {/* Failed action (e.g. slot already taken) — the card keeps its scheduler open behind it. */}
-      <UiModal
-        visible={actionError !== null}
-        onDismiss={() => setActionError(null)}
-        title={actionErrorTitle}
-        message={actionError ?? ""}
-        actions={[{ label: "OK", kind: "primary", onPress: () => setActionError(null) }]}
-      />
+            {/* Today's agenda */}
+            <FadeItem index={4}>
+              <View className="mt-6 gap-3">
+                <SectionHeader
+                  title="Today's agenda"
+                  pill
+                  count={loading ? undefined : todays.length}
+                  actionLabel="Full schedule"
+                  onAction={goSchedule}
+                />
+                {loading ? (
+                  <ClinicalCard className="gap-3">
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                  </ClinicalCard>
+                ) : todays.length === 0 ? (
+                  <ClinicalCard>
+                    <EmptyState
+                      title="No visits today"
+                      copy={
+                        next
+                          ? `Next: ${patientDisplayFor(next, patientNames)} · ${formatSlotDay(
+                              new Date(at(next)),
+                            )}, ${fmtTime(new Date(at(next)))}`
+                          : "Visits you book will appear here."
+                      }
+                    />
+                  </ClinicalCard>
+                ) : (
+                  <ClinicalCard style={{ paddingVertical: 8 }}>
+                    {todays.map((r, i) => (
+                      <AgendaRow
+                        key={r.id}
+                        row={r}
+                        name={patientDisplayFor(r, patientNames)}
+                        avatarUrl={patientAvatarFor(r, patientAvatars)}
+                        now={now}
+                        divider={i > 0}
+                        onPress={goSchedule}
+                      />
+                    ))}
+                  </ClinicalCard>
+                )}
+              </View>
+            </FadeItem>
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function NextPatient({
+  row,
+  live,
+  name,
+  avatarUrl,
+  now,
+}: {
+  row: AppointmentRow;
+  live: boolean;
+  name: string;
+  avatarUrl: string | null;
+  now: number;
+}) {
+  const t = new Date(at(row));
+  const isToday = sameDay(t, new Date(now));
+  return (
+    <View className="flex-row items-center gap-3.5">
+      <PatientAvatar name={name} url={avatarUrl} size={56} ring="rgba(255,255,255,0.35)" />
+      <View className="flex-1">
+        <View className="flex-row items-center gap-1.5">
+          {live ? (
+            <View className="h-2 w-2 rounded-full" style={{ backgroundColor: "#4ADE80" }} />
+          ) : null}
+          <Text
+            className="text-[11px] font-bold uppercase"
+            style={{ color: "rgba(255,255,255,0.75)", letterSpacing: 0.8 }}
+          >
+            {live ? "In session" : "Next patient"}
+          </Text>
+        </View>
+        <Text className="font-bold text-[19px] text-white mt-0.5" numberOfLines={1}>
+          {name}
+        </Text>
+        <View className="flex-row items-center gap-1.5 mt-1">
+          <Clock3 size={13} color="rgba(255,255,255,0.85)" />
+          <Text className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
+            {isToday ? "Today" : formatSlotDay(t)} · {fmtTime(t)}
+          </Text>
+        </View>
+      </View>
+      <View
+        className="rounded-full px-3 py-1.5"
+        style={{ backgroundColor: "rgba(255,255,255,0.16)" }}
+      >
+        <Text className="text-xs font-bold text-white">{live ? "Now" : fmtCountdown(t, now)}</Text>
+      </View>
+    </View>
+  );
+}
+
+function StatTile({
+  icon,
+  value,
+  label,
+  tone = "neutral",
+  onPress,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+  tone?: "neutral" | "warning";
+  onPress: () => void;
+}) {
+  const warn = tone === "warning";
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      className="flex-1 active:opacity-80"
+    >
+      <ClinicalCard
+        style={{
+          paddingHorizontal: 12,
+          paddingVertical: 12,
+          backgroundColor: warn ? theme.colors.warningBg : theme.colors.card,
+          borderColor: warn ? theme.colors.warningBorder : theme.colors.cardBorder,
+        }}
+      >
+        <View
+          className="h-8 w-8 rounded-full items-center justify-center"
+          style={{ backgroundColor: warn ? theme.colors.warningSoft : theme.colors.primarySoft }}
+        >
+          {icon}
+        </View>
+        <Text
+          className="text-[22px] font-bold mt-2"
+          style={{ color: warn ? theme.colors.warningText : theme.colors.ink }}
+        >
+          {value}
+        </Text>
+        <Text className="text-[11px] font-semibold" style={{ color: theme.colors.muted }}>
+          {label}
+        </Text>
+      </ClinicalCard>
+    </Pressable>
+  );
+}
+
+function AgendaRow({
+  row,
+  name,
+  avatarUrl,
+  now,
+  divider,
+  onPress,
+}: {
+  row: AppointmentRow;
+  name: string;
+  avatarUrl: string | null;
+  now: number;
+  divider: boolean;
+  onPress: () => void;
+}) {
+  const t = new Date(at(row));
+  const live = t.getTime() <= now && now < t.getTime() + SLOT_MS;
+  const past = t.getTime() + SLOT_MS <= now;
+  const timeColor = live ? theme.colors.primary : past ? theme.colors.faint : theme.colors.ink;
+  const barColor = live
+    ? theme.colors.primary
+    : past
+      ? theme.colors.cardBorder
+      : theme.colors.primaryTint;
+  const metaColor = live
+    ? theme.colors.primary
+    : past
+      ? theme.colors.warningText
+      : theme.colors.faint;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${fmtTime(t)}, ${name}${live ? ", in session" : past ? ", to mark done" : ""}`}
+      className="flex-row items-center gap-3 py-2.5 active:opacity-70"
+      style={divider ? { borderTopWidth: 1, borderTopColor: theme.colors.divider } : undefined}
+    >
+      <View style={{ width: 60 }}>
+        <Text className="text-[13px] font-bold" style={{ color: timeColor }}>
+          {fmtTime(t)}
+        </Text>
+        <Text className="text-[10px]" style={{ color: theme.colors.faint }}>
+          {SLOT_MINUTES} min
+        </Text>
+      </View>
+      <View
+        style={{ width: 3, alignSelf: "stretch", borderRadius: 2, backgroundColor: barColor }}
+      />
+      <PatientAvatar name={name} url={avatarUrl} size={34} />
+      <Text
+        className="text-[14px] font-semibold flex-1"
+        style={{ color: past ? theme.colors.muted : theme.colors.ink }}
+        numberOfLines={1}
+      >
+        {name}
+      </Text>
+      <Text className="text-[11px] font-bold" style={{ color: metaColor }}>
+        {live ? "Now" : past ? "To close" : fmtCountdown(t, now)}
+      </Text>
+    </Pressable>
   );
 }

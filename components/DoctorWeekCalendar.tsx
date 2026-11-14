@@ -1,15 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
+import { ChevronLeft, ChevronRight } from "lucide-react-native";
+
 import { Text } from "@/components/Text";
-import { LinearGradient } from "expo-linear-gradient";
-import { CalendarCheck2 } from "lucide-react-native";
+import { ClinicalCard } from "@/components/ui";
+import { theme } from "@/lib/theme";
 
-import { theme, cardShadow } from "@/lib/theme";
-
-const WEEK_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
+const WEEK_LETTERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** Monday of the week containing `base` (local time, day precision). */
-function startOfWeekMonday(base: Date): Date {
+export function startOfWeekMonday(base: Date): Date {
   const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return d;
@@ -27,131 +27,140 @@ export function dayKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-/** Amber dot for pending requests — readable on the dark gradient. */
-const REQUEST_DOT = "#FCD34D";
-
-/** Dark-green week strip (matches the tab bar gradient). */
+/**
+ * Week strip for the Schedule tab: browse week by week, each day shows how many visits it has and
+ * an amber dot when a pending request asks for it. Closed clinic days are dimmed.
+ */
 export function DoctorWeekCalendar({
   selectedDay,
   onSelect,
-  visitDayKeys,
+  visitCounts,
   requestDayKeys,
+  closedDays = [],
 }: {
-  selectedDay: Date | null;
-  onSelect: (day: Date | null) => void;
-  visitDayKeys: Set<string>;
+  selectedDay: Date;
+  onSelect: (day: Date) => void;
+  /** dayKey → number of scheduled visits. */
+  visitCounts: Map<string, number>;
   requestDayKeys?: Set<string>;
+  /** Weekdays (0 = Sunday) the clinic is closed. */
+  closedDays?: number[];
 }) {
-  const week = useMemo(() => {
-    const monday = startOfWeekMonday(new Date());
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      return d;
-    });
-  }, []);
+  const [today] = useState(() => new Date());
+  // The strip follows the selected day's week; arrows move the selection by a week.
+  const monday = useMemo(() => startOfWeekMonday(selectedDay), [selectedDay]);
+  const week = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        return d;
+      }),
+    [monday],
+  );
 
-  const weekLabel = useMemo(() => {
-    const start = week[0];
-    const end = week[6];
-    if (start.getMonth() === end.getMonth()) {
-      return `${start.toLocaleString("en-US", { month: "long" })} ${start.getFullYear()}`;
-    }
-    return `${start.toLocaleString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleString("en-US", { month: "short", day: "numeric" })}, ${end.getFullYear()}`;
-  }, [week]);
+  const label = selectedDay.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const onThisWeek = sameDay(monday, startOfWeekMonday(today));
 
-  const selectedLabel = selectedDay
-    ? selectedDay.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-    : null;
-
-  const today = new Date();
+  const shift = (days: number) => {
+    const d = new Date(selectedDay);
+    d.setDate(d.getDate() + days);
+    onSelect(d);
+  };
 
   return (
-    <LinearGradient
-      colors={[...theme.gradients.dark]}
-      start={{ x: 0, y: 0.5 }}
-      end={{ x: 1, y: 0.5 }}
-      className="mt-4 px-4 py-4"
-      style={{ borderRadius: theme.radius.card, ...cardShadow }}
-    >
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row items-center gap-2">
-          <CalendarCheck2 size={16} color="#FFFFFF" />
-          <Text className="font-bold text-[15px] text-white">{weekLabel}</Text>
-        </View>
-        {selectedDay ? (
+    <ClinicalCard className="flex-col gap-3" style={{ paddingHorizontal: 12 }}>
+      <View className="flex-row items-center gap-2 px-1">
+        <Text className="font-bold text-[16px] flex-1" style={{ color: theme.colors.ink }}>
+          {label}
+        </Text>
+        {!sameDay(selectedDay, today) ? (
           <Pressable
-            onPress={() => onSelect(null)}
+            onPress={() => onSelect(today)}
             accessibilityRole="button"
-            accessibilityLabel="Clear selected day"
-            hitSlop={8}
+            accessibilityLabel="Jump to today"
+            hitSlop={6}
             className="rounded-full px-3 py-1.5 active:opacity-70"
-            style={{ backgroundColor: "rgba(255,255,255,0.22)" }}
+            style={{ backgroundColor: theme.colors.primarySoft }}
           >
-            <Text className="text-[11px] font-bold text-white">{selectedLabel} ✕</Text>
+            <Text className="text-xs font-bold" style={{ color: theme.colors.primaryDeep }}>
+              Today
+            </Text>
           </Pressable>
-        ) : (
-          <Text className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.8)" }}>
-            Tap a day to filter
-          </Text>
-        )}
+        ) : null}
+        <NavButton
+          label="Previous week"
+          onPress={() => shift(-7)}
+          disabled={onThisWeek}
+          icon={<ChevronLeft size={18} color={theme.colors.ink} />}
+        />
+        <NavButton
+          label="Next week"
+          onPress={() => shift(7)}
+          icon={<ChevronRight size={18} color={theme.colors.ink} />}
+        />
       </View>
-      <View className="flex-row mt-3">
+
+      <View className="flex-row" style={{ gap: 4 }}>
         {week.map((day, i) => {
-          const isSelected = selectedDay ? sameDay(day, selectedDay) : false;
+          const selected = sameDay(day, selectedDay);
           const isToday = sameDay(day, today);
-          const hasVisit = visitDayKeys.has(dayKey(day));
+          const closed = closedDays.includes(day.getDay());
+          const count = visitCounts.get(dayKey(day)) ?? 0;
           const hasRequest = requestDayKeys?.has(dayKey(day)) ?? false;
-          const dayName = day.toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-          });
-          const a11yExtras = [
-            hasVisit ? "has visits" : null,
-            hasRequest ? "has requests" : null,
-          ].filter(Boolean);
           return (
             <Pressable
-              key={day.toISOString()}
-              onPress={() => onSelect(isSelected ? null : day)}
+              key={dayKey(day)}
+              onPress={() => onSelect(day)}
               accessibilityRole="button"
-              accessibilityLabel={`Filter by ${dayName}${a11yExtras.length ? `, ${a11yExtras.join(", ")}` : ""}`}
-              accessibilityState={isSelected ? { selected: true } : {}}
-              className="flex-1 items-center active:opacity-70"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${day.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}, ${count} ${count === 1 ? "visit" : "visits"}${hasRequest ? ", has requests" : ""}${
+                closed ? ", clinic closed" : ""
+              }`}
+              className="flex-1 items-center rounded-2xl py-2.5 active:opacity-80"
+              style={{
+                backgroundColor: selected ? theme.colors.primary : "transparent",
+                borderWidth: 1,
+                borderColor: selected
+                  ? theme.colors.primary
+                  : isToday
+                    ? theme.colors.primary
+                    : "transparent",
+                opacity: closed && !selected ? 0.45 : 1,
+              }}
             >
-              <Text className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.75)" }}>
-                {WEEK_LETTERS[i]}
-              </Text>
-              <View
-                className="h-9 w-9 items-center justify-center mt-1.5"
+              <Text
+                className="text-[10px] font-bold uppercase"
                 style={{
-                  borderRadius: 999,
-                  backgroundColor: isSelected ? "#FFFFFF" : "transparent",
-                  borderWidth: !isSelected && isToday ? 1.5 : 0,
-                  borderColor: "#FFFFFF",
+                  letterSpacing: 0.4,
+                  color: selected ? "rgba(255,255,255,0.8)" : theme.colors.muted,
                 }}
               >
-                <Text
-                  className="text-[14px] font-bold"
-                  style={{
-                    color: isSelected ? theme.colors.primaryDeep : "#FFFFFF",
-                  }}
-                >
-                  {day.getDate()}
-                </Text>
-              </View>
-              <View className="flex-row gap-0.5 mt-1 h-1">
-                {hasVisit ? (
-                  <View
-                    className="h-1 w-1"
-                    style={{ borderRadius: 999, backgroundColor: "#FFFFFF" }}
-                  />
+                {WEEK_LETTERS[i]}
+              </Text>
+              <Text
+                className="text-[17px] font-bold mt-0.5"
+                style={{ color: selected ? "#FFFFFF" : theme.colors.ink }}
+              >
+                {day.getDate()}
+              </Text>
+              <View className="flex-row items-center gap-0.5 mt-1" style={{ height: 14 }}>
+                {count > 0 ? (
+                  <Text
+                    className="text-[11px] font-semibold"
+                    style={{ color: selected ? "rgba(255,255,255,0.85)" : theme.colors.primary }}
+                  >
+                    {count}
+                  </Text>
                 ) : null}
                 {hasRequest ? (
                   <View
-                    className="h-1 w-1"
-                    style={{ borderRadius: 999, backgroundColor: REQUEST_DOT }}
+                    className="rounded-full"
+                    style={{ width: 6, height: 6, backgroundColor: theme.colors.star }}
                   />
                 ) : null}
               </View>
@@ -159,6 +168,36 @@ export function DoctorWeekCalendar({
           );
         })}
       </View>
-    </LinearGradient>
+    </ClinicalCard>
+  );
+}
+
+function NavButton({
+  label,
+  onPress,
+  icon,
+  disabled = false,
+}: {
+  label: string;
+  onPress: () => void;
+  icon: React.ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      hitSlop={4}
+      className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+      style={{
+        backgroundColor: theme.colors.background,
+        opacity: disabled ? 0.35 : 1,
+      }}
+    >
+      {icon}
+    </Pressable>
   );
 }

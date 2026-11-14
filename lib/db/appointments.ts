@@ -56,12 +56,16 @@ export type AppointmentRow = {
 };
 
 export type DoctorProfile = {
+  /** The doctor's auth user id (= doctors.user_id). */
+  userId: string;
   clinicId: string;
   clinicName: string;
   /** Hospital street address ("" when the clinic row has none). */
   clinicAddress: string;
   clinicLatitude: number | null;
   clinicLongitude: number | null;
+  /** Clinic opening-hours text ("" when unknown) — lays out the booking grid. */
+  clinicHours: string;
   displayName: string;
   specialty: string;
 };
@@ -162,10 +166,11 @@ export async function getMyDoctorProfile(): Promise<DoctorProfile | null> {
   let clinicAddress = "";
   let clinicLatitude: number | null = null;
   let clinicLongitude: number | null = null;
+  let clinicHours = "";
   try {
     const { data: c } = await supabase
       .from("clinics")
-      .select("name, address, latitude, longitude")
+      .select("name, address, latitude, longitude, hours")
       .eq("id", d.clinic_id)
       .maybeSingle();
     if (c) {
@@ -174,8 +179,10 @@ export async function getMyDoctorProfile(): Promise<DoctorProfile | null> {
         address?: string | null;
         latitude?: number | null;
         longitude?: number | null;
+        hours?: string | null;
       };
       clinicName = row.name;
+      clinicHours = row.hours?.trim() ?? "";
       clinicAddress = row.address?.trim() ?? "";
       const lat = Number(row.latitude);
       const lng = Number(row.longitude);
@@ -193,11 +200,13 @@ export async function getMyDoctorProfile(): Promise<DoctorProfile | null> {
     /* clinic details are best-effort */
   }
   return {
+    userId: user.id,
     clinicId: d.clinic_id,
     clinicName,
     clinicAddress,
     clinicLatitude,
     clinicLongitude,
+    clinicHours,
     displayName: d.display_name || "Doctor",
     specialty: d.specialty || "Dermatology",
   };
@@ -353,22 +362,28 @@ export async function rescheduleRequest(id: string, preferredTime: string): Prom
 }
 
 /**
- * Confirmed visit times at a clinic in [from, to] that a new request can't use: taken for that
- * doctor, or for every doctor when `doctorId` is null. Times only — never who booked them. Empty when
- * the 0015 migration isn't applied yet (the server then simply doesn't block).
+ * Times at a clinic in [from, to] that a new request can't use: confirmed visits and (0018) other
+ * patients' pending requests — for that doctor, or with no free doctor left when `doctorId` is null.
+ * Times only — never who booked them. `excludeId` skips the request being rescheduled. Falls back to
+ * the 0015 (confirmed-only) RPC, and to [] before that.
  */
 export async function getTakenSlots(
   clinicId: string,
   doctorId: string | null,
   from: Date,
   to: Date,
+  excludeId: string | null = null,
 ): Promise<Date[]> {
-  const { data, error } = await supabase.rpc("get_taken_slots", {
+  const args = {
     p_clinic_id: clinicId,
     p_doctor_id: doctorId,
     p_from: from.toISOString(),
     p_to: to.toISOString(),
-  });
+  };
+  let { data, error } = await supabase.rpc("get_taken_slots", { ...args, p_exclude_id: excludeId });
+  if (error && isMissingFunctionError(error)) {
+    ({ data, error } = await supabase.rpc("get_taken_slots", args));
+  }
   if (error) {
     if (isMissingFunctionError(error)) return [];
     throw new Error(error.message);
@@ -405,6 +420,22 @@ export const BOOKED_SLOT_MESSAGE = "That time is already booked — please pick 
 /** Friendly copy for a picked slot that has already passed. */
 export const PAST_TIME_MESSAGE = "That time has already passed — please pick a later date & time.";
 
+/** Another patient's pending request already holds that time (0018 migration — same text). */
+export const HELD_SLOT_MESSAGE =
+  "Another patient already asked for that time — please pick another date & time.";
+
+/** Patient already has a request waiting at this clinic (0018 migration — same text). */
+export const PENDING_HERE_MESSAGE =
+  "You already have a pending request at this clinic — wait for the doctor or cancel it first.";
+
+/** Patient's picked time is within 30 minutes of another of their own visits (0018 migration). */
+export const OWN_OVERLAP_MESSAGE =
+  "You already have another visit or request around that time — pick a different date & time.";
+
+/** A doctor tried to schedule a request addressed to a colleague (0018 migration). */
+export const OTHER_DOCTOR_MESSAGE =
+  "This request is for another doctor at your clinic — only they can schedule it.";
+
 /**
  * True when a CONFIRMED visit already occupies this exact minute for the doctor being scheduled (an
  * unassigned scheduled row counts too, so the clinic never double-books a slot).
@@ -427,6 +458,18 @@ async function hasSlotConflict(
   return (data ?? []).some((row) => row.doctor_id === null || row.doctor_id === doctorId);
 }
 
+async function isActiveDoctor(clinicId: string, doctorId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("doctors")
+    .select("user_id")
+    .eq("clinic_id", clinicId)
+    .eq("user_id", doctorId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return !!data;
+}
+
 /** Doctor schedules / completes / declines (RLS: doctor update own clinic). */
 export async function updateAppointment(
   id: string,
@@ -439,20 +482,34 @@ export async function updateAppointment(
   const user = await requireUser();
   const patch: Record<string, unknown> = { status: input.status };
   if (input.scheduledAt !== undefined) patch.scheduled_at = input.scheduledAt;
-  if (input.claimAsDoctor) patch.doctor_id = user.id;
 
-  if (input.status === "scheduled" && input.scheduledAt) {
+  if (input.claimAsDoctor || (input.status === "scheduled" && input.scheduledAt)) {
     const { data: row, error: rowError } = await supabase
       .from("appointments")
-      .select("clinic_id")
+      .select("clinic_id, doctor_id")
       .eq("id", id)
       .maybeSingle();
     if (rowError) throw new Error(rowError.message);
     if (!row) {
       throw new Error("Couldn't find that appointment — pull to refresh and try again.");
     }
-    const clinicId = (row as { clinic_id: string }).clinic_id;
-    if (await hasSlotConflict(id, clinicId, input.scheduledAt, user.id)) {
+    const { clinic_id: clinicId, doctor_id: assigned } = row as {
+      clinic_id: string;
+      doctor_id: string | null;
+    };
+    // Only claim a request that's unassigned, or whose doctor has left the clinic. A request the
+    // patient addressed to a colleague stays theirs (the server enforces the same rule).
+    if (input.claimAsDoctor && assigned !== user.id) {
+      if (assigned && (await isActiveDoctor(clinicId, assigned))) {
+        throw new Error(OTHER_DOCTOR_MESSAGE);
+      }
+      patch.doctor_id = user.id;
+    }
+    if (
+      input.status === "scheduled" &&
+      input.scheduledAt &&
+      (await hasSlotConflict(id, clinicId, input.scheduledAt, user.id))
+    ) {
       throw new Error(SLOT_TAKEN_MESSAGE);
     }
   }

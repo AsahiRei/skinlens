@@ -201,7 +201,7 @@ export default function Results() {
                       className="gap-1.5 pb-3"
                       style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.divider }}
                     >
-                      <RecommendedProductBody product={product} />
+                      <RecommendedProductBody product={product} showEvidenceLink={false} />
                     </View>
                   ))}
                 </ClinicalCard>

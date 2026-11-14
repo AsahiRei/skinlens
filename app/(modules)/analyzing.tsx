@@ -27,8 +27,7 @@ import {
 } from "@/utils/face-embeddings";
 
 // TEMP: face verification during scans is switched off. Set back to true to re-enable.
-const FACE_VERIFICATION_ENABLED = true;
-import type { ClassificationResult } from "@/types/skin";
+const FACE_VERIFICATION_ENABLED = true;import type { ClassificationResult } from "@/types/skin";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import {
   assessDetection,
@@ -205,31 +204,29 @@ export default function Analyzing() {
       );
       if (FACE_VERIFICATION_ENABLED && stored && enrolled) {
         try {
-          // EVERY photo must contain the enrolled face. Only the detected face region is compared
-          // (no whole-photo crops), and a photo with no detectable face counts as a mismatch.
-          const analyzed = isMulti ? uris : [uris[0]];
-          // Prefer the uncropped originals when they line up 1:1.
-          const urisToCheck = originals.length === analyzed.length ? originals : analyzed;
-          let similarity = 1;
-          for (let i = 0; i < urisToCheck.length; i++) {
-            const live = await getVerificationEmbedding(urisToCheck[i]);
+          // Only the front photo is verified. The profile picture is frontal, and turned-head
+          // left/right captures can't be matched against it reliably, so they skip this check.
+          // In multi-angle mode the camera orders captures front, left, right, so index 0 is the
+          // front shot. Only the detected face region is compared (no whole-photo crops), and a
+          // front photo with no detectable face counts as a mismatch.
+          // Prefer the uncropped original when the originals line up 1:1 with the analyzed photos.
+          const frontUri = originals.length === uris.length && originals[0] ? originals[0] : uris[0];
+          const live = await getVerificationEmbedding(frontUri);
+          if (cancelledRef.current) return;
+          let similarity = live ? cosineSimilarity(live, enrolled) : 0;
+          // Rescue attempt for the same photo only: harshly lit captures sometimes score below
+          // threshold on the raw image.
+          if (similarity < FACE_MATCH_THRESHOLD && enhancedUris[0]) {
+            const rescued = await getVerificationEmbedding(enhancedUris[0]);
             if (cancelledRef.current) return;
-            let imageSim = live ? cosineSimilarity(live, enrolled) : 0;
-            // Rescue attempt for the same photo only: harshly lit captures sometimes score below
-            // threshold on the raw image.
-            if (imageSim < FACE_MATCH_THRESHOLD && enhancedUris[i]) {
-              const rescued = await getVerificationEmbedding(enhancedUris[i]);
-              if (cancelledRef.current) return;
-              if (rescued) imageSim = Math.max(imageSim, cosineSimilarity(rescued, enrolled));
-            }
-            console.log(
-              `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity image ${i}=`,
-              imageSim.toFixed(3),
-              `faceFound=`,
-              !!live,
-            );
-            similarity = Math.min(similarity, imageSim);
+            if (rescued) similarity = Math.max(similarity, cosineSimilarity(rescued, enrolled));
           }
+          console.log(
+            `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity front=`,
+            similarity.toFixed(3),
+            `faceFound=`,
+            !!live,
+          );
           console.log(
             `[SkinLens][Analyzing] ${new Date().toISOString()} face similarity=`,
             similarity.toFixed(3),

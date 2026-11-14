@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 
 import {
   getClinicAppointments,
+  getDoctorsForClinic,
   getMyDoctorProfile,
   isPendingStatus,
   resolveAppointmentNames,
@@ -23,13 +24,34 @@ function isToday(iso: string | null): boolean {
   );
 }
 
-/** Shared queue state for the doctor tabs (Home + Schedule). */
+/* Pending-request count shared with the tab bar badge (set by whichever tab loaded last). */
+let pendingCount = 0;
+const pendingListeners = new Set<() => void>();
+function setPendingCount(n: number) {
+  if (n === pendingCount) return;
+  pendingCount = n;
+  pendingListeners.forEach((l) => l());
+}
+export function usePendingRequestCount(): number {
+  return useSyncExternalStore(
+    (l) => {
+      pendingListeners.add(l);
+      return () => pendingListeners.delete(l);
+    },
+    () => pendingCount,
+  );
+}
+
+/** Shared queue state for the doctor tabs. */
 export function useDoctorQueue() {
   const router = useRouter();
   const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
   const [rows, setRows] = useState<AppointmentRow[]>([]);
   const [patientNames, setPatientNames] = useState<Record<string, string>>({});
   const [patientAvatars, setPatientAvatars] = useState<Record<string, string>>({});
+  /** Other ACTIVE doctors at the clinic (user_id → display name). A request addressed to one of
+   * them is theirs to schedule. */
+  const [colleagues, setColleagues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,9 +79,22 @@ export function useDoctorQueue() {
         return;
       }
       setDoctor(prof);
-      const appts = await getClinicAppointments(prof.clinicId);
+      const [appts, team] = await Promise.all([
+        getClinicAppointments(prof.clinicId),
+        getDoctorsForClinic(prof.clinicId).catch(() => null),
+      ]);
       if (isStale()) return;
       setRows(appts);
+      setPendingCount(appts.filter((r) => isPendingStatus(r.status)).length);
+      if (team) {
+        setColleagues(
+          Object.fromEntries(
+            team
+              .filter((d) => d.user_id !== prof.userId)
+              .map((d) => [d.user_id, d.display_name || "another doctor"]),
+          ),
+        );
+      }
       const names = await resolveAppointmentNames(appts);
       if (isStale()) return;
       setPatientNames(names.patientNames);
@@ -114,6 +149,7 @@ export function useDoctorQueue() {
     rows,
     patientNames,
     patientAvatars,
+    colleagues,
     loading,
     refreshing,
     error,

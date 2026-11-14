@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import { CircleAlert } from "lucide-react-native";
 
 import { AppointmentSlotPicker } from "@/components/AppointmentSlotPicker";
 import { Notice, UiModal } from "@/components/ui";
-import { PAST_TIME_MESSAGE, rescheduleRequest, type AppointmentRow } from "@/lib/db/appointments";
+import {
+  BOOKED_SLOT_MESSAGE,
+  HELD_SLOT_MESSAGE,
+  OWN_OVERLAP_MESSAGE,
+  PAST_TIME_MESSAGE,
+  rescheduleRequest,
+  type AppointmentRow,
+} from "@/lib/db/appointments";
+import { findOwnConflict, ownBusyTimes } from "@/utils/booking-slots";
 
 /**
  * Render with `key={row?.id}` so each request opens with a fresh picker.
@@ -17,6 +25,7 @@ export function RescheduleModal({
   row,
   clinicName,
   clinicHours,
+  ownRows = [],
   onDismiss,
   onDone,
 }: {
@@ -25,6 +34,8 @@ export function RescheduleModal({
   clinicName: string;
   /** Clinic hours text, used to lay out the slot grid. */
   clinicHours?: string | null;
+  /** All of the patient's appointments — their other visits block nearby times. */
+  ownRows?: AppointmentRow[];
   onDismiss: () => void;
   onDone: () => void | Promise<void>;
 }) {
@@ -32,6 +43,8 @@ export function RescheduleModal({
   const [picked, setPicked] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [slotsRefresh, setSlotsRefresh] = useState(0);
+  const ownTimes = useMemo(() => ownBusyTimes(ownRows, new Date(), row?.id), [ownRows, row?.id]);
 
   const save = async () => {
     if (!row || saving) return;
@@ -44,12 +57,28 @@ export function RescheduleModal({
       setError(PAST_TIME_MESSAGE);
       return;
     }
+    if (findOwnConflict(ownRows, row.clinic_id, picked, { excludeId: row.id })) {
+      setPicked(null);
+      setError(OWN_OVERLAP_MESSAGE);
+      return;
+    }
     setSaving(true);
     try {
       await rescheduleRequest(row.id, picked.toISOString());
       await onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save the new time. Try again.");
+      const msg = err instanceof Error ? err.message : "";
+      if (
+        msg === BOOKED_SLOT_MESSAGE ||
+        msg === HELD_SLOT_MESSAGE ||
+        msg === OWN_OVERLAP_MESSAGE ||
+        msg === PAST_TIME_MESSAGE
+      ) {
+        // The picked slot is dead — clear it and reload the booked times.
+        setPicked(null);
+        setSlotsRefresh((n) => n + 1);
+      }
+      setError(msg || "Couldn't save the new time. Try again.");
     } finally {
       setSaving(false);
     }
@@ -94,6 +123,9 @@ export function RescheduleModal({
               doctorId={row.doctor_id}
               hoursText={clinicHours}
               value={picked}
+              ownTimes={ownTimes}
+              refreshKey={slotsRefresh}
+              excludeId={row.id}
               onChange={(d) => {
                 setPicked(d);
                 setError(null);

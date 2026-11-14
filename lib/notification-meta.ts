@@ -105,7 +105,7 @@ export function getNotificationMeta(n: Pick<Notification, "id" | "type">): Notif
         icon: CalendarPlus,
         color: "#B45309",
         tint: "#FEF3C7",
-        cta: { label: "Review request", href: "/doctor" },
+        cta: { label: "Review request", href: "/doctor/requests" },
         context:
           "A patient booked a visit at your clinic. Schedule or decline it from your request queue — the patient is notified either way.",
       };

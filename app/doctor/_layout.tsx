@@ -3,11 +3,19 @@ import { Text } from "@/components/Text";
 import { Tabs } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CalendarCheck2, House, UserRound, History } from "lucide-react-native";
+import {
+  CalendarCheck2,
+  CalendarDays,
+  House,
+  Inbox,
+  UserRound,
+  History,
+} from "lucide-react-native";
 
 import Animated from "react-native-reanimated";
 import { useTabFocusStyle } from "@/components/motion";
 import { TAB_BAR_VARIANT } from "@/lib/tabs-config";
+import { usePendingRequestCount } from "@/hooks/useDoctorQueue";
 import { theme } from "@/lib/theme";
 
 const ACTIVE_FG = "#FFFFFF";
@@ -24,7 +32,9 @@ type DoctorTabBarProps = {
 };
 
 const TABS = [
-  { name: "index", label: "Home", Icon: House },
+  { name: "index", label: "Today", Icon: House },
+  { name: "schedule", label: "Schedule", Icon: CalendarDays },
+  { name: "requests", label: "Requests", Icon: Inbox },
   { name: "history", label: "History", Icon: History },
   { name: "profile", label: "Account", Icon: UserRound },
 ] as const;
@@ -32,6 +42,7 @@ const TABS = [
 function DoctorTabBar({ state, descriptors, navigation }: DoctorTabBarProps) {
   const insets = useSafeAreaInsets();
   const isFloating = TAB_BAR_VARIANT === "floating";
+  const pendingCount = usePendingRequestCount();
 
   return (
     <View
@@ -73,6 +84,7 @@ function DoctorTabBar({ state, descriptors, navigation }: DoctorTabBarProps) {
               focused={focused}
               label={label}
               Icon={Icon}
+              badge={route.name === "requests" ? pendingCount : 0}
               onPress={onPress}
             />
           );
@@ -86,18 +98,20 @@ function DoctorTab({
   focused,
   label,
   Icon,
+  badge,
   onPress,
 }: {
   focused: boolean;
   label: string;
   Icon: typeof CalendarCheck2;
+  badge: number;
   onPress: () => void;
 }) {
   const { pillStyle, iconStyle } = useTabFocusStyle(focused, ACTIVE_BG);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={badge > 0 ? `${label}, ${badge} waiting` : label}
       accessibilityState={focused ? { selected: true } : {}}
       android_ripple={{ color: "transparent" }}
       onPress={onPress}
@@ -112,6 +126,11 @@ function DoctorTab({
               color={focused ? ACTIVE_FG : INACTIVE}
               strokeWidth={focused ? 2.2 : 1.9}
             />
+            {badge > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{badge > 9 ? "9+" : badge}</Text>
+              </View>
+            ) : null}
           </Animated.View>
           <Text style={[styles.tabLabel, focused && styles.tabLabelActive]} numberOfLines={1}>
             {label}
@@ -137,7 +156,9 @@ export default function DoctorLayout() {
         }}
         tabBar={(props: unknown) => <DoctorTabBar {...(props as DoctorTabBarProps)} />}
       >
-        <Tabs.Screen name="index" options={{ title: "Home" }} />
+        <Tabs.Screen name="index" options={{ title: "Today" }} />
+        <Tabs.Screen name="schedule" options={{ title: "Schedule" }} />
+        <Tabs.Screen name="requests" options={{ title: "Requests" }} />
         <Tabs.Screen name="history" options={{ title: "History" }} />
         <Tabs.Screen name="profile" options={{ title: "Account" }} />
       </Tabs>
@@ -187,16 +208,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    paddingHorizontal: 14,
+    paddingHorizontal: 6,
     paddingVertical: 8,
-    borderRadius: 20,
-    overflow: "hidden",
-    minWidth: 76,
+    borderRadius: 18,
+    minWidth: 58,
+  },
+  badge: {
+    position: "absolute",
+    top: -5,
+    right: -9,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    borderRadius: 8,
+    backgroundColor: "#F59E0B",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#10241A",
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "600",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
     color: INACTIVE,
   },
   tabLabelActive: {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
-import { Check, ChevronDown, TriangleAlert, UserRoundCheck } from "lucide-react-native";
+import { ChevronDown } from "lucide-react-native";
 
 import { Pill } from "@/components/ui";
 import { theme } from "@/lib/theme";
@@ -124,7 +124,6 @@ export function DoctorProfileValidation({ patientId }: { patientId: string }) {
           borderColor: theme.colors.cardBorder,
         }}
       >
-        <UserRoundCheck size={15} color={theme.colors.primary} />
         <Text className="flex-1 text-[13px] font-semibold" style={{ color: theme.colors.primary }}>
           {open ? "Hide profile review" : "Review patient profile"}
         </Text>
@@ -271,7 +270,6 @@ export function DoctorProfileValidation({ patientId }: { patientId: string }) {
                     opacity: saving ? 0.7 : 1,
                   }}
                 >
-                  <Check size={15} color="#FFFFFF" />
                   <Text className="text-[13px] font-bold text-white">
                     {saving ? "Saving…" : "Confirm profile"}
                   </Text>
@@ -288,7 +286,6 @@ export function DoctorProfileValidation({ patientId }: { patientId: string }) {
                     opacity: saving ? 0.7 : 1,
                   }}
                 >
-                  <TriangleAlert size={15} color={theme.colors.danger} />
                   <Text className="text-[13px] font-bold" style={{ color: theme.colors.danger }}>
                     Follow-up
                   </Text>

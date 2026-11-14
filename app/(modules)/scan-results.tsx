@@ -496,6 +496,7 @@ export default function ScanResults() {
                       product={product}
                       // The preview routine still contains it — rebuild the preview too.
                       onReported={() => void generatePreview()}
+                      showEvidenceLink={false}
                     />
                   </View>
                 ))}

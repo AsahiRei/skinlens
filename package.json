@@ -80,6 +80,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
+    "deploy:android": "powershell -ExecutionPolicy Bypass -File scripts/deploy-android.ps1",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",

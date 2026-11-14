@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { Text } from "@/components/Text";
-import { Check, ChevronDown, ScanFace, TriangleAlert } from "lucide-react-native";
+import { ChevronDown } from "lucide-react-native";
 
 import { Pill } from "@/components/ui";
 import { theme } from "@/lib/theme";
@@ -98,7 +98,6 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
           borderColor: theme.colors.cardBorder,
         }}
       >
-        <ScanFace size={15} color={theme.colors.primary} />
         <Text className="flex-1 text-[13px] font-semibold" style={{ color: theme.colors.primary }}>
           {open ? "Hide AI scan review" : "Review latest AI scan"}
         </Text>
@@ -194,7 +193,6 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
                     opacity: saving ? 0.7 : 1,
                   }}
                 >
-                  <Check size={15} color="#FFFFFF" />
                   <Text className="text-[13px] font-bold text-white">
                     {saving ? "Saving…" : "Confirm result"}
                   </Text>
@@ -211,7 +209,6 @@ export function DoctorResultValidation({ patientId }: { patientId: string }) {
                     opacity: saving ? 0.7 : 1,
                   }}
                 >
-                  <TriangleAlert size={15} color={theme.colors.danger} />
                   <Text className="text-[13px] font-bold" style={{ color: theme.colors.danger }}>
                     Follow-up
                   </Text>
