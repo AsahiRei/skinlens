@@ -81,6 +81,14 @@ export const registerSchema = z
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+/** Must match Auth → Providers → Email → "Email OTP Length" in the Supabase dashboard. */
+export const EMAIL_OTP_LENGTH = 8;
+
+export const emailOtpSchema = z
+  .string()
+  .trim()
+  .regex(new RegExp(`^\\d{${EMAIL_OTP_LENGTH}}$`), `Enter the ${EMAIL_OTP_LENGTH}-digit code`);
+
 export const doctorSetupSchema = z.object({
   name: z.string().trim().min(1, "Enter your full name and the hospital invite code."),
   code: z

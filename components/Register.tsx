@@ -9,8 +9,8 @@ import { KeyboardAwareScroll } from "@/components/KeyboardAwareView";
 import LegalModal from "@/components/LegalModal";
 import { PrimaryButton } from "@/components/ui";
 import { supabase } from "@/utils/supabase";
-import { checkInviteCode, clearPendingDoctorSignup, redeemInviteCode } from "@/lib/db/appointments";
-import { setTutorialPending } from "@/lib/tutorial";
+import { checkInviteCode } from "@/lib/db/appointments";
+import { completeSignup } from "@/lib/db/signup";
 import { friendlyError } from "@/lib/db/pg-errors";
 import { firstError, getPasswordRules, registerSchema, stripDrPrefix } from "@/lib/validation";
 
@@ -115,7 +115,7 @@ export default function Register() {
           `[SkinLens][Auth] ${new Date().toISOString()} signUp failed:`,
           registerError.message,
         );
-        ToastAndroid.show(registerError.message, ToastAndroid.LONG);
+        ToastAndroid.show(friendlyError(registerError, "Registration failed."), ToastAndroid.LONG);
         return;
       }
       const user = authData.user;
@@ -126,73 +126,43 @@ export default function Register() {
         !!authData.session,
       );
       if (!user) {
-        console.log(
-          `[SkinLens][Auth] ${new Date().toISOString()} signUp no user returned (email confirmation?)`,
-        );
         ToastAndroid.show("Registration failed. Please try again.", ToastAndroid.SHORT);
         return;
       }
-      // Without a session (email confirmation ON) the profile insert + code
-      // redeem would fail RLS — stop here and let the user confirm first.
-      if (!authData.session) {
-        ToastAndroid.show("Check your email to confirm, then sign in.", ToastAndroid.LONG);
-        router.replace("/");
-        return;
-      }
-      // 2. Create user profile
-      console.log(
-        `[SkinLens][Auth] ${new Date().toISOString()} profile insert start user=`,
-        user.id,
-      );
-      const { error: insertError } = await supabase.from("user_profile").insert({
-        id: user.id,
-        username: isDoctor ? cleanName : undefined,
-        first_name: isDoctor ? cleanName : undefined,
-        email: input.email,
-      });
-
-      if (insertError) {
-        console.log(
-          `[SkinLens][Auth] ${new Date().toISOString()} profile insert failed:`,
-          insertError.message,
-        );
+      // With email confirmation on, signing up an address that already has a confirmed account
+      // returns an obfuscated user with no identities (and sends no email).
+      if (!authData.session && user.identities?.length === 0) {
         ToastAndroid.show(
-          friendlyError(insertError, "Couldn't create your profile. Please try again."),
+          "An account with this email already exists. Please sign in.",
           ToastAndroid.LONG,
         );
         return;
       }
-      // 3. Doctor path: tie this account to ONE hospital via invite code.
-      // redeem_clinic_code() stamps role='doctor' + burns one code use.
-      if (isDoctor) {
-        try {
-          const res = await redeemInviteCode(cleanCode, cleanName);
-          console.log(
-            `[SkinLens][Auth] ${new Date().toISOString()} redeem success clinic=`,
-            res.clinic_name,
-          );
-          // Best effort: a stale marker is harmless — /doctor-setup sees the
-          // doctors row and clears it on the next boot.
-          await clearPendingDoctorSignup().catch((e) =>
-            console.warn("[Register] clear pending doctor marker failed:", e),
-          );
-          // Arm the doctor tour; the boot router starts it once it routes to /doctor.
-          await setTutorialPending(user.id);
-          ToastAndroid.show(`Doctor account linked to ${res.clinic_name}!`, ToastAndroid.LONG);
-        } catch (redeemErr) {
-          // The account already exists — keep it signed in and let the
-          // doctor retry with another code instead of stranding it.
-          console.log(`[SkinLens][Auth] ${new Date().toISOString()} redeem failed:`, redeemErr);
-          ToastAndroid.show(
-            friendlyError(redeemErr, "Couldn't link your hospital yet."),
-            ToastAndroid.LONG,
-          );
-          router.replace("/doctor-setup");
-          return;
-        }
-      } else {
-        ToastAndroid.show("Account created successfully!", ToastAndroid.SHORT);
+      // 2. No session = the email must be verified first. The profile row and invite-code redeem
+      // need a session (RLS), so they run on /verify-email once the code is entered.
+      if (!authData.session) {
+        router.push({ pathname: "/verify-email", params: { email: input.email } });
+        return;
       }
+      // 3. Session already issued (email confirmation disabled in the Supabase project):
+      // create the profile + link the hospital right away.
+      const result = await completeSignup(user);
+      if (result.kind === "doctor-pending") {
+        // The account already exists — keep it signed in and let the doctor retry with another
+        // code instead of stranding it.
+        ToastAndroid.show(
+          friendlyError(result.error, "Couldn't link your hospital yet."),
+          ToastAndroid.LONG,
+        );
+        router.replace("/doctor-setup");
+        return;
+      }
+      ToastAndroid.show(
+        result.kind === "doctor"
+          ? `Doctor account linked to ${result.clinicName}!`
+          : "Account created successfully!",
+        result.kind === "doctor" ? ToastAndroid.LONG : ToastAndroid.SHORT,
+      );
       // 4. Registration successful
       console.log(
         `[SkinLens][Auth] ${new Date().toISOString()} handleRegister success user=`,

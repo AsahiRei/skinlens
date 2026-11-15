@@ -10,6 +10,7 @@ import LegalModal from "@/components/LegalModal";
 import { PrimaryButton } from "@/components/ui";
 import { signInWithGoogle, supabase } from "@/utils/supabase";
 import { firstError, loginSchema } from "@/lib/validation";
+import { resendSignupCode } from "@/lib/db/signup";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -33,6 +34,27 @@ export default function Login() {
           `[SkinLens][Auth] ${new Date().toISOString()} signInWithPassword failed:`,
           error.message,
         );
+        // Registered but never entered the emailed code: send a fresh one and finish verifying.
+        if (error.code === "email_not_confirmed") {
+          const sent = await resendSignupCode(parsed.data.email).then(
+            () => true,
+            (e) => {
+              console.warn("[Login] resend verification code failed:", e);
+              return false;
+            },
+          );
+          ToastAndroid.show(
+            sent
+              ? "Please verify your email first — we sent you a new code."
+              : "Please verify your email first.",
+            ToastAndroid.LONG,
+          );
+          router.push({
+            pathname: "/verify-email",
+            params: { email: parsed.data.email, sent: sent ? "1" : "0" },
+          });
+          return;
+        }
         ToastAndroid.show(error.message, ToastAndroid.LONG);
         return;
       }

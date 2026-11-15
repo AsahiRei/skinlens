@@ -72,6 +72,10 @@ export function friendlyError(
 ): string {
   const msg = (error instanceof Error ? error.message : errorText(error)).trim();
   if (!msg) return fallback;
+  // Supabase Auth's email quota (sign-up / resend / reset): "email rate limit exceeded".
+  if (/rate limit|over_email_send_rate_limit|too many requests/i.test(errorText(error))) {
+    return "Too many emails sent right now. Please wait a few minutes and try again.";
+  }
   if (/network request failed|failed to fetch|fetch failed|timeout|aborted/i.test(msg)) {
     return "Check your internet connection and try again.";
   }
