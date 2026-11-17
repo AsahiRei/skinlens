@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import knowledge from "@/data/knowledge.json";
+import evidence from "@/data/derm-validation.json";
 import { PH_PRODUCTS } from "@/data/ph-products";
 import type { ChatUserContext } from "@/types/chat";
 import { selectForProfile } from "@/utils/knowledge";
@@ -21,7 +22,7 @@ describe("Philippine product catalog", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it.each(["Sunflower Seed Oil", "Bakuchiol", "Mineral Oil", "Titanium Dioxide"])(
+  it.each(["Sunflower Seed Oil", "Bakuchiol", "Virgin Coconut Oil", "Titanium Dioxide"])(
     "has a local example for %s",
     (ing) => {
       expect(PH_PRODUCTS.some((p) => p.key_ingredients.includes(ing))).toBe(true);
@@ -36,6 +37,49 @@ describe("Philippine product catalog", () => {
     for (const p of PH_PRODUCTS) for (const r of rx) expect(p.key_ingredients).not.toContain(r);
   });
 
+  it("lists Filipino brands only", () => {
+    const imported = ["CeraVe", "Cetaphil", "The Ordinary", "Benzac", "Neutrogena", "Vaseline"];
+    for (const p of PH_PRODUCTS) {
+      expect(p.origin).toBe("ph");
+      expect(imported).not.toContain(p.brand);
+    }
+  });
+
+  it("only cites ingredients with clinical-or-better evidence", () => {
+    const weak = new Set(
+      evidence.ingredients.filter((e) => e.level === "emerging").map((e) => e.name),
+    );
+    for (const p of PH_PRODUCTS) for (const k of p.key_ingredients) expect(weak.has(k)).toBe(false);
+  });
+
+  it.each([
+    "Niacinamide",
+    "Salicylic Acid",
+    "Retinol",
+    "Vitamin C",
+    "Ceramides",
+    "Centella Asiatica",
+  ])("has a Filipino-brand product for %s", (ing) => {
+    expect(findPhProducts({ ingredients: [ing], message: "any product?" }).length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("shows no card (rather than an imported one) when no Filipino brand has the ingredient", () => {
+    expect(findPhProducts({ ingredients: ["Benzoyl Peroxide"], message: "any product?" })).toEqual(
+      [],
+    );
+  });
+
+  it("offers the Philippine-studied virgin coconut oil for eczema", () => {
+    const found = findPhProducts({
+      ingredients: ["Virgin Coconut Oil"],
+      message: "where can I buy coconut oil?",
+      ctx: { main_concerns: "eczema" },
+    });
+    expect(found.length).toBeGreaterThan(0);
+  });
+
   it("every fragranced product says so on the card", () => {
     for (const p of PH_PRODUCTS.filter((x) => x.contains_fragrance))
       expect(p.caution).toMatch(/fragrance/i);
@@ -44,7 +88,7 @@ describe("Philippine product catalog", () => {
 
 describe("fragrance and sensitive skin", () => {
   const ask = (ctx: ChatUserContext) =>
-    findPhProducts({ ingredients: ["Mineral Oil", "Bakuchiol"], message: "any product?", ctx });
+    findPhProducts({ ingredients: ["Niacinamide", "Bakuchiol"], message: "any product?", ctx });
 
   it("hides fragranced products from sensitive or eczema-prone users", () => {
     for (const ctx of [{ skin_type: "sensitive" }, { main_concerns: "eczema" }]) {
@@ -54,8 +98,8 @@ describe("fragrance and sensitive skin", () => {
 
   it("still offers them (with the caution) to other users", () => {
     const found = ask({ skin_type: "dry" });
-    const baby = found.find((p) => p.id === "johnsons-baby-oil");
-    expect(baby?.caution).toMatch(/fragrance/i);
+    const oil = found.find((p) => p.id === "human-nature-sunflower-bakuchiol");
+    expect(oil?.caution).toMatch(/fragrance/i);
   });
 });
 

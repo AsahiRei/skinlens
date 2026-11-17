@@ -177,6 +177,11 @@
       "name": "Sunflower Seed Oil",
       "description": "Plant oil rich in linoleic acid that preserved the skin barrier and improved hydration in a randomized study (unlike olive oil, which damaged it). A low-cost emollient for dry and eczema-prone skin.",
       "concerns": ["dry", "eczema"]
+    },
+    {
+      "name": "Virgin Coconut Oil",
+      "description": "Philippine-studied emollient: in randomized double-blind trials in the Philippines it beat mineral oil for dry skin (xerosis) and for mild to moderate childhood eczema, lowering eczema severity and water loss. Can clog pores, so not for acne-prone areas.",
+      "concerns": ["dry", "eczema"]
     }
   ],
   "products": [
@@ -317,7 +322,7 @@
     },
     {
       "product_type": "Barrier Oil",
-      "recommended_ingredients": ["Sunflower Seed Oil", "Jojoba Oil"],
+      "recommended_ingredients": ["Virgin Coconut Oil", "Sunflower Seed Oil", "Jojoba Oil"],
       "concerns": ["dry"],
       "role": "moisturizer"
     },

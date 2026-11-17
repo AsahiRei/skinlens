@@ -22,7 +22,7 @@ export default function ChatPhProductCard({ product }: { product: PhProduct }) {
         borderColor: theme.colors.cardBorder,
       }}
       accessible
-      accessibilityLabel={`${product.brand} ${product.name}, ${product.product_type}, about ${product.price}`}
+      accessibilityLabel={`${product.brand} ${product.name}, Filipino brand, ${product.product_type}, about ${product.price}`}
     >
       <View className="flex-row gap-2.5 items-start">
         <View
@@ -37,13 +37,23 @@ export default function ChatPhProductCard({ product }: { product: PhProduct }) {
           <ShoppingBag size={18} color={theme.colors.primary} />
         </View>
         <View className="flex-1 min-w-0">
-          <Text
-            className="text-[11px] font-bold uppercase"
-            style={{ color: theme.colors.primary }}
-            numberOfLines={1}
-          >
-            {product.brand}
-          </Text>
+          <View className="flex-row items-center gap-1.5">
+            <Text
+              className="text-[11px] font-bold uppercase flex-shrink"
+              style={{ color: theme.colors.primary }}
+              numberOfLines={1}
+            >
+              {product.brand}
+            </Text>
+            <View className="rounded-full px-1.5 py-px bg-white">
+              <Text
+                className="text-[9px] font-semibold"
+                style={{ color: theme.colors.primaryDeep }}
+              >
+                Filipino brand
+              </Text>
+            </View>
+          </View>
           <Text
             className="text-[13px] font-bold"
             style={{ color: theme.colors.ink }}

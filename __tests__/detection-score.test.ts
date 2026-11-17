@@ -1,10 +1,13 @@
 import { describe, expect, it } from "@jest/globals";
 import {
   assessDetection,
+  averageSeverity,
   computeOverallScore,
   describeDetection,
   detectionBaseline,
   formatScore,
+  parseSeverityParam,
+  usesModelSeverity,
 } from "@/utils/detection-score";
 
 describe("assessDetection", () => {
@@ -68,6 +71,63 @@ describe("detectionBaseline / computeOverallScore", () => {
     const confident = computeOverallScore("acne", { acne: 0.95, normal: 0.05 }, 60);
     const unsure = computeOverallScore("acne", { acne: 0.51, normal: 0.49 }, 60);
     expect(confident).toBeLessThan(unsure);
+  });
+});
+
+describe("model severity (acne, eczema only)", () => {
+  const sev = (label: "mild" | "moderate" | "severe", probabilities: Record<string, number>) => ({
+    label,
+    confidence: probabilities[label],
+    probabilities,
+  });
+
+  it("only grades acne and eczema", () => {
+    expect(usesModelSeverity("acne")).toBe(true);
+    expect(usesModelSeverity("eczema")).toBe(true);
+    expect(usesModelSeverity("oily")).toBe(false);
+    expect(usesModelSeverity("dry")).toBe(false);
+    expect(usesModelSeverity("normal")).toBe(false);
+  });
+
+  it("severe acne scores below mild acne from the same photo label", () => {
+    const mild = computeOverallScore("acne", { acne: 1 }, 60, sev("mild", { mild: 1 }));
+    const severe = computeOverallScore("acne", { acne: 1 }, 60, sev("severe", { severe: 1 }));
+    expect(mild).toBeGreaterThan(severe);
+    expect(detectionBaseline("acne", { acne: 1 }, sev("mild", { mild: 1 }))).toBe(65);
+    expect(detectionBaseline("acne", { acne: 1 }, sev("severe", { severe: 1 }))).toBe(35);
+  });
+
+  it("weights the severity anchor by severity probabilities", () => {
+    const split = sev("mild", { mild: 0.5, moderate: 0.5, severe: 0 });
+    expect(detectionBaseline("acne", { acne: 1 }, split)).toBeCloseTo(57.5);
+  });
+
+  it("ignores severity for labels it doesn't grade", () => {
+    expect(detectionBaseline("oily", { oily: 1 }, sev("severe", { severe: 1 }))).toBe(55);
+  });
+
+  it("falls back to the flat anchor without a severity", () => {
+    expect(detectionBaseline("acne", { acne: 1 }, null)).toBe(55);
+  });
+
+  it("parses only well-formed params for graded labels", () => {
+    const json = JSON.stringify(sev("moderate", { mild: 0.2, moderate: 0.7, severe: 0.1 }));
+    expect(parseSeverityParam(json, "acne")?.label).toBe("moderate");
+    expect(parseSeverityParam(json, "oily")).toBeNull();
+    expect(parseSeverityParam("", "acne")).toBeNull();
+    expect(parseSeverityParam("{bad", "acne")).toBeNull();
+    expect(parseSeverityParam(JSON.stringify({ label: "extreme" }), "acne")).toBeNull();
+  });
+
+  it("averages severity across angles and skips angles without one", () => {
+    const avg = averageSeverity([
+      sev("mild", { mild: 0.6, moderate: 0.3, severe: 0.1 }),
+      undefined,
+      sev("moderate", { mild: 0.2, moderate: 0.7, severe: 0.1 }),
+    ]);
+    expect(avg?.label).toBe("moderate");
+    expect(avg?.probabilities.moderate).toBeCloseTo(0.5);
+    expect(averageSeverity([undefined, null])).toBeNull();
   });
 });
 

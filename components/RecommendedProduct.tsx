@@ -117,8 +117,8 @@ export function EvidenceModal({
 }
 
 /**
- * Body of a recommended-product card (callers keep their own container): name, ingredient chips
- * marked by evidence strength, the reason, an "Evidence & sources" link and the reaction button.
+ * Body of a recommended-product card (callers keep their own container): name, ingredient chips,
+ * the reason, an "Evidence & sources" link and the reaction button.
  */
 export function RecommendedProductBody({
   product,
@@ -141,14 +141,10 @@ export function RecommendedProductBody({
           return (
             <View
               key={ingredient}
-              className="flex-row items-center gap-1.5 rounded-full px-3 py-1"
+              className="rounded-full px-3 py-1"
               style={{ backgroundColor: theme.colors.primarySoft }}
               accessibilityLabel={`${ingredient}, ${v ? EVIDENCE_LABEL[v.level] : "no evidence record"}`}
             >
-              <View
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ backgroundColor: v ? LEVEL_COLOR[v.level] : theme.colors.faint }}
-              />
               <Text className="text-xs font-semibold" style={{ color: theme.colors.primaryDeep }}>
                 {ingredient}
               </Text>

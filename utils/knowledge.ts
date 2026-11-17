@@ -379,6 +379,7 @@ const INGREDIENT_ALIASES: Record<string, RegExp> = {
   "Mineral Oil": /mineral oil|baby oil|paraffinum liquidum/,
   Bakuchiol: /bakuchiol/,
   "Sunflower Seed Oil": /sunflower/,
+  "Virgin Coconut Oil": /coconut oil|\bvco\b/,
   "Glycolic Acid": /glycolic|\baha\b|alpha[- ]?hydroxy/,
   "Lactic Acid": /lactic|\baha\b|alpha[- ]?hydroxy/,
   "Azelaic Acid": /azelaic/,
@@ -409,7 +410,7 @@ function productKeywords(name: string): string[] {
 
 /**
  * Catalog products the note refers to: the brand plus at least two of the product's distinctive
- * words ("Neutrogena acne wash" → Neutrogena Oil-Free Acne Wash).
+ * words ("Celeteque acne gel" → Celeteque DermoScience Acne Cleansing Gel).
  */
 export function catalogProductsMentioned(text: string): PhProduct[] {
   const t = text.toLowerCase();

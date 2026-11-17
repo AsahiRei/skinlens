@@ -969,6 +969,32 @@
         "date": null,
         "notes": null
       }
+    },
+    {
+      "name": "Virgin Coconut Oil",
+      "level": "clinical",
+      "dermatologistValidated": false,
+      "validatedBy": [],
+      "evidence": "Two randomized double-blind trials from the Philippines: extra virgin coconut oil was as safe and at least as effective as mineral oil for mild to moderate xerosis (Agero & Verallo-Rowell 2004), and in children with mild to moderate atopic dermatitis it outperformed mineral oil on SCORAD, transepidermal water loss and skin capacitance (Evangelista et al. 2014). An emollient, not a guideline-endorsed active; it can be comedogenic on acne-prone skin.",
+      "sources": [
+        {
+          "name": "Agero AL, Verallo-Rowell VM. A randomized double-blind controlled trial comparing extra virgin coconut oil with mineral oil as a moisturizer for mild to moderate xerosis. Dermatitis 2004",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/15724344/",
+          "type": "peer_reviewed"
+        },
+        {
+          "name": "Evangelista MT et al. Topical virgin coconut oil in mild to moderate pediatric atopic dermatitis: a randomized, double-blind, clinical trial. Int J Dermatol 2014",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24320105/",
+          "type": "peer_reviewed"
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewer": null,
+        "licenseNo": null,
+        "date": null,
+        "notes": null
+      }
     }
   ]
 }

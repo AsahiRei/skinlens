@@ -36,8 +36,9 @@ const recommendedIngredients = (json: string): string[] =>
 
 describe("sensitivity log understands how people actually write", () => {
   it.each([
-    ["Neutrogena Oil-Free Acne Wash made my face burn", "Salicylic Acid"],
-    ["neutrogena acne wash stung", "Salicylic Acid"],
+    ["Celeteque Acne Cleansing Gel made my face burn", "Salicylic Acid"],
+    ["celeteque acne gel stung", "Salicylic Acid"],
+    ["broke out from VCO", "Virgin Coconut Oil"],
     ["redness after the salicylic cleanser", "Salicylic Acid"],
     ["BHA toner stung", "Salicylic Acid"],
     ["allergic to tea tree", "Tea Tree Oil"],
@@ -61,10 +62,10 @@ describe("sensitivity log understands how people actually write", () => {
   });
 
   it("finds catalog products by brand + product words", () => {
-    expect(catalogProductsMentioned("my neutrogena acne wash").map((p) => p.brand)).toContain(
-      "Neutrogena",
+    expect(catalogProductsMentioned("my celeteque acne gel").map((p) => p.brand)).toContain(
+      "Celeteque",
     );
-    expect(catalogProductsMentioned("neutrogena")).toHaveLength(0);
+    expect(catalogProductsMentioned("celeteque")).toHaveLength(0);
   });
 });
 
@@ -211,6 +212,37 @@ describe("after-scan survey questions", () => {
     expect(values("acne", "severity")).toContain("severe");
     expect(values("eczema", "itch_level")).toContain("very_itchy");
     expect(values("eczema", "coverage")).toContain("large_area");
+    expect(values("acne", "pain")).toContain("deep_painful");
+  });
+
+  it("the photo's severity rating triggers urgent care in place of the skipped questions", () => {
+    expect(needsUrgentCare("acne", { model_severity: "severe" })).toBe(true);
+    expect(needsUrgentCare("eczema", { model_severity: "severe" })).toBe(true);
+    expect(needsUrgentCare("acne", { model_severity: "moderate" })).toBe(false);
+    expect(needsUrgentCare("acne", { pain: "deep_painful" })).toBe(true);
+    // Oily/dry severity is never graded from the photo.
+    expect(needsUrgentCare("oily", { model_severity: "severe" })).toBe(false);
+  });
+
+  it("only questions the photo can answer are skippable", () => {
+    const skippable = (label: string) =>
+      SURVEYS[label]
+        .filter((q) => (q as { replacedByModelSeverity?: boolean }).replacedByModelSeverity)
+        .map((q) => q.id);
+    expect(skippable("acne")).toEqual(["severity", "extent"]);
+    expect(skippable("eczema")).toEqual(["coverage"]);
+    expect(skippable("oily")).toEqual([]);
+    expect(skippable("dry")).toEqual([]);
+    expect(skippable("normal")).toEqual([]);
+    // Every survey keeps at least one scored question after skipping.
+    for (const label of ["acne", "eczema"]) {
+      const kept = SURVEYS[label].filter(
+        (q) =>
+          !(q as { replacedByModelSeverity?: boolean }).replacedByModelSeverity &&
+          q.scored !== false,
+      );
+      expect(kept.length).toBeGreaterThan(0);
+    }
   });
 });
 

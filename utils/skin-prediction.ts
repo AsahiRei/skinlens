@@ -6,6 +6,7 @@ import jpeg from "jpeg-js";
 import { Buffer } from "buffer";
 import { Image } from "react-native";
 import type { ClassificationResult } from "@/types/skin";
+import { usesModelSeverity } from "@/utils/detection-score";
 
 if (typeof (globalThis as Record<string, unknown>).Buffer === "undefined") {
   (globalThis as Record<string, unknown>).Buffer = Buffer;
@@ -230,9 +231,10 @@ export async function classifyImage(imageUri: string): Promise<ClassificationRes
     probabilityMap[className] = probabilities[idx];
   });
 
-  // Severity head is meaningless for "normal" skin, so only report it for a detected condition.
+  // Severity is only used for acne and eczema: it's meaningless for "normal" skin, and dry/oily are
+  // skin types the app doesn't grade by severity.
   let severity: ClassificationResult["severity"];
-  if (severityProbs && label !== "normal") {
+  if (severityProbs && usesModelSeverity(label)) {
     let sevIndex = 0;
     for (let i = 1; i < severityProbs.length; i++) {
       if (severityProbs[i] > severityProbs[sevIndex]) sevIndex = i;

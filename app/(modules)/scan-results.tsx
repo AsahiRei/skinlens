@@ -23,7 +23,13 @@ import { parseScoreParam } from "@/utils/questionnaire-score";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import { UrgentCareModal } from "@/components/UrgentCareModal";
 import { markUrgentCareReminded, needsUrgentCare } from "@/utils/urgent-care";
-import { assessDetection, computeOverallScore, prettyLabel } from "@/utils/detection-score";
+import {
+  assessDetection,
+  computeOverallScore,
+  parseSeverityParam,
+  prettyLabel,
+  type SeverityLevel,
+} from "@/utils/detection-score";
 
 const detectionDescriptions: Record<string, string> = {
   acne: "Our AI found signs consistent with acne on your skin. Acne is a common skin condition caused by clogged pores, excess oil, and bacteria. With the right routine, it can be managed effectively.",
@@ -35,23 +41,43 @@ const detectionDescriptions: Record<string, string> = {
     "No significant skin conditions were detected. Your skin appears healthy. A good maintenance routine will help keep it that way.",
 };
 
+const SEVERITY_STYLE: Record<SeverityLevel, { color: string; bg: string }> = {
+  mild: { color: "#214E36", bg: "#DCFCE7" },
+  moderate: { color: "#B45309", bg: "#FEF3C7" },
+  severe: { color: "#DC2626", bg: "#FEE2E2" },
+};
+
 const DISPUTED_COPY =
   "You said this result doesn't match your skin, so it isn't scored or counted in your progress, and your routine follows your own profile instead. Try a retake in even, natural light — and if something on your skin worries you, a dermatologist can check it.";
 
 export default function ScanResults() {
   const router = useRouter();
-  const { imageUri, sourceType, label, confidence, probabilities, surveyAnswers, severityScore } =
-    useLocalSearchParams<{
-      imageUri: string;
-      sourceType: string;
-      label: string;
-      confidence: string;
-      probabilities: string;
-      surveyAnswers: string;
-      severityScore: string;
-    }>();
+  const {
+    imageUri,
+    sourceType,
+    label,
+    confidence,
+    probabilities,
+    surveyAnswers,
+    severityScore,
+    severity,
+  } = useLocalSearchParams<{
+    imageUri: string;
+    sourceType: string;
+    label: string;
+    confidence: string;
+    probabilities: string;
+    surveyAnswers: string;
+    severityScore: string;
+    severity: string;
+  }>();
 
   const detectionLabel = label ?? "normal";
+  // Model's severity rating (acne/eczema only); null for other labels or older models.
+  const modelSeverity = useMemo(
+    () => parseSeverityParam(severity, detectionLabel),
+    [severity, detectionLabel],
+  );
   // A real 0 (all worst answers) must stay 0 — `Number(x) || 50` used to turn it into 50.
   const surveyScore = parseScoreParam(severityScore, 50);
   const conf = Number(confidence) || 0;
@@ -83,25 +109,38 @@ export default function ScanResults() {
   const assessment = assessDetection(conf, probabilityMap);
   // surveyAnswers comes from navigation params — never trust it blindly.
   const parsedSurveyAnswers: Record<string, string> = useMemo(() => {
-    if (!surveyAnswers) return {};
-    try {
-      const parsed: unknown = JSON.parse(surveyAnswers);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, string>;
+    let answers: Record<string, string> = {};
+    if (surveyAnswers) {
+      try {
+        const parsed: unknown = JSON.parse(surveyAnswers);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          answers = parsed as Record<string, string>;
+        }
+      } catch {
+        // Ignore malformed answers.
       }
-      return {};
-    } catch {
-      return {};
     }
-  }, [surveyAnswers]);
+    // The photo's severity replaces the "how bad is it" questions, so it's stored with the answers:
+    // urgent-care checks (here and on Home) and later reviews read it from survey_answers. A
+    // disputed result ("doesn't match my skin") keeps no finding, so no severity either.
+    if (modelSeverity && answers.match !== "no") {
+      answers = { ...answers, model_severity: modelSeverity.label };
+    }
+    return answers;
+  }, [surveyAnswers, modelSeverity]);
 
   // "No, that doesn't match my skin": the detection is not presented as a finding, gets no score,
   // doesn't drive the routine and is kept out of progress (utils/result-kind).
   const disputed = parsedSurveyAnswers.match === "no";
 
-  // Overall health score: probability-weighted detection baseline blended
-  // with the survey severity (see utils/detection-score.ts).
-  const overallScore = computeOverallScore(detectionLabel, probabilityMap, surveyScore);
+  // Overall health score: detection baseline (graded by the model's severity for acne/eczema)
+  // blended with the survey (see utils/detection-score.ts).
+  const overallScore = computeOverallScore(
+    detectionLabel,
+    probabilityMap,
+    surveyScore,
+    modelSeverity,
+  );
 
   const [skinType, setSkinType] = useState("normal");
   const [loading, setLoading] = useState(false);
@@ -335,6 +374,21 @@ export default function ScanResults() {
             <Text className="text-xl font-bold text-gray-800 capitalize">
               {prettyLabel(detectionLabel)}
             </Text>
+            {/* Photo severity (acne/eczema only); hidden when the user disputed the finding. */}
+            {modelSeverity && !disputed && (
+              <View
+                className="self-center rounded-full px-4 py-1.5"
+                style={{ backgroundColor: SEVERITY_STYLE[modelSeverity.label].bg }}
+                accessibilityLabel={`Severity: ${modelSeverity.label}`}
+              >
+                <Text
+                  className="text-sm font-bold"
+                  style={{ color: SEVERITY_STYLE[modelSeverity.label].color }}
+                >
+                  {prettyLabel(modelSeverity.label)} severity
+                </Text>
+              </View>
+            )}
             {conf > 0 && (
               <Text className="text-sm" style={{ color: theme.colors.muted }}>
                 Confidence: {(conf * 100).toFixed(1)}%

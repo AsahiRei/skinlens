@@ -162,7 +162,8 @@ export function formatClinicsReply(result: NearbyClinicsResult, ctx?: ChatUserCo
 
   // Personal nudge from the user's scan data.
   const severity = ctx?.severity?.toLowerCase() ?? "";
-  if (/severe|high/.test(severity)) {
+  // `severity` is the saved score band (excellent/good/fair/poor/critical), not a severity word.
+  if (/^(poor|critical)$/.test(severity)) {
     parts.push(
       `Since your last scan was rated ${ctx?.severity}, booking a visit soon is a good idea. You can attach your SkinLens report when you book.`,
     );

@@ -4,12 +4,16 @@
  * something a routine can't fix (widespread/painful acne, cracking skin,
  * sleep-disrupting or widespread eczema). "Severe" oiliness is cosmetic and
  * does not qualify.
+ *
+ * `model_severity` is the photo's severity rating (acne/eczema), saved with the answers because it
+ * replaces the "how bad is it" questions; `severity`/`coverage` are still asked when the model
+ * gives no rating.
  */
 
 const URGENT_ANSWERS: Record<string, Record<string, string[]>> = {
-  acne: { severity: ["severe"] },
+  acne: { severity: ["severe"], model_severity: ["severe"], pain: ["deep_painful"] },
   dry: { severity: ["severe"] },
-  eczema: { itch_level: ["very_itchy"], coverage: ["large_area"] },
+  eczema: { itch_level: ["very_itchy"], coverage: ["large_area"], model_severity: ["severe"] },
 };
 
 export function needsUrgentCare(

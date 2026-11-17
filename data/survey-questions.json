@@ -13,6 +13,7 @@
     {
       "id": "severity",
       "label": "In the past 7 days, how would you rate your acne?",
+      "replacedByModelSeverity": true,
       "options": [
         { "value": "almost_clear", "label": "Almost clear (1–2 small spots)", "points": 4, "icon": "eye-outline" },
         { "value": "mild", "label": "Mild (a few spots)", "points": 3, "icon": "eye-outline" },
@@ -23,10 +24,20 @@
     {
       "id": "extent",
       "label": "In the past 7 days, how much of your face had breakouts?",
+      "replacedByModelSeverity": true,
       "options": [
         { "value": "one_area", "label": "One area", "points": 3, "icon": "person-outline" },
         { "value": "several_areas", "label": "Two or more areas", "points": 2, "icon": "person-outline" },
         { "value": "all_over", "label": "All over the face", "points": 1, "icon": "person-outline" }
+      ]
+    },
+    {
+      "id": "pain",
+      "label": "In the past 7 days, have any spots been painful or tender?",
+      "options": [
+        { "value": "no", "label": "No", "points": 3, "icon": "hand-left-outline" },
+        { "value": "a_little", "label": "A little, when touched", "points": 2, "icon": "hand-left-outline" },
+        { "value": "deep_painful", "label": "Yes, deep or painful lumps", "points": 1, "icon": "hand-left-outline" }
       ]
     },
     {
@@ -75,6 +86,7 @@
     {
       "id": "coverage",
       "label": "How much area is affected right now?",
+      "replacedByModelSeverity": true,
       "options": [
         { "value": "small_spot", "label": "Small spot (< palm size)", "points": 3, "icon": "resize-outline" },
         { "value": "medium_area", "label": "Medium area (1–3 patches)", "points": 2, "icon": "resize-outline" },

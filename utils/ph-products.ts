@@ -34,6 +34,7 @@ const INGREDIENT_ALIASES: [RegExp, string][] = [
   [/\btitanium\b/, "Titanium Dioxide"],
   [/\bmineral oil\b|\bbaby oil\b/, "Mineral Oil"],
   [/\bsunflower\b/, "Sunflower Seed Oil"],
+  [/\b(virgin )?coconut oil\b|\bvco\b/, "Virgin Coconut Oil"],
   [/\bjojoba\b/, "Jojoba Oil"],
   [/\bglycerin\b|\bglycerol\b/, "Glycerin"],
   [/\bdimethicone\b/, "Dimethicone"],
@@ -208,9 +209,9 @@ export function formatPhProductsForPrompt(items: PhProduct[]): string {
   if (items.length === 0) return "";
   const lines = items.map(
     (p) =>
-      `- ${p.brand} ${p.name} (${p.product_type}, ${p.key_ingredients.join(", ")}, approx. ${p.price})`,
+      `- ${p.brand} ${p.name} (Filipino brand, ${p.product_type}, ${p.key_ingredients.join(", ")}, approx. ${p.price})`,
   );
-  return `PHILIPPINE PRODUCT EXAMPLES (shown to the user as cards below your reply):\n${lines.join("\n")}`;
+  return `PHILIPPINE PRODUCT EXAMPLES (shown to the user as cards below your reply; all are Filipino brands):\n${lines.join("\n")}`;
 }
 
 export type ShopLink = { label: string; url: string };

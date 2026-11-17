@@ -387,7 +387,7 @@ export default function SensitivityScreen() {
                           <TextInput
                             value={productQuery}
                             onChangeText={setProductQuery}
-                            placeholder="Search brand or product, e.g. Cetaphil"
+                            placeholder="Search brand or product, e.g. Celeteque"
                             placeholderTextColor={theme.colors.faint}
                             className="py-3"
                             style={{ color: theme.colors.ink }}

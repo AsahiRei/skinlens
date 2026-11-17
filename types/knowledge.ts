@@ -59,6 +59,8 @@ export type PhProduct = {
   contains_fragrance?: boolean;
   /** One-line caution shown on the card (e.g. "Contains fragrance"). */
   caution?: string;
+  /** Filipino brand — the catalog lists Philippine brands only. */
+  origin: "ph";
   /** The ingredient(s) from the user's request that matched this product. */
   matched?: string[];
 };

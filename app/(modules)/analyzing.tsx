@@ -27,12 +27,15 @@ import {
 } from "@/utils/face-embeddings";
 
 // TEMP: face verification during scans is switched off. Set back to true to re-enable.
-const FACE_VERIFICATION_ENABLED = true;import type { ClassificationResult } from "@/types/skin";
+const FACE_VERIFICATION_ENABLED = false;
+import type { ClassificationResult } from "@/types/skin";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import {
   assessDetection,
+  averageSeverity,
   describeDetection,
   prettyLabel as toPretty,
+  usesModelSeverity,
 } from "@/utils/detection-score";
 
 const steps = stepsData.analyzing;
@@ -130,7 +133,17 @@ export default function Analyzing() {
         bestConf = conf;
       }
     });
-    return { label: bestLabel, confidence: bestConf, probabilities: avgProbabilities };
+    // Severity only from the angles that agree with the combined label, so a left-cheek "acne"
+    // severity doesn't get attached to a combined "eczema" result.
+    const severity = usesModelSeverity(bestLabel)
+      ? averageSeverity(results.filter((r) => r.label === bestLabel).map((r) => r.severity))
+      : null;
+    return {
+      label: bestLabel,
+      confidence: bestConf,
+      probabilities: avgProbabilities,
+      ...(severity ? { severity } : {}),
+    };
   };
 
   const run = async () => {
@@ -210,7 +223,8 @@ export default function Analyzing() {
           // front shot. Only the detected face region is compared (no whole-photo crops), and a
           // front photo with no detectable face counts as a mismatch.
           // Prefer the uncropped original when the originals line up 1:1 with the analyzed photos.
-          const frontUri = originals.length === uris.length && originals[0] ? originals[0] : uris[0];
+          const frontUri =
+            originals.length === uris.length && originals[0] ? originals[0] : uris[0];
           const live = await getVerificationEmbedding(frontUri);
           if (cancelledRef.current) return;
           let similarity = live ? cosineSimilarity(live, enrolled) : 0;
@@ -310,6 +324,7 @@ export default function Analyzing() {
         label: detectedResult.label,
         confidence: String(detectedResult.confidence),
         probabilities: JSON.stringify(detectedResult.probabilities),
+        severity: detectedResult.severity ? JSON.stringify(detectedResult.severity) : "",
       },
     });
   };

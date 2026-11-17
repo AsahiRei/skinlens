@@ -23,6 +23,7 @@ import detectionMetaJson from "@/data/detection-meta.json";
 import detectionQuestionsJson from "@/data/survey-questions.json";
 import { ScreenGradient } from "@/components/ScreenGradient";
 import { scoreQuestionnaire } from "@/utils/questionnaire-score";
+import { parseSeverityParam } from "@/utils/detection-score";
 
 const ICON_MAP: Record<string, typeof CheckCircle> = {
   "checkmark-circle-outline": CheckCircle,
@@ -38,6 +39,8 @@ const detectionQuestions: Record<
     id: string;
     label: string;
     scored?: boolean;
+    /** Skipped when the photo already graded severity (acne, eczema); asked as a fallback otherwise. */
+    replacedByModelSeverity?: boolean;
     options: { value: string; label: string; points: number; icon: string }[];
   }[]
 > = detectionQuestionsJson;
@@ -53,16 +56,24 @@ export default function Survey() {
   const [page, setPage] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
-  const { imageUri, sourceType, label, confidence, probabilities } = useLocalSearchParams<{
-    imageUri: string;
-    sourceType: string;
-    label: string;
-    confidence: string;
-    probabilities: string;
-  }>();
+  const { imageUri, sourceType, label, confidence, probabilities, severity } =
+    useLocalSearchParams<{
+      imageUri: string;
+      sourceType: string;
+      label: string;
+      confidence: string;
+      probabilities: string;
+      severity: string;
+    }>();
 
   const detectionLabel = label ?? "normal";
-  const questions = detectionQuestions[detectionLabel] ?? detectionQuestions.normal;
+  const modelSeverity = parseSeverityParam(severity, detectionLabel);
+  const allQuestions = detectionQuestions[detectionLabel] ?? detectionQuestions.normal;
+  // Questions about what the photo already shows (how bad, how much of the face) are dropped when
+  // the model graded severity; symptoms and history (itch, pain, last 7 days) are still asked.
+  const questions = modelSeverity
+    ? allQuestions.filter((q) => !q.replacedByModelSeverity)
+    : allQuestions;
   const meta = detectionMeta[detectionLabel] ?? detectionMeta.normal;
   const currentQuestion = questions[page];
   const isAnswered = !!answers[currentQuestion.id];
@@ -86,6 +97,7 @@ export default function Survey() {
         probabilities: probabilities ?? "{}",
         surveyAnswers: JSON.stringify(finalAnswers),
         severityScore: severityScore == null ? "" : String(severityScore),
+        severity: modelSeverity ? JSON.stringify(modelSeverity) : "",
       },
     });
   };

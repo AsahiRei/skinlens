@@ -120,6 +120,7 @@ const INGREDIENT_ACTION: Record<string, string> = {
   "Mineral Oil": "seals in moisture to stop water loss",
   Bakuchiol: "smooths texture as a gentler retinol alternative",
   "Sunflower Seed Oil": "supports the barrier and softens dry skin",
+  "Virgin Coconut Oil": "moisturizes dry skin and calms eczema flares",
 };
 
 const CONCERN_BENEFIT: Record<string, string> = {
